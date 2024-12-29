@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@FeignClient(name = "NexusUserApi", url = "http://localhost:8080")
+@FeignClient(name = "NexusUserApi", url = "devops.nexus.url:http://localhost:8080")
 public interface NexusUserApi {
 
     @PostMapping("/v1/security/users")
