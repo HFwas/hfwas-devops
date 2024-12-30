@@ -16,5 +16,5 @@ public class Cve {
     private CveMetrics metrics;
     private List<Weaknesses> weaknesses;
     private String configurations;
-    private  references;
+    private List<Reference> references;
 }
