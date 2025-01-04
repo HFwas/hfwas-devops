@@ -1,5 +1,6 @@
 package cn.hfwas.devops.tools.entity.harbor;
 
+import com.google.gson.JsonObject;
 import lombok.Data;
 
 /**
@@ -13,5 +14,5 @@ public class HarborProject {
     private String count_limit;
     private String registry_id;
     private String storage_limit;
-    private jsono metadata;
+    private JsonObject metadata;
 }

@@ -1,8 +1,9 @@
 package cn.hfwas.devops.tools.entity.harbor;
 
+
+import com.google.gson.JsonObject;
 import lombok.Data;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -13,7 +14,7 @@ import java.util.List;
  */
 @Data
 public class CveAllowlist {
-    private List<gson> items;
+    private List<JsonObject> items;
     private String project_id;
     private Integer id;
     private Integer expires_at;

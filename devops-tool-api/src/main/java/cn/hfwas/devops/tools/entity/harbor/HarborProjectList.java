@@ -1,5 +1,6 @@
 package cn.hfwas.devops.tools.entity.harbor;
 
+import com.google.gson.JsonObject;
 import lombok.Data;
 
 /**
@@ -21,5 +22,5 @@ public class HarborProjectList {
     private Integer current_user_role_id;
     private Integer current_user_role_ids;
     private Integer repo_count;
-    private Gson metadata;
+    private JsonObject metadata;
 }
