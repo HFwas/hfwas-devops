@@ -13,7 +13,7 @@ public interface NexusUserApi {
     void users(@RequestBody NexusUser nexusUser);
 
     @GetMapping("/v1/security/users")
-    List<NexusUser> users(@RequestParam("source") String source, @RequestParam String userId);
+    List<NexusUser> users(@RequestParam("source") String source, @RequestParam("userId") String userId);
 
     @PutMapping("/v1/security/users/{userId}/change-password")
     void changePassword(@PathVariable("userId") String userId, @RequestBody NexusUser nexusUser);
