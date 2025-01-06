@@ -1,0 +1,19 @@
+server:
+  port: 8089
+
+spring:
+  application:
+    name: devops-core
+  profiles:
+    active: dev
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    username: root
+    password:
+    url: jdbc:mysql://10.10.103.229:33200/yanlian_devops_development?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&autoReconnect=true&failOverReadOnly=false&transformedBitIsBoolean=true&allowPublicKeyRetrieval=true
+  data:
+    redis:
+      port: 6379
+      password: 000
+      database: 10
+      host: 127.0.0.1
