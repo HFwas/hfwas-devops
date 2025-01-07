@@ -1,13 +1,11 @@
 package com.hfwas.devops.controller;
 
 import com.hfwas.devops.tools.api.nexus.NexusUserApi;
-import com.hfwas.devops.tools.entity.nexus.user.NexusUser;
+import feign.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 /**
  * @author houfei
@@ -19,12 +17,13 @@ import java.util.List;
 public class DemoController {
 
     @Autowired
-    NexusUserApi nexusUserApi;
+    private NexusUserApi nexusUserApi;
 
     @GetMapping("/list")
     public void list() {
-        List<NexusUser> users = nexusUserApi.users(null, null);
-        System.out.println(users);
+        Response users = nexusUserApi.users(null, null);
+        Response.Body body = users.body();
+        System.out.println();
     }
 
 

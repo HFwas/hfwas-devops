@@ -2,6 +2,8 @@ package com.hfwas.devops.tools.entity.nexus.user;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class NexusUser {
 
@@ -14,7 +16,7 @@ public class NexusUser {
 
     private String password;
 
-    private String[] roles;
+    private List<String> roles;
 
 
     private String status;

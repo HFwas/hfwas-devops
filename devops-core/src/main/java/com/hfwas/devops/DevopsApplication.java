@@ -11,7 +11,7 @@ import org.springframework.cloud.openfeign.FeignAutoConfiguration;
  *
  */
 @SpringBootApplication
-@EnableFeignClients(basePackages = {"com.hfwas.devops"})
+@EnableFeignClients(basePackages = {"com.hfwas"})
 @ImportAutoConfiguration({FeignAutoConfiguration.class})
 public class DevopsApplication {
     public static void main( String[] args ) {
