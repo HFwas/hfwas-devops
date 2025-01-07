@@ -6,22 +6,22 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@FeignClient(name = "nexusUserApi", url = "${devops.nexus.url:http://localhost:8080}")
+@FeignClient(name = "nexusUserApi", url = "${devops.nexus.url}")
 public interface NexusUserApi {
 
-    @PostMapping("/v1/security/users")
+    @PostMapping("/service/rest/v1/security/users")
     void users(@RequestBody NexusUser nexusUser);
 
-    @GetMapping("/v1/security/users")
+    @GetMapping("/service/rest/v1/security/users")
     List<NexusUser> users(@RequestParam("source") String source, @RequestParam("userId") String userId);
 
-    @PutMapping("/v1/security/users/{userId}/change-password")
+    @PutMapping("/service/rest/v1/security/users/{userId}/change-password")
     void changePassword(@PathVariable("userId") String userId, @RequestBody NexusUser nexusUser);
 
-    @DeleteMapping("/v1/security/users/{userId}")
+    @DeleteMapping("/service/rest/v1/security/users/{userId}")
     void deleteUser(@PathVariable("userId") String userId);
 
-    @PutMapping("/v1/security/users/{userId}")
+    @PutMapping("/service/rest/v1/security/users/{userId}")
     void updateUser(@PathVariable("userId") String userId, @RequestBody NexusUser nexusUser);
 
 }

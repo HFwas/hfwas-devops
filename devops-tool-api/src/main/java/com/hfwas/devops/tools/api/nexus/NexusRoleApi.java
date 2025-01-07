@@ -7,22 +7,22 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@FeignClient(name = "NexusRoleApi", url = "${devops.nexus.url:http://localhost:8080}")
+@FeignClient(name = "NexusRoleApi", url = "${devops.nexus.url}")
 public interface NexusRoleApi {
 
-    @GetMapping("/v1/security/roles")
+    @GetMapping("/service/rest/v1/security/roles")
     List<NexusRole> roles(@RequestParam String source);
 
-    @GetMapping("/v1/security/roles/{id}")
+    @GetMapping("/service/rest/v1/security/roles/{id}")
     NexusRole role(@PathVariable("id") Long id);
 
-    @PostMapping("/v1/security/roles")
+    @PostMapping("/service/rest/v1/security/roles")
     NexusRole addRole(@RequestBody NexusRole role);
 
-    @PutMapping("/v1/security/roles")
+    @PutMapping("/service/rest/v1/security/roles")
     NexusRole updateRole(@RequestBody NexusRole role);
 
-    @DeleteMapping("/v1/security/roles/{id}")
+    @DeleteMapping("/service/rest/v1/security/roles/{id}")
     boolean deleteRole(@PathVariable("id") Long id);
 
 }

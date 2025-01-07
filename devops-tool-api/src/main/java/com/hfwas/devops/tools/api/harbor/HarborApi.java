@@ -5,7 +5,7 @@ import com.google.gson.JsonObject;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 
-@FeignClient(name = "HarborApi", url = "${devops.harbor.url:http://localhost:8080}")
+@FeignClient(name = "HarborApi", url = "${devops.harbor.url}")
 public interface HarborApi {
 
     @PostMapping("/projects")
