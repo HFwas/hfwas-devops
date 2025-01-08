@@ -23,6 +23,7 @@
         <redisson.version>3.41.0</redisson.version>
         <mybatis.version>3.5.17</mybatis.version>
         <mysql.version>5.1.49</mysql.version>
+        <snakeyaml.version>2.2</snakeyaml.version>
     </properties>
 
     <dependencyManagement>
@@ -73,6 +74,11 @@
                 <groupId>org.redisson</groupId>
                 <artifactId>redisson-spring-boot-starter</artifactId>
                 <version>${redisson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>${snakeyaml.version}</version>
             </dependency>
 
             <dependency>

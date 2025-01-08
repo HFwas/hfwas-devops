@@ -53,6 +53,11 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>com.hfwas.devops</groupId>
             <artifactId>devops-tool-api</artifactId>
         </dependency>
