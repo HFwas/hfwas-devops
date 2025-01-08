@@ -1,6 +1,5 @@
 package com.hfwas.devops.common.core.base;
 
-import jdk.jfr.DataAmount;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
