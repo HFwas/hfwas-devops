@@ -12,7 +12,7 @@ import java.util.List;
  * @package cn.hfwas.devops.tools.api.sonarqube
  * @date 2025/1/3
  */
-@FeignClient(name = "SonarqubeApi", url = "${devops.sonarqube.url:10.10.103.229:33197}")
+@FeignClient(name = "SonarqubeApi", url = "${devops.sonarqube.url}")
 public interface SonarqubeApi {
 
     @PostMapping("/api/webhooks/create")
