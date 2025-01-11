@@ -14,7 +14,7 @@ import org.springframework.cloud.openfeign.FeignAutoConfiguration;
 @SpringBootApplication
 @EnableFeignClients(basePackages = {"com.hfwas"})
 @ImportAutoConfiguration({FeignAutoConfiguration.class})
-@MapperScan(basePackages = {"com.hfwas"})
+@MapperScan(basePackages = {"com.hfwas.devops.mapper"})
 public class DevopsApplication {
     public static void main( String[] args ) {
         SpringApplication.run(DevopsApplication.class, args);
