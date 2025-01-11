@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hfwas.devops.mapper.DevopsVulMapper">
+
+    <select id="selectById" parameterType="java.lang.Long" resultType="com.hfwas.devops.entity.DevopsVul">
+        select * from devops_vul where id = #{id,jdbcType=VARCHAR}
+    </select>
+
+    <select id="list1" parameterType="java.lang.Long" resultType="com.hfwas.devops.entity.DevopsVul">
+        select * from devops_vul where 1=1
+        <if test="ids != null">
+            and id in
+            <foreach collection="ids" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+    </select>
+</mapper>
