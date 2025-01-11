@@ -1,8 +1,8 @@
 package com.hfwas.devops.tools.enums;
 
-import lombok.AllArgsConstructor;
+import lombok.Getter;
 
-@AllArgsConstructor
+@Getter
 public enum CveTagEnums {
     disputed("disputed"),
     assigned("unsupported-when-assigned"),
@@ -10,4 +10,8 @@ public enum CveTagEnums {
     ;
 
     private String name;
+
+    CveTagEnums(String name) {
+        this.name = name;
+    }
 }

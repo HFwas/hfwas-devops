@@ -1,8 +1,8 @@
 package com.hfwas.devops.tools.enums;
 
-import lombok.AllArgsConstructor;
+import lombok.Getter;
 
-@AllArgsConstructor
+@Getter
 public enum EventNameEnums {
     Received("CVE Received"),
     IniAnalysis("Initial Analysis"),
@@ -21,4 +21,8 @@ public enum EventNameEnums {
     ;
 
     private String name;
+
+    EventNameEnums(String name) {
+        this.name = name;
+    }
 }

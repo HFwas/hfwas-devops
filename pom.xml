@@ -13,7 +13,6 @@
         <module>devops-dependencies</module>
         <module>devops-common</module>
         <module>devops-core</module>
-        <module>devops-common</module>
     </modules>
 
     <properties>

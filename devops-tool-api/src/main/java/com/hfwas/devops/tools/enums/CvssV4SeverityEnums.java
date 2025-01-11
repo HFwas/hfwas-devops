@@ -1,8 +1,8 @@
 package com.hfwas.devops.tools.enums;
 
-import lombok.AllArgsConstructor;
+import lombok.Getter;
 
-@AllArgsConstructor
+@Getter
 public enum CvssV4SeverityEnums {
     LOW("LOW"),
     MEDIUM("MEDIUM"),
@@ -11,4 +11,8 @@ public enum CvssV4SeverityEnums {
     ;
 
     private String value;
+
+    CvssV4SeverityEnums(String value) {
+        this.value = value;
+    }
 }
