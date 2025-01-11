@@ -69,6 +69,10 @@
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-api</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>commons-io</groupId>
+                    <artifactId>commons-io</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -91,6 +95,12 @@
         <dependency>
             <groupId>com.hfwas.devops</groupId>
             <artifactId>devops-tool-api</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.errorprone</groupId>
+                    <artifactId>error_prone_annotations</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.hfwas.devops</groupId>
@@ -121,6 +131,7 @@
                 <directory>src/main/resources</directory>
                 <includes>
                     <include>**/*.properties</include>
+                    <include>**/*.yml</include>
                     <include>**/*.xml</include>
                 </includes>
                 <filtering>false</filtering>
