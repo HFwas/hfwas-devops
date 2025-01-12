@@ -20,8 +20,9 @@ public class DevopsVul {
     private String cveId;
     private String ghsaId;
     private String details;
-    private String severity;
+    private String serverity;
     private String affected;
-    private String references;
+    private String referencess;
     private String databaseSpecific;
+    private String ecosystem;
 }

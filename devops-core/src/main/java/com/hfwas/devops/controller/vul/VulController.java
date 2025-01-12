@@ -34,6 +34,13 @@ public class VulController {
     @Resource
     DevopsVulMapper devopsVulMapper;
 
+    @GetMapping("/getById")
+    public void getById() throws IOException {
+        DevopsVul devopsVul = devopsVulMapper.selectById(495456L);
+        String databaseSpecific = devopsVul.getDatabaseSpecific();
+        log.info("databaseSpecific:{}", databaseSpecific);
+    }
+
     @GetMapping("/sync")
     public void sync() throws IOException {
         long timeMillis = System.currentTimeMillis();
@@ -60,21 +67,56 @@ public class VulController {
         List<String> ghsaIds = devopsVulList.stream().parallel().map(DevopsVul::getGhsaId).collect(Collectors.toList());
         List<DevopsVul> advisoriesList = githubAdvisories1.stream()
                 .parallel()
-                .filter(githubAdvisories -> CollectionUtils.isNotEmpty(devopsVulList) && !ghsaIds.contains(githubAdvisories.getGhsaId()))
+                .filter(githubAdvisories -> {
+                    if (CollectionUtils.isEmpty(devopsVulList)){
+                        return true;
+                    } else {
+                        return CollectionUtils.isNotEmpty(devopsVulList) && !ghsaIds.contains(githubAdvisories.getGhsaId());
+                    }
+                })
                 .map(githubAdvisories -> {
                     DevopsVul convert = DevopsVulConvert.INSTANCE.convert(githubAdvisories);
                     convert.setGhsaId(githubAdvisories.getGhsaId());
                     if (CollectionUtils.isNotEmpty(githubAdvisories.getAliases())){
                         convert.setCveId(githubAdvisories.getAliases().get(0));
                     }
-                    convert.setSeverity(gson.toJson(githubAdvisories.getSeverity()));
-                    convert.setAffected(gson.toJson(githubAdvisories.getSeverity()));
-                    convert.setReferences(gson.toJson(githubAdvisories.getSeverity()));
-                    convert.setDatabaseSpecific(gson.toJson(githubAdvisories.getSeverity()));
+                    convert.setServerity(gson.toJson(githubAdvisories.getSeverity()));
+                    convert.setAffected(gson.toJson(githubAdvisories.getAffected()));
+                    convert.setReferencess(gson.toJson(githubAdvisories.getReferences()));
+                    convert.setDatabaseSpecific(gson.toJson(githubAdvisories.getDatabaseSpecific()));
+                    if (CollectionUtils.isNotEmpty(githubAdvisories.getAffected())){
+                        convert.setEcosystem(gson.toJson(githubAdvisories.getAffected().get(0).getPackages().get("ecosystem")));
+                    }
+                    devopsVulMapper.save(convert);
                     return convert;
                 })
                 .collect(Collectors.toList());
-        devopsVulMapper.saveBatch(advisoriesList);
+//        if (CollectionUtils.isNotEmpty(advisoriesList)) {
+//            devopsVulMapper.saveBatch(advisoriesList);
+//        }
+
+        List<DevopsVul> updateAdvisoriesList = githubAdvisories1.stream()
+                .parallel()
+                .filter(githubAdvisories -> CollectionUtils.isNotEmpty(devopsVulList) && ghsaIds.contains(githubAdvisories.getGhsaId()))
+                .map(githubAdvisories -> {
+                    DevopsVul convert = DevopsVulConvert.INSTANCE.convert(githubAdvisories);
+                    convert.setGhsaId(githubAdvisories.getGhsaId());
+                    if (CollectionUtils.isNotEmpty(githubAdvisories.getAliases())){
+                        convert.setCveId(githubAdvisories.getAliases().get(0));
+                    }
+                    convert.setServerity(gson.toJson(githubAdvisories.getSeverity()));
+                    convert.setAffected(gson.toJson(githubAdvisories.getSeverity()));
+                    convert.setReferencess(gson.toJson(githubAdvisories.getSeverity()));
+                    convert.setDatabaseSpecific(gson.toJson(githubAdvisories.getSeverity()));
+                    if (CollectionUtils.isNotEmpty(githubAdvisories.getAffected())){
+                        convert.setEcosystem(gson.toJson(githubAdvisories.getAffected().get(0).getPackages().get("ecosystem").toString()));
+                    }
+                    return convert;
+                })
+                .collect(Collectors.toList());
+        if (CollectionUtils.isNotEmpty(updateAdvisoriesList)) {
+            devopsVulMapper.updateBatch(updateAdvisoriesList);
+        }
         log.info("end time:{}", (System.currentTimeMillis() - timeMillis));
     }
 

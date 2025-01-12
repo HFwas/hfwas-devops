@@ -6,11 +6,13 @@
         <id column="id" property="id" jdbcType="BIGINT" javaType="long" typeHandler="org.apache.ibatis.type.LongTypeHandler"/>
         <result column="cve_id" property="cveId" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
         <result column="ghsa_id" property="ghsaId" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
+        <result column="databases_spec" property="databaseSpecific" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
+        <result column="ref" property="referencess" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
     </resultMap>
 
 
     <select id="selectById" parameterType="java.lang.Long" resultType="com.hfwas.devops.entity.DevopsVul">
-        select * from devops_vul where id = #{id,jdbcType=VARCHAR}
+        select  id, modified, published, details, serverity, affected, ref as referencess, databases_spec as databaseSpecific, cve_id as cveId, ghsa_id as ghsaId, ecosystem from devops_vul where id = #{id,jdbcType=VARCHAR}
     </select>
 
     <select id="list" parameterType="java.lang.Long" resultType="com.hfwas.devops.entity.DevopsVul">
@@ -34,14 +36,23 @@
     </select>
 
     <insert id="save" parameterType="com.hfwas.devops.entity.DevopsVul">
-        insert into devops_vul (modified, published, cve_id, ghsa_id, details, serverity, affected, ref, databases_spec) values
-        (#{devopsVul.modified}, #{devopsVul.published}, #{devopsVul.cveId}, #{devopsVul.ghsaId}, #{devopsVul.details}, #{devopsVul.severity}, #{devopsVul.affected}, #{devopsVul.references}, #{devopsVul.databaseSpecific})
+        insert into devops_vul (modified, published, cve_id, ghsa_id, details, serverity, affected, ref, databases_spec, ecosystem) values
+        (#{devopsVul.modified}, #{devopsVul.published}, #{devopsVul.cveId}, #{devopsVul.ghsaId}, #{devopsVul.details}, #{devopsVul.serverity}, #{devopsVul.affected}, #{devopsVul.referencess}, #{devopsVul.databaseSpecific}, #{devopsVul.ecosystem})
     </insert>
 
     <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVul">
-        insert into devops_vul (modified, published, cve_id, ghsa_id, details, serverity, affected, ref, databases_spec) values
+        insert into devops_vul
+        (modified, published, cve_id, ghsa_id, details, serverity, affected, ref, databases_spec, ecosystem) values
         <foreach collection="devopsVuls" item="devopsVul" separator=",">
-            (#{devopsVul.modified}, #{devopsVul.published}, #{devopsVul.cveId}, #{devopsVul.ghsaId}, #{devopsVul.details}, #{devopsVul.severity}, #{devopsVul.affected}, #{devopsVul.references}, #{devopsVul.databaseSpecific})
+            (#{devopsVul.modified}, #{devopsVul.published}, #{devopsVul.cveId}, #{devopsVul.ghsaId}, #{devopsVul.details}, #{devopsVul.serverity}, #{devopsVul.affected}, #{devopsVul.referencess}, #{devopsVul.databaseSpecific}, #{devopsVul.ecosystem})
         </foreach>
     </insert>
+
+    <update id="updateBatch" parameterType="com.hfwas.devops.entity.DevopsVul">
+        <foreach collection="devopsVuls" item="devopsVul" separator=",">
+            update devops_vul
+            set modified = #{devopsVul.modified},published = #{devopsVul.published},cve_id= #{devopsVul.cveId}, ghsa_id=#{devopsVul.ghsaId}, details=#{devopsVul.details}, ecosystem=#{devopsVul.ecosystem}, serverity=#{devopsVul.serverity}, affected=#{devopsVul.affected}, ref=#{devopsVul.referencess}, database_specific=#{devopsVul.databaseSpecific}
+            where ghsa_id=#{devopsVul.ghsaId}
+        </foreach>
+    </update>
 </mapper>

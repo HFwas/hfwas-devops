@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.sql.SQLSyntaxErrorException;
+
 /**
  * @author houfei
  * @package com.hfwas.devops.config
@@ -24,6 +26,11 @@ public class GlobalException {
         if (e instanceof FeignException.BadRequest) {
             return new BaseResult<>(0, "参数不对", "");
         }
+        return new BaseResult<>(0, e.getMessage(), "");
+    }
+
+    @ExceptionHandler(value = SQLSyntaxErrorException.class)
+    public BaseResult sqlSyntaxErrorException(SQLSyntaxErrorException e) {
         return new BaseResult<>(0, e.getMessage(), "");
     }
 
