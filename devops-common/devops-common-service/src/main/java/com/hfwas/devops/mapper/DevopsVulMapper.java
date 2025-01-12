@@ -11,6 +11,12 @@ public interface DevopsVulMapper{
 
     DevopsVul selectById(Long id);
 
-    List<DevopsVul> list1(@Param("ids") List<Long> ids);
+    List<DevopsVul> list(@Param("ids") List<Long> ids);
+
+    List<DevopsVul> listByGhsa(@Param("ids") List<String> ids);
+
+    boolean save(@Param("devopsVul")DevopsVul devopsVul);
+
+    boolean saveBatch(@Param("devopsVuls")List<DevopsVul> devopsVuls);
 
 }

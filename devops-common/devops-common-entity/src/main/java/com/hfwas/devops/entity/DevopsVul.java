@@ -1,6 +1,8 @@
 package com.hfwas.devops.entity;
 
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * @author houfei
@@ -8,12 +10,15 @@ import lombok.Data;
  * @date 2025/1/11
  */
 @Data
+@Getter
+@Setter
 public class DevopsVul {
     private Long id;
     private String schemaVersion;
     private String modified;
     private String published;
-    private String aliases;
+    private String cveId;
+    private String ghsaId;
     private String details;
     private String severity;
     private String affected;

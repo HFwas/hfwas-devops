@@ -14,7 +14,7 @@ import java.util.List;
 @Data
 public class GithubAdvisories {
     @SerializedName("id")
-    private String id;
+    private String ghsaId;
     @SerializedName("schema_version")
     private String schemaVersion;
     @SerializedName("modified")

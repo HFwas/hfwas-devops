@@ -2,12 +2,19 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.hfwas.devops.mapper.DevopsVulMapper">
 
+    <resultMap id="actorResultMap" type="com.hfwas.devops.entity.DevopsVul">
+        <id column="id" property="id" jdbcType="BIGINT" javaType="long" typeHandler="org.apache.ibatis.type.LongTypeHandler"/>
+        <result column="cve_id" property="cveId" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
+        <result column="ghsa_id" property="ghsaId" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
+    </resultMap>
+
+
     <select id="selectById" parameterType="java.lang.Long" resultType="com.hfwas.devops.entity.DevopsVul">
         select * from devops_vul where id = #{id,jdbcType=VARCHAR}
     </select>
 
-    <select id="list1" parameterType="java.lang.Long" resultType="com.hfwas.devops.entity.DevopsVul">
-        select * from devops_vul where 1=1
+    <select id="list" parameterType="java.lang.Long" resultType="com.hfwas.devops.entity.DevopsVul">
+        select cve_id as cveId, ghsa_id as ghsaId from devops_vul where 1=1
         <if test="ids != null">
             and id in
             <foreach collection="ids" item="item" open="(" close=")" separator=",">
@@ -15,4 +22,26 @@
             </foreach>
         </if>
     </select>
+
+    <select id="listByGhsa" parameterType="java.lang.String" resultType="com.hfwas.devops.entity.DevopsVul">
+        select * from devops_vul where 1=1
+        <if test="ids != null">
+            and ghsa_id in
+            <foreach collection="ids" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+    <insert id="save" parameterType="com.hfwas.devops.entity.DevopsVul">
+        insert into devops_vul (modified, published, cve_id, ghsa_id, details, serverity, affected, ref, databases_spec) values
+        (#{devopsVul.modified}, #{devopsVul.published}, #{devopsVul.cveId}, #{devopsVul.ghsaId}, #{devopsVul.details}, #{devopsVul.severity}, #{devopsVul.affected}, #{devopsVul.references}, #{devopsVul.databaseSpecific})
+    </insert>
+
+    <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVul">
+        insert into devops_vul (modified, published, cve_id, ghsa_id, details, serverity, affected, ref, databases_spec) values
+        <foreach collection="devopsVuls" item="devopsVul" separator=",">
+            (#{devopsVul.modified}, #{devopsVul.published}, #{devopsVul.cveId}, #{devopsVul.ghsaId}, #{devopsVul.details}, #{devopsVul.severity}, #{devopsVul.affected}, #{devopsVul.references}, #{devopsVul.databaseSpecific})
+        </foreach>
+    </insert>
 </mapper>
