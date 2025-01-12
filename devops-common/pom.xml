@@ -15,5 +15,6 @@
         <module>devops-common-core</module>
         <module>devops-common-entity</module>
         <module>devops-common-service</module>
+        <module>devops-common-starter-mybatis</module>
     </modules>
 </project>

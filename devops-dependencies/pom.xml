@@ -29,6 +29,8 @@
         <jsoup.version>1.18.3</jsoup.version>
         <guava.version>33.4.0-jre</guava.version>
         <spring-tx.version>6.1.10</spring-tx.version>
+        <webmvc.version>6.1.13</webmvc.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
     </properties>
 
     <dependencyManagement>
@@ -110,6 +112,16 @@
                 <artifactId>guava</artifactId>
                 <version>${guava.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-webmvc</artifactId>
+                <version>${webmvc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>com.hfwas.devops</groupId>
@@ -129,6 +141,11 @@
             <dependency>
                 <groupId>com.hfwas.devops</groupId>
                 <artifactId>devops-common-entity</artifactId>
+                <version>1.0-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hfwas.devops</groupId>
+                <artifactId>devops-common-starter-mybatis</artifactId>
                 <version>1.0-SNAPSHOT</version>
             </dependency>
         </dependencies>

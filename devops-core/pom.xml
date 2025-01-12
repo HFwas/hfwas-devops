@@ -114,6 +114,10 @@
             <groupId>com.hfwas.devops</groupId>
             <artifactId>devops-common-service</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.hfwas.devops</groupId>
+            <artifactId>devops-common-starter-mybatis</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
