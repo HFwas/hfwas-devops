@@ -17,6 +17,7 @@
         <spring-cloud.version>2023.0.4</spring-cloud.version>
         <spring-cloud-openfeign.version>4.1.1</spring-cloud-openfeign.version>
         <lombok.version>1.18.34</lombok.version>
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <gson.version>2.11.0</gson.version>
         <jackson-databind.version>2.17.2</jackson-databind.version>
         <spring-boot.version>3.3.4</spring-boot.version>
@@ -31,6 +32,7 @@
         <spring-tx.version>6.1.10</spring-tx.version>
         <webmvc.version>6.1.13</webmvc.version>
         <mapstruct.version>1.6.3</mapstruct.version>
+        <mapstruct-processor.version>1.6.3</mapstruct-processor.version>
     </properties>
 
     <dependencyManagement>
@@ -46,6 +48,11 @@
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok-mapstruct-binding</artifactId>
+                <version>${lombok-mapstruct-binding.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.google.code.gson</groupId>
@@ -121,6 +128,11 @@
                 <groupId>org.mapstruct</groupId>
                 <artifactId>mapstruct</artifactId>
                 <version>${mapstruct.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct-processor</artifactId>
+                <version>${mapstruct-processor.version}</version>
             </dependency>
 
             <dependency>
