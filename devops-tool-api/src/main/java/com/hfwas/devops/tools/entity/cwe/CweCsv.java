@@ -11,7 +11,7 @@ import lombok.Data;
 @Data
 public class CweCsv {
     @SerializedName("CWE-ID")
-    private String cweId;
+    private Long cweId;
     @SerializedName("Name")
     private String name;
     @SerializedName("Weakness Abstraction")
