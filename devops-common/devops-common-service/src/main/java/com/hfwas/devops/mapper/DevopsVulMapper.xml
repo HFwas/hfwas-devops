@@ -10,9 +10,16 @@
         <result column="ref" property="referencess" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
     </resultMap>
 
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, modified, published, details, serverity, affected, ref as referencess, databases_spec as databaseSpecific, cve_id as cveId, ghsa_id as ghsaId, ecosystem
+    </sql>
+
 
     <select id="selectById" parameterType="java.lang.Long" resultType="com.hfwas.devops.entity.DevopsVul">
-        select  id, modified, published, details, serverity, affected, ref as referencess, databases_spec as databaseSpecific, cve_id as cveId, ghsa_id as ghsaId, ecosystem from devops_vul where id = #{id,jdbcType=VARCHAR}
+        select 
+            <include refid="Base_Column_List"/>
+        from devops_vul where id = #{id,jdbcType=VARCHAR}
     </select>
 
     <select id="list" parameterType="java.lang.Long" resultType="com.hfwas.devops.entity.DevopsVul">
@@ -26,7 +33,9 @@
     </select>
 
     <select id="listByGhsa" parameterType="java.lang.String" resultType="com.hfwas.devops.entity.DevopsVul">
-        select * from devops_vul where 1=1
+        select
+            <include refid="Base_Column_List"/>
+        from devops_vul where 1=1
         <if test="ids != null">
             and ghsa_id in
             <foreach collection="ids" item="item" open="(" close=")" separator=",">

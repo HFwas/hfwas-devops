@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 
 /**
@@ -31,6 +32,14 @@ public class GlobalException {
 
     @ExceptionHandler(value = SQLSyntaxErrorException.class)
     public BaseResult sqlSyntaxErrorException(SQLSyntaxErrorException e) {
+        return new BaseResult<>(0, e.getMessage(), "");
+    }
+
+    @ExceptionHandler(value = SQLException.class)
+    public BaseResult SQLException(SQLException e) {
+        if (e.getMessage().contains("Column count doesn't match value count at row")) {
+            return new BaseResult<>(1, "实体类和数据库字段类型匹配不上", "");
+        }
         return new BaseResult<>(0, e.getMessage(), "");
     }
 

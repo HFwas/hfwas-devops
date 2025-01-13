@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hfwas.devops.mapper.DevopsVulCweMapper">
+
+    <resultMap id="actorResultMap" type="com.hfwas.devops.entity.DevopsVulCwe">
+        <id column="id" property="id" jdbcType="BIGINT" javaType="long" typeHandler="org.apache.ibatis.type.LongTypeHandler"/>
+        <result column="name" property="name" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
+        <result column="description" property="description" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
+        <result column="extended_description" property="extendedDescription" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
+        <result column="type" property="type"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, name, description, type
+    </sql>
+
+    <select id="selectById" parameterType="java.lang.Long" resultType="com.hfwas.devops.entity.DevopsVulCwe">
+        select
+        <include refid="Base_Column_List"/>
+        from devops_vul_cwe where id = #{id,jdbcType=VARCHAR}
+    </select>
+
+    <select id="list" parameterType="java.lang.Long" resultType="com.hfwas.devops.entity.DevopsVulCwe">
+        select <include refid="Base_Column_List"/> from devops_vul_cwe where 1=1
+        <if test="ids != null">
+            and id in
+            <foreach collection="ids" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+    <select id="listByGhsa" parameterType="java.lang.String" resultType="com.hfwas.devops.entity.DevopsVulCwe">
+        select
+        <include refid="Base_Column_List"/>
+        from devops_vul_cwe where 1=1
+        <if test="ids != null">
+            and id in
+            <foreach collection="ids" item="item" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </if>
+    </select>
+
+    <insert id="save" parameterType="com.hfwas.devops.entity.DevopsVulCwe">
+        insert into devops_vul_cwe (id, name, description, type) values
+            (#{devopsVulCwe.id}, #{devopsVulCwe.name}, #{devopsVulCwe.description}, #{devopsVulCwe.type})
+    </insert>
+
+    <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVulCwe">
+        insert into devops_vul_cwe (id, name, description, type) values
+        <if test="devopsVulCwes != null">
+            <foreach collection="devopsVulCwes" item="devopsVulCwe" open="(" close=")" separator=",">
+                #{devopsVulCwe.id}, #{devopsVulCwe.name}, #{devopsVulCwe.description}, #{devopsVulCwe.type}
+            </foreach>
+        </if>
+    </insert>
+
+</mapper>
