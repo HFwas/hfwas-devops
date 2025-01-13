@@ -35,6 +35,7 @@
         <mapstruct-processor.version>1.6.3</mapstruct-processor.version>
         <commons-io.version>2.17.0</commons-io.version>
         <tomcat-embed.version>10.1.34</tomcat-embed.version>
+        <protobuf-java.version>3.16.3</protobuf-java.version>
     </properties>
 
     <dependencyManagement>
@@ -106,6 +107,17 @@
                 <groupId>mysql</groupId>
                 <artifactId>mysql-connector-java</artifactId>
                 <version>${mysql.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.google.protobuf</groupId>
+                        <artifactId>protobuf-java</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobuf-java.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.redisson</groupId>
