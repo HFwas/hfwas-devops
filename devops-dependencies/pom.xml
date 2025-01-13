@@ -34,6 +34,7 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <mapstruct-processor.version>1.6.3</mapstruct-processor.version>
         <commons-io.version>2.17.0</commons-io.version>
+        <tomcat-embed.version>10.1.34</tomcat-embed.version>
     </properties>
 
     <dependencyManagement>
@@ -69,6 +70,17 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-web</artifactId>
                 <version>${spring-boot.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.tomcat.embed</groupId>
+                        <artifactId>tomcat-embed-core</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${tomcat-embed.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
