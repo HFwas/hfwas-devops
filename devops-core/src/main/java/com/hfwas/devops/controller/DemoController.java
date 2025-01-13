@@ -14,7 +14,6 @@ import com.hfwas.devops.tools.entity.cwe.CweCsv;
 import com.hfwas.devops.tools.entity.cwe.CweWeakness;
 import com.hfwas.devops.tools.entity.github.GithubAdvisories;
 import com.hfwas.devops.tools.entity.nexus.login.NexusSession;
-import com.hfwas.devops.tools.enums.CweTypeEnums;
 import feign.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -91,7 +90,7 @@ public class DemoController {
                 throw new RuntimeException(e);
             }
         });
-        Map<String, GithubAdvisories> elementJsonObjectMap = githubAdvisories1.stream().parallel().collect(Collectors.toMap(jsonObject -> jsonObject.getId(), Function.identity()));
+        Map<String, GithubAdvisories> elementJsonObjectMap = githubAdvisories1.stream().parallel().collect(Collectors.toMap(jsonObject -> jsonObject.getGhsaId(), Function.identity()));
         log.info("end time:{}", (System.currentTimeMillis() - timeMillis));
         return (System.currentTimeMillis() - timeMillis);
     }
@@ -170,7 +169,7 @@ public class DemoController {
 
     @GetMapping("/download")
     public void download() throws IOException {
-        Response response = cweCsvApi.downloadCsvZip(CweTypeEnums.soft.getCsv());
+        Response response = cweCsvApi.downloadCsvZip("");
         InputStream inputStream = response.body().asInputStream();
         // 方法一：使用Files.copy()方法（推荐）
         ResourceLoader resourcePatternResolver = new PathMatchingResourcePatternResolver();
