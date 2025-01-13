@@ -30,7 +30,7 @@
         <jsoup.version>1.18.3</jsoup.version>
         <guava.version>33.4.0-jre</guava.version>
         <spring-tx.version>6.1.10</spring-tx.version>
-        <webmvc.version>6.1.13</webmvc.version>
+        <webmvc.version>6.1.14</webmvc.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <mapstruct-processor.version>1.6.3</mapstruct-processor.version>
     </properties>
