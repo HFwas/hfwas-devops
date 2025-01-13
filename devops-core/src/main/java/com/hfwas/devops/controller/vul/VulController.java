@@ -80,7 +80,7 @@ public class VulController {
                     if (CollectionUtils.isNotEmpty(githubAdvisories.getAliases())){
                         convert.setCveId(githubAdvisories.getAliases().get(0));
                     }
-                    convert.setServerity(gson.toJson(githubAdvisories.getSeverity()));
+                    convert.setServerity(gson.toJson(githubAdvisories.getServerity()));
                     convert.setAffected(gson.toJson(githubAdvisories.getAffected()));
                     convert.setReferencess(gson.toJson(githubAdvisories.getReferences()));
                     convert.setDatabaseSpecific(gson.toJson(githubAdvisories.getDatabaseSpecific()));
@@ -104,10 +104,10 @@ public class VulController {
                     if (CollectionUtils.isNotEmpty(githubAdvisories.getAliases())){
                         convert.setCveId(githubAdvisories.getAliases().get(0));
                     }
-                    convert.setServerity(gson.toJson(githubAdvisories.getSeverity()));
-                    convert.setAffected(gson.toJson(githubAdvisories.getSeverity()));
-                    convert.setReferencess(gson.toJson(githubAdvisories.getSeverity()));
-                    convert.setDatabaseSpecific(gson.toJson(githubAdvisories.getSeverity()));
+                    convert.setServerity(gson.toJson(githubAdvisories.getServerity()));
+                    convert.setAffected(gson.toJson(githubAdvisories.getAffected()));
+                    convert.setReferencess(gson.toJson(githubAdvisories.getReferences()));
+                    convert.setDatabaseSpecific(gson.toJson(githubAdvisories.getDatabaseSpecific()));
                     if (CollectionUtils.isNotEmpty(githubAdvisories.getAffected())){
                         convert.setEcosystem(gson.toJson(githubAdvisories.getAffected().get(0).getPackages().get("ecosystem").toString()));
                     }

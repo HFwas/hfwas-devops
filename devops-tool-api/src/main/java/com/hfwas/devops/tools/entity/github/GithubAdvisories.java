@@ -26,7 +26,7 @@ public class GithubAdvisories {
     @SerializedName("details")
     private String details;
     @SerializedName("severity")
-    private List<CvssSeverity> severity;
+    private List<CvssSeverity> serverity;
     @SerializedName("affected")
     private List<GithubAffected> affected;
     @SerializedName("references")
