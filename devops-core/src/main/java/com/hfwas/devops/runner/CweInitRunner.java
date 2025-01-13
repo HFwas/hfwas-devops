@@ -58,16 +58,15 @@ public class CweInitRunner implements ApplicationRunner {
             }).collect(Collectors.toList());
             devopsVulCwes.addAll(catedevopsVulCwes);
             cwes.clear();
+            finalCwes.clear();
         }
-        devopsVulCwes = devopsVulCwes.stream().distinct().collect(Collectors.toList());
+        devopsVulCwes = devopsVulCwes.stream().sorted(Comparator.comparing(DevopsVulCwe::getId)).distinct().collect(Collectors.toList());
 
-        for (DevopsVulCwe devopsVulCwe : devopsVulCwes) {
-            try {
-                devopsVulCweMapper.save(devopsVulCwe);
-            } catch (Exception e) {
-
-            }
+        List<List<DevopsVulCwe>> partition = Lists.partition(devopsVulCwes, 50);
+        for (List<DevopsVulCwe> devopsVulCweList : partition) {
+            devopsVulCweMapper.saveBatch(devopsVulCweList);
         }
+
     }
 
 }

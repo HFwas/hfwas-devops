@@ -3,10 +3,9 @@
 <mapper namespace="com.hfwas.devops.mapper.DevopsVulCweMapper">
 
     <resultMap id="actorResultMap" type="com.hfwas.devops.entity.DevopsVulCwe">
-        <id column="id" property="id" jdbcType="BIGINT" javaType="long" typeHandler="org.apache.ibatis.type.LongTypeHandler"/>
-        <result column="name" property="name" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
-        <result column="description" property="description" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
-        <result column="extended_description" property="extendedDescription" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
         <result column="type" property="type"/>
     </resultMap>
 
@@ -51,8 +50,8 @@
     <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVulCwe">
         insert into devops_vul_cwe (id, name, description, type) values
         <if test="devopsVulCwes != null">
-            <foreach collection="devopsVulCwes" item="devopsVulCwe" open="(" close=")" separator=",">
-                #{devopsVulCwe.id}, #{devopsVulCwe.name}, #{devopsVulCwe.description}, #{devopsVulCwe.type}
+            <foreach collection="devopsVulCwes" item="devopsVulCwe" separator=",">
+                (#{devopsVulCwe.id}, #{devopsVulCwe.name}, #{devopsVulCwe.description}, #{devopsVulCwe.type})
             </foreach>
         </if>
     </insert>
