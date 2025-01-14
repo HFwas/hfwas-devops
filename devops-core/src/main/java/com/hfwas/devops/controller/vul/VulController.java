@@ -76,11 +76,10 @@ public class VulController {
             log.info("【sync】collectPartition: {}", i);
             ArrayList<GithubAdvisories> githubAdvisories1 = new ArrayList<>();
             paths.stream().parallel().forEach(path -> {
-                byte[] bytes = null;
                 try {
-                    bytes = Files.readAllBytes(path);
-                        GithubAdvisories githubAdvisories = gson.fromJson(new String(bytes), GithubAdvisories.class);
-                        githubAdvisories1.add(githubAdvisories);
+                    String readString = Files.readString(path);
+                    GithubAdvisories githubAdvisories = gson.fromJson(readString, GithubAdvisories.class);
+                    githubAdvisories1.add(githubAdvisories);
                 } catch (IOException e) {
                 }
             });
