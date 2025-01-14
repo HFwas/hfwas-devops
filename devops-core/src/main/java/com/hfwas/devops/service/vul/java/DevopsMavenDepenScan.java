@@ -62,8 +62,7 @@ public class DevopsMavenDepenScan extends AbstractDepenScan {
         } else if (originalFilename.equals("")) {
 
         }
-        return List.of();
+        return devopsVulDependencys;
     }
-
 
 }
