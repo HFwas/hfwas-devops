@@ -2,12 +2,16 @@ package com.hfwas.devops.controller.vul;
 
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.hfwas.devops.convert.DevopsVulConvert;
 import com.hfwas.devops.entity.DevopsVul;
 import com.hfwas.devops.entity.DevopsVulDependency;
 import com.hfwas.devops.mapper.DevopsVulMapper;
 import com.hfwas.devops.service.vul.rust.DevopsRustDepenScan;
+import com.hfwas.devops.tools.entity.github.AffectedEvent;
 import com.hfwas.devops.tools.entity.github.GithubAdvisories;
+import com.hfwas.devops.tools.entity.github.GithubAffected;
+import com.hfwas.devops.tools.entity.github.Range;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -57,8 +61,13 @@ public class VulController {
     public void sync() throws IOException {
         long timeMillis = System.currentTimeMillis();
         log.info("【sync】start time:{}", timeMillis);
-        Stream<Path> walk = Files.walk(Paths.get("/Users/houfei/github/ghsa"));
-        List<Path> collect = walk.parallel().filter(Files::isRegularFile).collect(Collectors.toList());
+        Stream<Path> walk = Files.walk(Paths.get("/Users/hfwas/github/ghsa"));
+        List<Path> collect = walk.parallel()
+                .filter(Files::isRegularFile)
+                .filter(path -> path.getFileName().toString().startsWith("GHSA") || path.getFileName().toString().startsWith("CVE"))
+                .filter(path -> path.getFileName().toString().endsWith("json"))
+                .sorted()
+                .collect(Collectors.toList());
         Gson gson = new Gson();
 
         List<List<Path>> collectPartition = Lists.partition(collect, 50);
@@ -66,7 +75,7 @@ public class VulController {
         for (List<Path> paths : collectPartition) {
             log.info("【sync】collectPartition: {}", i);
             ArrayList<GithubAdvisories> githubAdvisories1 = new ArrayList<>();
-            paths.stream().parallel().filter(path -> path.getFileName().toString().endsWith("json")).forEach(path -> {
+            paths.stream().parallel().forEach(path -> {
                 byte[] bytes = null;
                 try {
                     bytes = Files.readAllBytes(path);
@@ -82,8 +91,7 @@ public class VulController {
                 ghsaIds = devopsVulList.stream().parallel().map(DevopsVul::getGhsaId).collect(Collectors.toList());
             }
             List<String> finalGhsaIds = ghsaIds;
-            List<DevopsVul> advisoriesList = githubAdvisories1.stream()
-                    .parallel()
+            List<DevopsVul> advisoriesList = githubAdvisories1.stream().parallel()
                     .filter(githubAdvisories -> {
                         if (CollectionUtils.isEmpty(devopsVulList)){
                             return true;
@@ -107,8 +115,20 @@ public class VulController {
                         convert.setReferencess(gson.toJson(githubAdvisories.getReferences()));
                         convert.setDatabaseSpecific(gson.toJson(githubAdvisories.getDatabaseSpecific()));
                         if (CollectionUtils.isNotEmpty(githubAdvisories.getAffected())){
-                            convert.setEcosystem(gson.toJson(githubAdvisories.getAffected().get(0).getPackages().get("ecosystem")));
-                            convert.setPackages(gson.toJson(githubAdvisories.getAffected().get(0).getPackages().get("name")));
+                            GithubAffected githubAffected = githubAdvisories.getAffected().get(0);
+                            JsonObject githubAffectedPackages = githubAffected.getPackages();
+                            String ecosystem = gson.toJson(githubAffectedPackages.get("ecosystem")).replace("\"", "");
+                            convert.setEcosystem(ecosystem);
+                            String packages = gson.toJson(githubAffectedPackages.get("name")).replace("\"", "");
+                            convert.setPackages(packages);
+
+                            List<Range> ranges = githubAffected.getRanges();
+                            if (CollectionUtils.isNotEmpty(ranges)) {
+                                Range range = ranges.get(0);
+                                List<AffectedEvent> events = range.getEvents();
+                                convert.setIntroduced(gson.toJson(events.get(0)));
+                                convert.setFixed(gson.toJson(events.get(1)));
+                            }
                         }
                         return convert;
                     })
