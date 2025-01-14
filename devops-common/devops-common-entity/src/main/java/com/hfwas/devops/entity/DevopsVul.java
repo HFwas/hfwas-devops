@@ -25,4 +25,5 @@ public class DevopsVul {
     private String referencess;
     private String databaseSpecific;
     private String ecosystem;
+    private String packages;
 }

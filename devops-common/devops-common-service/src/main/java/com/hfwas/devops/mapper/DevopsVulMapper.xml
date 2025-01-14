@@ -12,7 +12,7 @@
 
     <!-- 通用查询结果列 -->
     <sql id="Base_Column_List">
-        id, modified, published, details, serverity, affected, ref as referencess, databases_spec as databaseSpecific, cve_id as cveId, ghsa_id as ghsaId, ecosystem
+        id, modified, published, details, serverity, affected, ref as referencess, databases_spec as databaseSpecific, cve_id as cveId, ghsa_id as ghsaId, ecosystem, packages
     </sql>
 
 
@@ -45,22 +45,22 @@
     </select>
 
     <insert id="save" parameterType="com.hfwas.devops.entity.DevopsVul">
-        insert into devops_vul (modified, published, cve_id, ghsa_id, details, serverity, affected, ref, databases_spec, ecosystem) values
-        (#{devopsVul.modified}, #{devopsVul.published}, #{devopsVul.cveId}, #{devopsVul.ghsaId}, #{devopsVul.details}, #{devopsVul.serverity}, #{devopsVul.affected}, #{devopsVul.referencess}, #{devopsVul.databaseSpecific}, #{devopsVul.ecosystem})
+        insert into devops_vul (modified, published, cve_id, ghsa_id, details, serverity, affected, ref, databases_spec, ecosystem, packages) values
+        (#{devopsVul.modified}, #{devopsVul.published}, #{devopsVul.cveId}, #{devopsVul.ghsaId}, #{devopsVul.details}, #{devopsVul.serverity}, #{devopsVul.affected}, #{devopsVul.referencess}, #{devopsVul.databaseSpecific}, #{devopsVul.ecosystem}, , #{devopsVul.packages})
     </insert>
 
     <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVul">
         insert into devops_vul
-        (modified, published, cve_id, ghsa_id, details, serverity, affected, ref, databases_spec, ecosystem) values
+        (modified, published, cve_id, ghsa_id, details, serverity, affected, ref, databases_spec, ecosystem, packages) values
         <foreach collection="devopsVuls" item="devopsVul" separator=",">
-            (#{devopsVul.modified}, #{devopsVul.published}, #{devopsVul.cveId}, #{devopsVul.ghsaId}, #{devopsVul.details}, #{devopsVul.serverity}, #{devopsVul.affected}, #{devopsVul.referencess}, #{devopsVul.databaseSpecific}, #{devopsVul.ecosystem})
+            (#{devopsVul.modified}, #{devopsVul.published}, #{devopsVul.cveId}, #{devopsVul.ghsaId}, #{devopsVul.details}, #{devopsVul.serverity}, #{devopsVul.affected}, #{devopsVul.referencess}, #{devopsVul.databaseSpecific}, #{devopsVul.ecosystem}, #{devopsVul.packages})
         </foreach>
     </insert>
 
     <update id="updateBatch" parameterType="com.hfwas.devops.entity.DevopsVul">
         <foreach collection="devopsVuls" item="devopsVul" separator=",">
             update devops_vul
-            set modified = #{devopsVul.modified},published = #{devopsVul.published},cve_id= #{devopsVul.cveId}, ghsa_id=#{devopsVul.ghsaId}, details=#{devopsVul.details}, ecosystem=#{devopsVul.ecosystem}, serverity=#{devopsVul.serverity}, affected=#{devopsVul.affected}, ref=#{devopsVul.referencess}, database_specific=#{devopsVul.databaseSpecific}
+            set modified = #{devopsVul.modified},published = #{devopsVul.published},cve_id= #{devopsVul.cveId}, ghsa_id=#{devopsVul.ghsaId}, details=#{devopsVul.details}, ecosystem=#{devopsVul.ecosystem}, packages=#{devopsVul.packages}, serverity=#{devopsVul.serverity}, affected=#{devopsVul.affected}, ref=#{devopsVul.referencess}, database_specific=#{devopsVul.databaseSpecific}
             where ghsa_id=#{devopsVul.ghsaId}
         </foreach>
     </update>
