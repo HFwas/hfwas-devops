@@ -1,5 +1,6 @@
 package com.hfwas.devops.controller.vul;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -8,10 +9,8 @@ import com.hfwas.devops.entity.DevopsVul;
 import com.hfwas.devops.entity.DevopsVulDependency;
 import com.hfwas.devops.mapper.DevopsVulMapper;
 import com.hfwas.devops.service.vul.rust.DevopsRustDepenScan;
-import com.hfwas.devops.tools.entity.github.AffectedEvent;
-import com.hfwas.devops.tools.entity.github.GithubAdvisories;
-import com.hfwas.devops.tools.entity.github.GithubAffected;
-import com.hfwas.devops.tools.entity.github.Range;
+import com.hfwas.devops.tools.entity.cwe.CvssSeverity;
+import com.hfwas.devops.tools.entity.github.*;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -23,8 +22,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -53,15 +51,15 @@ public class VulController {
     public void getById() throws IOException {
         List<DevopsVul> list = devopsVulMapper.list(null);
         DevopsVul devopsVul = devopsVulMapper.selectById(495456L);
-        String databaseSpecific = devopsVul.getDatabaseSpecific();
-        log.info("databaseSpecific:{}", databaseSpecific);
+//        String databaseSpecific = devopsVul.getDatabaseSpecific();
+        log.info("databaseSpecific:{}", devopsVul);
     }
 
     @GetMapping("/sync")
     public void sync() throws IOException {
         long timeMillis = System.currentTimeMillis();
         log.info("【sync】start time:{}", timeMillis);
-        Stream<Path> walk = Files.walk(Paths.get("/Users/hfwas/github/ghsa"));
+        Stream<Path> walk = Files.walk(Paths.get("/Users/houfei/github/ghsa/advisories/github-reviewed/2024/12"));
         List<Path> collect = walk.parallel()
                 .filter(Files::isRegularFile)
                 .filter(path -> path.getFileName().toString().startsWith("GHSA") || path.getFileName().toString().startsWith("CVE"))
@@ -72,6 +70,9 @@ public class VulController {
 
         List<List<Path>> collectPartition = Lists.partition(collect, 50);
         int i = 0;
+        List<DevopsVul> devopsVulList = devopsVulMapper.list(null);
+        Map<String, String> devopsVulListMap = devopsVulList.stream().parallel().collect(Collectors.toMap(DevopsVul::getGhsaId, DevopsVul::getModified));
+        Set<String> ghsaIds = devopsVulListMap.keySet();
         for (List<Path> paths : collectPartition) {
             log.info("【sync】collectPartition: {}", i);
             ArrayList<GithubAdvisories> githubAdvisories1 = new ArrayList<>();
@@ -84,24 +85,11 @@ public class VulController {
                 }
             });
             log.info("【sync】devopsVulMapper.list: {}", (System.currentTimeMillis() - timeMillis));
-            List<DevopsVul> devopsVulList = devopsVulMapper.list(null);
-            List<String> ghsaIds = Lists.newArrayList();
-            if (CollectionUtils.isNotEmpty(devopsVulList)) {
-                ghsaIds = devopsVulList.stream().parallel().map(DevopsVul::getGhsaId).collect(Collectors.toList());
-            }
-            List<String> finalGhsaIds = ghsaIds;
+
             List<DevopsVul> advisoriesList = githubAdvisories1.stream().parallel()
                     .filter(githubAdvisories -> {
-                        if (CollectionUtils.isEmpty(devopsVulList)){
-                            return true;
-                        } else {
-                            try {
-                                String ghsaId = githubAdvisories.getGhsaId();
-                            } catch (Exception e) {
-                                log.error(e.getMessage());
-                            }
-                            return CollectionUtils.isNotEmpty(devopsVulList) && githubAdvisories.getGhsaId() != "" && !finalGhsaIds.contains(githubAdvisories.getGhsaId());
-                        }
+                        String ghsaId = githubAdvisories.getGhsaId();
+                        return CollectionUtils.isNotEmpty(devopsVulList) && !ghsaIds.contains(githubAdvisories.getGhsaId());
                     })
                     .map(githubAdvisories -> {
                         DevopsVul convert = DevopsVulConvert.INSTANCE.convert(githubAdvisories);
@@ -109,10 +97,21 @@ public class VulController {
                         if (CollectionUtils.isNotEmpty(githubAdvisories.getAliases())){
                             convert.setCveId(githubAdvisories.getAliases().get(0));
                         }
-                        convert.setServerity(gson.toJson(githubAdvisories.getServerity()));
-                        convert.setAffected(gson.toJson(githubAdvisories.getAffected()));
+                        List<CvssSeverity> serverity = githubAdvisories.getServerity();
+                        if (CollectionUtils.isNotEmpty(serverity)){
+                            Optional<CvssSeverity> cvssV3 = serverity.stream().filter(server -> server.getType().equals("CVSS_V3")).findFirst();
+                            if (cvssV3.isPresent()){
+                                CvssSeverity cvssSeverity = cvssV3.get();
+                                convert.setCvssV3Score(cvssSeverity.getScore());
+                            }
+                        }
+                        DatabaseSpecific databaseSpecific = githubAdvisories.getDatabaseSpecific();
+                        if (CollectionUtils.isNotEmpty(databaseSpecific.getCweIds())) {
+                            String cweIds = Joiner.on(",").join(databaseSpecific.getCweIds());
+                            convert.setCweIds(cweIds);
+                        }
+                        convert.setServerity(databaseSpecific.getSeverity());
                         convert.setReferencess(gson.toJson(githubAdvisories.getReferences()));
-                        convert.setDatabaseSpecific(gson.toJson(githubAdvisories.getDatabaseSpecific()));
                         if (CollectionUtils.isNotEmpty(githubAdvisories.getAffected())){
                             GithubAffected githubAffected = githubAdvisories.getAffected().get(0);
                             JsonObject githubAffectedPackages = githubAffected.getPackages();
@@ -126,7 +125,9 @@ public class VulController {
                                 Range range = ranges.get(0);
                                 List<AffectedEvent> events = range.getEvents();
                                 convert.setIntroduced(gson.toJson(events.get(0)));
-                                convert.setFixed(gson.toJson(events.get(1)));
+                                if (events.size() > 1) {
+                                    convert.setFixed(gson.toJson(events.get(1)));
+                                }
                             }
                         }
                         return convert;
@@ -139,19 +140,45 @@ public class VulController {
             log.info("【sync】devopsVulMapper.list: {}", (System.currentTimeMillis() - timeMillis));
             List<DevopsVul> updateAdvisoriesList = githubAdvisories1.stream()
                     .parallel()
-                    .filter(githubAdvisories -> CollectionUtils.isNotEmpty(devopsVulList) && finalGhsaIds.contains(githubAdvisories.getGhsaId()))
+                    .filter(githubAdvisories -> CollectionUtils.isNotEmpty(devopsVulList) && ghsaIds.contains(githubAdvisories.getGhsaId()) && !devopsVulListMap.get(githubAdvisories.getGhsaId()).equals(githubAdvisories.getModified()))
                     .map(githubAdvisories -> {
                         DevopsVul convert = DevopsVulConvert.INSTANCE.convert(githubAdvisories);
                         convert.setGhsaId(githubAdvisories.getGhsaId());
                         if (CollectionUtils.isNotEmpty(githubAdvisories.getAliases())){
                             convert.setCveId(githubAdvisories.getAliases().get(0));
                         }
+                        List<CvssSeverity> serverity = githubAdvisories.getServerity();
+                        if (CollectionUtils.isNotEmpty(serverity)){
+                            Optional<CvssSeverity> cvssV3 = serverity.stream().filter(server -> server.getType().equals("CVSS_V3")).findFirst();
+                            if (cvssV3.isPresent()){
+                                CvssSeverity cvssSeverity = cvssV3.get();
+                                convert.setCvssV3Score(cvssSeverity.getScore());
+                            }
+                        }
+                        DatabaseSpecific databaseSpecific = githubAdvisories.getDatabaseSpecific();
+                        if (CollectionUtils.isNotEmpty(databaseSpecific.getCweIds())) {
+                            String cweIds = Joiner.on(",").join(databaseSpecific.getCweIds());
+                            convert.setCweIds(cweIds);
+                        }
                         convert.setServerity(gson.toJson(githubAdvisories.getServerity()));
-                        convert.setAffected(gson.toJson(githubAdvisories.getAffected()));
                         convert.setReferencess(gson.toJson(githubAdvisories.getReferences()));
-                        convert.setDatabaseSpecific(gson.toJson(githubAdvisories.getDatabaseSpecific()));
                         if (CollectionUtils.isNotEmpty(githubAdvisories.getAffected())){
-                            convert.setEcosystem(gson.toJson(githubAdvisories.getAffected().get(0).getPackages().get("ecosystem").toString()));
+                            GithubAffected githubAffected = githubAdvisories.getAffected().get(0);
+                            JsonObject githubAffectedPackages = githubAffected.getPackages();
+                            String ecosystem = gson.toJson(githubAffectedPackages.get("ecosystem")).replace("\"", "");
+                            convert.setEcosystem(ecosystem);
+                            String packages = gson.toJson(githubAffectedPackages.get("name")).replace("\"", "");
+                            convert.setPackages(packages);
+
+                            List<Range> ranges = githubAffected.getRanges();
+                            if (CollectionUtils.isNotEmpty(ranges)) {
+                                Range range = ranges.get(0);
+                                List<AffectedEvent> events = range.getEvents();
+                                convert.setIntroduced(gson.toJson(events.get(0)));
+                                if (events.size() > 1) {
+                                    convert.setFixed(gson.toJson(events.get(1)));
+                                }
+                            }
                         }
                         return convert;
                     })

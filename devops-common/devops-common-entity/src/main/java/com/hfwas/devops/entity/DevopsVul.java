@@ -21,11 +21,11 @@ public class DevopsVul {
     private String ghsaId;
     private String details;
     private String serverity;
-    private String affected;
     private String referencess;
-    private String databaseSpecific;
     private String ecosystem;
     private String packages;
     private String introduced;
     private String fixed;
+    private String cvssV3Score;
+    private String cweIds;
 }
