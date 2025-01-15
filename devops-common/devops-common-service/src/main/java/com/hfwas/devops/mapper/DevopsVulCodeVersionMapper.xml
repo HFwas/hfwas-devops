@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hfwas.devops.mapper.DevopsVulCodeVersionMapper">
+
+    <resultMap id="actorResultMap" type="com.hfwas.devops.entity.DevopsVulCodeVersion">
+        <id column="id" property="id"/>
+        <result column="depen_version_id" property="depenVersionId"/>
+        <result column="code_id" property="codeId"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, depen_version_id, code_id
+    </sql>
+
+
+
+</mapper>

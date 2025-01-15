@@ -16,8 +16,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class DevopsVulDependency {
     private Long id;
-    private Long gitId;
     private String company;
     private String dependencyName;
     private String version;
+    private Integer type;
 }
