@@ -6,6 +6,8 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
 
+import java.util.List;
+
 /**
  * @author houfei
  * @package com.hfwas.devops.convert
@@ -18,5 +20,8 @@ public interface DevopsVulDependencyVersionConvert {
 
     @Mapping(source = "id", target = "depenId")
     DevopsVulDependencyVersion to(DevopsVulDependency devopsVulDependency);
+
+    @Mapping(source = "id", target = "depenId")
+    List<DevopsVulDependencyVersion> tos(List<DevopsVulDependency> devopsVulDependency);
 
 }

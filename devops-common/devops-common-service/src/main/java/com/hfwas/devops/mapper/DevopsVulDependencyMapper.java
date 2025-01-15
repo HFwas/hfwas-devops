@@ -14,6 +14,10 @@ import java.util.List;
 @Mapper
 public interface DevopsVulDependencyMapper {
 
+    DevopsVulDependency getOne(@Param("devopsVulDependency") DevopsVulDependency devopsVulDependency);
+
+    List<DevopsVulDependency> list(@Param("devopsVulDependencys") List<DevopsVulDependency> devopsVulDependencys);
+
     boolean save(@Param("devopsVulDependency") DevopsVulDependency devopsVulDependency);
 
     boolean saveBatch(@Param("devopsVulDependencys") List<DevopsVulDependency> devopsVulDependencys);
