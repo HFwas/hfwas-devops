@@ -4,27 +4,26 @@
 
     <resultMap id="actorResultMap" type="com.hfwas.devops.entity.DevopsVulDependency">
         <id column="id" property="id"/>
-        <result column="git_id" property="gitId"/>
         <result column="company" property="company"/>
         <result column="dependency_name" property="dependencyName"/>
-        <result column="version" property="version"/>
+        <result column="type" property="type"/>
     </resultMap>
 
     <!-- 通用查询结果列 -->
     <sql id="Base_Column_List">
-        id, git_id, company, dependency_name, version
+        id, company, dependency_name as dependencyName, type
     </sql>
 
-    <insert id="save" parameterType="com.hfwas.devops.entity.DevopsVulDependency">
-        insert into devops_vul_dependency (git_id, company, dependency_name, version) values
-            (#{devopsVulDependency.gitId}, #{devopsVulDependency.name}, #{devopsVulDependency.description}, #{devopsVulDependency.type})
+    <insert id="save" parameterType="com.hfwas.devops.entity.DevopsVulDependency" useGeneratedKeys="true" keyProperty="id">
+        insert into devops_vul_dependency (company, dependency_name, type) values
+            (#{devopsVulDependency.company}, #{devopsVulDependency.dependencyName}, #{devopsVulDependency.type})
     </insert>
 
-    <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVulDependency">
-        insert into devops_vul_dependency (git_id, company, dependency_name, version) values
+    <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVulDependency" useGeneratedKeys="true" keyProperty="id">
+        insert into devops_vul_dependency (company, dependency_name, type) values
         <if test="devopsVulDependencys != null">
             <foreach collection="devopsVulDependencys" item="devopsVulDependency" separator=",">
-                (#{devopsVulDependency.gitId}, #{devopsVulDependency.company}, #{devopsVulDependency.dependencyName}, #{devopsVulDependency.version})
+                (#{devopsVulDependency.company}, #{devopsVulDependency.dependencyName}, #{devopsVulDependency.type})
             </foreach>
         </if>
     </insert>

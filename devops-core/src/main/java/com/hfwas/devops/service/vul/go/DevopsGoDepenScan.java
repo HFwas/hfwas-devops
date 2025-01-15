@@ -60,6 +60,7 @@ public class DevopsGoDepenScan extends AbstractDepenScan {
                 String[] split1 = split[split.length - 1].split(" ");
                 devopsVulDependency.setDependencyName(split1[0]);
                 devopsVulDependency.setVersion(split1[1]);
+                devopsVulDependency.setType(3);
                 devopsVulDependencys.add(devopsVulDependency);
             }
         }

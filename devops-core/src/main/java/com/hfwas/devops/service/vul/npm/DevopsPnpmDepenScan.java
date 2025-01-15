@@ -58,6 +58,7 @@ public class DevopsPnpmDepenScan extends AbstractDepenScan {
                     devopsVulDependency.setCompany(split[0]);
                     devopsVulDependency.setVersion(split[1]);
                 }
+                devopsVulDependency.setType(2);
                 devopsVulDependencies.add(devopsVulDependency);
             }
         }

@@ -17,9 +17,7 @@ public interface DevopsVulConvert {
     DevopsVulConvert INSTANCE = Mappers.getMapper(DevopsVulConvert.class);
 
     @Mapping(ignore = true, source = "serverity", target = "serverity")
-    @Mapping(ignore = true, source = "affected", target = "affected")
     @Mapping(ignore = true, source = "references", target = "referencess")
-    @Mapping(ignore = true, source = "databaseSpecific", target = "databaseSpecific")
     DevopsVul convert(GithubAdvisories githubAdvisories);
 
 }

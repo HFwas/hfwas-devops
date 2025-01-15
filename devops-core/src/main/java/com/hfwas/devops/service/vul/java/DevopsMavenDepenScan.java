@@ -47,7 +47,11 @@ public class DevopsMavenDepenScan extends AbstractDepenScan {
                 String artifactId = asJsonObject.get("artifactId").getAsString();
                 String version = asJsonObject.get("version").getAsString();
                 int numericId = asJsonObject.get("numericId").getAsInt();
-                DevopsVulDependency devopsVulDependency = DevopsVulDependency.builder().company(groupId).dependencyName(artifactId).version(version).gitId(1L).build();
+                DevopsVulDependency devopsVulDependency = DevopsVulDependency.builder()
+                        .company(groupId)
+                        .dependencyName(artifactId)
+                        .version(version)
+                        .type(1).build();
                 devopsVulDependencys.add(devopsVulDependency);
             }
 
@@ -59,8 +63,6 @@ public class DevopsMavenDepenScan extends AbstractDepenScan {
                 int numericFrom = asJsonObject.get("numericFrom").getAsInt();
                 int numericTo = asJsonObject.get("numericTo").getAsInt();
             }
-        } else if (originalFilename.equals("")) {
-
         }
         return devopsVulDependencys;
     }

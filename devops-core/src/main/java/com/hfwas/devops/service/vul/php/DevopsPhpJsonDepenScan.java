@@ -49,6 +49,7 @@ public class DevopsPhpJsonDepenScan extends AbstractDepenScan {
 
             String version = asJsonObject.getAsJsonPrimitive(depen).getAsString();
             devopsVulDependency.setVersion(version);
+            devopsVulDependency.setType(5);
             devopsVulDependencies.add(devopsVulDependency);
         }
         return devopsVulDependencies;

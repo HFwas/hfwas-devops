@@ -61,6 +61,7 @@ public class DevopsPhpLockDepenScan extends AbstractDepenScan {
                     }
                     String version = asJsonObject.getAsJsonPrimitive("version").getAsString();
                     devopsVulDependency.setVersion(version);
+                    devopsVulDependency.setType(5);
                     devopsVulDependencies.add(devopsVulDependency);
                 }
             }

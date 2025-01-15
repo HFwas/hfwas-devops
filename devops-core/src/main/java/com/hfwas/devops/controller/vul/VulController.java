@@ -89,7 +89,11 @@ public class VulController {
             List<DevopsVul> advisoriesList = githubAdvisories1.stream().parallel()
                     .filter(githubAdvisories -> {
                         String ghsaId = githubAdvisories.getGhsaId();
-                        return CollectionUtils.isNotEmpty(devopsVulList) && !ghsaIds.contains(githubAdvisories.getGhsaId());
+                        if (CollectionUtils.isEmpty(devopsVulList)) {
+                            return true;
+                        } else {
+                            return CollectionUtils.isNotEmpty(devopsVulList) && !ghsaIds.contains(githubAdvisories.getGhsaId());
+                        }
                     })
                     .map(githubAdvisories -> {
                         DevopsVul convert = DevopsVulConvert.INSTANCE.convert(githubAdvisories);

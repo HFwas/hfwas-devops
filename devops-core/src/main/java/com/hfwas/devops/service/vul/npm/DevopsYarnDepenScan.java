@@ -51,14 +51,14 @@ public class DevopsYarnDepenScan extends AbstractDepenScan {
                     String version = readAllLines.get(i + 1);
                     version = version.substring(11).replace("\"", "");
                     devopsVulDependency.setVersion(version);
-                    devopsVulDependencies.add(devopsVulDependency);
                 } else {
                     String[] split1 = readAllLine.split("@");
                     devopsVulDependency.setCompany(split1[0]);
                     String version = readAllLines.get(i + 1).substring(11).replace("\"", "");
                     devopsVulDependency.setVersion(version);
-                    devopsVulDependencies.add(devopsVulDependency);
                 }
+                devopsVulDependency.setType(2);
+                devopsVulDependencies.add(devopsVulDependency);
             }
         }
         return devopsVulDependencies;

@@ -61,12 +61,14 @@ public class DevopsNpmDepenScan extends AbstractDepenScan {
                     devopsVulDependency.setCompany(split[0]);
                     devopsVulDependency.setDependencyName(split[1]);
                     devopsVulDependency.setVersion(version);
+                    devopsVulDependency.setType(2);
                     devopsVulDependencies.add(devopsVulDependency);
                 } else {
                     String[] split = substring.split("/");
                     devopsVulDependency.setCompany(split[0]);
                     devopsVulDependency.setDependencyName(null);
                     devopsVulDependency.setVersion(version);
+                    devopsVulDependency.setType(2);
                     devopsVulDependencies.add(devopsVulDependency);
                 }
             }

@@ -11,5 +11,5 @@ import lombok.Data;
 public class DevopsVulDependencyVersion {
     private Long id;
     private Long depenId;
-    private Long version;
+    private String version;
 }

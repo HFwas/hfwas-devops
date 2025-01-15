@@ -13,6 +13,20 @@
         id, depen_id, version
     </sql>
 
+    <insert id="save" parameterType="com.hfwas.devops.entity.DevopsVulDependencyVersion" useGeneratedKeys="true" keyProperty="id">
+        insert into devops_vul_dependency_version (depen_id, version) values
+            (#{devopsVulDependencyVersion.depenId}, #{devopsVulDependencyVersion.version})
+    </insert>
+
+    <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVulDependencyVersion" useGeneratedKeys="true" keyProperty="id">
+        insert into devops_vul_dependency_version (depen_id, version) values
+        <if test="devopsVulDependencys != null">
+            <foreach collection="devopsVulDependencys" item="devopsVulDependency" separator=",">
+                (#{devopsVulDependencyVersion.depenId}, #{devopsVulDependencyVersion.version})
+            </foreach>
+        </if>
+    </insert>
+
 
 
 </mapper>

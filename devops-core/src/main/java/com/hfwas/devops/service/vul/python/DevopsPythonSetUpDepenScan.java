@@ -48,6 +48,7 @@ public class DevopsPythonSetUpDepenScan extends AbstractDepenScan {
                 String[] split = readLine.split("==");
                 devopsVulDependency.setCompany(split[0]);
                 devopsVulDependency.setVersion(split[1]);
+                devopsVulDependency.setType(4);
                 devopsVulDependencys.add(devopsVulDependency);
             }
         }

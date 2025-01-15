@@ -52,6 +52,7 @@ public class DevopsRustDepenScan extends AbstractDepenScan {
                 String[] split1 = split[2].replace("\"", "").split(",");
                 devopsVulDependency.setVersion(split1[0]);
             }
+            devopsVulDependency.setType(6);
             devopsVulDependencies.add(devopsVulDependency);
         }
         return devopsVulDependencies;
