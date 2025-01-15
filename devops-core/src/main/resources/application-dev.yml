@@ -5,10 +5,10 @@ spring:
   application:
     name: devops-core
   datasource:
-    driver-class-name: com.mysql.jdbc.Driver
+    driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
     password:
-    url: jdbc:mysql://10.10.103.229:33200/yanlian_devops_development?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&autoReconnect=true&failOverReadOnly=false&transformedBitIsBoolean=true&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/hfwas-devops?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&autoReconnect=true&failOverReadOnly=false&transformedBitIsBoolean=true&allowPublicKeyRetrieval=true
   data:
     redis:
       port: 6379
@@ -18,3 +18,31 @@ spring:
 feign:
   cache:
     enabled: true
+devops:
+  depency:
+    java:
+      url: https://repo.maven.apache.org/maven2
+    npm:
+      url: https://registry.npmmirror.com
+  harbor:
+    url: harbor
+    username: 11
+    password: 111
+  nexus:
+    url: http://localhost:8089
+    username: admin
+    password: 89
+  sonarqube:
+    url: http://localhost:8089
+    username: admin
+    password: admin
+  vulnerability:
+    avd:
+      url: https://avd.aliyun.com
+    cwe:
+      url: https://api.github.com
+      zip: https://api.github.com
+    github:
+      url: https://api.github.com
+    nvd:
+      url: https://services.nvd.nist.gov
