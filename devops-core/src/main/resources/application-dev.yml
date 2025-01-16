@@ -45,6 +45,7 @@ devops:
     username: admin
     password: admin
   vulnerability:
+    path: /Users/houfei/github
     avd:
       url: https://avd.aliyun.com
     cwe:

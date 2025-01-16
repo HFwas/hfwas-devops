@@ -12,9 +12,12 @@ import com.hfwas.devops.tools.entity.github.*;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,14 +34,51 @@ import java.util.stream.Stream;
 @Service
 public class DevopsVulService {
 
+    @Value("${devops.vulnerability.path}")
+    private String vulnerabilityPath;
+
     @Resource
     DevopsVulMapper devopsVulMapper;
 
     public void sync() {
         try {
+            // 构造命令（通过 shell 执行完整命令）
+//            List<String> command = List.of(
+//                    "bash", "-c",
+//                    "wget -qO - https://github.com/github/advisory-database/archive/refs/heads/main.tar.gz | tar xz -C /Users/houfei/github/ghsa --strip-components=1"
+//            );
+            List<String> command = Lists.newArrayList();
+            Path advisoryDatabasePath = Paths.get(String.format("%s/advisory-database", vulnerabilityPath));
+            boolean exists = Files.exists(advisoryDatabasePath);
+            if (exists) {
+                command = List.of(
+                        "bash", "-c",
+                        String.format("cd %s/advisory-database && git pull", vulnerabilityPath)
+                );
+            } else {
+                command = List.of(
+                        "bash", "-c",
+                        String.format("cd %s && git clone -b main https://github.com/github/advisory-database.git", vulnerabilityPath)
+                );
+            }
+            ProcessBuilder processBuilder = new ProcessBuilder(command);
+            processBuilder.redirectErrorStream(true); // 合并错误流
+            Process process = processBuilder.start();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                log.info("【sync git advisory-database】:{}", line);
+            }
+            // 等待进程完成
+            int exitCode = process.waitFor();
+            log.info("【sync git advisory-database】Exit Code: " + exitCode);
+            if (exitCode != 0) {
+                throw new RuntimeException("Exit Code: " + exitCode);
+            }
+
             long timeMillis = System.currentTimeMillis();
             log.info("【sync】start time:{}", timeMillis);
-            Stream<Path> walk = Files.walk(Paths.get("/Users/houfei/github/ghsa/advisories/github-reviewed/2024/12"));
+            Stream<Path> walk = Files.walk(Paths.get(String.format("%s/advisory-database", vulnerabilityPath)));
             List<Path> collect = walk.parallel()
                     .filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString().startsWith("GHSA") || path.getFileName().toString().startsWith("CVE"))
