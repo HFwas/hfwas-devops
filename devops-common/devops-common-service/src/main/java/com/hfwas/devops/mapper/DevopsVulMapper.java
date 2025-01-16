@@ -19,6 +19,8 @@ public interface DevopsVulMapper{
 
     boolean saveBatch(@Param("devopsVuls")List<DevopsVul> devopsVuls);
 
+    boolean update(@Param("devopsVul")DevopsVul devopsVul);
+
     boolean updateBatch(@Param("devopsVuls")List<DevopsVul> devopsVuls);
 
 }

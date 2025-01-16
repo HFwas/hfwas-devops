@@ -1,143 +1,117 @@
 package com.hfwas.devops.handler;
 
-import org.apache.ibatis.executor.statement.StatementHandler;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.BoundSql;
-import org.apache.ibatis.plugin.Interceptor;
-import org.apache.ibatis.plugin.Intercepts;
-import org.apache.ibatis.plugin.Invocation;
-import org.apache.ibatis.plugin.Signature;
+import org.apache.ibatis.mapping.MappedStatement;
+import org.apache.ibatis.mapping.ParameterMapping;
+import org.apache.ibatis.mapping.ParameterMode;
+import org.apache.ibatis.plugin.*;
+import org.apache.ibatis.reflection.MetaObject;
+import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.ResultHandler;
+import org.apache.ibatis.session.RowBounds;
+import org.apache.ibatis.type.TypeHandlerRegistry;
 
-import java.lang.reflect.Field;
-import java.sql.Statement;
-import java.util.HashMap;
-import java.util.Map;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.Properties;
+import java.util.regex.Matcher;
 
 /**
  * @author houfei
  * @package com.hfwas.devops.handler
  * @date 2025/1/16
  */
-@Intercepts({
-        @Signature(type = StatementHandler.class, method = "query", args = {Statement.class, ResultHandler.class}),
-        @Signature(type = StatementHandler.class, method = "update", args = Statement.class),
-        @Signature(type = StatementHandler.class, method = "batch", args = Statement.class)
-})
+@Intercepts
+        ({
+                @Signature(type = Executor.class, method = "query", args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}),
+                @Signature(type = Executor.class, method = "update", args = {MappedStatement.class, Object.class}),
+                @Signature(type = Executor.class, method = "insert", args = {MappedStatement.class, Object.class})
+        })
+@Slf4j
 public class SqlInterceptor implements Interceptor {
+
+    private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
-        // 获取 StatementHandler
-        StatementHandler statementHandler = (StatementHandler) invocation.getTarget();
-        BoundSql boundSql = statementHandler.getBoundSql();
-        Object parameterObject1 = statementHandler.getParameterHandler().getParameterObject();
+        MappedStatement mappedStatement = (MappedStatement) invocation.getArgs()[0];
+        Object parameterObject = null;
+        if (invocation.getArgs().length > 1) {
+            parameterObject = invocation.getArgs()[1];
+        }
 
-        // 获取原始 SQL
-        String originalSql = statementHandler.getBoundSql().getSql().trim();
-        originalSql = originalSql.replaceAll("[\\s]+", " ");
+        long start = System.currentTimeMillis();
 
-        // 获取参数对象
-        Object parameterObject = boundSql.getParameterObject();
-        Map<String, Object> parameterMap = getParameterMap(parameterObject);
+        Object result = invocation.proceed();
 
-        // 替换参数，生成真实执行的 SQL
-        String executableSql = replacePlaceholders(originalSql, parameterMap);
-        System.out.println("Executable SQL: " + executableSql);
+        String statementId = mappedStatement.getId();
+        BoundSql boundSql = mappedStatement.getBoundSql(parameterObject);
+        Configuration configuration = mappedStatement.getConfiguration();
+        String sql = getSql(boundSql, parameterObject, configuration);
 
-        // 执行原方法
-        return invocation.proceed();
+        long end = System.currentTimeMillis();
+        long timing = end - start;
+        log.info("执行sql耗时:" + timing + " ms" + " - id:" + statementId + " - Sql:" );
+        log.info("   "+sql);
+        return result;
     }
 
-    private Map<String, Object> getParameterMap(Object parameterObject) {
-        Map<String, Object> parameterMap = new HashMap<>();
-        if (parameterObject instanceof Map) {
-            parameterMap.putAll((Map<String, Object>) parameterObject);
-        } else if (parameterObject != null) {
-            // 尝试将对象的字段作为参数
-            for (Field field : parameterObject.getClass().getDeclaredFields()) {
-                field.setAccessible(true);
-                try {
-                    parameterMap.put(field.getName(), field.get(parameterObject));
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
+    @Override
+    public Object plugin(Object target) {
+        if (target instanceof Executor) {
+            return Plugin.wrap(target, this);
+        }
+        return target;
+    }
+
+    @Override
+    public void setProperties(Properties properties) {
+    }
+
+    private String getSql(BoundSql boundSql, Object parameterObject, Configuration configuration) {
+        String sql = boundSql.getSql().replaceAll("[\\s]+", " ");
+        List<ParameterMapping> parameterMappings = boundSql.getParameterMappings();
+        TypeHandlerRegistry typeHandlerRegistry = configuration.getTypeHandlerRegistry();
+        if (parameterMappings != null) {
+            for (int i = 0; i < parameterMappings.size(); i++) {
+                ParameterMapping parameterMapping = parameterMappings.get(i);
+                if (parameterMapping.getMode() != ParameterMode.OUT) {
+                    Object value;
+                    String propertyName = parameterMapping.getProperty();
+                    if (boundSql.hasAdditionalParameter(propertyName)) {
+                        value = boundSql.getAdditionalParameter(propertyName);
+                    } else if (parameterObject == null) {
+                        value = null;
+                    } else if (typeHandlerRegistry.hasTypeHandler(parameterObject.getClass())) {
+                        value = parameterObject;
+                    } else {
+                        MetaObject metaObject = configuration.newMetaObject(parameterObject);
+                        value = metaObject.getValue(propertyName);
+                    }
+                    sql = replacePlaceholder(sql, value);
                 }
             }
-        }
-        return parameterMap;
-    }
-
-    private String replacePlaceholders(String sql, Map<String, Object> parameters) {
-        for (Map.Entry<String, Object> entry : parameters.entrySet()) {
-            String value = entry.getValue() == null ? "NULL" : getFormattedValue(entry.getValue());
-            sql = sql.replaceFirst("\\?", value);
         }
         return sql;
     }
 
-    private String getFormattedValue(Object value) {
-        // Handle primitive types and strings
-        if (value instanceof String) {
-            return "'" + value + "'";
-        } else if (value instanceof Number || value instanceof Boolean) {
-            return value.toString();
-        } else if (value instanceof java.util.Date) {
-            // Format Date to SQL format
-            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            return "'" + sdf.format((java.util.Date) value) + "'";
-        } else if (value instanceof java.util.Collection) {
-            // Handle collections (List, Set, etc.)
-            return handleCollection((java.util.Collection<?>) value);
-        } else {
-            // Handle custom complex objects
-            return getObjectStringRepresentation(value);
-        }
-    }
-
-    private String handleCollection(java.util.Collection<?> collection) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("(");
-        boolean first = true;
-        for (Object item : collection) {
-            if (!first) sb.append(", ");
-            first = false;
-            sb.append(getFormattedValue(item));
-        }
-        sb.append(")");
-        return sb.toString();
-    }
-
-    private String getObjectStringRepresentation(Object obj) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("(");
-
-        // Use reflection to access fields of the object
-        Field[] fields = obj.getClass().getDeclaredFields();
-        for (int i = 0; i < fields.length; i++) {
-            fields[i].setAccessible(true);
-            try {
-                Object fieldValue = fields[i].get(obj);
-                if (fieldValue == null) {
-                    sb.append("NULL");
-                } else if (fieldValue instanceof String) {
-                    sb.append("'").append(fieldValue).append("'");
-                } else if (fieldValue instanceof Number || fieldValue instanceof Boolean) {
-                    sb.append(fieldValue);
-                } else if (fieldValue instanceof java.util.Date) {
-                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                    sb.append("'").append(sdf.format((java.util.Date) fieldValue)).append("'");
-                } else {
-                    // Recursively process nested objects if necessary
-                    sb.append(getObjectStringRepresentation(fieldValue));
-                }
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-                sb.append("NULL");
+    private String replacePlaceholder(String sql, Object propertyValue) {
+        String result;
+        if (propertyValue != null) {
+            if (propertyValue instanceof String) {
+                result = "'" + propertyValue + "'";
+            } else if (propertyValue instanceof Date) {
+                result = "'" + DATE_FORMAT.format(propertyValue) + "'";
+            } else {
+                result = propertyValue.toString();
             }
-            if (i < fields.length - 1) sb.append(", ");
+        } else {
+            result = "null";
         }
-
-        sb.append(")");
-        return sb.toString();
+        return sql.replaceFirst("\\?", Matcher.quoteReplacement(result));
     }
-
-
 }

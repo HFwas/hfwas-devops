@@ -167,13 +167,16 @@ public class DevopsVulService {
                         })
                         .collect(Collectors.toList());
                 if (CollectionUtils.isNotEmpty(updateAdvisoriesList)) {
-                    devopsVulMapper.updateBatch(updateAdvisoriesList);
+                    for (DevopsVul devopsVul : updateAdvisoriesList) {
+                        devopsVulMapper.update(devopsVul);
+                    }
                 }
                 i++;
                 log.info("【sync】end time:{}", (System.currentTimeMillis() - timeMillis));
             }
         } catch (Exception e) {
             log.error("【sync github add and update GithubAdvisories】,{}", e.getMessage());
+            throw new RuntimeException(e.getMessage());
         }
 
     }

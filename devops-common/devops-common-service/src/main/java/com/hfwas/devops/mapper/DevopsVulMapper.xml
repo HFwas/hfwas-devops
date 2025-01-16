@@ -60,6 +60,22 @@
         </foreach>
     </insert>
 
+    <update id="update" parameterType="com.hfwas.devops.entity.DevopsVul">
+        UPDATE devops_vul
+        SET
+            modified = #{devopsVul.modified},
+            cve_id = #{devopsVul.cveId},
+            ecosystem = #{devopsVul.ecosystem},
+            packages = #{devopsVul.packages},
+            serverity = #{devopsVul.serverity},
+            ref = #{devopsVul.referencess},
+            introduced = #{devopsVul.introduced},
+            fixed = #{devopsVul.fixed},
+            cvss_v3_score = #{devopsVul.cvssV3Score},
+            cwe_ids = #{devopsVul.cweIds}
+        WHERE ghsa_id = #{devopsVul.ghsaId}
+    </update>
+
     <update id="updateBatch" parameterType="com.hfwas.devops.entity.DevopsVul">
         <foreach collection="devopsVuls" item="devopsVul">
             update devops_vul
@@ -78,4 +94,5 @@
             where ghsa_id = #{devopsVul.ghsaId};
         </foreach>
     </update>
+
 </mapper>
