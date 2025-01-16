@@ -3,6 +3,7 @@ package com.hfwas.devops.config;
 import com.hfwas.devops.common.core.base.BaseResult;
 import feign.FeignException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.exceptions.TooManyResultsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -41,6 +42,12 @@ public class GlobalException {
             return new BaseResult<>(1, "实体类和数据库字段类型匹配不上", "");
         }
         return new BaseResult<>(0, e.getMessage(), "");
+    }
+
+    @ExceptionHandler(value = TooManyResultsException.class)
+    public BaseResult tooManyResultsException(TooManyResultsException e) {
+        log.error(e.getMessage(), e);
+        return new BaseResult<>(1, "期待一条但是返回多条数据", "");
     }
 
 }
