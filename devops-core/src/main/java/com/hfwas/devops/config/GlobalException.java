@@ -7,6 +7,7 @@ import org.apache.ibatis.exceptions.TooManyResultsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.io.IOException;
 import java.sql.SQLException;
 import java.sql.SQLSyntaxErrorException;
 
@@ -48,6 +49,12 @@ public class GlobalException {
     public BaseResult tooManyResultsException(TooManyResultsException e) {
         log.error(e.getMessage(), e);
         return new BaseResult<>(1, "期待一条但是返回多条数据", "");
+    }
+
+    @ExceptionHandler(value = IOException.class)
+    public BaseResult ioException(IOException e) {
+        log.error(e.getMessage(), e);
+        return new BaseResult<>(1, "读取文件失败", "");
     }
 
 }
