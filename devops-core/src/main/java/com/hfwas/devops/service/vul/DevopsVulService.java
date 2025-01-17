@@ -1,6 +1,7 @@
 package com.hfwas.devops.service.vul;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -94,18 +95,21 @@ public class DevopsVulService {
             Set<String> ghsaIds = devopsVulListMap.keySet();
             for (List<Path> paths : collectPartition) {
                 log.info("【sync】collectPartition: {}", i);
-                ArrayList<GithubAdvisories> githubAdvisories1 = new ArrayList<>();
+                List<GithubAdvisories> githubAdvisories1 = new ArrayList<>(50);
                 paths.stream().parallel().forEach(path -> {
                     try {
                         String readString = Files.readString(path);
                         GithubAdvisories githubAdvisories = gson.fromJson(readString, GithubAdvisories.class);
-                        githubAdvisories1.add(githubAdvisories);
+                        if (Objects.nonNull(githubAdvisories) && !Strings.isNullOrEmpty(githubAdvisories.getGhsaId())) {
+                            githubAdvisories1.add(githubAdvisories);
+                        }
                     } catch (IOException e) {
                     }
                 });
                 log.info("【sync】devopsVulMapper.list: {}", (System.currentTimeMillis() - timeMillis));
 
                 List<DevopsVul> advisoriesList = githubAdvisories1.stream().parallel()
+                        .filter(githubAdvisories -> Objects.nonNull(githubAdvisories))
                         .filter(githubAdvisories -> {
                             String ghsaId = githubAdvisories.getGhsaId();
                             if (CollectionUtils.isEmpty(devopsVulList)) {
@@ -218,7 +222,6 @@ public class DevopsVulService {
             log.error("【sync github add and update GithubAdvisories】,{}", e.getMessage());
             throw new RuntimeException(e.getMessage());
         }
-
     }
 
 }
