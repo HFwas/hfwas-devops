@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: devops-core
+  profiles:
+    active: dev
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
