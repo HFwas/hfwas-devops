@@ -59,4 +59,21 @@ create table devops_vul_dependency_version
     depen_id bigint      not null,
     version  varchar(56) null
 )
-    charset = utf8mb4_general_ci;;
+    charset = utf8mb4_general_ci;
+
+
+
+create table devops_sync_log
+(
+    id       bigint auto_increment
+        primary key,
+    type smallint      not null,
+    status  varchar(56) null,
+    createTime  varchar(56) null,
+    updateTime  varchar(56) null,
+    success_num  int8 null,
+    success_data  longtext null,
+    error_num  int8 null,
+    error_data  longtext null
+)
+    charset = utf8mb4_general_ci;
