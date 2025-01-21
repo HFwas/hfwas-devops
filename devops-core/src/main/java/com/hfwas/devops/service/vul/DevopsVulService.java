@@ -43,11 +43,6 @@ public class DevopsVulService {
 
     public void sync() {
         try {
-            // 构造命令（通过 shell 执行完整命令）
-//            List<String> command = List.of(
-//                    "bash", "-c",
-//                    "wget -qO - https://github.com/github/advisory-database/archive/refs/heads/main.tar.gz | tar xz -C /Users/houfei/github/ghsa --strip-components=1"
-//            );
             List<String> command = Lists.newArrayList();
             Path advisoryDatabasePath = Paths.get(String.format("%s/advisory-database", vulnerabilityPath));
             boolean exists = Files.exists(advisoryDatabasePath);
