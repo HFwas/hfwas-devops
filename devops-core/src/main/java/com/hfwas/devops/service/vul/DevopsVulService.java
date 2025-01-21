@@ -106,7 +106,6 @@ public class DevopsVulService {
                     } catch (IOException e) {
                     }
                 });
-                log.info("【sync】devopsVulMapper.list: {}", (System.currentTimeMillis() - timeMillis));
 
                 List<DevopsVul> advisoriesList = githubAdvisories1.stream().parallel()
                         .filter(githubAdvisories -> Objects.nonNull(githubAdvisories))
@@ -164,7 +163,7 @@ public class DevopsVulService {
                 if (CollectionUtils.isNotEmpty(advisoriesList)) {
                     devopsVulMapper.saveBatch(advisoriesList);
                 }
-                log.info("【sync】devopsVulMapper.list: {}", (System.currentTimeMillis() - timeMillis));
+                log.info("【sync】devopsVulMapper.saveBatch: {}", (System.currentTimeMillis() - timeMillis));
                 List<DevopsVul> updateAdvisoriesList = githubAdvisories1.stream()
                         .parallel()
                         .filter(githubAdvisories -> CollectionUtils.isNotEmpty(devopsVulList) && ghsaIds.contains(githubAdvisories.getGhsaId()) && !devopsVulListMap.get(githubAdvisories.getGhsaId()).equals(githubAdvisories.getModified()))
@@ -216,7 +215,7 @@ public class DevopsVulService {
                     }
                 }
                 i++;
-                log.info("【sync】end time:{}", (System.currentTimeMillis() - timeMillis));
+                log.info("【sync】{} end time:{}", i, (System.currentTimeMillis() - timeMillis));
             }
         } catch (Exception e) {
             log.error("【sync github add and update GithubAdvisories】,{}", e.getMessage());
