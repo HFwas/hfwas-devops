@@ -43,30 +43,7 @@ public class DevopsVulService {
 
     public void sync() {
         try {
-            List<String> command = Lists.newArrayList();
-            Path advisoryDatabasePath = Paths.get(String.format("%s/advisory-database", vulnerabilityPath));
-            boolean exists = Files.exists(advisoryDatabasePath);
-            if (exists) {
-                command = List.of(
-                        "bash", "-c",
-                        String.format("cd %s/advisory-database && git pull", vulnerabilityPath)
-                );
-            } else {
-                command = List.of(
-                        "bash", "-c",
-                        String.format("cd %s && git clone -b main https://github.com/github/advisory-database.git", vulnerabilityPath)
-                );
-            }
-            ProcessBuilder processBuilder = new ProcessBuilder(command);
-            processBuilder.redirectErrorStream(true); // 合并错误流
-            Process process = processBuilder.start();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                log.info("【sync git advisory-database】:{}", line);
-            }
-            // 等待进程完成
-            int exitCode = process.waitFor();
+            int exitCode = getExitCode();
             log.info("【sync git advisory-database】Exit Code: " + exitCode);
             if (exitCode != 0) {
                 throw new RuntimeException("Exit Code: " + exitCode);
@@ -216,6 +193,46 @@ public class DevopsVulService {
             log.error("【sync github add and update GithubAdvisories】,{}", e.getMessage());
             throw new RuntimeException(e.getMessage());
         }
+    }
+
+    private int getExitCode() throws IOException, InterruptedException {
+        List<String> command = Lists.newArrayList();
+        Path advisoryDatabasePath = Paths.get(String.format("%s/advisory-database", vulnerabilityPath));
+        boolean exists = Files.exists(advisoryDatabasePath);
+        if (exists) {
+            command = List.of(
+                    "bash", "-c",
+                    String.format("cd %s/advisory-database && git pull", vulnerabilityPath)
+            );
+        } else {
+            command = List.of(
+                    "bash", "-c",
+                    String.format("cd %s && git clone -b main https://github.com/github/advisory-database.git", vulnerabilityPath)
+            );
+        }
+        ProcessBuilder processBuilder = new ProcessBuilder(command);
+        processBuilder.redirectErrorStream(true); // 合并错误流
+        Process process = processBuilder.start();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        String line;
+
+        List<String> add = Lists.newArrayList();
+        List<String> update = Lists.newArrayList();
+        while ((line = reader.readLine()) != null) {
+            if (line.endsWith(".json")) {
+                String[] split = line.split("/");
+                if (line.startsWith("advisories/")) {
+                    update.add(split[split.length - 1]);
+                }
+                if (line.startsWith(" create mode")) {
+                    add.add(split[split.length - 1]);
+                }
+            }
+            log.info("【sync git advisory-database】:{}", line);
+        }
+        // 等待进程完成
+        int exitCode = process.waitFor();
+        return exitCode;
     }
 
 }
