@@ -51,7 +51,7 @@ public class DevopsVulService {
 
             long timeMillis = System.currentTimeMillis();
             log.info("【sync】start time:{}", timeMillis);
-            Stream<Path> walk = Files.walk(Paths.get(String.format("%s/advisory-database", vulnerabilityPath)));
+            Stream<Path> walk = Files.walk(Paths.get(String.format("%s/advisory-database/advisories/github-reviewed/2024/12/GHSA-px38-239g-x5mg", vulnerabilityPath)));
             List<Path> collect = walk.parallel()
                     .filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString().startsWith("GHSA") || path.getFileName().toString().startsWith("CVE"))
@@ -90,44 +90,7 @@ public class DevopsVulService {
                             }
                         })
                         .map(githubAdvisories -> {
-                            DevopsVul convert = DevopsVulConvert.INSTANCE.convert(githubAdvisories);
-                            convert.setGhsaId(githubAdvisories.getGhsaId());
-                            if (CollectionUtils.isNotEmpty(githubAdvisories.getAliases())){
-                                convert.setCveId(githubAdvisories.getAliases().get(0));
-                            }
-                            List<CvssSeverity> serverity = githubAdvisories.getServerity();
-                            if (CollectionUtils.isNotEmpty(serverity)){
-                                Optional<CvssSeverity> cvssV3 = serverity.stream().filter(server -> server.getType().equals("CVSS_V3")).findFirst();
-                                if (cvssV3.isPresent()){
-                                    CvssSeverity cvssSeverity = cvssV3.get();
-                                    convert.setCvssV3Score(cvssSeverity.getScore());
-                                }
-                            }
-                            DatabaseSpecific databaseSpecific = githubAdvisories.getDatabaseSpecific();
-                            if (CollectionUtils.isNotEmpty(databaseSpecific.getCweIds())) {
-                                String cweIds = Joiner.on(",").join(databaseSpecific.getCweIds());
-                                convert.setCweIds(cweIds);
-                            }
-                            convert.setServerity(databaseSpecific.getSeverity());
-                            convert.setReferencess(gson.toJson(githubAdvisories.getReferences()));
-                            if (CollectionUtils.isNotEmpty(githubAdvisories.getAffected())){
-                                GithubAffected githubAffected = githubAdvisories.getAffected().get(0);
-                                JsonObject githubAffectedPackages = githubAffected.getPackages();
-                                String ecosystem = gson.toJson(githubAffectedPackages.get("ecosystem")).replace("\"", "");
-                                convert.setEcosystem(ecosystem);
-                                String packages = gson.toJson(githubAffectedPackages.get("name")).replace("\"", "");
-                                convert.setPackages(packages);
-
-                                List<Range> ranges = githubAffected.getRanges();
-                                if (CollectionUtils.isNotEmpty(ranges)) {
-                                    Range range = ranges.get(0);
-                                    List<AffectedEvent> events = range.getEvents();
-                                    convert.setIntroduced(gson.toJson(events.get(0)));
-                                    if (events.size() > 1) {
-                                        convert.setFixed(gson.toJson(events.get(1)));
-                                    }
-                                }
-                            }
+                            DevopsVul convert = getDevopsVul(githubAdvisories, gson);
                             return convert;
                         })
                         .collect(Collectors.toList());
@@ -140,44 +103,7 @@ public class DevopsVulService {
                         .parallel()
                         .filter(githubAdvisories -> CollectionUtils.isNotEmpty(devopsVulList) && ghsaIds.contains(githubAdvisories.getGhsaId()) && !devopsVulListMap.get(githubAdvisories.getGhsaId()).equals(githubAdvisories.getModified()))
                         .map(githubAdvisories -> {
-                            DevopsVul convert = DevopsVulConvert.INSTANCE.convert(githubAdvisories);
-                            convert.setGhsaId(githubAdvisories.getGhsaId());
-                            if (CollectionUtils.isNotEmpty(githubAdvisories.getAliases())){
-                                convert.setCveId(githubAdvisories.getAliases().get(0));
-                            }
-                            List<CvssSeverity> serverity = githubAdvisories.getServerity();
-                            if (CollectionUtils.isNotEmpty(serverity)){
-                                Optional<CvssSeverity> cvssV3 = serverity.stream().filter(server -> server.getType().equals("CVSS_V3")).findFirst();
-                                if (cvssV3.isPresent()){
-                                    CvssSeverity cvssSeverity = cvssV3.get();
-                                    convert.setCvssV3Score(cvssSeverity.getScore());
-                                }
-                            }
-                            DatabaseSpecific databaseSpecific = githubAdvisories.getDatabaseSpecific();
-                            if (CollectionUtils.isNotEmpty(databaseSpecific.getCweIds())) {
-                                String cweIds = Joiner.on(",").join(databaseSpecific.getCweIds());
-                                convert.setCweIds(cweIds);
-                            }
-                            convert.setServerity(gson.toJson(githubAdvisories.getServerity()));
-                            convert.setReferencess(gson.toJson(githubAdvisories.getReferences()));
-                            if (CollectionUtils.isNotEmpty(githubAdvisories.getAffected())){
-                                GithubAffected githubAffected = githubAdvisories.getAffected().get(0);
-                                JsonObject githubAffectedPackages = githubAffected.getPackages();
-                                String ecosystem = gson.toJson(githubAffectedPackages.get("ecosystem")).replace("\"", "");
-                                convert.setEcosystem(ecosystem);
-                                String packages = gson.toJson(githubAffectedPackages.get("name")).replace("\"", "");
-                                convert.setPackages(packages);
-
-                                List<Range> ranges = githubAffected.getRanges();
-                                if (CollectionUtils.isNotEmpty(ranges)) {
-                                    Range range = ranges.get(0);
-                                    List<AffectedEvent> events = range.getEvents();
-                                    convert.setIntroduced(gson.toJson(events.get(0)));
-                                    if (events.size() > 1) {
-                                        convert.setFixed(gson.toJson(events.get(1)));
-                                    }
-                                }
-                            }
+                            DevopsVul convert = getDevopsVul(githubAdvisories, gson);
                             return convert;
                         })
                         .collect(Collectors.toList());
@@ -193,6 +119,50 @@ public class DevopsVulService {
             log.error("【sync github add and update GithubAdvisories】,{}", e.getMessage());
             throw new RuntimeException(e.getMessage());
         }
+    }
+
+    private static DevopsVul getDevopsVul(GithubAdvisories githubAdvisories, Gson gson) {
+        DevopsVul convert = DevopsVulConvert.INSTANCE.convert(githubAdvisories);
+        convert.setGhsaId(githubAdvisories.getGhsaId());
+        if (CollectionUtils.isNotEmpty(githubAdvisories.getAliases())){
+            convert.setCveId(githubAdvisories.getAliases().get(0));
+        }
+        List<CvssSeverity> serverity = githubAdvisories.getServerity();
+        if (CollectionUtils.isNotEmpty(serverity)){
+            Optional<CvssSeverity> cvssV3 = serverity.stream().filter(server -> server.getType().equals("CVSS_V3")).findFirst();
+            if (cvssV3.isPresent()){
+                CvssSeverity cvssSeverity = cvssV3.get();
+                convert.setCvssV3Score(cvssSeverity.getScore());
+            }
+        }
+        DatabaseSpecific databaseSpecific = githubAdvisories.getDatabaseSpecific();
+        if (CollectionUtils.isNotEmpty(databaseSpecific.getCweIds())) {
+            String cweIds = Joiner.on(",").join(databaseSpecific.getCweIds());
+            convert.setCweIds(cweIds);
+        }
+        convert.setServerity(databaseSpecific.getSeverity());
+        convert.setReferencess(gson.toJson(githubAdvisories.getReferences()));
+        if (CollectionUtils.isNotEmpty(githubAdvisories.getAffected())){
+            List<GithubAffected> affected = githubAdvisories.getAffected();
+            for (GithubAffected githubAffected : affected) {
+                JsonObject githubAffectedPackages = githubAffected.getPackages();
+                String ecosystem = gson.toJson(githubAffectedPackages.get("ecosystem")).replace("\"", "");
+                convert.setEcosystem(ecosystem);
+                String packages = gson.toJson(githubAffectedPackages.get("name")).replace("\"", "");
+                convert.setPackages(packages);
+
+                List<Range> ranges = githubAffected.getRanges();
+                if (CollectionUtils.isNotEmpty(ranges)) {
+                    Range range = ranges.get(0);
+                    List<AffectedEvent> events = range.getEvents();
+                    convert.setIntroduced(gson.toJson(events.get(0)));
+                    if (events.size() > 1) {
+                        convert.setFixed(gson.toJson(events.get(1)));
+                    }
+                }
+            }
+        }
+        return convert;
     }
 
     private int getExitCode() throws IOException, InterruptedException {
@@ -221,7 +191,7 @@ public class DevopsVulService {
         while ((line = reader.readLine()) != null) {
             if (line.endsWith(".json")) {
                 String[] split = line.split("/");
-                if (line.startsWith("advisories/")) {
+                if (line.startsWith(" .../") || line.startsWith("advisories/")) {
                     update.add(split[split.length - 1]);
                 }
                 if (line.startsWith(" create mode")) {
