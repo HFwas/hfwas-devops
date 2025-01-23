@@ -23,6 +23,7 @@
         <spring-boot.version>3.3.4</spring-boot.version>
         <redisson.version>3.41.0</redisson.version>
         <mybatis.version>3.5.17</mybatis.version>
+        <mybatis-plus.version>3.5.10.1</mybatis-plus.version>
         <mybatis-spring.version>3.0.3</mybatis-spring.version>
         <mysql.version>8.3.0</mysql.version>
         <snakeyaml.version>2.2</snakeyaml.version>
@@ -93,6 +94,11 @@
                 <groupId>org.mybatis</groupId>
                 <artifactId>mybatis</artifactId>
                 <version>${mybatis.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus</artifactId>
+                <version>${mybatis-plus.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.mybatis.spring.boot</groupId>
