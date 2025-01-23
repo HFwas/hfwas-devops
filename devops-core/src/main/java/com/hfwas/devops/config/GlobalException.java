@@ -36,15 +36,16 @@ public class GlobalException {
     @ExceptionHandler(value = SQLSyntaxErrorException.class)
     public BaseResult sqlSyntaxErrorException(SQLSyntaxErrorException e) {
         log.error(e.getMessage(), e);
-        return new BaseResult<>(1, e.getMessage(), "");
+        return new BaseResult<>(1, "sql语法不对", "");
     }
 
     @ExceptionHandler(value = SQLException.class)
     public BaseResult SQLException(SQLException e) {
+        log.error(e.getMessage(), e);
         if (e.getMessage().contains("Column count doesn't match value count at row")) {
             return new BaseResult<>(1, "实体类和数据库字段类型匹配不上", "");
         }
-        return new BaseResult<>(0, e.getMessage(), "");
+        return new BaseResult<>(1, "sql异常", "");
     }
 
     @ExceptionHandler(value = TooManyResultsException.class)

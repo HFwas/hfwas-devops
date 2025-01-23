@@ -189,7 +189,7 @@ public class DevopsVulService {
         List<String> add = Lists.newArrayList();
         List<String> update = Lists.newArrayList();
         while ((line = reader.readLine()) != null) {
-            if (line.endsWith(".json")) {
+            if (line.contains(".json")) {
                 String[] split = line.split("/");
                 if (line.startsWith(" .../") || line.startsWith("advisories/")) {
                     update.add(split[split.length - 1]);
