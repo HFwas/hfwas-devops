@@ -1,11 +1,16 @@
 package com.hfwas.devops.service.vul;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.hfwas.devops.convert.DevopsVulConvert;
+import com.hfwas.devops.dto.vul.VulDto;
 import com.hfwas.devops.entity.DevopsVul;
 import com.hfwas.devops.mapper.DevopsVulMapper;
 import com.hfwas.devops.tools.entity.cwe.CvssSeverity;
@@ -41,6 +46,19 @@ public class DevopsVulService {
     @Resource
     DevopsVulMapper devopsVulMapper;
 
+    public IPage<DevopsVul> page(VulDto vulDto) {
+        IPage<DevopsVul> vulPage = new Page<>(vulDto.getPageNo(),  vulDto.getPageSize());
+        LambdaQueryWrapper<DevopsVul> queryWrapper = Wrappers.<DevopsVul>lambdaQuery()
+                .orderByDesc(DevopsVul::getPublished);
+        IPage<DevopsVul> devopsVulPage = devopsVulMapper.selectPage(vulPage, queryWrapper);
+        return devopsVulPage;
+    }
+
+    public DevopsVul getById(Long id) {
+        DevopsVul devopsVul = devopsVulMapper.selectById(id);
+        return devopsVul;
+    }
+
     public void sync() {
         try {
             int exitCode = getExitCode();
@@ -51,7 +69,7 @@ public class DevopsVulService {
 
             long timeMillis = System.currentTimeMillis();
             log.info("【sync】start time:{}", timeMillis);
-            Stream<Path> walk = Files.walk(Paths.get(String.format("%s/advisory-database/advisories/github-reviewed/2024/12/GHSA-px38-239g-x5mg", vulnerabilityPath)));
+            Stream<Path> walk = Files.walk(Paths.get(String.format("%s/advisory-database/advisories", vulnerabilityPath)));
             List<Path> collect = walk.parallel()
                     .filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString().startsWith("GHSA") || path.getFileName().toString().startsWith("CVE"))
@@ -141,7 +159,7 @@ public class DevopsVulService {
             convert.setCweIds(cweIds);
         }
         convert.setServerity(databaseSpecific.getSeverity());
-        convert.setReferencess(gson.toJson(githubAdvisories.getReferences()));
+        convert.setRef(gson.toJson(githubAdvisories.getReferences()));
         if (CollectionUtils.isNotEmpty(githubAdvisories.getAffected())){
             List<GithubAffected> affected = githubAdvisories.getAffected();
             for (GithubAffected githubAffected : affected) {

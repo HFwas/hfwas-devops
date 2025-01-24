@@ -14,14 +14,13 @@ import lombok.Setter;
 @Setter
 public class DevopsVul {
     private Long id;
-    private String schemaVersion;
     private String modified;
     private String published;
     private String cveId;
     private String ghsaId;
     private String details;
     private String serverity;
-    private String referencess;
+    private String ref;
     private String ecosystem;
     private String packages;
     private String introduced;

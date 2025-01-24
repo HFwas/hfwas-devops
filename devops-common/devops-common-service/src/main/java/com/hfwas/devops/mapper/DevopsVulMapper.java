@@ -1,5 +1,6 @@
 package com.hfwas.devops.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hfwas.devops.entity.DevopsVul;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -7,7 +8,7 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 
 @Mapper
-public interface DevopsVulMapper{
+public interface DevopsVulMapper extends BaseMapper<DevopsVul> {
 
     DevopsVul selectById(Long id);
 

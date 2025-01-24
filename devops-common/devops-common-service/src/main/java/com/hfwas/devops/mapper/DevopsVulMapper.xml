@@ -55,7 +55,7 @@
         insert into devops_vul
         (modified, published, cve_id, ghsa_id, details, serverity, ref, ecosystem, packages, introduced, fixed, cvss_v3_score, cwe_ids) values
         <foreach collection="devopsVuls" item="devopsVul" separator=",">
-            (#{devopsVul.modified}, #{devopsVul.published}, #{devopsVul.cveId}, #{devopsVul.ghsaId}, #{devopsVul.details}, #{devopsVul.serverity}, #{devopsVul.referencess}, #{devopsVul.ecosystem}, #{devopsVul.packages}
+            (#{devopsVul.modified}, #{devopsVul.published}, #{devopsVul.cveId}, #{devopsVul.ghsaId}, #{devopsVul.details}, #{devopsVul.serverity}, #{devopsVul.ref}, #{devopsVul.ecosystem}, #{devopsVul.packages}
             , #{devopsVul.introduced}, #{devopsVul.fixed}, #{devopsVul.cvssV3Score}, #{devopsVul.cweIds})
         </foreach>
     </insert>
@@ -68,7 +68,7 @@
             ecosystem = #{devopsVul.ecosystem},
             packages = #{devopsVul.packages},
             serverity = #{devopsVul.serverity},
-            ref = #{devopsVul.referencess},
+            ref = #{devopsVul.ref},
             introduced = #{devopsVul.introduced},
             fixed = #{devopsVul.fixed},
             cvss_v3_score = #{devopsVul.cvssV3Score},

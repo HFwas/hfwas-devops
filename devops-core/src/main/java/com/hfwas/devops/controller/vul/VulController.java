@@ -1,16 +1,12 @@
 package com.hfwas.devops.controller.vul;
 
-import com.hfwas.devops.entity.DevopsVulDependency;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.hfwas.devops.dto.vul.VulDto;
+import com.hfwas.devops.entity.DevopsVul;
 import com.hfwas.devops.service.vul.DevopsVulService;
-import com.hfwas.devops.service.vul.rust.DevopsRustDepenScan;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.io.IOException;
-import java.util.*;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * @author hfwas
@@ -24,18 +20,17 @@ public class VulController {
 
     @Resource
     DevopsVulService devopsVulService;
-    @Resource
-    DevopsRustDepenScan devopsPythonDepenScan;
 
-    @GetMapping("/npm")
-    public void npm() throws IOException {
-        List<DevopsVulDependency> dependencys = devopsPythonDepenScan.dependencys(null);
-        log.info("databaseSpecific:{}", dependencys);
+    @PostMapping("/page")
+    public IPage<DevopsVul> list(@RequestBody VulDto vulDto) {
+        IPage<DevopsVul> page = devopsVulService.page(vulDto);
+        return page;
     }
 
     @GetMapping("/getById")
-    public void getById() throws IOException {
-        log.info("databaseSpecific:{}", "null");
+    public DevopsVul getById(@RequestParam Long id) {
+        DevopsVul devopsVul = devopsVulService.getById(id);
+        return devopsVul;
     }
 
     @GetMapping("/sync")
