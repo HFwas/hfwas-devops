@@ -24,7 +24,7 @@
         <redisson.version>3.41.0</redisson.version>
         <mybatis.version>3.5.17</mybatis.version>
         <mybatis-plus.version>3.5.10.1</mybatis-plus.version>
-        <mybatis-spring.version>3.0.3</mybatis-spring.version>
+        <mybatis-jsqlparser.version>3.5.9</mybatis-jsqlparser.version>
         <mysql.version>8.3.0</mysql.version>
         <snakeyaml.version>2.2</snakeyaml.version>
         <easyexcel.version>4.0.3</easyexcel.version>
@@ -91,19 +91,11 @@
                 <version>${spring-boot.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.mybatis</groupId>
-                <artifactId>mybatis</artifactId>
-                <version>${mybatis.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>com.baomidou</groupId>
-                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+                <artifactId>mybatis-plus-bom</artifactId>
                 <version>${mybatis-plus.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.mybatis.spring.boot</groupId>
-                <artifactId>mybatis-spring-boot-starter</artifactId>
-                <version>${mybatis-spring.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.springframework</groupId>
