@@ -54,8 +54,12 @@ public class SqlInterceptor implements Interceptor {
 
         long end = System.currentTimeMillis();
         long timing = end - start;
-        log.info("执行sql耗时:" + timing + " ms" + " - id:" + statementId + " - Sql:" );
-        log.info("   "+sql);
+        // 打印 sql
+        log.info("==============  Sql Start  ==============" +
+                "\nExecute ID  ：{}" +
+                "\nExecute SQL ：{}" +
+                "\nExecute Time：{} ms" +
+                "\n==============  Sql  End   ==============", statementId, sql, timing);
         return result;
     }
 
