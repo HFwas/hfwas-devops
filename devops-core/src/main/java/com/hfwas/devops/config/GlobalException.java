@@ -62,7 +62,12 @@ public class GlobalException {
 
     @ExceptionHandler(value = BadSqlGrammarException.class)
     public BaseResult badSqlGrammarException(BadSqlGrammarException e) {
-        log.error(e.getMessage(), e);
+        String message = e.getMessage();
+        log.error(message, e);
+        if (message.contains("Unknown column")) {
+            String column = message.substring(88, message.indexOf("' in 'field list'"));
+            return new BaseResult<>(1, String.format("数据库 %s 字段不存在", column), null);
+        }
         return new BaseResult<>(1, "sql语法错误", "");
     }
 
