@@ -1,6 +1,6 @@
 package com.hfwas.devops.service.vul.npm;
 
-import com.hfwas.devops.entity.DevopsVulDependency;
+import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,8 +33,8 @@ public class DevopsPnpmDepenScan extends AbstractDepenScan {
     }
 
     @Override
-    public List<DevopsVulDependency> dependencys(MultipartFile multipartFile) throws IOException {
-        List<DevopsVulDependency> devopsVulDependencies = new ArrayList<>();
+    public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException {
+        List<DevopsVulCodeDependency> devopsVulDependencies = new ArrayList<>();
         Path path = Paths.get("pnpm-lock1.yaml");
         InputStream inputStream = Files.newInputStream(path, StandardOpenOption.CREATE_NEW);
         Yaml yaml = new Yaml();
@@ -42,7 +42,7 @@ public class DevopsPnpmDepenScan extends AbstractDepenScan {
         HashMap<String, HashMap> jsonObject = yarnLockData.get("packages");
         Set<String> keySet = jsonObject.keySet();
         for (String s : keySet) {
-            DevopsVulDependency devopsVulDependency = new DevopsVulDependency();
+            DevopsVulCodeDependency devopsVulDependency = new DevopsVulCodeDependency();
             HashMap asJsonObject = jsonObject.get(s);
             if (s.startsWith("/")) {
                 String substring = s.substring(1);

@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.hfwas.devops.mapper.DevopsVulDependencyMapper">
 
-    <resultMap id="actorResultMap" type="com.hfwas.devops.entity.DevopsVulDependency">
+    <resultMap id="actorResultMap" type="com.hfwas.devops.entity.DevopsVulCodeDependency">
         <id column="id" property="id"/>
         <result column="company" property="company"/>
         <result column="dependency_name" property="dependencyName"/>
@@ -14,22 +14,22 @@
         id, company, dependency_name as dependencyName, type
     </sql>
 
-    <select id="getOne" parameterType="com.hfwas.devops.entity.DevopsVulDependency" resultType="com.hfwas.devops.entity.DevopsVulDependency">
+    <select id="getOne" parameterType="com.hfwas.devops.entity.DevopsVulCodeDependency" resultType="com.hfwas.devops.entity.DevopsVulCodeDependency">
         select <include refid="Base_Column_List"/> from devops_vul_dependency
         where company=#{devopsVulDependency.company} and dependency_name=#{devopsVulDependency.dependencyName} and type=#{devopsVulDependency.type}
     </select>
 
-    <select id="list" parameterType="com.hfwas.devops.entity.DevopsVulDependency" resultType="com.hfwas.devops.entity.DevopsVulDependency">
+    <select id="list" parameterType="com.hfwas.devops.entity.DevopsVulCodeDependency" resultType="com.hfwas.devops.entity.DevopsVulCodeDependency">
         select <include refid="Base_Column_List"/> from devops_vul_dependency
         where company=#{devopsVulDependency.company} and dependency_name=#{devopsVulDependency.dependencyName} and type=#{devopsVulDependency.type}
     </select>
 
-    <insert id="save" parameterType="com.hfwas.devops.entity.DevopsVulDependency" useGeneratedKeys="true" keyProperty="id">
+    <insert id="save" parameterType="com.hfwas.devops.entity.DevopsVulCodeDependency" useGeneratedKeys="true" keyProperty="id">
         insert into devops_vul_dependency (company, dependency_name, type) values
             (#{devopsVulDependency.company}, #{devopsVulDependency.dependencyName}, #{devopsVulDependency.type})
     </insert>
 
-    <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVulDependency" useGeneratedKeys="true" keyProperty="id">
+    <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVulCodeDependency" useGeneratedKeys="true" keyProperty="id">
         insert into devops_vul_dependency (company, dependency_name, type) values
         <if test="devopsVulDependencys != null">
             <foreach collection="devopsVulDependencys" item="devopsVulDependency" separator=",">

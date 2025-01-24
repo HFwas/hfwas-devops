@@ -1,6 +1,7 @@
 package com.hfwas.devops.mapper;
 
-import com.hfwas.devops.entity.DevopsVulDependency;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -12,14 +13,14 @@ import java.util.List;
  * @date 2025/1/13
  */
 @Mapper
-public interface DevopsVulDependencyMapper {
+public interface DevopsVulDependencyMapper extends BaseMapper<DevopsVulCodeDependency> {
 
-    DevopsVulDependency getOne(@Param("devopsVulDependency") DevopsVulDependency devopsVulDependency);
+    DevopsVulCodeDependency getOne(@Param("devopsVulDependency") DevopsVulCodeDependency devopsVulDependency);
 
-    List<DevopsVulDependency> list(@Param("devopsVulDependencys") List<DevopsVulDependency> devopsVulDependencys);
+    List<DevopsVulCodeDependency> list(@Param("devopsVulDependencys") List<DevopsVulCodeDependency> devopsVulDependencys);
 
-    boolean save(@Param("devopsVulDependency") DevopsVulDependency devopsVulDependency);
+    boolean save(@Param("devopsVulDependency") DevopsVulCodeDependency devopsVulDependency);
 
-    boolean saveBatch(@Param("devopsVulDependencys") List<DevopsVulDependency> devopsVulDependencys);
+    boolean saveBatch(@Param("devopsVulDependencys") List<DevopsVulCodeDependency> devopsVulDependencys);
 
 }

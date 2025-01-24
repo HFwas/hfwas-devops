@@ -1,5 +1,6 @@
 package com.hfwas.devops.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hfwas.devops.entity.DevopsVulCwe;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -12,7 +13,7 @@ import java.util.List;
  * @date 2025/1/13
  */
 @Mapper
-public interface DevopsVulCweMapper {
+public interface DevopsVulCweMapper extends BaseMapper<DevopsVulCwe> {
 
     DevopsVulCwe selectById(Long id);
 

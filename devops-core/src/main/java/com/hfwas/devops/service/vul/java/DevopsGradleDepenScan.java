@@ -1,6 +1,6 @@
 package com.hfwas.devops.service.vul.java;
 
-import com.hfwas.devops.entity.DevopsVulDependency;
+import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,7 +26,7 @@ public class DevopsGradleDepenScan extends AbstractDepenScan {
     }
 
     @Override
-    public List<DevopsVulDependency> dependencys(MultipartFile multipartFile) {
+    public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) {
         return List.of();
     }
 

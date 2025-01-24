@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.hfwas.devops.entity.DevopsVulDependency;
+import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -35,8 +35,8 @@ public class DevopsPhpLockDepenScan extends AbstractDepenScan {
     }
 
     @Override
-    public List<DevopsVulDependency> dependencys(MultipartFile multipartFile) throws IOException {
-        List<DevopsVulDependency> devopsVulDependencies = new ArrayList<>();
+    public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException {
+        List<DevopsVulCodeDependency> devopsVulDependencies = new ArrayList<>();
         Path path = Paths.get("composer.lock");
         byte[] bytes = Files.readAllBytes(path);
         Gson gson = new Gson();
@@ -51,7 +51,7 @@ public class DevopsPhpLockDepenScan extends AbstractDepenScan {
             JsonArray packagesDev = composerJson.getAsJsonArray("packages-dev");
             if (Objects.nonNull(packagesDev) && packagesDev.size()!=0) {
                 for (JsonElement jsonElement : packagesDev) {
-                    DevopsVulDependency devopsVulDependency = new DevopsVulDependency();
+                    DevopsVulCodeDependency devopsVulDependency = new DevopsVulCodeDependency();
                     JsonObject asJsonObject = jsonElement.getAsJsonObject();
                     String name = asJsonObject.getAsJsonPrimitive("name").getAsString();
                     if (name.contains("/")) {

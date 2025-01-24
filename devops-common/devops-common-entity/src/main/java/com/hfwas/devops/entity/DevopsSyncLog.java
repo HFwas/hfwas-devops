@@ -1,5 +1,6 @@
 package com.hfwas.devops.entity;
 
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
  * @date 2025/1/21
  */
 @Data
+@TableName(value = "devops_sync_log")
 public class DevopsSyncLog {
     private Long id;
     private Integer type;

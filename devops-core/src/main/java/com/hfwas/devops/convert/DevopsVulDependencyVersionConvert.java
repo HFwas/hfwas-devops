@@ -1,7 +1,7 @@
 package com.hfwas.devops.convert;
 
-import com.hfwas.devops.entity.DevopsVulDependency;
-import com.hfwas.devops.entity.DevopsVulDependencyVersion;
+import com.hfwas.devops.entity.DevopsVulCodeDependency;
+import com.hfwas.devops.entity.DevopsVulCodeDependencyVersion;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
@@ -19,9 +19,9 @@ public interface DevopsVulDependencyVersionConvert {
     DevopsVulDependencyVersionConvert INSTANCE = Mappers.getMapper(DevopsVulDependencyVersionConvert.class);
 
     @Mapping(source = "id", target = "depenId")
-    DevopsVulDependencyVersion to(DevopsVulDependency devopsVulDependency);
+    DevopsVulCodeDependencyVersion to(DevopsVulCodeDependency devopsVulDependency);
 
     @Mapping(source = "id", target = "depenId")
-    List<DevopsVulDependencyVersion> tos(List<DevopsVulDependency> devopsVulDependency);
+    List<DevopsVulCodeDependencyVersion> tos(List<DevopsVulCodeDependency> devopsVulDependency);
 
 }

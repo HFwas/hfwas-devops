@@ -2,7 +2,7 @@ package com.hfwas.devops.service.vul.npm;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.hfwas.devops.entity.DevopsVulDependency;
+import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,8 +34,8 @@ public class DevopsNpmDepenScan extends AbstractDepenScan {
     }
 
     @Override
-    public List<DevopsVulDependency> dependencys(MultipartFile multipartFile) throws IOException {
-        List<DevopsVulDependency> devopsVulDependencies = new ArrayList<>();
+    public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException {
+        List<DevopsVulCodeDependency> devopsVulDependencies = new ArrayList<>();
         Path path = Paths.get("package-lock2025010109.json");
         byte[] bytes = Files.readAllBytes(path);
         Gson gson = new Gson();
@@ -53,7 +53,7 @@ public class DevopsNpmDepenScan extends AbstractDepenScan {
             if (key.equals("")) continue;
             String version = asJsonObject.getAsJsonObject(key).get("version").getAsString();
             if (key.startsWith("node_modules")) {
-                DevopsVulDependency devopsVulDependency = new DevopsVulDependency();
+                DevopsVulCodeDependency devopsVulDependency = new DevopsVulCodeDependency();
                 String substring = key.substring("node_modules".length()+1);
                 boolean contains = substring.contains("/");
                 if (contains) {

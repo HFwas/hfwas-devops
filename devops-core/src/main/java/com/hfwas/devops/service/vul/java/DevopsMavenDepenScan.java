@@ -5,7 +5,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.hfwas.devops.entity.DevopsVulDependency;
+import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,9 +33,9 @@ public class DevopsMavenDepenScan extends AbstractDepenScan {
     }
 
     @Override
-    public List<DevopsVulDependency> dependencys(MultipartFile multipartFile) throws IOException {
+    public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException {
         String originalFilename = multipartFile.getOriginalFilename();
-        List<DevopsVulDependency> devopsVulDependencys = Lists.newArrayList();
+        List<DevopsVulCodeDependency> devopsVulDependencys = Lists.newArrayList();
         if (originalFilename.equals("aggregate-depgraph.json")) {
             byte[] bytes = multipartFile.getBytes();
             Gson gson = new Gson();
@@ -47,7 +47,7 @@ public class DevopsMavenDepenScan extends AbstractDepenScan {
                 String artifactId = asJsonObject.get("artifactId").getAsString();
                 String version = asJsonObject.get("version").getAsString();
                 int numericId = asJsonObject.get("numericId").getAsInt();
-                DevopsVulDependency devopsVulDependency = DevopsVulDependency.builder()
+                DevopsVulCodeDependency devopsVulDependency = DevopsVulCodeDependency.builder()
                         .company(groupId)
                         .dependencyName(artifactId)
                         .version(version)

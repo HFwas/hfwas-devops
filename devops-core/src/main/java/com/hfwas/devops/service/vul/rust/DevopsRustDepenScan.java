@@ -1,6 +1,6 @@
 package com.hfwas.devops.service.vul.rust;
 
-import com.hfwas.devops.entity.DevopsVulDependency;
+import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,8 +32,8 @@ public class DevopsRustDepenScan extends AbstractDepenScan {
     }
 
     @Override
-    public List<DevopsVulDependency> dependencys(MultipartFile multipartFile) throws IOException {
-        List<DevopsVulDependency> devopsVulDependencies = new ArrayList<>();
+    public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException {
+        List<DevopsVulCodeDependency> devopsVulDependencies = new ArrayList<>();
         Path path = Paths.get("Cargo.toml");
         List<String> readAllLines = Files.readAllLines(path);
         int start = readAllLines.indexOf("[dependencies]");
@@ -42,7 +42,7 @@ public class DevopsRustDepenScan extends AbstractDepenScan {
             if (readAllLine.equals("") || readAllLine.startsWith("[")) {
                 break;
             }
-            DevopsVulDependency devopsVulDependency = new DevopsVulDependency();
+            DevopsVulCodeDependency devopsVulDependency = new DevopsVulCodeDependency();
             String[] split = readAllLine.split(" = ");
             devopsVulDependency.setCompany(split[0]);
             if (split.length ==  2) {

@@ -1,7 +1,7 @@
 package com.hfwas.devops.service.vul.python;
 
 import com.google.common.collect.Lists;
-import com.hfwas.devops.entity.DevopsVulDependency;
+import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,14 +33,14 @@ public class DevopsPythonSetUpDepenScan extends AbstractDepenScan {
     }
 
     @Override
-    public List<DevopsVulDependency> dependencys(MultipartFile multipartFile) throws IOException {
+    public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException {
         Path path = Paths.get("setup.py");
         List<String> readAllLines = Files.readAllLines(path, Charset.forName("UTF-8"));
-        List<DevopsVulDependency> devopsVulDependencys = Lists.newArrayList();
+        List<DevopsVulCodeDependency> devopsVulDependencys = Lists.newArrayList();
 
         readAllLines = readAllLines.stream().skip(6).collect(Collectors.toList());
         for (int i = 0; i < readAllLines.size(); i++) {
-            DevopsVulDependency devopsVulDependency = new DevopsVulDependency();
+            DevopsVulCodeDependency devopsVulDependency = new DevopsVulCodeDependency();
             String readLine = readAllLines.get(i);
             if (readLine.startsWith("    '")) {
                 readLine = readLine.replace("    '", "");

@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.hfwas.devops.mapper.DevopsVulDependencyVersionMapper">
 
-    <resultMap id="actorResultMap" type="com.hfwas.devops.entity.DevopsVulDependencyVersion">
+    <resultMap id="actorResultMap" type="com.hfwas.devops.entity.DevopsVulCodeDependencyVersion">
         <id column="id" property="id"/>
         <result column="depen_id" property="depenId"/>
         <result column="version" property="version"/>
@@ -13,12 +13,12 @@
         id, depen_id, version
     </sql>
 
-    <insert id="save" parameterType="com.hfwas.devops.entity.DevopsVulDependencyVersion" useGeneratedKeys="true" keyProperty="id">
+    <insert id="save" parameterType="com.hfwas.devops.entity.DevopsVulCodeDependencyVersion" useGeneratedKeys="true" keyProperty="id">
         insert into devops_vul_dependency_version (depen_id, version) values
             (#{devopsVulDependencyVersion.depenId}, #{devopsVulDependencyVersion.version})
     </insert>
 
-    <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVulDependencyVersion" useGeneratedKeys="true" keyProperty="id">
+    <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVulCodeDependencyVersion" useGeneratedKeys="true" keyProperty="id">
         insert into devops_vul_dependency_version (depen_id, version) values
         <if test="devopsVulDependencyVersions != null">
             <foreach collection="devopsVulDependencyVersions" item="devopsVulDependencyVersion" separator=",">
