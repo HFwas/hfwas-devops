@@ -1,13 +1,24 @@
 package com.hfwas.devops.service.vul.npm;
 
+import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
+import com.hfwas.devops.service.vul.DepenScanFactory;
+import com.hfwas.devops.tools.api.depency.NpmApi;
+import feign.Response;
+import jakarta.annotation.Resource;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,7 +32,10 @@ import java.util.Set;
  * @date 2025/1/13
  */
 @Service("DevopsNpmDepenScan")
-public class DevopsNpmDepenScan extends AbstractDepenScan {
+public class DevopsNpmDepenScan extends AbstractDepenScan implements InitializingBean {
+
+    @Resource
+    NpmApi npmApi;
 
     @Override
     public String language() {
@@ -31,6 +45,11 @@ public class DevopsNpmDepenScan extends AbstractDepenScan {
     @Override
     public String type() {
         return "npm";
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        DepenScanFactory.register("npm", this);
     }
 
     @Override
@@ -76,4 +95,25 @@ public class DevopsNpmDepenScan extends AbstractDepenScan {
         return devopsVulDependencies;
     }
 
+    @Override
+    public List<String> depenVersion(String depen, String version) {
+        List<String> depenVersions = Lists.newArrayList();
+        try {
+            Response response = npmApi.dependents(depen);
+            byte[] bytes = response.body().asInputStream().readAllBytes();
+            Document document = Jsoup.parse(new String(bytes));
+            Elements tds = document.select("li");
+            for (Element td : tds) {
+                String attr = td.select("a").attr("href");
+                if (attr.startsWith("/package")) {
+                    attr = attr.substring(9);
+                    String decode = URLDecoder.decode(attr, "UTF-8");
+                    depenVersions.add(decode);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
+        return depenVersions;
+    }
 }

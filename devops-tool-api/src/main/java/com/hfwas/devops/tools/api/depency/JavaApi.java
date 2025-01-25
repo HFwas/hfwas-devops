@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 @FeignClient(name = "JavaApi", url = "${devops.depency.java.url}")
 public interface JavaApi {
 
-    @GetMapping("/maven2/{name}")
+    @GetMapping("/{name}")
     Response maven2(@PathVariable(value = "name", required = false) String name);
 
 }

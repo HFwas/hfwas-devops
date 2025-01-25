@@ -3,6 +3,8 @@ package com.hfwas.devops.service.vul.python;
 import com.google.common.collect.Lists;
 import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
+import com.hfwas.devops.service.vul.DepenScanFactory;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,7 +22,7 @@ import java.util.stream.Collectors;
  * @date 2025/1/14
  */
 @Service("DevopsPythonSetUpDepenScan")
-public class DevopsPythonSetUpDepenScan extends AbstractDepenScan {
+public class DevopsPythonSetUpDepenScan extends AbstractDepenScan implements InitializingBean {
 
     @Override
     public String language() {
@@ -30,6 +32,11 @@ public class DevopsPythonSetUpDepenScan extends AbstractDepenScan {
     @Override
     public String type() {
         return "setup.py";
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        DepenScanFactory.register("PyPI", this);
     }
 
     @Override

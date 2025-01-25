@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
+import com.hfwas.devops.service.vul.DepenScanFactory;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,7 +23,7 @@ import java.util.Set;
  * @date 2025/1/14
  */
 @Service("DevopsPhpJsonDepenScan")
-public class DevopsPhpJsonDepenScan extends AbstractDepenScan {
+public class DevopsPhpJsonDepenScan extends AbstractDepenScan implements InitializingBean {
     @Override
     public String language() {
         return "Php";
@@ -30,6 +32,11 @@ public class DevopsPhpJsonDepenScan extends AbstractDepenScan {
     @Override
     public String type() {
         return "composer.json";
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        DepenScanFactory.register("Pub", this);
     }
 
     @Override

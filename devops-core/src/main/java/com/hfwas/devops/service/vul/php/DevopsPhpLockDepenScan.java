@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,7 +24,7 @@ import java.util.Objects;
  * @date 2025/1/14
  */
 @Service("DevopsPhpLockDepenScan")
-public class DevopsPhpLockDepenScan extends AbstractDepenScan {
+public class DevopsPhpLockDepenScan extends AbstractDepenScan implements InitializingBean {
     @Override
     public String language() {
         return "Php";
@@ -32,6 +33,10 @@ public class DevopsPhpLockDepenScan extends AbstractDepenScan {
     @Override
     public String type() {
         return "composer.lock";
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
     }
 
     @Override

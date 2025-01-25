@@ -19,4 +19,5 @@ public interface DevopsDepenScan {
 
     List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException;
 
+    List<String> depenVersion(String depen, String version);
 }

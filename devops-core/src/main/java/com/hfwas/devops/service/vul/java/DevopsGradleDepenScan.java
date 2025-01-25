@@ -2,6 +2,7 @@ package com.hfwas.devops.service.vul.java;
 
 import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -13,7 +14,7 @@ import java.util.List;
  * @date 2025/1/13
  */
 @Service("DevopsGradleDepenScan")
-public class DevopsGradleDepenScan extends AbstractDepenScan {
+public class DevopsGradleDepenScan extends AbstractDepenScan implements InitializingBean {
 
     @Override
     public String language() {
@@ -23,6 +24,10 @@ public class DevopsGradleDepenScan extends AbstractDepenScan {
     @Override
     public String type() {
         return "maven";
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
     }
 
     @Override

@@ -2,7 +2,9 @@ package com.hfwas.devops.service.vul.rust;
 
 import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
+import com.hfwas.devops.service.vul.DepenScanFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,7 +22,7 @@ import java.util.List;
  */
 @Service("DevopsRustDepenScan")
 @Slf4j
-public class DevopsRustDepenScan extends AbstractDepenScan {
+public class DevopsRustDepenScan extends AbstractDepenScan implements InitializingBean {
     @Override
     public String language() {
         return "Rust";
@@ -29,6 +31,11 @@ public class DevopsRustDepenScan extends AbstractDepenScan {
     @Override
     public String type() {
         return "Cargo.toml";
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        DepenScanFactory.register("RubyGems", this);
     }
 
     @Override
