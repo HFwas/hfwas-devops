@@ -27,6 +27,7 @@ public class DevopsVul {
     private String details;
     private String serverity;
     private String ref;
+    // Packagist, Maven, RubyGems, GitHub Actions, PyPI, Go, npm, Hex, Rust(crates.io), SwiftURL, Pub, NuGet
     private String ecosystem;
     private String packages;
     private String introduced;

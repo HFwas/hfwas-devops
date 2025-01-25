@@ -16,6 +16,7 @@ public class DevopsVulPackage {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long vulId;
+    private String ecosystem;
     private String packages;
     private String introduced;
     private String fixed;

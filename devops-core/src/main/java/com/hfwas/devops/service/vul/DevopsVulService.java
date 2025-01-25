@@ -54,6 +54,7 @@ public class DevopsVulService {
     public IPage<DevopsVul> page(VulDto vulDto) {
         IPage<DevopsVul> vulPage = new Page<>(vulDto.getPageNo(),  vulDto.getPageSize());
         LambdaQueryWrapper<DevopsVul> queryWrapper = Wrappers.<DevopsVul>lambdaQuery()
+                .eq(!Strings.isNullOrEmpty(vulDto.getCveId()), DevopsVul::getCveId, vulDto.getCveId())
                 .orderByDesc(DevopsVul::getPublished);
         IPage<DevopsVul> devopsVulPage = devopsVulMapper.selectPage(vulPage, queryWrapper);
         return devopsVulPage;
@@ -100,6 +101,8 @@ public class DevopsVulService {
                             githubAdvisories1.add(githubAdvisories);
                         }
                     } catch (IOException e) {
+                        log.error(e.getMessage());
+                        throw new RuntimeException(e.getMessage());
                     }
                 });
 
@@ -186,6 +189,7 @@ public class DevopsVulService {
                 JsonObject githubAffectedPackages = githubAffected.getPackages();
                 String ecosystem = gson.toJson(githubAffectedPackages.get("ecosystem")).replace("\"", "");
                 convert.setEcosystem(ecosystem);
+                devopsVulPackage.setEcosystem(ecosystem);
                 String packages = gson.toJson(githubAffectedPackages.get("name")).replace("\"", "");
                 convert.setPackages(packages);
                 devopsVulPackage.setPackages(packages);
@@ -199,6 +203,10 @@ public class DevopsVulService {
                     devopsVulPackage.setIntroduced(event.getIntroduced());
                     if (events.size() > 1) {
                         AffectedEvent affectedEvent = events.get(1);
+                        if (event.getIntroduced().equals("0") && !Strings.isNullOrEmpty(affectedEvent.getLastAffected())) {
+                            convert.setIntroduced(String.format("<=%s", affectedEvent.getLastAffected()));
+                            devopsVulPackage.setIntroduced(String.format("<=%s", affectedEvent.getLastAffected()));
+                        }
                         convert.setFixed(affectedEvent.getFixed());
                         devopsVulPackage.setFixed(affectedEvent.getFixed());
                     }

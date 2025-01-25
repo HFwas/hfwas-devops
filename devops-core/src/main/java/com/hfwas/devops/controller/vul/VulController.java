@@ -5,7 +5,6 @@ import com.hfwas.devops.dto.vul.VulDto;
 import com.hfwas.devops.entity.DevopsVul;
 import com.hfwas.devops.service.vul.DevopsVulService;
 import jakarta.annotation.Resource;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -15,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/vul")
-@Slf4j
 public class VulController {
 
     @Resource
