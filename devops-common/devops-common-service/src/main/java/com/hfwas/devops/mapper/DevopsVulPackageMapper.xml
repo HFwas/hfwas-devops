@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hfwas.devops.mapper.DevopsVulPackageMapper">
+
+    <resultMap id="actorResultMap" type="com.hfwas.devops.entity.DevopsVulPackage">
+        <id column="id" property="id" jdbcType="BIGINT" javaType="long" typeHandler="org.apache.ibatis.type.LongTypeHandler"/>
+        <result column="vul_id" property="vulId" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
+        <result column="packages" property="packages" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
+        <result column="introduced" property="introduced" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
+        <result column="fixed" property="fixed" jdbcType="VARCHAR" javaType="string" typeHandler="org.apache.ibatis.type.StringTypeHandler"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, vul_id as vulId, packages, introduced, fixed, create_time as createTime, update_time as updateTime
+    </sql>
+
+</mapper>

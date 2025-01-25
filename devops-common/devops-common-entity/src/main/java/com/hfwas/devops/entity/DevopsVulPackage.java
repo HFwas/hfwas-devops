@@ -1,9 +1,6 @@
 package com.hfwas.devops.entity;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -16,7 +13,7 @@ import java.time.LocalDateTime;
 @Data
 @TableName(value = "devops_vul_packages")
 public class DevopsVulPackage {
-    @TableId
+    @TableId(type = IdType.AUTO)
     private Long id;
     private Long vulId;
     private String packages;

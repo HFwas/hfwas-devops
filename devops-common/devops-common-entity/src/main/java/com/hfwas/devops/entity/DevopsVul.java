@@ -1,14 +1,12 @@
 package com.hfwas.devops.entity;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * @author houfei
@@ -20,7 +18,7 @@ import java.time.LocalDateTime;
 @Setter
 @TableName(value = "devops_vul")
 public class DevopsVul {
-    @TableId
+    @TableId(type = IdType.AUTO)
     private Long id;
     private String modified;
     private String published;
@@ -35,6 +33,9 @@ public class DevopsVul {
     private String fixed;
     private String cvssV3Score;
     private String cweIds;
+
+    @TableField(exist = false)
+    private List<DevopsVulPackage> affecteds;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

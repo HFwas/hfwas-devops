@@ -12,7 +12,9 @@ import com.google.gson.JsonObject;
 import com.hfwas.devops.convert.DevopsVulConvert;
 import com.hfwas.devops.dto.vul.VulDto;
 import com.hfwas.devops.entity.DevopsVul;
+import com.hfwas.devops.entity.DevopsVulPackage;
 import com.hfwas.devops.mapper.DevopsVulMapper;
+import com.hfwas.devops.mapper.DevopsVulPackageMapper;
 import com.hfwas.devops.tools.entity.cwe.CvssSeverity;
 import com.hfwas.devops.tools.entity.github.*;
 import jakarta.annotation.Resource;
@@ -20,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -45,6 +48,8 @@ public class DevopsVulService {
 
     @Resource
     DevopsVulMapper devopsVulMapper;
+    @Resource
+    DevopsVulPackageMapper devopsVulPackageMapper;
 
     public IPage<DevopsVul> page(VulDto vulDto) {
         IPage<DevopsVul> vulPage = new Page<>(vulDto.getPageNo(),  vulDto.getPageSize());
@@ -59,6 +64,7 @@ public class DevopsVulService {
         return devopsVul;
     }
 
+    @Transactional
     public void sync() {
         try {
             int exitCode = getExitCode();
@@ -114,7 +120,17 @@ public class DevopsVulService {
                         .collect(Collectors.toList());
 
                 if (CollectionUtils.isNotEmpty(advisoriesList)) {
-                    devopsVulMapper.saveBatch(advisoriesList);
+                    devopsVulMapper.insert(advisoriesList);
+
+                    List<DevopsVulPackage> devopsVulPackages = advisoriesList.stream().map(advisoriey -> {
+                        List<DevopsVulPackage> affecteds = advisoriey.getAffecteds();
+                        affecteds = affecteds.stream().map(affecte -> {
+                            affecte.setVulId(advisoriey.getId());
+                            return affecte;
+                        }).collect(Collectors.toList());
+                        return affecteds;
+                    }).flatMap(List::stream).collect(Collectors.toList());
+                    devopsVulPackageMapper.insert(devopsVulPackages);
                 }
                 log.info("【sync】devopsVulMapper.saveBatch: {}", (System.currentTimeMillis() - timeMillis));
                 List<DevopsVul> updateAdvisoriesList = githubAdvisories1.stream()
@@ -162,23 +178,34 @@ public class DevopsVulService {
         convert.setRef(gson.toJson(githubAdvisories.getReferences()));
         if (CollectionUtils.isNotEmpty(githubAdvisories.getAffected())){
             List<GithubAffected> affected = githubAdvisories.getAffected();
+
+            List<DevopsVulPackage> affecteds = Lists.newArrayList();
             for (GithubAffected githubAffected : affected) {
+                DevopsVulPackage devopsVulPackage = new DevopsVulPackage();
+
                 JsonObject githubAffectedPackages = githubAffected.getPackages();
                 String ecosystem = gson.toJson(githubAffectedPackages.get("ecosystem")).replace("\"", "");
                 convert.setEcosystem(ecosystem);
                 String packages = gson.toJson(githubAffectedPackages.get("name")).replace("\"", "");
                 convert.setPackages(packages);
+                devopsVulPackage.setPackages(packages);
 
                 List<Range> ranges = githubAffected.getRanges();
                 if (CollectionUtils.isNotEmpty(ranges)) {
                     Range range = ranges.get(0);
                     List<AffectedEvent> events = range.getEvents();
-                    convert.setIntroduced(gson.toJson(events.get(0)));
+                    AffectedEvent event = events.get(0);
+                    convert.setIntroduced(event.getIntroduced());
+                    devopsVulPackage.setIntroduced(event.getIntroduced());
                     if (events.size() > 1) {
-                        convert.setFixed(gson.toJson(events.get(1)));
+                        AffectedEvent affectedEvent = events.get(1);
+                        convert.setFixed(affectedEvent.getFixed());
+                        devopsVulPackage.setFixed(affectedEvent.getFixed());
                     }
                 }
+                affecteds.add(devopsVulPackage);
             }
+            convert.setAffecteds(affecteds);
         }
         return convert;
     }
