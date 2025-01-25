@@ -71,4 +71,10 @@ public class GlobalException {
         return new BaseResult<>(1, "sql语法错误", "");
     }
 
+    @ExceptionHandler(value = NullPointerException.class)
+    public BaseResult nullPointerException(NullPointerException e) {
+        log.error(e.getMessage(), e);
+        return new BaseResult<>(1, "空指针异常", "");
+    }
+
 }
