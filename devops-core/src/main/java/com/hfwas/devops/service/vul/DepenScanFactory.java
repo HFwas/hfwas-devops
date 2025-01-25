@@ -14,7 +14,7 @@ public class DepenScanFactory {
 
     private static Map<String, DevopsDepenScan> strategyMap = new ConcurrentHashMap<>();
 
-    public static DevopsDepenScan getBySceneCode(String language) {
+    public static DevopsDepenScan getByLanguage(String language) {
         DevopsDepenScan devopsDepenScan = strategyMap.get(language);
         return devopsDepenScan;
     }

@@ -7,10 +7,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -39,8 +38,8 @@ public class DevopsYarnDepenScan extends AbstractDepenScan implements Initializi
     @Override
     public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException {
         List<DevopsVulCodeDependency> devopsVulDependencies = new ArrayList<>();
-        Path path = Paths.get("/Users/houfei/workspace/demo-vue/yarn2.lock");
-        List<String> readAllLines = Files.readAllLines(path);
+        byte[] bytes = multipartFile.getBytes();
+        List<String> readAllLines = Arrays.stream(new String(bytes, StandardCharsets.UTF_8).split("\\r?\\n")).toList();
         // yarn.lock 文件前四行是无用数据
         readAllLines = readAllLines.stream().skip(4).collect(Collectors.toList());
         for (int i = 0; i < readAllLines.size(); i++) {

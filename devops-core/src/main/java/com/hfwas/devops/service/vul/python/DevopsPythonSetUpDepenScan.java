@@ -9,10 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,8 +39,8 @@ public class DevopsPythonSetUpDepenScan extends AbstractDepenScan implements Ini
 
     @Override
     public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException {
-        Path path = Paths.get("setup.py");
-        List<String> readAllLines = Files.readAllLines(path, Charset.forName("UTF-8"));
+        byte[] bytes = multipartFile.getBytes();
+        List<String> readAllLines = Arrays.stream(new String(bytes, StandardCharsets.UTF_8).split("\\r?\\n")).toList();;
         List<DevopsVulCodeDependency> devopsVulDependencys = Lists.newArrayList();
 
         readAllLines = readAllLines.stream().skip(6).collect(Collectors.toList());

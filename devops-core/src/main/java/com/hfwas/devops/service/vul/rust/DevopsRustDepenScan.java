@@ -9,10 +9,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -41,8 +43,8 @@ public class DevopsRustDepenScan extends AbstractDepenScan implements Initializi
     @Override
     public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException {
         List<DevopsVulCodeDependency> devopsVulDependencies = new ArrayList<>();
-        Path path = Paths.get("Cargo.toml");
-        List<String> readAllLines = Files.readAllLines(path);
+        byte[] bytes = multipartFile.getBytes();
+        List<String> readAllLines = Arrays.stream(new String(bytes, StandardCharsets.UTF_8).split("\\r?\\n")).toList();;
         int start = readAllLines.indexOf("[dependencies]");
         for (int i = start + 1; i < readAllLines.size(); i++) {
             String readAllLine = readAllLines.get(i);

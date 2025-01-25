@@ -9,10 +9,6 @@ import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.*;
 
 /**
@@ -40,8 +36,7 @@ public class DevopsPnpmDepenScan extends AbstractDepenScan implements Initializi
     @Override
     public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException {
         List<DevopsVulCodeDependency> devopsVulDependencies = new ArrayList<>();
-        Path path = Paths.get("pnpm-lock1.yaml");
-        InputStream inputStream = Files.newInputStream(path, StandardOpenOption.CREATE_NEW);
+        InputStream inputStream = multipartFile.getInputStream();
         Yaml yaml = new Yaml();
         Map<String, HashMap<String, HashMap>> yarnLockData = yaml.load(inputStream);
         HashMap<String, HashMap> jsonObject = yarnLockData.get("packages");

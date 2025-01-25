@@ -15,9 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -51,8 +48,7 @@ public class DevopsNpmDepenScan extends AbstractDepenScan implements Initializin
     @Override
     public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException {
         List<DevopsVulCodeDependency> devopsVulDependencies = new ArrayList<>();
-        Path path = Paths.get("package-lock2025010109.json");
-        byte[] bytes = Files.readAllBytes(path);
+        byte[] bytes = multipartFile.getBytes();
         Gson gson = new Gson();
         JsonObject npmJson = gson.fromJson(new String(bytes), JsonObject.class);
         JsonObject asJsonObject = npmJson.getAsJsonObject("packages");
