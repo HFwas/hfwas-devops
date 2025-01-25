@@ -16,4 +16,7 @@ public interface NpmApi {
     @GetMapping("/package/{name}/merge-streams?activeTab=dependencies")
     Response dependents(@PathVariable("name") String name);
 
+    @GetMapping("/{name}")
+    Response depenInfo(@PathVariable("name") String name);
+
 }

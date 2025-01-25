@@ -1,6 +1,6 @@
 package com.hfwas.devops.service.vul.java;
 
-import com.github.zafarkhaja.semver.Version;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -12,8 +12,8 @@ import com.hfwas.devops.service.vul.DepenScanFactory;
 import com.hfwas.devops.tools.api.depency.JavaApi;
 import feign.Response;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -24,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * @author hfwas
@@ -32,6 +31,7 @@ import java.util.stream.Collectors;
  * @date 2025/1/13
  */
 @Service("DevopsMavenDepenScan")
+@Slf4j
 public class DevopsMavenDepenScan extends AbstractDepenScan implements InitializingBean {
 
     @Resource
@@ -92,29 +92,25 @@ public class DevopsMavenDepenScan extends AbstractDepenScan implements Initializ
         List<String> depenVersions = Lists.newArrayList();
         String[] split = depen.split(":");
         String replace1 = split[0].replace(".", "/");
-        String format = String.format("%s/%s", replace1, split[1]);
+        String format = String.format("%s/%s/maven-metadata.xml", replace1, split[1]);
         Response response = javaApi.maven2(format);
         try {
             byte[] bytes = response.body().asInputStream().readAllBytes();
             Document document = Jsoup.parse(new String(bytes));
-            Elements elements = document.select("a");
+            Elements elements = document.select("versions>version");
             for (Element element : elements) {
-                Attribute href = element.attribute("href");
-                String value = href.getValue();
-                if (!value.equals("../") && value.endsWith("/")) {
-                    String replace = value.replace("/", "");
-                    depenVersions.add(replace);
-                }
+                Elements selected = element.select("version");
+                String value = selected.html();
+                depenVersions.add(value);
             }
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
         }
-        // 对版本号进行排序
-        depenVersions = depenVersions.stream()
-                .map(Version::valueOf)
-                .sorted()
-                .map(version1 -> version1.toString())
-                .collect(Collectors.toList());
+
+        if (!Strings.isNullOrEmpty(version)) {
+            String preVersion = depenVersions.get(depenVersions.indexOf(version) - 1);
+            return Lists.newArrayList(preVersion);
+        }
         return depenVersions;
     }
 }

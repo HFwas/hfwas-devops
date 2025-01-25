@@ -1,5 +1,6 @@
 package com.hfwas.devops.service.vul.npm;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -9,16 +10,11 @@ import com.hfwas.devops.service.vul.DepenScanFactory;
 import com.hfwas.devops.tools.api.depency.NpmApi;
 import feign.Response;
 import jakarta.annotation.Resource;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -99,20 +95,19 @@ public class DevopsNpmDepenScan extends AbstractDepenScan implements Initializin
     public List<String> depenVersion(String depen, String version) {
         List<String> depenVersions = Lists.newArrayList();
         try {
-            Response response = npmApi.dependents(depen);
+            Gson gson = new Gson();
+            Response response = npmApi.depenInfo(depen);
             byte[] bytes = response.body().asInputStream().readAllBytes();
-            Document document = Jsoup.parse(new String(bytes));
-            Elements tds = document.select("li");
-            for (Element td : tds) {
-                String attr = td.select("a").attr("href");
-                if (attr.startsWith("/package")) {
-                    attr = attr.substring(9);
-                    String decode = URLDecoder.decode(attr, "UTF-8");
-                    depenVersions.add(decode);
-                }
-            }
+            String s = new String(bytes);
+            JsonObject jsonObject = gson.fromJson(s, JsonObject.class);
+            Set<String> versions = jsonObject.getAsJsonObject("versions").keySet();
+            depenVersions.addAll(versions);
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
+        }
+        if (!Strings.isNullOrEmpty(version)) {
+            String preVersion = depenVersions.get(depenVersions.indexOf(version) + 1);
+            return Lists.newArrayList(preVersion);
         }
         return depenVersions;
     }
