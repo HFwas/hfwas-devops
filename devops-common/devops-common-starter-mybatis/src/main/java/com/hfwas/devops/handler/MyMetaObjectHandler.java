@@ -18,11 +18,11 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
     @Override
     public void insertFill(MetaObject metaObject) {
         Object createTime = getFieldValByName("createTime", metaObject);
-        if (Objects.nonNull(createTime)) {
+        if (Objects.isNull(createTime)) {
             this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());
         }
         Object updateTime = getFieldValByName("updateTime", metaObject);
-        if (Objects.nonNull(updateTime)) {
+        if (Objects.isNull(updateTime)) {
             this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
         }
     }
@@ -30,11 +30,11 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
     @Override
     public void updateFill(MetaObject metaObject) {
         Object createTime = getFieldValByName("createTime", metaObject);
-        if (Objects.nonNull(createTime)) {
+        if (Objects.isNull(createTime)) {
             this.strictUpdateFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());
         }
         Object updateTime = getFieldValByName("updateTime", metaObject);
-        if (Objects.nonNull(updateTime)) {
+        if (Objects.isNull(updateTime)) {
             this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
         }
     }
