@@ -1,12 +1,18 @@
 package com.hfwas.devops.service.vul.java;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.hfwas.devops.convert.DevopsVulCodeDependencyVersionConvert;
 import com.hfwas.devops.entity.DevopsVulCodeDependency;
+import com.hfwas.devops.entity.DevopsVulCodeDependencyVersion;
+import com.hfwas.devops.mapper.DevopsVulDependencyMapper;
+import com.hfwas.devops.mapper.DevopsVulDependencyVersionMapper;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
 import com.hfwas.devops.service.vul.DepenScanFactory;
 import com.hfwas.devops.tools.api.depency.JavaApi;
@@ -18,12 +24,16 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author hfwas
@@ -36,6 +46,10 @@ public class DevopsMavenDepenScan extends AbstractDepenScan implements Initializ
 
     @Resource
     private JavaApi javaApi;
+    @Resource
+    DevopsVulDependencyMapper dependencyMapper;
+    @Autowired
+    private DevopsVulDependencyVersionMapper dependencyVersionMapper;
 
     @Override
     public String language() {
@@ -53,38 +67,113 @@ public class DevopsMavenDepenScan extends AbstractDepenScan implements Initializ
     }
 
     @Override
+    @Transactional
     public List<DevopsVulCodeDependency> dependencys(MultipartFile multipartFile) throws IOException {
         String originalFilename = multipartFile.getOriginalFilename();
         List<DevopsVulCodeDependency> devopsVulDependencys = Lists.newArrayList();
+        // mvn -B com.github.ferstl:depgraph-maven-plugin:4.0.3:aggregate -DgraphFormat=json -DoutputDirectory=target -DoutputFileName=aggregate-depgraph.json
         if (originalFilename.equals("aggregate-depgraph.json")) {
             byte[] bytes = multipartFile.getBytes();
             Gson gson = new Gson();
             JsonObject jsonObject = gson.fromJson(new String(bytes, Charset.defaultCharset()), JsonObject.class);
             JsonArray artifacts = jsonObject.getAsJsonArray("artifacts");
+
+            Map<Long, DevopsVulCodeDependency> nodeMap = new HashMap<>();
+            Map<Long, Long> numericIdToDbIdMap = new HashMap<>(); // 存储 numericId 到数据库主键的映射
+
             for (JsonElement artifact : artifacts) {
                 JsonObject asJsonObject = artifact.getAsJsonObject();
                 String groupId = asJsonObject.get("groupId").getAsString();
                 String artifactId = asJsonObject.get("artifactId").getAsString();
                 String version = asJsonObject.get("version").getAsString();
-                int numericId = asJsonObject.get("numericId").getAsInt();
-                DevopsVulCodeDependency devopsVulDependency = DevopsVulCodeDependency.builder()
+                Long numericId = asJsonObject.get("numericId").getAsLong();
+                String id = asJsonObject.get("id").getAsString();
+                DevopsVulCodeDependency dependency = DevopsVulCodeDependency.builder()
                         .company(groupId)
                         .dependencyName(artifactId)
                         .version(version)
-                        .type(1).build();
-                devopsVulDependencys.add(devopsVulDependency);
+                        .type(1).parentId(null).build();
+
+                // 检查数据库中是否已存在相同的依赖项
+                LambdaQueryWrapper<DevopsVulCodeDependency> queryWrapper = Wrappers.<DevopsVulCodeDependency>lambdaQuery().eq(DevopsVulCodeDependency::getCompany, groupId)
+                        .eq(DevopsVulCodeDependency::getDependencyName, artifactId);
+                DevopsVulCodeDependency existingDependency = dependencyMapper.selectOne(queryWrapper);
+
+                Long dbId;
+                if (existingDependency != null) {
+                    // 如果已存在，直接使用数据库中的记录
+                    dbId = existingDependency.getId();
+                    dependency.setId(existingDependency.getId());
+                } else {
+                    // 如果不存在，创建新的依赖项并插入数据库
+                    dependencyMapper.insert(dependency);
+                    dbId = dependency.getId(); // 获取生成的 id
+                }
+
+                DevopsVulCodeDependencyVersion dependencyVersion = DevopsVulCodeDependencyVersionConvert.INSTANCE.to(dependency);
+                // 检查数据库中是否已存在相同的依赖项
+                LambdaQueryWrapper<DevopsVulCodeDependencyVersion> versionQueryWrapper = Wrappers.<DevopsVulCodeDependencyVersion>lambdaQuery()
+                        .eq(DevopsVulCodeDependencyVersion::getDepenId, dependencyVersion.getDepenId())
+                        .eq(DevopsVulCodeDependencyVersion::getVersion, dependencyVersion.getVersion());
+                DevopsVulCodeDependencyVersion existingDependencyVersion = dependencyVersionMapper.selectOne(versionQueryWrapper);
+                if (existingDependencyVersion != null) {
+                    dependencyVersion.setId(dependencyVersion.getId());
+                    dependencyVersionMapper.updateById(dependencyVersion);
+                } else {
+                    dependencyVersionMapper.save(dependencyVersion);
+                }
+
+                // 存储映射关系
+                numericIdToDbIdMap.put(numericId, dbId);
+                DevopsVulCodeDependency codeDependency = dependencyMapper.selectById(dbId);
+                nodeMap.put(numericId, codeDependency); // 从数据库中获取完整的记录
+                devopsVulDependencys.add(dependency);
+                nodeMap.put(numericId, dependency);
             }
 
             JsonArray dependencies = jsonObject.getAsJsonArray("dependencies");
             for (JsonElement dependency : dependencies) {
                 JsonObject asJsonObject = dependency.getAsJsonObject();
-                String from = asJsonObject.get("from").getAsString();
-                String to = asJsonObject.get("to").getAsString();
-                int numericFrom = asJsonObject.get("numericFrom").getAsInt();
-                int numericTo = asJsonObject.get("numericTo").getAsInt();
+                Long numericFrom = asJsonObject.get("numericFrom").getAsLong();
+                Long numericTo = asJsonObject.get("numericTo").getAsLong();
+
+                // 获取数据库主键
+                Long fromDbId = numericIdToDbIdMap.get(numericFrom);
+                Long toDbId = numericIdToDbIdMap.get(numericTo);
+
+                // 设置to节点的parentId为from节点的数据库主键
+                DevopsVulCodeDependency toNode = nodeMap.get(numericTo);
+                if (toNode != null && fromDbId != null) {
+                    toNode.setParentId(fromDbId); // 使用数据库主键
+                    dependencyMapper.updateById(toNode); // 更新数据库
+                }
             }
+            // 打印依赖图谱
+            for (DevopsVulCodeDependency node : nodeMap.values()) {
+                if (node.getParentId() == null) {
+                    // 根节点（没有parentId）
+                    System.out.println("Root: " + node);
+                    printChildren(node, nodeMap, 1);
+                }
+            }
+            return devopsVulDependencys;
         }
         return devopsVulDependencys;
+    }
+
+    private static void printChildren(DevopsVulCodeDependency parent, Map<Long, DevopsVulCodeDependency> nodeMap, int depth) {
+        for (DevopsVulCodeDependency node : nodeMap.values()) {
+            if (node.getParentId() != null && node.getParentId().equals(parent.getId())) {
+                // 根据深度缩进
+                for (int i = 0; i < depth; i++) {
+                    System.out.print("  ");
+                }
+                System.out.println("└─ " + node);
+
+                // 递归打印子节点
+                printChildren(node, nodeMap, depth + 1);
+            }
+        }
     }
 
     @Override

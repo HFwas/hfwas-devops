@@ -14,12 +14,12 @@
     </sql>
 
     <insert id="save" parameterType="com.hfwas.devops.entity.DevopsVulCodeDependencyVersion" useGeneratedKeys="true" keyProperty="id">
-        insert into devops_vul_dependency_version (depen_id, version) values
+        insert into devops_vul_code_dependency_version (depen_id, version) values
             (#{devopsVulDependencyVersion.depenId}, #{devopsVulDependencyVersion.version})
     </insert>
 
     <insert id="saveBatch" parameterType="com.hfwas.devops.entity.DevopsVulCodeDependencyVersion" useGeneratedKeys="true" keyProperty="id">
-        insert into devops_vul_dependency_version (depen_id, version) values
+        insert into devops_vul_code_dependency_version (depen_id, version) values
         <if test="devopsVulDependencyVersions != null">
             <foreach collection="devopsVulDependencyVersions" item="devopsVulDependencyVersion" separator=",">
                 (#{devopsVulDependencyVersion.depenId}, #{devopsVulDependencyVersion.version})

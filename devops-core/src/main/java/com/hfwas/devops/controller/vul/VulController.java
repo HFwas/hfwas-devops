@@ -7,6 +7,8 @@ import com.hfwas.devops.service.vul.DevopsVulService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * @author hfwas
  * @package com.hfwas.devops.controller.vul
@@ -28,6 +30,12 @@ public class VulController {
     @GetMapping("/getById")
     public DevopsVul getById(@RequestParam Long id) {
         DevopsVul devopsVul = devopsVulService.getById(id);
+        return devopsVul;
+    }
+
+    @GetMapping("/codeVul")
+    public List<DevopsVul> codeVul(@RequestParam Long codeId) {
+        List<DevopsVul> devopsVul = devopsVulService.codeVul(codeId);
         return devopsVul;
     }
 

@@ -12,6 +12,7 @@ import lombok.Data;
 @TableName(value = "devops_vul_code_version")
 public class DevopsVulCodeVersion {
     private Long id;
+    private Long parentId;
     private Long depenVersionId;
     private Long codeId;
 }

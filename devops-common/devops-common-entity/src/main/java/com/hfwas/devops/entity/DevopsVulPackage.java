@@ -16,6 +16,7 @@ public class DevopsVulPackage {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long vulId;
+    // Packagist, Maven, RubyGems, GitHub Actions, PyPI, Go, npm, Hex, Rust(crates.io), SwiftURL, Pub, NuGet
     private String ecosystem;
     private String packages;
     private String introduced;
