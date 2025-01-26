@@ -65,7 +65,10 @@ public class GlobalException {
         String message = e.getMessage();
         log.error(message, e);
         if (message.contains("Unknown column")) {
-            String column = message.substring(88, message.indexOf("' in 'field list'"));
+            int start = message.indexOf("Unknown column '");
+            String substring = message.substring(start + "Unknown column '".length());
+            int end = substring.indexOf("'");
+            String column = substring.substring(0, end);
             return new BaseResult<>(1, String.format("数据库 %s 字段不存在", column), null);
         }
         return new BaseResult<>(1, "sql语法错误", "");
