@@ -65,6 +65,11 @@ public class DevopsVulService {
         return devopsVul;
     }
 
+    public List<DevopsVul> codeVul(Long codeId) {
+
+        return Lists.newArrayList();
+    }
+
     @Transactional
     public void sync() {
         try {
@@ -76,7 +81,7 @@ public class DevopsVulService {
 
             long timeMillis = System.currentTimeMillis();
             log.info("【sync】start time:{}", timeMillis);
-            Stream<Path> walk = Files.walk(Paths.get(String.format("%s/advisory-database/advisories", vulnerabilityPath)));
+            Stream<Path> walk = Files.walk(Paths.get(String.format("%s/advisory-database/advisories/github-reviewed", vulnerabilityPath)));
             List<Path> collect = walk.parallel()
                     .filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString().startsWith("GHSA") || path.getFileName().toString().startsWith("CVE"))
