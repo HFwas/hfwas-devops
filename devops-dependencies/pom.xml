@@ -39,6 +39,7 @@
         <tomcat-embed.version>10.1.34</tomcat-embed.version>
         <protobuf-java.version>3.25.5</protobuf-java.version>
         <semver.version>0.10.2</semver.version>
+        <jenkins-rest.version>1.0.2</jenkins-rest.version>
     </properties>
 
     <dependencyManagement>
@@ -179,6 +180,11 @@
                 <groupId>com.github.zafarkhaja</groupId>
                 <artifactId>java-semver</artifactId>
                 <version>${semver.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.cdancy</groupId>
+                <artifactId>jenkins-rest</artifactId>
+                <version>${jenkins-rest.version}</version>
             </dependency>
 
             <dependency>
