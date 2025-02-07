@@ -5,12 +5,10 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.hfwas.devops.convert.DevopsVulCodeDependencyVersionConvert;
 import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.entity.DevopsVulCodeDependencyVersion;
+import com.hfwas.devops.language.java.*;
 import com.hfwas.devops.mapper.DevopsVulDependencyMapper;
 import com.hfwas.devops.mapper.DevopsVulDependencyVersionMapper;
 import com.hfwas.devops.service.vul.AbstractDepenScan;
@@ -50,6 +48,8 @@ public class DevopsMavenDepenScan extends AbstractDepenScan implements Initializ
     DevopsVulDependencyMapper dependencyMapper;
     @Autowired
     private DevopsVulDependencyVersionMapper dependencyVersionMapper;
+    @Resource
+    private Gson gson;
 
     @Override
     public String language() {
@@ -74,20 +74,21 @@ public class DevopsMavenDepenScan extends AbstractDepenScan implements Initializ
         // mvn -B com.github.ferstl:depgraph-maven-plugin:4.0.3:aggregate -DgraphFormat=json -DoutputDirectory=target -DoutputFileName=aggregate-depgraph.json
         if (originalFilename.equals("aggregate-depgraph.json")) {
             byte[] bytes = multipartFile.getBytes();
-            Gson gson = new Gson();
-            JsonObject jsonObject = gson.fromJson(new String(bytes, Charset.defaultCharset()), JsonObject.class);
-            JsonArray artifacts = jsonObject.getAsJsonArray("artifacts");
+            Depgraph depgraph = gson.fromJson(new String(bytes, Charset.defaultCharset()), Depgraph.class);
+            List<DepgraphArtifact> artifacts = depgraph.getArtifacts();
+
+            MavenDependencyGraph mavenDependencyGraph = new MavenDependencyGraph(depgraph);
+            JavaManifest manifest = mavenDependencyGraph.createManifest(null);
+            String json = gson.toJson(manifest);
 
             Map<Long, DevopsVulCodeDependency> nodeMap = new HashMap<>();
             Map<Long, Long> numericIdToDbIdMap = new HashMap<>(); // 存储 numericId 到数据库主键的映射
 
-            for (JsonElement artifact : artifacts) {
-                JsonObject asJsonObject = artifact.getAsJsonObject();
-                String groupId = asJsonObject.get("groupId").getAsString();
-                String artifactId = asJsonObject.get("artifactId").getAsString();
-                String version = asJsonObject.get("version").getAsString();
-                Long numericId = asJsonObject.get("numericId").getAsLong();
-                String id = asJsonObject.get("id").getAsString();
+            for (DepgraphArtifact artifact : artifacts) {
+                String groupId = artifact.getGroupId();
+                String artifactId = artifact.getArtifactId();
+                String version = artifact.getVersion();
+                Long numericId = artifact.getNumericId();
                 DevopsVulCodeDependency dependency = DevopsVulCodeDependency.builder()
                         .company(groupId)
                         .dependencyName(artifactId)
@@ -124,18 +125,13 @@ public class DevopsMavenDepenScan extends AbstractDepenScan implements Initializ
                 }
 
                 // 存储映射关系
-                numericIdToDbIdMap.put(numericId, dbId);
-                DevopsVulCodeDependency codeDependency = dependencyMapper.selectById(dbId);
-                nodeMap.put(numericId, codeDependency); // 从数据库中获取完整的记录
                 devopsVulDependencys.add(dependency);
-                nodeMap.put(numericId, dependency);
             }
 
-            JsonArray dependencies = jsonObject.getAsJsonArray("dependencies");
-            for (JsonElement dependency : dependencies) {
-                JsonObject asJsonObject = dependency.getAsJsonObject();
-                Long numericFrom = asJsonObject.get("numericFrom").getAsLong();
-                Long numericTo = asJsonObject.get("numericTo").getAsLong();
+            List<DepgraphDependency> dependencies = depgraph.getDependencies();
+            for (DepgraphDependency dependency : dependencies) {
+                Long numericFrom = dependency.getNumericFrom();
+                Long numericTo = dependency.getNumericTo();
 
                 // 获取数据库主键
                 Long fromDbId = numericIdToDbIdMap.get(numericFrom);

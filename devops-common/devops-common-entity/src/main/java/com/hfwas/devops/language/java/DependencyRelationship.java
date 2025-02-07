@@ -6,14 +6,15 @@ import lombok.Getter;
 /**
  * @author houfei
  * @package com.hfwas.devops.language.java
- * @date 2025/2/6
+ * @date 2025/2/7
  */
-@Getter
 @AllArgsConstructor
-public enum DependencyScope {
-    runtime("runtime"),
-    development("development"),
+@Getter
+public enum DependencyRelationship {
+    direct("direct"),
+    indirect("indirect"),
     ;
 
-    private String scope;
+    private String relation;
+
 }
