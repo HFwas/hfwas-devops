@@ -111,6 +111,11 @@
             <groupId>com.github.zafarkhaja</groupId>
             <artifactId>java-semver</artifactId>
         </dependency>
+        <dependency>
+            <groupId>us.springett</groupId>
+            <artifactId>cpe-parser</artifactId>
+        </dependency>
+
 
         <dependency>
             <groupId>com.hfwas.devops</groupId>

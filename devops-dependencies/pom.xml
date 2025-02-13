@@ -40,6 +40,8 @@
         <protobuf-java.version>3.25.5</protobuf-java.version>
         <semver.version>0.10.2</semver.version>
         <jenkins-rest.version>1.0.2</jenkins-rest.version>
+        <cpe-parser.version>2.1.0</cpe-parser.version>
+        <httpclient5.version>5.4.2</httpclient5.version>
     </properties>
 
     <dependencyManagement>
@@ -69,6 +71,16 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
+                <version>${jackson-databind.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson-databind.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
                 <version>${jackson-databind.version}</version>
             </dependency>
             <dependency>
@@ -186,6 +198,18 @@
                 <artifactId>jenkins-rest</artifactId>
                 <version>${jenkins-rest.version}</version>
             </dependency>
+            <dependency>
+                <groupId>us.springett</groupId>
+                <artifactId>cpe-parser</artifactId>
+                <version>${cpe-parser.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.client5</groupId>
+                <artifactId>httpclient5</artifactId>
+                <version>${httpclient5.version}</version>
+            </dependency>
+
+
 
             <dependency>
                 <groupId>com.hfwas.devops</groupId>
