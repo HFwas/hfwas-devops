@@ -2,7 +2,7 @@ package com.hfwas.devops.controller.sync;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hfwas.devops.common.core.base.BaseResult;
-import com.hfwas.devops.service.sync.DevopsSyncLogService;
+import com.hfwas.devops.service.syncLog.DevopsSyncLogService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

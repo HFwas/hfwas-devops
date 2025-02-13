@@ -1,4 +1,4 @@
-package com.hfwas.devops.service.sync;
+package com.hfwas.devops.service.syncLog;
 
 import com.hfwas.devops.mapper.DevopsSyncLogMapper;
 import jakarta.annotation.Resource;
