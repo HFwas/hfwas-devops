@@ -18,8 +18,8 @@ public class DevopsSyncLog {
     private Integer status;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
-    private Integer success_num;
-    private String success_data;
-    private Integer error_num;
-    private String error_data;
+    private Integer successNum;
+    private String successData;
+    private Integer errorNum;
+    private String errorData;
 }
