@@ -42,6 +42,7 @@
         <jenkins-rest.version>1.0.2</jenkins-rest.version>
         <cpe-parser.version>2.1.0</cpe-parser.version>
         <httpclient5.version>5.4.2</httpclient5.version>
+        <logback-classic.version>1.5.8</logback-classic.version>
     </properties>
 
     <dependencyManagement>
@@ -103,6 +104,17 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter</artifactId>
                 <version>${spring-boot.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>ch.qos.logback</groupId>
+                        <artifactId>logback-classic</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>${logback-classic.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.baomidou</groupId>
