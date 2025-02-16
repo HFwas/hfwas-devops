@@ -18,7 +18,7 @@ import java.util.List;
  * @date 2025/2/12
  */
 @Slf4j
-@Service
+@Service("PmdCodeScan")
 public class PmdCodeScan implements CodeScanApi {
 
     @Override
