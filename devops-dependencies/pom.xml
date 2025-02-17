@@ -42,7 +42,7 @@
         <jenkins-rest.version>1.0.2</jenkins-rest.version>
         <cpe-parser.version>2.1.0</cpe-parser.version>
         <httpclient5.version>5.4.2</httpclient5.version>
-        <logback-classic.version>1.5.8</logback-classic.version>
+        <logback-classic.version>1.5.16</logback-classic.version>
     </properties>
 
     <dependencyManagement>
