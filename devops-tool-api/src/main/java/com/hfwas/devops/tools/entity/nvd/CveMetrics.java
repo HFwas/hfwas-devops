@@ -1,10 +1,15 @@
 package com.hfwas.devops.tools.entity.nvd;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.google.gson.JsonObject;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
 public class CveMetrics {
-    private List<CveCvssMetricV2> cvssMetricV2s;
+    @JsonProperty("cvssMetricV2")
+    @JsonPropertyDescription("CVSS V2.0 score.")
+    private List<JsonObject> cvssMetricV2;
 }

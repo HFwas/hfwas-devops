@@ -1,11 +1,12 @@
 package com.hfwas.devops.tools.entity.nvd;
 
-import com.google.gson.JsonObject;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
 public class Vulnerabilities {
 
-    private JsonObject cve;
+    @JsonProperty("cve")
+    private Cve cve;
 
 }
