@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @TableName(value = "devops_sync_log")
 public class DevopsSyncLog {
     private Long id;
+    private String name;
     private Integer type;
     private Integer status;
     private LocalDateTime createTime;
