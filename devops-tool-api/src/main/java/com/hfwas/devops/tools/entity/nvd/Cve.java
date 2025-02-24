@@ -1,15 +1,30 @@
 package com.hfwas.devops.tools.entity.nvd;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.gson.JsonObject;
+import com.hfwas.devops.tools.entity.nvd.file.CveDataMeta;
+import com.hfwas.devops.tools.entity.nvd.file.Description;
+import com.hfwas.devops.tools.entity.nvd.file.References;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Cve {
     @JsonProperty("id")
     private String id;
+    @JsonProperty("data_type")
+    private String dataType;
+    @JsonProperty("data_format")
+    private String dataFormat;
+    @JsonProperty("data_version")
+    private String dataVersion;
+    @JsonProperty("CVE_data_meta")
+    private CveDataMeta CVE_data_meta;
+    @JsonProperty("description")
+    private Description description;
+
     @JsonProperty("sourceIdentifier")
     private String sourceIdentifier;
     @JsonProperty("published")
@@ -27,15 +42,15 @@ public class Cve {
     @JsonProperty("weaknesses")
     private List<Weaknesses> weaknesses;
     @JsonProperty("configurations")
-    private List<JsonObject> configurations;
+    private List<Configurations> configurations;
     @JsonProperty("references")
-    private List<Reference> references;
+    private References references;
     @JsonProperty("evaluatorSolution")
     private String evaluatorSolution;
     @JsonProperty("evaluatorImpact")
     private String evaluatorImpact;
-    @JsonProperty("vendorComments")
-    private List<JsonObject> vendorComments;
+    // @JsonProperty("vendorComments")
+    // private List<JsonNode> vendorComments;
     @JsonProperty("evaluatorComment")
     private String evaluatorComment;
 }

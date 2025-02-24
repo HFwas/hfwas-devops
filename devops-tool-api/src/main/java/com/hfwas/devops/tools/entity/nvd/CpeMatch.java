@@ -1,7 +1,11 @@
 package com.hfwas.devops.tools.entity.nvd;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.Data;
+
+import java.util.List;
 
 /**
  * @author houfei
@@ -9,9 +13,12 @@ import lombok.Data;
  * @date 2025/2/14
  */
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CpeMatch {
     @JsonProperty("vulnerable")
     private Boolean vulnerable;
+    @JsonProperty("cpe23Uri")
+    private String cpe23Uri;
     @JsonProperty("criteria")
     private String criteria;
     @JsonProperty("matchCriteriaId")
@@ -24,4 +31,6 @@ public class CpeMatch {
     private String versionEndExcluding;
     @JsonProperty("versionEndIncluding")
     private String versionEndIncluding;
+    @JsonProperty("cpe_name")
+    private List<JsonNode> cpeName;
 }
