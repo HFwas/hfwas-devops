@@ -34,6 +34,11 @@ public class NvdDataRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
+        log.info("开始同步NVD数据");
+        if (vulMapper.list(null).size() > 0) {
+            log.info("NVD数据已存在，跳过同步");
+            return;
+        }
         // 获取 resources/nvd 目录的 URL
         URL resource = NvdDataRunner.class.getClassLoader().getResource("nvd");
         // 将 URL 转换为 Path 对象
