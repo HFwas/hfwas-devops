@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.hfwas.devops.tools.entity.nvd.file.CveDataMeta;
 import com.hfwas.devops.tools.entity.nvd.file.Description;
-import com.hfwas.devops.tools.entity.nvd.file.References;
+import com.hfwas.devops.tools.entity.nvd.file.ReferenceData;
 import lombok.Data;
 
 import java.util.List;
@@ -44,13 +44,11 @@ public class Cve {
     @JsonProperty("configurations")
     private List<Configurations> configurations;
     @JsonProperty("references")
-    private References references;
+    private List<ReferenceData> references;
     @JsonProperty("evaluatorSolution")
     private String evaluatorSolution;
     @JsonProperty("evaluatorImpact")
     private String evaluatorImpact;
-    // @JsonProperty("vendorComments")
-    // private List<JsonNode> vendorComments;
     @JsonProperty("evaluatorComment")
     private String evaluatorComment;
 }
