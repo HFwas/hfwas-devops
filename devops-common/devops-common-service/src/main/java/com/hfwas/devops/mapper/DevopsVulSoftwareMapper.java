@@ -11,4 +11,7 @@ import org.apache.ibatis.annotations.Mapper;
  */
 @Mapper
 public interface DevopsVulSoftwareMapper extends BaseMapper<DevopsVulSoftware> {
+
+    void insertSoftware(DevopsVulSoftware devopsVulSoftware);
+
 }

@@ -19,6 +19,6 @@ public class Node {
     private Boolean negate;
     @JsonProperty("children")
     private List<Node> children;
-    @JsonProperty("cpe_match")
+    @JsonProperty("cpeMatch")
     private List<CpeMatch> cpeMatch;
 }

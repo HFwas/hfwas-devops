@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hfwas.devops.mapper.DevopsVulSoftwareMapper">
+
+    <insert id="insertSoftware" statementType="CALLABLE">
+        {call insert_software(
+                #{cveid, mode=IN, jdbcType=INTEGER},
+                #{type, mode=IN, jdbcType=CHAR},
+                #{vendor, mode=IN, jdbcType=VARCHAR},
+                #{product, mode=IN, jdbcType=VARCHAR},
+                #{version, mode=IN, jdbcType=VARCHAR},
+                #{update, mode=IN, jdbcType=VARCHAR},
+                #{edition, mode=IN, jdbcType=VARCHAR},
+                #{language, mode=IN, jdbcType=VARCHAR},
+                #{swEdition, mode=IN, jdbcType=VARCHAR},
+                #{targetSw, mode=IN, jdbcType=VARCHAR},
+                #{targetHw, mode=IN, jdbcType=VARCHAR},
+                #{other, mode=IN, jdbcType=VARCHAR},
+                #{ecosystem, mode=IN, jdbcType=VARCHAR},
+                #{versionEndExcluding, mode=IN, jdbcType=VARCHAR},
+                #{versionEndIncluding, mode=IN, jdbcType=VARCHAR},
+                #{versionStartExcluding, mode=IN, jdbcType=VARCHAR},
+                #{versionStartIncluding, mode=IN, jdbcType=VARCHAR},
+                #{vulnerable, mode=IN, jdbcType=BOOLEAN}
+              )}
+    </insert>
+
+</mapper>
