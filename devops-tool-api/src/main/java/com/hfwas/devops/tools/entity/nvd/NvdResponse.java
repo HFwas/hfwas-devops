@@ -19,8 +19,6 @@ public class NvdResponse {
     private String version;
     @JsonProperty("timestamp")
     private String timestamp;
-    // @JsonProperty("cveChanges")
-    // private List<CveChanges> cveChanges;
     @JsonProperty("vulnerabilities")
     public List<Vulnerabilities> vulnerabilities;
 }
