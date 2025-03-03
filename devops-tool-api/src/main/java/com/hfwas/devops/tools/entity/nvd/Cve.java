@@ -19,10 +19,10 @@ public class Cve {
     @JsonProperty("sourceIdentifier")
     private String sourceIdentifier;
     @JsonProperty("published")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS")
     private LocalDateTime published;
     @JsonProperty("lastModified")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS")
     private LocalDateTime lastModified;
     @JsonProperty("vulnStatus")
     private String vulnStatus;

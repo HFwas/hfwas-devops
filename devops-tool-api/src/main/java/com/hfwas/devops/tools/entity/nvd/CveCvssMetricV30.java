@@ -14,7 +14,7 @@ public class CveCvssMetricV30 {
     private String source;
     @JsonProperty("type")
     private String type;
-    @JsonProperty("source")
+    @JsonProperty("cvssData")
     private CveCvssMetricV3Data cvssData;
     @JsonProperty("exploitabilityScore")
     private Integer exploitabilityScore;
