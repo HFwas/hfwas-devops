@@ -3,6 +3,7 @@ package com.hfwas.devops.controller.vul;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hfwas.devops.dto.vul.VulDto;
 import com.hfwas.devops.entity.DevopsVul;
+import com.hfwas.devops.service.sync.VulSyncApi;
 import com.hfwas.devops.service.vul.DevopsVulService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +21,8 @@ public class VulController {
 
     @Resource
     DevopsVulService devopsVulService;
+    @Resource
+    List<VulSyncApi> nvdVulSyncApi;
 
     @PostMapping("/page")
     public IPage<DevopsVul> list(@RequestBody VulDto vulDto) {
@@ -42,6 +45,13 @@ public class VulController {
     @GetMapping("/sync")
     public void sync() {
         devopsVulService.sync();
+    }
+
+    @GetMapping("/nvd")
+    public void nvd() {
+        for (VulSyncApi vulSyncApi : nvdVulSyncApi) {
+            vulSyncApi.sync();
+        }
     }
 
 }
