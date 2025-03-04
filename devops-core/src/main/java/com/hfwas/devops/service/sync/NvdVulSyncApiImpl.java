@@ -10,6 +10,7 @@ import com.hfwas.devops.tools.api.vulnerability.NvdFeedsApi;
 import feign.Response;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -45,12 +46,15 @@ public class NvdVulSyncApiImpl implements VulSyncApi {
     @Resource
     private DevopsVulSoftwareMapper softwareMapper;
 
+    @Value("${devops.vulnerability.nvd.apiKey}")
+    private String apiKey;
+
     @Override
     public void sync() {
         Map<String, Properties> updateYearMaps = new HashMap<>();
         try {
             ApiLimitRate rateLimiter = new ApiLimitRate(50, 30 * 1000); // 5 requests per second
-            NvdApiService nvdApiService = new NvdApiService(rateLimiter, nvdApi, vulMapper, cpeMapper, softwareMapper);
+            NvdApiService nvdApiService = new NvdApiService(rateLimiter, nvdApi, vulMapper, cpeMapper, softwareMapper, apiKey);
             nvdApiService.fetchAndSaveData();
         } catch (Exception e) {
             throw new RuntimeException(e);

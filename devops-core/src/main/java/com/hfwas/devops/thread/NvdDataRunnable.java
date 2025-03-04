@@ -6,6 +6,7 @@ import com.hfwas.devops.mapper.DevopsVulCpeMapper;
 import com.hfwas.devops.mapper.DevopsVulMapper;
 import com.hfwas.devops.mapper.DevopsVulSoftwareMapper;
 import com.hfwas.devops.service.sync.nvd.VulCpeBuilder;
+import com.hfwas.devops.tools.api.vulnerability.NvdApi;
 import com.hfwas.devops.tools.entity.nvd.*;
 import com.hfwas.devops.tools.entity.nvd.file.Node;
 import lombok.extern.slf4j.Slf4j;
@@ -31,23 +32,30 @@ public class NvdDataRunnable implements Runnable{
 
     private static final String cpe23Start = "cpe:2.3:a:";
 
-    private NvdResponse nvdResponse;
     private DevopsVulMapper vulMapper;
     private DevopsVulCpeMapper cpeMapper;
     private DevopsVulSoftwareMapper softwareMapper;
+    private NvdApi nvdApi;
+    private String apiKey;
+    private Integer index;
+    private List<DevopsVul> vuls;
 
-    public NvdDataRunnable(NvdResponse nvdResponse, DevopsVulMapper vulMapper, DevopsVulCpeMapper cpeMapper, DevopsVulSoftwareMapper softwareMapper) {
-        this.nvdResponse = nvdResponse;
+    public NvdDataRunnable(DevopsVulMapper vulMapper, DevopsVulCpeMapper cpeMapper, DevopsVulSoftwareMapper softwareMapper, NvdApi nvdApi, String apiKey, Integer index, List<DevopsVul> vuls) {
         this.vulMapper = vulMapper;
         this.cpeMapper = cpeMapper;
         this.softwareMapper = softwareMapper;
+        this.nvdApi = nvdApi;
+        this.apiKey = apiKey;
+        this.index = index;
+        this.vuls = vuls;
     }
 
     @Override
     public void run() {
-        List<DevopsVul> vuls = vulMapper.selectList(null);
+        NvdResponse cves = nvdApi.nvd(apiKey, index, 2000);
+        log.info("nvdApi.nvd.total: {}", cves.getTotalResults());
         Map<String, DevopsVul> devopsVulMap = vuls.stream().filter(devopsVul -> devopsVul.getCveId() != null).collect(Collectors.toMap(DevopsVul::getCveId, devopsVul -> devopsVul));
-        List<Vulnerabilities> vulnerabilities = nvdResponse.getVulnerabilities();
+        List<Vulnerabilities> vulnerabilities = cves.getVulnerabilities();
         for (Vulnerabilities vulnerability : vulnerabilities) {
             Cve cve = vulnerability.getCve();
             String cveId = cve.getId();

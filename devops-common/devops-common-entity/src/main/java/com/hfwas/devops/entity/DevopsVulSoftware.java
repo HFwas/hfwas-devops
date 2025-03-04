@@ -1,5 +1,6 @@
 package com.hfwas.devops.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -14,7 +15,7 @@ import us.springett.parsers.cpe.values.Part;
  */
 @TableName("devops_vul_software")
 public class DevopsVulSoftware extends Cpe {
-    @TableId("id")
+    @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
     @TableField("cveid")
     private Long cveid;
