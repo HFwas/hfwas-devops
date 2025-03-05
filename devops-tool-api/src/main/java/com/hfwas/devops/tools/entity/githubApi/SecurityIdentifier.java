@@ -1,6 +1,7 @@
 package com.hfwas.devops.tools.entity.githubApi;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.hfwas.devops.tools.enums.IdentifierTypeEnums;
 import lombok.Data;
 
 /**
@@ -14,5 +15,5 @@ public class SecurityIdentifier {
     private String value;
 
     @JsonProperty("type")
-    private String type;
+    private IdentifierTypeEnums type;
 }
