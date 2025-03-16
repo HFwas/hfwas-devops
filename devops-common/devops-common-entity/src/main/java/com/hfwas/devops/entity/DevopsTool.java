@@ -1,8 +1,6 @@
 package com.hfwas.devops.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -24,8 +22,17 @@ public class DevopsTool {
     private Integer port;
     private String  username;
     private String  password;
-    private Integer create_by;
-    private Integer update_by;
-    private LocalDateTime create_time;
-    private LocalDateTime update_time;
+    @TableField("tenant_id")
+    private Integer tenantId;
+    @TableField(value = "create_by", fill = FieldFill.INSERT)
+    private Integer createBy;
+    @TableField(value = "update_by", fill = FieldFill.INSERT_UPDATE)
+    private Integer updateBy;
+    @TableField(value = "create_time", fill = FieldFill.INSERT)
+    private LocalDateTime createTime;
+    @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updateTime;
+    @TableField(value = "del_flag")
+    @TableLogic
+    private Integer delFlag;
 }

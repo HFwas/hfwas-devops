@@ -1,5 +1,7 @@
 package com.hfwas.devops.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
@@ -17,7 +19,9 @@ public class DevopsSyncLog {
     private String name;
     private Integer type;
     private Integer status;
+    @TableField(value = "create_time", fill = FieldFill.INSERT)
     private LocalDateTime createTime;
+    @TableField(value = "update_time", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
     private Integer successNum;
     private String successData;

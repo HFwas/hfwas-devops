@@ -1,6 +1,7 @@
 package com.hfwas.devops.convert;
 
 import com.hfwas.devops.dto.tools.DevopsToolDto;
+import com.hfwas.devops.dto.tools.DevopsToolUpdateDto;
 import com.hfwas.devops.entity.DevopsTool;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
@@ -16,5 +17,6 @@ public interface DevopsToolConvert {
     DevopsToolConvert INSTANCE = Mappers.getMapper(DevopsToolConvert.class);
 
     DevopsTool to(DevopsToolDto devopsToolDto);
+    DevopsTool to(DevopsToolUpdateDto devopsToolDto);
 
 }
