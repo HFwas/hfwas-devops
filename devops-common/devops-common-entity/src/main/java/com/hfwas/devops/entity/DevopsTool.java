@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 public class DevopsTool {
     @TableId(type = IdType.AUTO)
     private Integer id;
+    private String  name;
     private String  protocol;
     private String  ip;
     private Integer port;
