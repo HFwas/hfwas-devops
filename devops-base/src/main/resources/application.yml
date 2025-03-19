@@ -1,0 +1,28 @@
+server:
+  port: 3000
+
+spring:
+  application:
+    name: devops-base
+  profiles:
+    active: dev
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password:
+    url: jdbc:mysql://localhost:3306/hfwas-devops-base?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&autoReconnect=true&failOverReadOnly=false&transformedBitIsBoolean=true&allowPublicKeyRetrieval=true
+    hikari:
+      minimum-idle: 5
+      idle-timeout: 180000
+      auto-commit: true
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id:
+            client-secret:
+            scope: read:user,user:email
