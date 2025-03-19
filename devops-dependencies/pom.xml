@@ -41,6 +41,7 @@
         <httpclient5.version>5.4.2</httpclient5.version>
         <logback-classic.version>1.5.16</logback-classic.version>
         <knife4j.version>4.4.0</knife4j.version>
+        <security-core.version>6.3.5</security-core.version>
     </properties>
 
     <dependencyManagement>
@@ -101,6 +102,12 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-security</artifactId>
                 <version>${spring-boot.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.springframework.security</groupId>
+                        <artifactId>spring-security-core</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
@@ -111,7 +118,16 @@
                         <groupId>org.springframework.security</groupId>
                         <artifactId>spring-security-crypto</artifactId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>org.springframework.security</groupId>
+                        <artifactId>spring-security-core</artifactId>
+                    </exclusion>
                 </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-core</artifactId>
+                <version>${security-core.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.tomcat.embed</groupId>
