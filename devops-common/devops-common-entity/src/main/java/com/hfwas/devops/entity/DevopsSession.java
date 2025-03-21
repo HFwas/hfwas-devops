@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
 
 /**
  * @author houfei
@@ -11,6 +12,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
  * @date 2025/3/21
  */
 @TableName("session")
+@Data
 public class DevopsSession {
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;

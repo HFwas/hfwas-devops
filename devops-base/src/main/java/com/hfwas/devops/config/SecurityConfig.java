@@ -1,6 +1,8 @@
 package com.hfwas.devops.config;
 
 import com.hfwas.devops.handler.CustomAuthenticationSuccessHandler;
+import com.hfwas.devops.mapper.DevopsSessionMapper;
+import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,6 +22,9 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @Resource
+    private DevopsSessionMapper devopsSessionMapper;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, OAuth2AuthorizedClientService authorizedClientService) throws Exception {
         //
@@ -31,7 +36,7 @@ public class SecurityConfig {
                 .authenticated()
         );
         http.oauth2Login(oauth2 -> oauth2
-                .successHandler(new CustomAuthenticationSuccessHandler(authorizedClientService))
+                .successHandler(new CustomAuthenticationSuccessHandler(authorizedClientService, devopsSessionMapper))
         );
         return http.build();
     }

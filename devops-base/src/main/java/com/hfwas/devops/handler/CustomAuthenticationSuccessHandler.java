@@ -6,6 +6,8 @@ package com.hfwas.devops.handler;
  * @date 2025/3/20
  */
 
+import com.hfwas.devops.entity.DevopsSession;
+import com.hfwas.devops.mapper.DevopsSessionMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,9 +29,11 @@ import java.util.Collection;
 public class CustomAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
 
     private final OAuth2AuthorizedClientService authorizedClientService;
+    private final DevopsSessionMapper devopsSessionMapper;
 
-    public CustomAuthenticationSuccessHandler(OAuth2AuthorizedClientService authorizedClientService) {
+    public CustomAuthenticationSuccessHandler(OAuth2AuthorizedClientService authorizedClientService, DevopsSessionMapper devopsSessionMapper) {
         this.authorizedClientService = authorizedClientService;
+        this.devopsSessionMapper = devopsSessionMapper;
     }
 
     @Override
@@ -55,6 +59,15 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
                 if (refreshToken != null) {
                     System.out.println("Refresh Token: " + refreshToken.getTokenValue());
                 }
+
+                DevopsSession devopsSession = new DevopsSession();
+                devopsSession.setAccessToken(accessToken.getTokenValue());
+                devopsSession.setRefreshToken(refreshToken.getTokenValue());
+                devopsSession.setClientId(refreshToken.getTokenValue());
+                devopsSession.setPrincipalName(principalName);
+                devopsSession.setClientRegistrationId(clientRegistrationId);
+                devopsSession.setUserName("");
+                devopsSessionMapper.insert(devopsSession);
             }
         }
     }
