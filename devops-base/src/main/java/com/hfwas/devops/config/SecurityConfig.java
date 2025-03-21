@@ -3,11 +3,13 @@ package com.hfwas.devops.config;
 import com.hfwas.devops.handler.CustomAuthenticationSuccessHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
 /**
  * @author hfwas
@@ -19,7 +21,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, OAuth2AuthorizedClientService authorizedClientService) throws Exception {
         //
         http.csrf(csrf -> csrf.disable());
         http.authorizeHttpRequests(authorizeRequests -> authorizeRequests
@@ -28,17 +30,19 @@ public class SecurityConfig {
                 .anyRequest()
                 .authenticated()
         );
-        http.formLogin(Customizer.withDefaults());
-        http.logout(Customizer.withDefaults());
         http.oauth2Login(oauth2 -> oauth2
-                .successHandler(authenticationSuccessHandler())
+                .successHandler(new CustomAuthenticationSuccessHandler(authorizedClientService))
         );
         return http.build();
     }
 
     @Bean
-    public AuthenticationSuccessHandler authenticationSuccessHandler() {
-        return new CustomAuthenticationSuccessHandler();
+    public DefaultOAuth2AuthorizedClientManager authorizedClientManager(
+            ClientRegistrationRepository clientRegistrationRepository,
+            OAuth2AuthorizedClientRepository authorizedClientRepository) {
+        DefaultOAuth2AuthorizedClientManager authorizedClientManager = new DefaultOAuth2AuthorizedClientManager(
+                clientRegistrationRepository, authorizedClientRepository);
+        return authorizedClientManager;
     }
 
 }
