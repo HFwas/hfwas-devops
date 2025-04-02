@@ -1,0 +1,58 @@
+FROM codercom/code-server:3.0.0
+
+ENV VSCODE_USER=/home/coder/.local/share/code-server/User
+ENV VSCODE_EXTENSIONS=/home/coder/.local/share/code-server/extensions
+COPY sources.list /etc/apt/sources.list
+RUN sudo apt-get update \
+    && sudo apt-get install -y --no-install-recommends \
+        curl \
+        ca-certificates \
+        gnupg \
+        build-essential
+COPY sources11.list /etc/apt/sources.list
+
+RUN sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131 54404762BBB6E853 BDE6D2B9216EC7A8
+
+RUN cd /tmp \
+    && sudo apt-get update  \
+    && apt download libcrypt1 \
+    && sudo dpkg-deb -x libcrypt1_*.deb . \
+    && sudo cp -av lib/x86_64-linux-gnu/* /lib/x86_64-linux-gnu/ \
+    && sudo chmod 1777 /tmp \
+    && sudo apt --fix-broken install
+    
+RUN sudo apt-get update \
+    && sudo apt-get install -y --no-install-recommends \
+        clang \
+        npm \
+        clangd \
+        cmake \
+        gdb \
+        g++-11 \
+        googletest \
+        libboost-all-dev \
+        libgmp-dev \
+        libtbb-dev \
+        lldb \
+        make \
+        jq \
+        vim \
+        curl \
+        git \
+        valgrind  \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+COPY go_dep/go1.24.0.linux-amd64.tar.gz go1.24.0.linux-amd64.tar.gz
+RUN mkdir -p /home/coder/opt \
+    && tar -C /home/coder/opt -zxvf go1.24.0.linux-amd64.tar.gz && \
+    echo "export GOROOT=/home/coder/opt/go" | sudo tee -a /etc/profile.d/00-go.sh > /dev/null && \
+    echo 'export PATH=$PATH:$GOROOT/bin' | sudo tee -a /etc/profile.d/00-go.sh > /dev/null 
+USER root
+RUN chmod +x /etc/profile.d/00-go.sh
+USER coder
+
+RUN mkdir /home/coder/.bin && \
+    echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" | sudo tee -a /home/coder/.bashrc > /dev/null
+
+RUN code-server --install-extension bajdzis.vscode-database
+RUN echo 'for f in /etc/profile.d/*.sh;do source $f;done' | sudo tee -a /home/coder/.bashrc > /dev/null
