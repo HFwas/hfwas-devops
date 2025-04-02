@@ -1,0 +1,22 @@
+{
+    "java.configuration.maven.globalSettings": "/home/coder/opt/apache-maven-3.6.3/conf/settings.xml",
+    "java.configuration.maven.userSettings": "/home/coder/opt/apache-maven-3.6.3/conf/settings.xml",
+    "java.configuration.runtimes": [
+        {
+        "name": "JavaSE-11",
+        "path": "/home/coder/opt/jdk-11.0.24",
+        "default": "true"
+        }
+    ],
+    "maven.terminal.useJavaHome": true,
+    "maven.executable.path": "/home/coder/opt/apache-maven-3.6.3/bin/mvn",
+    "files.exclude": {
+        "**/.factorypath": true,
+        "**/.project": true,
+        "**/.settings": true
+    },
+    "redhat.telemetry.enabled": false,
+    "java.server.launchMode": "Standard",
+    "java.home": "/home/coder/opt/jdk-11.0.24",
+    "java.debug.settings.showToString": false
+}  

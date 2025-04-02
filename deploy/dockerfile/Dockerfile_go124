@@ -54,6 +54,13 @@ USER coder
 RUN mkdir /home/coder/.bin && \
     echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" | sudo tee -a /home/coder/.bashrc > /dev/null
 
+COPY deploy/dockerfile/settings_json/settings-go.json /home/coder/.local/share/code-server/User/settings.json
+
 RUN code-server --install-extension bajdzis.vscode-database
 RUN code-server --install-extension shalldie.background
+RUN code-server --install-extension eamodio.gitlens
+RUN code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans
+RUN code-server --install-extension eriklynd.json-tools
+RUN code-server --install-extension vscodevim.vim
+RUN code-server --install-extension redhat.vscode-yaml
 RUN echo 'for f in /etc/profile.d/*.sh;do source $f;done' | sudo tee -a /home/coder/.bashrc > /dev/null
