@@ -42,7 +42,7 @@ RUN sudo apt-get update \
         valgrind  \
     && sudo rm -rf /var/lib/apt/lists/*
 
-COPY go_dep/go1.24.0.linux-amd64.tar.gz go1.24.0.linux-amd64.tar.gz
+COPY ./go_dep/go1.24.0.linux-amd64.tar.gz go1.24.0.linux-amd64.tar.gz
 
 RUN mkdir -p /home/coder/opt \
     && tar -C /home/coder/opt -zxvf go1.24.0.linux-amd64.tar.gz && \
