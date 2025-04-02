@@ -28,3 +28,4 @@ jobs:
           file: deploy/dockerfile/Dockerfile_go124
           push: true
           tags: registry.cn-hangzhou.aliyuncs.com/dkyy/code-server:go124
+          platforms: linux/amd64
