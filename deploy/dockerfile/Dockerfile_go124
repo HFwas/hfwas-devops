@@ -59,7 +59,6 @@ RUN code-server --install-extension bajdzis.vscode-database
 RUN code-server --install-extension shalldie.background
 RUN code-server --install-extension eamodio.gitlens
 RUN code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans
-RUN code-server --install-extension eriklynd.json-tools
 RUN code-server --install-extension vscodevim.vim
 RUN code-server --install-extension redhat.vscode-yaml
 
