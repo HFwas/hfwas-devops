@@ -2,14 +2,14 @@ FROM codercom/code-server:3.0.0
 
 ENV VSCODE_USER=/home/coder/.local/share/code-server/User
 ENV VSCODE_EXTENSIONS=/home/coder/.local/share/code-server/extensions
-COPY sources.list /etc/apt/sources.list
+COPY deploy/dockerfile/sources.list /etc/apt/sources.list
 RUN sudo apt-get update \
     && sudo apt-get install -y --no-install-recommends \
         curl \
         ca-certificates \
         gnupg \
         build-essential
-COPY sources11.list /etc/apt/sources.list
+COPY deploy/dockerfile/sources11.list /etc/apt/sources.list
 
 RUN sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0E98404D386FA1D9 6ED0E7B82643E131 54404762BBB6E853 BDE6D2B9216EC7A8
 
@@ -42,7 +42,7 @@ RUN sudo apt-get update \
         valgrind  \
     && sudo rm -rf /var/lib/apt/lists/*
 
-COPY go_dep/go1.24.0.linux-amd64.tar.gz go1.24.0.linux-amd64.tar.gz
+COPY deploy/dockerfile/go_dep/go1.24.0.linux-amd64.tar.gz go1.24.0.linux-amd64.tar.gz
 
 RUN mkdir -p /home/coder/opt \
     && tar -C /home/coder/opt -zxvf go1.24.0.linux-amd64.tar.gz && \
