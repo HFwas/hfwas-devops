@@ -1,8 +1,9 @@
 name: docker-images
 
-push:
-  paths:
-    - 'deploy/dockerfile/**'
+on:
+  push:
+    paths:
+      - 'deploy/dockerfile/**'
 
 jobs:
   build-and-push:
