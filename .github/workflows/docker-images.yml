@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'deploy/dockerfile/**'
+      - 'workflow/**'
 
 jobs:
   build-and-push:
