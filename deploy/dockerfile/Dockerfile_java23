@@ -1,0 +1,75 @@
+FROM codercom/code-server:3.0.0
+
+# 更换apt源
+COPY sources.list /etc/apt/sources.list
+# Misc
+RUN sudo apt-get update && sudo apt-get install --no-install-recommends -y \
+    jq \
+    git \
+    curl \
+    unzip \
+    vim \
+    libarchive-tools \
+    wget \
+    bash-completion \
+    dnsutils \
+    telnet \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+# Visual Studio Code Extentions
+ENV VSCODE_USER=/home/coder/.local/share/code-server/User
+ENV VSCODE_EXTENSIONS=/home/coder/.local/share/code-server/extensions
+
+RUN code-server --install-extension vscjava.vscode-java-debug
+RUN code-server --install-extension vscjava.vscode-java-test
+RUN code-server --install-extension vscjava.vscode-maven
+RUN code-server --install-extension vscjava.vscode-java-dependency
+RUN code-server --install-extension redhat.java
+RUN code-server --install-extension bajdzis.vscode-database
+RUN code-server --install-extension eamodio.gitlens
+RUN code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans
+
+COPY deploy/extensions/vscode-spring-boot-1.17.0-RC.1.vsix vscode-spring-boot-1.17.0-RC.1.vsix
+
+RUN sudo code-server --install-extension vscode-spring-boot-1.17.0-RC.1.vsix
+RUN code-server --install-extension vscjava.vscode-spring-boot-dashboard
+RUN code-server --install-extension vscjava.vscode-spring-initializr
+
+COPY deploy/extensions/vmware.vscode-boot-dev-pack-0.1.0.vsix vmware.vscode-boot-dev-pack-0.1.0.vsix
+RUN sudo code-server --install-extension vmware.vscode-boot-dev-pack-0.1.0.vsix
+
+# COPY deploy/dockerfile/java_dep/openjdk-23_linux-x64_bin.tar.gz OpenJDK.tar.gz
+RUN wget https://download.java.net/java/GA/jdk23/3c5b90190c68498b986a97f276efd28a/37/GPL/openjdk-23_linux-x64_bin.tar.gz -O OpenJDK.tar.gz
+
+RUN mkdir /home/coder/opt && \
+    tar xzf OpenJDK.tar.gz && \
+    sudo mv jdk* /home/coder/opt/ && \
+    rm -f OpenJDK.tar.gz && \
+    echo "export JAVA_HOME=$(dirname /home/coder/opt/jdk-*/bin/)" | sudo tee -a /etc/profile.d/00-java.sh > /dev/null && \
+    echo 'export JRE_HOME=${JAVA_HOME}' | sudo tee -a /etc/profile.d/00-java.sh > /dev/null && \
+    echo 'export PATH=${PATH}:${JAVA_HOME}/bin' | sudo tee -a /etc/profile.d/00-java.sh > /dev/null
+USER root
+RUN chmod +x /etc/profile.d/00-java.sh
+USER coder
+
+
+# COPY deploy/dockerfile/java_dep/apache-maven-3.6.3-bin.tar.gz maven.tar.gz
+RUN https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.6.3/apache-maven-3.6.3-bin.tar.gz -O maven.tar.gz
+
+ENV MAVEN_VERSION=3.6.3
+RUN tar xzf maven.tar.gz && \
+    sudo mv apache-maven-* /home/coder/opt/ && \
+    rm -f maven.tar.gz && \
+    echo "export MAVEN_HOME=/home/coder/opt/apache-maven-${MAVEN_VERSION}" | sudo tee -a /etc/profile.d/01-maven.sh > /dev/null && \
+    echo 'export PATH=${PATH}:${MAVEN_HOME}/bin' | sudo tee -a /etc/profile.d/01-maven.sh > /dev/null
+USER root
+RUN chmod +x /etc/profile.d/01-maven.sh
+USER coder
+
+RUN mkdir /home/coder/.bin && \
+    echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" | sudo tee -a /home/coder/.bashrc > /dev/null
+
+
+RUN mkdir -p ${VSCODE_USER} && echo "{\"java.configuration.maven.userSettings\":\"/home/coder/opt/apache-maven-3.6.3/conf/settings.xml\", \"java.configuration.maven.globalSettings\": \"/home/coder/opt/apache-maven-3.6.3/conf/settings.xml\", \"java.configuration.runtimes\":[{\"name\": \"JavaSE-11\", \"path\": \"/home/coder/opt/jdk-11.0.24\", \"default\": \"true\"}], \"maven.terminal.useJavaHome\":true, \"maven.executable.path\":\"/home/coder/opt/apache-maven-${MAVEN_VERSION}/bin/mvn\", \"files.exclude\":{\"**/.classpath\":true,\"**/.project\":true,\"**/.settings\":true,\"**/.factorypath\":true},\"redhat.telemetry.enabled\":false,\"java.server.launchMode\": \"Standard\"}" | jq . > ${VSCODE_USER}/settings.json
+RUN echo 'for f in /etc/profile.d/*.sh;do source $f;done' | sudo tee -a /home/coder/.bashrc > /dev/null
+RUN rm -f /home/coder/.wget-hsts
