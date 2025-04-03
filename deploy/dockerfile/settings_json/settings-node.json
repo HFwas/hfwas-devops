@@ -1,19 +1,4 @@
 {
   "background.enabled": true,
-  "background.editor": {
-    "useFront": true,
-    "style": {
-      "background-position": "100% 100%",
-      "background-size": "auto",
-      "opacity": 0.6
-    },
-    "styles": [
-      {},
-      {},
-      {}
-    ],
-    "images": [],
-    "interval": 0,
-    "random": false
-  }
+  "background.customImages": []
 }
