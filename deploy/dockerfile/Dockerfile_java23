@@ -64,6 +64,7 @@ RUN tar xzf maven.tar.gz && \
     rm -f maven.tar.gz && \
     echo "export MAVEN_HOME=/home/coder/opt/apache-maven-${MAVEN_VERSION}" | sudo tee -a /etc/profile.d/01-maven.sh > /dev/null && \
     echo 'export PATH=${PATH}:${MAVEN_HOME}/bin' | sudo tee -a /etc/profile.d/01-maven.sh > /dev/null
+COPY deploy/maven/settings.xml /home/coder/opt/apache-maven-${MAVEN_VERSION}/conf/settings.xml
 USER root
 RUN chmod +x /etc/profile.d/01-maven.sh
 USER coder
