@@ -73,4 +73,5 @@ RUN mkdir /home/coder/.bin && \
 
 RUN mkdir -p ${VSCODE_USER} && echo "{\"java.configuration.maven.userSettings\":\"/home/coder/opt/apache-maven-3.6.3/conf/settings.xml\", \"java.configuration.maven.globalSettings\": \"/home/coder/opt/apache-maven-3.6.3/conf/settings.xml\", \"java.configuration.runtimes\":[{\"name\": \"JavaSE-11\", \"path\": \"/home/coder/opt/jdk-11.0.24\", \"default\": \"true\"}], \"maven.terminal.useJavaHome\":true, \"maven.executable.path\":\"/home/coder/opt/apache-maven-${MAVEN_VERSION}/bin/mvn\", \"files.exclude\":{\"**/.classpath\":true,\"**/.project\":true,\"**/.settings\":true,\"**/.factorypath\":true},\"redhat.telemetry.enabled\":false,\"java.server.launchMode\": \"Standard\"}" | jq . > ${VSCODE_USER}/settings.json
 RUN echo 'for f in /etc/profile.d/*.sh;do source $f;done' | sudo tee -a /home/coder/.bashrc > /dev/null
+COPY deploy/dockerfile/settings_json/settings-java23.json /home/coder/.local/share/code-server/User/settings.json
 RUN rm -f /home/coder/.wget-hsts
