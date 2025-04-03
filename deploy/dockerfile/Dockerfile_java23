@@ -1,7 +1,7 @@
 FROM codercom/code-server:3.0.0
 
 # 更换apt源
-COPY sources.list /etc/apt/sources.list
+COPY deploy/dockerfile/sources.list /etc/apt/sources.list
 # Misc
 RUN sudo apt-get update && sudo apt-get install --no-install-recommends -y \
     jq \
