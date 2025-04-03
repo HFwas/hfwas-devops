@@ -50,7 +50,8 @@ RUN sudo code-server --install-extension vmware.vscode-boot-dev-pack-0.1.0.vsix
 # COPY deploy/dockerfile/java_dep/openjdk-23_linux-x64_bin.tar.gz OpenJDK.tar.gz
 RUN wget https://download.java.net/java/GA/jdk23/3c5b90190c68498b986a97f276efd28a/37/GPL/openjdk-23_linux-x64_bin.tar.gz -O OpenJDK.tar.gz
 
-RUN mkdir /home/coder/opt && \
+RUN mkdir /home/coder/repo && \
+    mkdir /home/coder/opt && \
     tar xzf OpenJDK.tar.gz && \
     sudo mv jdk* /home/coder/opt/ && \
     rm -f OpenJDK.tar.gz && \
