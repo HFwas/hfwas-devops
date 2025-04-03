@@ -3,6 +3,9 @@ name: Java CI with Maven
 on:
   push:
     branches: [ "master" ]
+    paths-ignore:
+      - 'deploy/**'
+      - 'workflow/**'
 #  pull_request:
 #    branches: [ "master" ]
 
