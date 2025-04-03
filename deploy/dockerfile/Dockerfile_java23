@@ -28,6 +28,7 @@ RUN code-server --install-extension redhat.java
 RUN code-server --install-extension bajdzis.vscode-database
 RUN code-server --install-extension eamodio.gitlens
 RUN code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans
+RUN code-server --install-extension shalldie.background
 
 # COPY deploy/extensions/vscode-spring-boot-1.17.0-RC.1.vsix vscode-spring-boot-1.17.0-RC.1.vsix
 # RUN sudo code-server --install-extension vscode-spring-boot-1.17.0-RC.1.vsix
