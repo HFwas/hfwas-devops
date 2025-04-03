@@ -29,8 +29,8 @@ RUN code-server --install-extension bajdzis.vscode-database
 RUN code-server --install-extension eamodio.gitlens
 RUN code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans
 
-RUN wget -q https://open-vsx.org/api/shalldie/background/2.0.0/file/shalldie.background-2.0.0.vsix
-RUN sudo code-server --install-extension shalldie.background-2.0.0.vsix
+RUN wget -q https://open-vsx.org/api/shalldie/background/1.1.25/file/shalldie.background-1.1.25.vsix
+RUN sudo code-server --install-extension shalldie.background-1.1.25.vsix
 
 # COPY deploy/extensions/vscode-spring-boot-1.17.0-RC.1.vsix vscode-spring-boot-1.17.0-RC.1.vsix
 # RUN sudo code-server --install-extension vscode-spring-boot-1.17.0-RC.1.vsix

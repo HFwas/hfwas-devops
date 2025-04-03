@@ -61,8 +61,8 @@ RUN code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans
 RUN code-server --install-extension vscodevim.vim
 RUN code-server --install-extension redhat.vscode-yaml
 
-RUN wget -q https://open-vsx.org/api/shalldie/background/2.0.0/file/shalldie.background-2.0.0.vsix
-RUN sudo code-server --install-extension shalldie.background-2.0.0.vsix
+RUN wget -q https://open-vsx.org/api/shalldie/background/1.1.25/file/shalldie.background-1.1.25.vsix
+RUN sudo code-server --install-extension shalldie.background-1.1.25.vsix
 
 COPY deploy/dockerfile/settings_json/settings-go.json /home/coder/.local/share/code-server/User/settings.json
 
