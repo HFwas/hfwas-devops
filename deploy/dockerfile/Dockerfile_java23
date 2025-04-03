@@ -29,13 +29,15 @@ RUN code-server --install-extension bajdzis.vscode-database
 RUN code-server --install-extension eamodio.gitlens
 RUN code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans
 
-COPY deploy/extensions/vscode-spring-boot-1.17.0-RC.1.vsix vscode-spring-boot-1.17.0-RC.1.vsix
+# COPY deploy/extensions/vscode-spring-boot-1.17.0-RC.1.vsix vscode-spring-boot-1.17.0-RC.1.vsix
+# RUN sudo code-server --install-extension vscode-spring-boot-1.17.0-RC.1.vsix
 
-RUN sudo code-server --install-extension vscode-spring-boot-1.17.0-RC.1.vsix
 RUN code-server --install-extension vscjava.vscode-spring-boot-dashboard
 RUN code-server --install-extension vscjava.vscode-spring-initializr
 
-COPY deploy/extensions/vmware.vscode-boot-dev-pack-0.1.0.vsix vmware.vscode-boot-dev-pack-0.1.0.vsix
+# COPY deploy/extensions/vmware.vscode-boot-dev-pack-0.1.0.vsix vmware.vscode-boot-dev-pack-0.1.0.vsix
+# RUN wget -q https://open-vsx.org/api/vscodevim/vim/1.21.10/file/vscodevim.vim-1.21.10.vsix
+RUN wget -q https://open-vsx.org/api/vmware/vscode-boot-dev-pack/0.1.0/file/vmware.vscode-boot-dev-pack-0.1.0.vsix
 RUN sudo code-server --install-extension vmware.vscode-boot-dev-pack-0.1.0.vsix
 
 # COPY deploy/dockerfile/java_dep/openjdk-23_linux-x64_bin.tar.gz OpenJDK.tar.gz
@@ -52,9 +54,8 @@ USER root
 RUN chmod +x /etc/profile.d/00-java.sh
 USER coder
 
-
 # COPY deploy/dockerfile/java_dep/apache-maven-3.6.3-bin.tar.gz maven.tar.gz
-RUN https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.6.3/apache-maven-3.6.3-bin.tar.gz -O maven.tar.gz
+RUN wget https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.6.3/apache-maven-3.6.3-bin.tar.gz -O maven.tar.gz
 
 ENV MAVEN_VERSION=3.6.3
 RUN tar xzf maven.tar.gz && \
