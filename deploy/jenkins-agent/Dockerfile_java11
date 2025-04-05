@@ -1,5 +1,5 @@
 # 基于 openjdk:23 镜像
-FROM openjdk:11-ea-slim
+FROM openjdk:11.0.10-jdk-slim
 
 USER root
 
