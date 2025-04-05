@@ -14,6 +14,8 @@ RUN apt-get update && \
         ca-certificates \
         curl \
         wget \
+        unzip \
+        tar \
         gnupg \
         lsb-release && \
     # 添加 Docker 的官方 GPG 密钥
@@ -30,8 +32,6 @@ RUN apt-get update && \
     # 清理 apt 缓存
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-RUN wget https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.6.3/apache-maven-3.6.3-bin.tar.gz -O maven.tar.gz
 
 # 下载并解压 Maven
 ENV MAVEN_VERSION 3.6.3
