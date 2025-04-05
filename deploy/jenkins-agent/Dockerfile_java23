@@ -13,6 +13,7 @@ RUN apt-get update && \
         jq \
         ca-certificates \
         curl \
+        wget \
         gnupg \
         lsb-release && \
     # 添加 Docker 的官方 GPG 密钥
