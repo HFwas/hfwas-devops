@@ -1,0 +1,16 @@
+FROM openjdk:23
+
+# Misc
+RUN sudo apt-get update && sudo apt-get install --no-install-recommends -y \
+    jq \
+    git \
+    curl \
+    unzip \
+    vim \
+    tree \
+    libarchive-tools \
+    wget \
+    bash-completion \
+    dnsutils \
+    telnet \
+    && sudo rm -rf /var/lib/apt/lists/*
