@@ -1,16 +1,33 @@
+# 基于 openjdk:23 镜像
 FROM openjdk:23
 
-# Misc
-RUN sudo apt-get update && sudo apt-get install --no-install-recommends -y \
-    jq \
-    git \
-    curl \
-    unzip \
-    vim \
-    tree \
-    libarchive-tools \
-    wget \
-    bash-completion \
-    dnsutils \
-    telnet \
-    && sudo rm -rf /var/lib/apt/lists/*
+# 设置环境变量，避免交互提示
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 更新包列表并安装必要的依赖
+RUN apt-get update && \
+    apt-get install -y \
+        git \
+        jq \
+        ca-certificates \
+        curl \
+        gnupg \
+        lsb-release && \
+    # 添加 Docker 的官方 GPG 密钥
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
+    # 设置 Docker 仓库
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    # 更新包列表
+    apt-get update && \
+    # 安装 Docker 相关包
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin && \
+    # 清理 apt 缓存
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 恢复默认环境变量
+ENV DEBIAN_FRONTEND=dialog
+    
