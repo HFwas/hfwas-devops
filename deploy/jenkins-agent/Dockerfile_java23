@@ -51,6 +51,13 @@ RUN curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION
     && rm gradle-bin.zip
 RUN gradle --version
 
+# 下载并解压 Ant
+ENV ANT_VERSION 1.10.13
+ENV ANT_HOME /usr/local/ant
+RUN curl -fsSL https://archive.apache.org/dist/ant/binaries/apache-ant-${ANT_VERSION}-bin.tar.gz | tar xzf - -C /usr/local \
+    && mv /usr/local/apache-ant-${ANT_VERSION} $ANT_HOME \
+    && ln -s $ANT_HOME/bin/ant /usr/bin/ant
+RUN ant -version
 
 # 恢复默认环境变量
 ENV DEBIAN_FRONTEND=dialog
