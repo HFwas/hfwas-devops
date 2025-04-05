@@ -18,6 +18,7 @@ RUN apt-get update && \
         wget \
         unzip \
         tar \
+        sudo \
         gnupg \
         lsb-release && \
     # 添加 Docker 的官方 GPG 密钥

@@ -19,6 +19,7 @@ RUN apt-get update && \
         unzip \
         tar \
         gnupg \
+        sudo \
         lsb-release && \
     # 添加 Docker 的官方 GPG 密钥
     mkdir -p /etc/apt/keyrings && \
