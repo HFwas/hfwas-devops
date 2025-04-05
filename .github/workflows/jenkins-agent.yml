@@ -29,7 +29,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
-          file: deploy/jenkins-agent/Dockerfile_java23
+          file: deploy/jenkins-agent/Dockerfile_node20
           push: true
-          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:java23
+          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:node20
           platforms: ${{ matrix.arch }}
