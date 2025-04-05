@@ -26,10 +26,17 @@ jobs:
           username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
           password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image node20
         uses: docker/build-push-action@v4
         with:
           file: deploy/jenkins-agent/Dockerfile_node20
           push: true
           tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:node20
+          platforms: ${{ matrix.arch }}
+      - name: Build and push Docker image java23
+        uses: docker/build-push-action@v4
+        with:
+          file: deploy/jenkins-agent/Dockerfile_java23
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:java23
           platforms: ${{ matrix.arch }}
