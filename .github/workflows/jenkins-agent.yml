@@ -33,10 +33,59 @@ jobs:
           push: true
           tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:node20
           platforms: ${{ matrix.arch }}
+      - name: Build and push Docker image node18
+        uses: docker/build-push-action@v4
+        with:
+          file: deploy/jenkins-agent/Dockerfile_node18
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:node18
+          platforms: ${{ matrix.arch }}
+      - name: Build and push Docker image node16
+        uses: docker/build-push-action@v4
+        with:
+          file: deploy/jenkins-agent/Dockerfile_node16
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:node16
+          platforms: ${{ matrix.arch }}
+      - name: Build and push Docker image node14
+        uses: docker/build-push-action@v4
+        with:
+          file: deploy/jenkins-agent/Dockerfile_node14
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:node14
+          platforms: ${{ matrix.arch }}
+      - name: Build and push Docker image node12
+        uses: docker/build-push-action@v4
+        with:
+          file: deploy/jenkins-agent/Dockerfile_node12
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:node12
+          platforms: ${{ matrix.arch }}
       - name: Build and push Docker image java23
         uses: docker/build-push-action@v4
         with:
           file: deploy/jenkins-agent/Dockerfile_java23
           push: true
           tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:java23
+          platforms: ${{ matrix.arch }}
+      - name: Build and push Docker image java21
+        uses: docker/build-push-action@v4
+        with:
+          file: deploy/jenkins-agent/Dockerfile_java21
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:java21
+          platforms: ${{ matrix.arch }}
+      - name: Build and push Docker image java17
+        uses: docker/build-push-action@v4
+        with:
+          file: deploy/jenkins-agent/Dockerfile_java17
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:java17
+          platforms: ${{ matrix.arch }}
+      - name: Build and push Docker image java11
+        uses: docker/build-push-action@v4
+        with:
+          file: deploy/jenkins-agent/Dockerfile_java11
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/jenkins-agent:java11
           platforms: ${{ matrix.arch }}

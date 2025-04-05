@@ -1,0 +1,68 @@
+# 基于 node:18 镜像
+FROM node:18-bullseye-slim
+
+USER root
+
+# 设置环境变量，避免交互提示
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN echo "当前基础镜像的操作系统信息：" && cat /etc/os-release
+
+# 更新包列表并安装必要的依赖
+RUN apt-get update && \
+    apt-get install -y \
+        git \
+        jq \
+        ca-certificates \
+        curl \
+        wget \
+        unzip \
+        tar \
+        gnupg \
+        sudo \
+        lsb-release && \
+    # 添加 Docker 的官方 GPG 密钥
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
+    # 设置 Docker 仓库
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    # 更新包列表
+    apt-get update && \
+    # 安装 Docker 相关包
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin && \
+    # 清理 apt 缓存
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN node -v
+
+# 修改依赖源
+RUN npm config set registry https//registry.npm.taobao.org
+
+# 安装 kubectl
+RUN mkdir -p -m 755 /etc/apt/keyrings \
+    && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg \
+    && chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg \
+    && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list \
+    && chmod 644 /etc/apt/sources.list.d/kubernetes.list \
+    && apt-get install -y apt-transport-https ca-certificates curl gnupg \
+    && apt-get update \
+    && apt-get install -y kubectl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Helm
+RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 \
+    && chmod 700 get_helm.sh \
+    && ./get_helm.sh \
+    && rm get_helm.sh
+
+# 查看 kubectl 和 Helm 版本
+RUN kubectl version --client
+RUN helm version
+
+# 恢复默认环境变量
+ENV DEBIAN_FRONTEND=dialog
+    
