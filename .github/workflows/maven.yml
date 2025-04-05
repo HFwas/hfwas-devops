@@ -5,7 +5,7 @@ on:
     branches: [ "master" ]
     paths-ignore:
       - 'deploy/**'
-      - 'workflow/**'
+      - '.github/**'
 #  pull_request:
 #    branches: [ "master" ]
 
