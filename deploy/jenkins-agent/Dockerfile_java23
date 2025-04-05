@@ -48,7 +48,7 @@ RUN curl -fsSL https://services.gradle.org/distributions/gradle-${GRADLE_VERSION
     && unzip gradle-bin.zip -d /usr/local \
     && mv /usr/local/gradle-${GRADLE_VERSION} $GRADLE_HOME \
     && ln -s $GRADLE_HOME/bin/gradle /usr/bin/gradle \
-    && rm gradle-bin.zip \
+    && rm gradle-bin.zip
 RUN gradle --version
 
 
