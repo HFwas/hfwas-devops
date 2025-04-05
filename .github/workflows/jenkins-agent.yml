@@ -1,4 +1,4 @@
-name: code-server
+name: jenkins-agent
 
 on:
   push:
