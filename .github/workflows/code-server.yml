@@ -9,6 +9,9 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [ amd64, arm64 ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.2.2
@@ -29,4 +32,4 @@ jobs:
           file: deploy/dockerfile/Dockerfile_java23
           push: true
           tags: registry.cn-hangzhou.aliyuncs.com/dkyy/code-server:java23
-          platforms: linux/amd64
+          platforms: ${{ matrix.arch }}
