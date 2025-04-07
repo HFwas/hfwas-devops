@@ -21,6 +21,9 @@ RUN sudo apt-get update && sudo apt-get install --no-install-recommends -y \
 ENV VSCODE_USER=/home/coder/.local/share/code-server/User
 ENV VSCODE_EXTENSIONS=/home/coder/.local/share/code-server/extensions
 
+COPY deploy/extensions/code-background-1.1.0.vsix code-background-1.1.0.vsix
+RUN sudo code-server --install-extension code-background-1.1.0.vsix
+
 RUN code-server --install-extension vscjava.vscode-java-debug
 RUN code-server --install-extension vscjava.vscode-java-test
 RUN code-server --install-extension vscjava.vscode-maven
@@ -31,8 +34,6 @@ RUN code-server --install-extension eamodio.gitlens
 RUN code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans
 # RUN code-server --install-extension shalldie.background
 
-COPY deploy/extensions/code-background-3.1.0.vsix code-background-3.1.0.vsix
-RUN sudo code-server --install-extension code-background-3.1.0.vsix
 # RUN code-server --install-extension Katsute.code-background
 
 # RUN wget -q https://open-vsx.org/api/shalldie/background/1.1.23/file/shalldie.background-1.1.23.vsix
