@@ -31,7 +31,7 @@ RUN code-server --install-extension eamodio.gitlens
 RUN code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans
 # RUN code-server --install-extension shalldie.background
 
-RUN wget -q https://objects.githubusercontent.com/github-production-release-asset-2e65be/506347689/b97ca96f-3834-4407-8c74-01057967a7da?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=releaseassetproduction%2F20250407%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250407T090817Z&X-Amz-Expires=300&X-Amz-Signature=7698c744c15341665b540286649968270ed41f251cd347dbac4bc2f5a0ce5637&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B%20filename%3Dcode-background-3.1.0.vsix&response-content-type=application%2Foctet-stream
+COPY deploy/extensions/code-background-3.1.0.vsix code-background-3.1.0.vsix
 RUN sudo code-server --install-extension code-background-3.1.0.vsix
 # RUN code-server --install-extension Katsute.code-background
 
