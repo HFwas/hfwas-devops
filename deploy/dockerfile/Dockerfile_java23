@@ -30,7 +30,10 @@ RUN code-server --install-extension bajdzis.vscode-database
 RUN code-server --install-extension eamodio.gitlens
 RUN code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans
 # RUN code-server --install-extension shalldie.background
-RUN code-server --install-extension Katsute.code-background
+
+RUN wget -q https://open-vsx.org/api/Katsute/code-background/3.1.0/file/Katsute.code-background-3.1.0.vsix
+RUN sudo code-server --install-extension Katsute.code-background-3.1.0.vsix
+# RUN code-server --install-extension Katsute.code-background
 
 # RUN wget -q https://open-vsx.org/api/shalldie/background/1.1.23/file/shalldie.background-1.1.23.vsix
 RUN pwd && tree
