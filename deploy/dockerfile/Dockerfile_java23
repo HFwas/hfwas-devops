@@ -1,4 +1,4 @@
-FROM codercom/code-server:3.0.0
+FROM codercom/code-server:4.99.0
 
 # 更换apt源
 COPY deploy/dockerfile/sources.list /etc/apt/sources.list
@@ -21,8 +21,8 @@ RUN sudo apt-get update && sudo apt-get install --no-install-recommends -y \
 ENV VSCODE_USER=/home/coder/.local/share/code-server/User
 ENV VSCODE_EXTENSIONS=/home/coder/.local/share/code-server/extensions
 
-COPY deploy/extensions/code-background-1.1.0.vsix code-background-1.1.0.vsix
-RUN sudo code-server --install-extension code-background-1.1.0.vsix
+#COPY deploy/extensions/code-background-1.1.0.vsix code-background-1.1.0.vsix
+#RUN sudo code-server --install-extension code-background-1.1.0.vsix
 
 RUN code-server --install-extension vscjava.vscode-java-debug
 RUN code-server --install-extension vscjava.vscode-java-test
@@ -34,7 +34,7 @@ RUN code-server --install-extension eamodio.gitlens
 RUN code-server --install-extension ms-ceintl.vscode-language-pack-zh-hans
 # RUN code-server --install-extension shalldie.background
 
-# RUN code-server --install-extension Katsute.code-background
+RUN code-server --install-extension Katsute.code-background
 
 # RUN wget -q https://open-vsx.org/api/shalldie/background/1.1.23/file/shalldie.background-1.1.23.vsix
 RUN pwd && tree
@@ -46,11 +46,12 @@ RUN pwd && tree
 
 RUN code-server --install-extension vscjava.vscode-spring-boot-dashboard
 RUN code-server --install-extension vscjava.vscode-spring-initializr
+RUN code-server --install-extension vmware.vscode-boot-dev-pack
 
 # COPY deploy/extensions/vmware.vscode-boot-dev-pack-0.1.0.vsix vmware.vscode-boot-dev-pack-0.1.0.vsix
 # RUN wget -q https://open-vsx.org/api/vscodevim/vim/1.21.10/file/vscodevim.vim-1.21.10.vsix
-RUN wget -q https://open-vsx.org/api/vmware/vscode-boot-dev-pack/0.1.0/file/vmware.vscode-boot-dev-pack-0.1.0.vsix
-RUN sudo code-server --install-extension vmware.vscode-boot-dev-pack-0.1.0.vsix
+#RUN wget -q https://open-vsx.org/api/vmware/vscode-boot-dev-pack/0.1.0/file/vmware.vscode-boot-dev-pack-0.1.0.vsix
+#RUN sudo code-server --install-extension vmware.vscode-boot-dev-pack-0.1.0.vsix
 
 # COPY deploy/dockerfile/java_dep/openjdk-23_linux-x64_bin.tar.gz OpenJDK.tar.gz
 RUN wget https://download.java.net/java/GA/jdk23/3c5b90190c68498b986a97f276efd28a/37/GPL/openjdk-23_linux-x64_bin.tar.gz -O OpenJDK.tar.gz
