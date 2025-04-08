@@ -82,6 +82,7 @@ COPY deploy/maven/settings.xml /home/coder/opt/apache-maven-${MAVEN_VERSION}/con
 USER root
 RUN chmod +x /etc/profile.d/01-maven.sh
 USER coder
+RUN sudo chown coder /usr/lib/code-server/lib/vscode/out/vs/code/browser/workbench
 
 RUN mkdir /home/coder/.bin && \
     echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" | sudo tee -a /home/coder/.bashrc > /dev/null
