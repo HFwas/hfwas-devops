@@ -1,4 +1,4 @@
-FROM ubuntu:14.04
+FROM debian:stable
 USER root
 # 更新包列表
 RUN apt-get update
