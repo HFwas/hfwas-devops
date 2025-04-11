@@ -1,7 +1,11 @@
 FROM debian:stable
 USER root
-# 备份并修改源列表以包含旧的 Debian 仓库
-RUN mv /etc/apt/sources.list /etc/apt/sources.list.bak
+# 检查并备份源列表，如果存在则备份，不存在则创建空的备份文件
+RUN if [ -f /etc/apt/sources.list ]; then \
+        mv /etc/apt/sources.list /etc/apt/sources.list.bak; \
+    else \
+        touch /etc/apt/sources.list.bak; \
+    fi
 RUN echo "deb http://archive.debian.org/debian wheezy main contrib non-free" > /etc/apt/sources.list
 RUN echo "Acquire::Check-Valid-Until false;" > /etc/apt/apt.conf.d/10no--check-valid-until
 
