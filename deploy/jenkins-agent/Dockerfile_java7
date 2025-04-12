@@ -1,6 +1,7 @@
 # 使用 ubuntu:14.04 作为基础镜像
-FROM ubuntu:14.04
-
+FROM ubuntu:22.04
+# 更换apt源
+COPY linux/sources-ubuntu.list /etc/apt/sources.list
 # 设置环境变量，避免交互提示
 ENV DEBIAN_FRONTEND=noninteractive
 
