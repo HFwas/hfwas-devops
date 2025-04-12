@@ -4,7 +4,7 @@ FROM ubuntu:22.04
 COPY deploy/linux/sources-ubuntu.list /etc/apt/sources.list
 # 设置环境变量，避免交互提示
 ENV DEBIAN_FRONTEND=noninteractive
-
+RUN apt-get install -y wget
 RUN wget http://archive.ubuntu.com/ubuntu/pool/main/c/ca-certificates/ca-certificates_20240203~22.04.1_all.deb
 RUN dpkg -i ./ca-certificates_20240203~22.04.1_all.deb
 
