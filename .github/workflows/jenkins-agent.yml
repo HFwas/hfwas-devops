@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         arch: [ amd64 ]
-        language: [ java7, java11, java17, java21, java23, node12, node14, node16, node18, node20 ]
+        language: [ java11, java17, java21, java23, node12, node14, node16, node18, node20 ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.2.2
