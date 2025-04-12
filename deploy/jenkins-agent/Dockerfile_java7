@@ -2,21 +2,25 @@
 FROM ubuntu:22.04
 # 更换apt源
 COPY deploy/linux/sources-ubuntu.list /etc/apt/sources.list
+RUN apt-get update && \
+    apt-get install -y \
+        apt-transport-https \
+        git \
+        jq \
+        ca-certificates \
+        curl \
+        wget \
+        unzip \
+        tar \
+        sudo \
+        gnupg \
+        lsb-release \
+        software-properties-common
 # 设置环境变量，避免交互提示
 ENV DEBIAN_FRONTEND=noninteractive
 
-COPY deploy/linux/ca-certificates_20240203~22.04.1_all.deb /tmp/ca-certificates_20240203~22.04.1_all.deb
-RUN dpkg -i /tmp/ca-certificates_20240203~22.04.1_all.deb
-
-# 更新系统软件包列表
-RUN apt-get update
-
-# 安装必要的依赖包
-RUN apt-get install -y \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    software-properties-common
+# COPY deploy/linux/ca-certificates_20240203~22.04.1_all.deb /tmp/ca-certificates_20240203~22.04.1_all.deb
+# RUN dpkg -i /tmp/ca-certificates_20240203~22.04.1_all.deb
 
 # 添加 Docker 的官方 GPG 密钥
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
