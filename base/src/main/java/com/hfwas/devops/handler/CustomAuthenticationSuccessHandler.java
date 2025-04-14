@@ -12,6 +12,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
@@ -69,6 +70,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
                 devopsSession.setUserName("");
                 devopsSessionMapper.insert(devopsSession);
             }
+        } else if (authentication instanceof UsernamePasswordAuthenticationToken) {
+
         }
     }
 }
