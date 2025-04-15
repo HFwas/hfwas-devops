@@ -42,6 +42,7 @@
         <logback-classic.version>1.5.16</logback-classic.version>
         <knife4j.version>4.4.0</knife4j.version>
         <security-core.version>6.3.8</security-core.version>
+        <netty-handler.version>4.1.118.Final</netty-handler.version>
     </properties>
 
     <dependencyManagement>
@@ -187,6 +188,17 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-data-redis</artifactId>
                 <version>${spring-boot.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>io.netty</groupId>
+                        <artifactId>netty-handler</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-handler</artifactId>
+                <version>${netty-handler.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.yaml</groupId>
