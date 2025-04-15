@@ -1,8 +1,10 @@
 package com.hfwas.devops.config;
 
+import com.hfwas.devops.handler.CustomAuthenticationFailureHandler;
 import com.hfwas.devops.handler.CustomAuthenticationSuccessHandler;
 import com.hfwas.devops.mapper.DevopsSessionMapper;
 import com.hfwas.devops.service.CustomUserDetailsService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -58,12 +60,22 @@ public class SecurityConfig {
         );
         http.oauth2Login(oauth2 -> oauth2
                 .successHandler(new CustomAuthenticationSuccessHandler(authorizedClientService, devopsSessionMapper))
+                .failureHandler(new CustomAuthenticationFailureHandler())
         );
         http.formLogin(form -> form
                 .loginProcessingUrl("/login")
                 .defaultSuccessUrl("http://localhost:3000", true)
                 .failureUrl("/login?error")
                 .permitAll());
+        http.logout(logout -> logout.logoutUrl("/logout"));
+        http.exceptionHandling(exception -> exception
+                .authenticationEntryPoint((request, response, authException) -> {
+                    // 👇 关键点：未登录时返回 401 JSON，而不是跳转
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"error\": \"未登录\"}");
+                })
+        );
         return http.build();
     }
 
