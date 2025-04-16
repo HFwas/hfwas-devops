@@ -43,6 +43,7 @@
         <knife4j.version>4.4.0</knife4j.version>
         <security-core.version>6.3.8</security-core.version>
         <netty-handler.version>4.1.118.Final</netty-handler.version>
+        <poi-ooxml.version>5.4.0</poi-ooxml.version>
     </properties>
 
     <dependencyManagement>
@@ -222,7 +223,20 @@
                         <groupId>org.apache.commons</groupId>
                         <artifactId>commons-compress</artifactId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.poi</groupId>
+                        <artifactId>poi-ooxml</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.apache.poi</groupId>
+                        <artifactId>poi</artifactId>
+                    </exclusion>
                 </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-ooxml</artifactId>
+                <version>${poi-ooxml.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jsoup</groupId>
