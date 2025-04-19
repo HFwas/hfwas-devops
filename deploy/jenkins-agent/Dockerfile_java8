@@ -20,21 +20,18 @@ RUN apt-get update && \
         tar \
         sudo \
         gnupg \
-        lsb-release && \
-    # 添加 Docker 的官方 GPG 密钥
-    mkdir -p /etc/apt/keyrings && \
+        lsb-release
+
+# 添加 Docker 的官方 GPG 密钥
+# 添加 Docker APT 源
+RUN mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
-    # 设置 Docker 仓库
     echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    # 更新包列表
-    apt-get update && \
-    # 安装 Docker 相关包
-    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin && \
-    # 清理 apt 缓存
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+    $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+# 更新 APT 包索引并安装 Docker 社区版
+RUN apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin
+RUN docker --version
 
 # 安装 scout-cli
 RUN curl -fsSL https://raw.githubusercontent.com/docker/scout-cli/main/install.sh -o install-scout.sh \
