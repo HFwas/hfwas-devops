@@ -15,7 +15,7 @@ public class DevopsRepo {
     private Integer id;
     private String name;
     private String url;
-    private String desc;
+    private String description;
     private Integer type;
     private String format;
 
