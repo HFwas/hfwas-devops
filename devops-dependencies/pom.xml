@@ -38,7 +38,7 @@
         <semver.version>0.10.2</semver.version>
         <jenkins-rest.version>1.0.2</jenkins-rest.version>
         <cpe-parser.version>2.1.0</cpe-parser.version>
-        <httpclient5.version>5.4.2</httpclient5.version>
+        <httpclient5.version>5.4.3</httpclient5.version>
         <logback-classic.version>1.5.16</logback-classic.version>
         <knife4j.version>4.4.0</knife4j.version>
         <security-core.version>6.3.8</security-core.version>
