@@ -44,6 +44,8 @@
         <security-core.version>6.3.8</security-core.version>
         <netty-handler.version>4.1.118.Final</netty-handler.version>
         <poi-ooxml.version>5.4.0</poi-ooxml.version>
+        <aspectjrt.version>1.9.6</aspectjrt.version>
+        <spring-context.version>6.2.2</spring-context.version>
     </properties>
 
     <dependencyManagement>
@@ -307,6 +309,16 @@
                 <groupId>jakarta.xml.bind</groupId>
                 <artifactId>jakarta.xml.bind-api</artifactId>
                 <version>3.0.1</version>
+            </dependency>
+            <dependency>
+                <groupId>org.aspectj</groupId>
+                <artifactId>aspectjrt</artifactId>
+                <version>${aspectjrt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-context</artifactId>
+                <version>${spring-context.version}</version>
             </dependency>
 
 
