@@ -17,7 +17,7 @@
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <gson.version>2.11.0</gson.version>
         <jackson-databind.version>2.17.2</jackson-databind.version>
-        <spring-boot.version>3.3.5</spring-boot.version>
+        <spring-boot.version>3.3.11</spring-boot.version>
         <redisson.version>3.41.0</redisson.version>
         <mybatis.version>3.5.17</mybatis.version>
         <mybatis-plus.version>3.5.10.1</mybatis-plus.version>
