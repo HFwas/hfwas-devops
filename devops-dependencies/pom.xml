@@ -46,6 +46,8 @@
         <poi-ooxml.version>5.4.0</poi-ooxml.version>
         <aspectjrt.version>1.9.6</aspectjrt.version>
         <spring-context.version>6.2.2</spring-context.version>
+        <jasypt.version>3.0.5</jasypt.version>
+        <hutool.version>5.8.35</hutool.version>
     </properties>
 
     <dependencyManagement>
@@ -319,6 +321,16 @@
                 <groupId>org.springframework</groupId>
                 <artifactId>spring-context</artifactId>
                 <version>${spring-context.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.ulisesbocchio</groupId>
+                <artifactId>jasypt-spring-boot</artifactId>
+                <version>${jasypt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-all</artifactId>
+                <version>${hutool.version}</version>
             </dependency>
 
 
