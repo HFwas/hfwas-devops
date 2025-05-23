@@ -21,6 +21,22 @@
         id, protocol, ip, port, username, password, create_by, update_by, create_time, update_time
     </sql>
 
+    <insert id="saveDevopsTool" parameterType="com.hfwas.devops.entity.DevopsTool">
+        insert into devops_tool (protocol, ip, port, username, password)
+        values (#{devopsTool.protocol}, #{devopsTool.ip}, #{devopsTool.port}, #{devopsTool.username}, #{devopsTool.password})
+    </insert>
+
+    <update id="updateDevopsToolById" parameterType="com.hfwas.devops.entity.DevopsTool">
+        update devops_tool
+        set protocol = #{devopsTool.protocol}, ip = #{devopsTool.ip}, port = #{devopsTool.port}, username =#{devopsTool.username}, password=#{devopsTool.password}
+    </update>
+
+    <update id="removeDevopsToolById" parameterType="integer">
+        update devops_tool
+        set del_flage = 1
+        where  id = #{id}
+    </update>
+
 
 
 </mapper>

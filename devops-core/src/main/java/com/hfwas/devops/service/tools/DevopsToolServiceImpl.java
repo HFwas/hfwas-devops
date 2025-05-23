@@ -9,6 +9,7 @@ import com.hfwas.devops.dto.tools.DevopsToolDto;
 import com.hfwas.devops.dto.tools.DevopsToolUpdateDto;
 import com.hfwas.devops.entity.DevopsTool;
 import com.hfwas.devops.mapper.DevopsToolMapper;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 /**
@@ -22,21 +23,22 @@ public class DevopsToolServiceImpl extends ServiceImpl<DevopsToolMapper, DevopsT
     @Override
     public boolean insert(DevopsToolDto devopsToolDto) {
         DevopsTool devopsTool = DevopsToolConvert.INSTANCE.to(devopsToolDto);
-        boolean save = save(devopsTool);
-        return save;
+        this.baseMapper.saveDevopsTool(devopsTool);
+        return true;
     }
 
     @Override
     public boolean edit(DevopsToolUpdateDto devopsToolDto) {
         DevopsTool devopsTool = DevopsToolConvert.INSTANCE.to(devopsToolDto);
-        boolean update = this.updateById(devopsTool);
-        return update;
+        this.baseMapper.updateDevopsToolById(devopsTool);
+        return true;
     }
 
     @Override
     public Page<DevopsTool> page(DevopsToolDto devopsToolDto) {
-        Page<DevopsTool> devopsToolPage = new Page<>();
-        LambdaQueryWrapper<DevopsTool> eq = Wrappers.<DevopsTool>lambdaQuery().eq(DevopsTool::getName, devopsToolDto.getIp());
+        Page<DevopsTool> devopsToolPage = new Page<>(1,100);
+        LambdaQueryWrapper<DevopsTool> eq = Wrappers.<DevopsTool>lambdaQuery()
+                .eq(StringUtils.isNoneBlank(devopsToolDto.getName()), DevopsTool::getName, devopsToolDto.getIp());
 
         Page<DevopsTool> page = page(devopsToolPage, eq);
         return page;
@@ -45,7 +47,7 @@ public class DevopsToolServiceImpl extends ServiceImpl<DevopsToolMapper, DevopsT
     @Override
     public boolean delete(Integer id) {
         //
-        removeById(id);
+        this.baseMapper.removeDevopsToolById(id);
         return false;
     }
 
