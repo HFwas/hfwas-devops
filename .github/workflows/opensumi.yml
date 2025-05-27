@@ -19,6 +19,8 @@ jobs:
       - name: checkout
         run: |
           git clone https://github.com/opensumi/core.git
+          ls -lah
+          cd core
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:

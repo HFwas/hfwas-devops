@@ -12,7 +12,6 @@ RUN apk add --no-cache \
     make \
     g++
 
-
 # 克隆OpenSumi仓库（可替换为特定版本或自己的fork）
 RUN git clone https://github.com/opensumi/core.git .
 RUN ls -lah
