@@ -1,29 +1,44 @@
-# 使用官方Node.js LTS版本作为基础镜像
-FROM node:lts-alpine
+# 基于 node:18 镜像
+FROM node:18-bullseye-slim
 
-# 设置工作目录
-WORKDIR /app
+USER root
 
-# 安装必要的系统依赖
-RUN apk add --no-cache \
-    git \
-    openssh-client \
-    python3 \
-    make \
-    g++
+# 设置环境变量，避免交互提示
+ENV DEBIAN_FRONTEND=noninteractive
 
-# 克隆OpenSumi仓库（可替换为特定版本或自己的fork）
+RUN echo "当前基础镜像的操作系统信息：" && cat /etc/os-release
+
+# 更新包列表并安装必要的依赖
+RUN apt-get update && \
+    apt-get install -y \
+        git \
+        jq \
+        ca-certificates \
+        curl \
+        wget \
+        unzip \
+        tar \
+        gnupg \
+        sudo \
+        lsb-release && \
+    # 更新包列表
+    apt-get update && \
+    # 清理 apt 缓存
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN node -v
 RUN git clone https://github.com/opensumi/core.git .
 RUN ls -lah
 RUN yarn --version
 # 安装依赖并构建OpenSumi
-RUN npm config set registry https://registry.npmmirror.com && \
-    npm install && \
-    npm run init && \
-    npm run download-extension
+RUN yarn config set registry https://registry.npmmirror.com && \
+    yarn run init && \
+    yarn run download-extension
 
 # 暴露OpenSumi默认端口
 EXPOSE 8080
-
+# 恢复默认环境变量
+ENV DEBIAN_FRONTEND=dialog
 # 设置启动命令
-CMD ["npm", "run", "start"]
+CMD ["yarn", "run", "start"]

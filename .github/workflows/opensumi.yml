@@ -4,33 +4,32 @@ on:
   push:
     paths:
       - 'deploy/opensumi/**'
-      - '.github//workflows/opensumi.yml'
+      - '.github/workflows/opensumi.yml'
 
 jobs:
-  unittest:
-    runs-on: ${{ matrix.os }}
+  build-and-push:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        node-version: [18.x]
-        ci-project: [node, jsdom]
-
+        arch: [ amd64 ]
     steps:
-      - name: checkout
-        run: |
-          git clone https://github.com/opensumi/core.git
-          ls -lah
-          cd core
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.10.0
+
+      - name: Login to Alibaba Cloud Container Registry
+        uses: docker/login-action@v3.4.0
         with:
-          node-version: ${{ matrix.node-version }}
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
 
-      - name: Install
-        run: |
-          yarn install --immutable
-          yarn constraints
-
-      - name: CI
-        run: |
-          yarn run ci --selectProjects ${{ matrix.ci-project }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          file: deploy/opensumi/Dockerfile
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/opensumi:lts-alpine
+          platforms: ${{ matrix.arch }}
