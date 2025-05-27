@@ -32,6 +32,7 @@ RUN mkdir core
 RUN git clone https://github.com/opensumi/core.git core
 RUN ls -lah
 RUN yarn --version
+RUN cd core
 # 安装依赖并构建OpenSumi
 RUN yarn config set registry https://registry.npmmirror.com && \
     yarn run init && \
