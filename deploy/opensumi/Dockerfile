@@ -33,7 +33,7 @@ RUN git clone https://github.com/opensumi/core.git .
 RUN ls -lah
 RUN yarn --version
 # 安装依赖并构建OpenSumi
-RUN yarn config set registry https://registry.npmmirror.com && \
+RUN yarn config set npmRegistryServer https://registry.npmmirror.com && \
     yarn install --production=false --frozen-lockfile && \
     yarn run init && \
     yarn run download-extension
