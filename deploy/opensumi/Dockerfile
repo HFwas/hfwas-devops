@@ -4,7 +4,6 @@ FROM node:lts-alpine
 # 设置工作目录
 WORKDIR /app
 
-
 # 安装必要的系统依赖
 RUN apk add --no-cache \
     git \
