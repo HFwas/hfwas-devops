@@ -22,6 +22,26 @@ spring:
       password: 000
       database: 10
       host: 127.0.0.1
+  mvc:
+    converters:
+      preferred-json-mapper: jackson
+# springdoc-openapi项目配置
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: 'default'
+      paths-to-match: '/**'
+      packages-to-scan: com.hfwas.devops
+# knife4j的增强配置，不需要增强可以不配
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
 feign:
   cache:
     enabled: true
@@ -55,3 +75,5 @@ devops:
       url: https://api.github.com
     nvd:
       url: https://services.nvd.nist.gov
+#      api-key: d7c95ae7-1d3c-444a-ba84-d3114651e8f8
+      apiKey: aa558c2c-9d63-4370-8d86-c45eee547c9c

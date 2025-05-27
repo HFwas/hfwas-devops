@@ -2,7 +2,8 @@
 FROM node:18-bullseye-slim
 
 USER root
-
+# 创建工作目录
+WORKDIR /app
 # 设置环境变量，避免交互提示
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -28,13 +29,12 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN node -v
-RUN mkdir core
-RUN git clone https://github.com/opensumi/core.git core
+RUN git clone https://github.com/opensumi/core.git .
 RUN ls -lah
 RUN yarn --version
-RUN cd core
 # 安装依赖并构建OpenSumi
 RUN yarn config set registry https://registry.npmmirror.com && \
+    yarn install --production=false --frozen-lockfile && \
     yarn run init && \
     yarn run download-extension
 
