@@ -28,7 +28,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN node -v
-RUN git clone https://github.com/opensumi/core.git .
+RUN mkdir core
+RUN git clone https://github.com/opensumi/core.git core
 RUN ls -lah
 RUN yarn --version
 # 安装依赖并构建OpenSumi
