@@ -1,0 +1,35 @@
+name: opensumi
+
+on:
+  push:
+    paths:
+      - 'deploy/opensumi/**'
+      - '.github//workflows/opensumi.yml'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [ amd64 ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.10.0
+
+      - name: Login to Alibaba Cloud Container Registry
+        uses: docker/login-action@v3.4.0
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          file: deploy/opensumi/Dockerfile
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/opensumi:${{ matrix.language }}
+          platforms: ${{ matrix.arch }}
