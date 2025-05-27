@@ -12,12 +12,10 @@ RUN apk add --no-cache \
     python3 \
     make \
     g++
-# 使用npm安装Yarn
-RUN npm install -g yarn
 
 # 克隆OpenSumi仓库（可替换为特定版本或自己的fork）
 RUN git clone https://github.com/opensumi/core.git .
-
+RUN ls -lah
 # 安装依赖并构建OpenSumi
 RUN yarn config set registry https://registry.npmmirror.com && \
     yarn install && \
