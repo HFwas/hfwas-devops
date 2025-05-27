@@ -16,6 +16,7 @@ RUN apk add --no-cache \
 # 克隆OpenSumi仓库（可替换为特定版本或自己的fork）
 RUN git clone https://github.com/opensumi/core.git .
 RUN ls -lah
+RUN yarn version
 # 安装依赖并构建OpenSumi
 RUN npm config set registry https://registry.npmmirror.com && \
     npm install && \
