@@ -17,13 +17,13 @@ RUN apk add --no-cache \
 RUN git clone https://github.com/opensumi/core.git .
 RUN ls -lah
 # 安装依赖并构建OpenSumi
-RUN yarn config set registry https://registry.npmmirror.com && \
-    yarn install && \
-    yarn run init && \
-    yarn run download-extension
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm install && \
+    npm run init && \
+    npm run download-extension
 
 # 暴露OpenSumi默认端口
 EXPOSE 8080
 
 # 设置启动命令
-CMD ["yarn", "run", "start"]
+CMD ["npm", "run", "start"]
