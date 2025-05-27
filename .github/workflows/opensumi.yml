@@ -31,5 +31,5 @@ jobs:
         with:
           file: deploy/opensumi/Dockerfile
           push: true
-          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/opensumi:${{ matrix.language }}
+          tags: registry.cn-hangzhou.aliyuncs.com/dkyy/opensumi:lts-alpine
           platforms: ${{ matrix.arch }}
