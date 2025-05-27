@@ -34,7 +34,7 @@ RUN ls -lah
 RUN yarn --version
 # 安装依赖并构建OpenSumi
 RUN yarn config set npmRegistryServer https://registry.npmmirror.com && \
-    yarn install --production=false --frozen-lockfile && \
+    yarn install && \
     yarn run init && \
     yarn run download-extension
 
