@@ -45,7 +45,7 @@
         <netty-handler.version>4.1.118.Final</netty-handler.version>
         <poi-ooxml.version>5.4.0</poi-ooxml.version>
         <aspectjrt.version>1.9.6</aspectjrt.version>
-        <spring-context.version>6.2.2</spring-context.version>
+        <spring-context.version>6.2.7</spring-context.version>
         <jasypt.version>3.0.5</jasypt.version>
         <hutool.version>5.8.35</hutool.version>
     </properties>
