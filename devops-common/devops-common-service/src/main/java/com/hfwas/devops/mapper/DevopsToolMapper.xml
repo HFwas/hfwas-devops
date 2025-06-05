@@ -5,21 +5,39 @@
     <!-- 结果映射 -->
     <resultMap id="DevopsToolResultMap" type="com.hfwas.devops.entity.DevopsTool">
         <id property="id" column="id"/>
+        <result property="type" column="type"/>
+        <result property="name" column="name"/>
         <result property="protocol" column="protocol"/>
         <result property="ip" column="ip"/>
         <result property="port" column="port"/>
         <result property="username" column="username"/>
         <result property="password" column="password"/>
-        <result property="create_by" column="create_by"/>
-        <result property="update_by" column="update_by"/>
-        <result property="create_time" column="create_time"/>
-        <result property="update_time" column="update_time"/>
+        <result property="tenantId" column="tenant_id"/>
+        <result property="createBy" column="create_by"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="delFlag" column="del_flag"/>
     </resultMap>
 
     <!-- 通用查询结果列 -->
     <sql id="Base_Column_List">
-        id, protocol, ip, port, username, password, create_by, update_by, create_time, update_time
+        id, `type`, name, protocol, ip, port, username, password, tenantId, createTime
     </sql>
+
+    <select id="listTool" resultType="com.hfwas.devops.entity.DevopsTool">
+        select <include refid="Base_Column_List"/>
+        from devops_tool
+        <where>
+            del_flage = 0
+            <if test="devopsTool.type != null">type=#{devopsTool.type}</if>
+            <if test="devopsTool.name != null and devopsTool.name != ''">name=#{devopsTool.name}</if>
+            <if test="devopsTool.protocol != null and devopsTool.protocol != ''">protocol=#{devopsTool.protocol}</if>
+            <if test="devopsTool.ip != null and devopsTool.ip != ''">ip=#{devopsTool.ip}</if>
+            <if test="devopsTool.port != null">port=#{devopsTool.port}</if>
+            <if test="devopsTool.tenantId != null and devopsTool.tenantId != ''">tenant_id=#{devopsTool.tenantId}</if>
+        </where>
+    </select>
 
     <insert id="saveDevopsTool" parameterType="com.hfwas.devops.entity.DevopsTool">
         insert into devops_tool (protocol, ip, port, username, password)

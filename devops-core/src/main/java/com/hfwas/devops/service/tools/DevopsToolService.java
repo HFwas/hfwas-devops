@@ -13,9 +13,32 @@ import com.hfwas.devops.entity.DevopsTool;
  */
 public interface DevopsToolService extends IService<DevopsTool> {
 
+    /**
+     * 新增 devops 工具
+     * @param devopsToolDto
+     * @return
+     */
     boolean insert(DevopsToolDto devopsToolDto);
+
+    /**
+     * 编辑 devops 工具
+     * @param devopsToolDto
+     * @return
+     */
     boolean edit(DevopsToolUpdateDto devopsToolDto);
+
+    /**
+     * 分页查询 devops 工具
+     * @param devopsToolDto
+     * @return
+     */
     Page<DevopsTool> page(DevopsToolDto devopsToolDto);
+
+    /**
+     * 逻辑删除 devops 工具
+     * @param id
+     * @return
+     */
     boolean delete(Integer id);
 
 }

@@ -5,6 +5,8 @@ import com.hfwas.devops.entity.DevopsTool;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 /**
  * @author houfei
  * @package com.hfwas.devops.mapper
@@ -12,6 +14,8 @@ import org.apache.ibatis.annotations.Param;
  */
 @Mapper
 public interface DevopsToolMapper extends BaseMapper<DevopsTool> {
+
+    List<DevopsTool> listTool(@Param("devopsTool") DevopsTool devopsTool);
 
     Boolean saveDevopsTool(@Param("devopsTool") DevopsTool devopsTool);
 
