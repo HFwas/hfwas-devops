@@ -137,6 +137,10 @@
             <artifactId>jakarta.xml.bind-api</artifactId>
             <version>3.0.1</version>
         </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-generator</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>com.hfwas.devops</groupId>
