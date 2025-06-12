@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hfwas.devops.mapper.DevopsEnvInstanceMapper">
+    <!-- 结果映射 -->
+    <resultMap id="DevopsEnvResultMap" type="com.hfwas.devops.entity.DevopsEnvInstance">
+        <id property="id" column="id"/>
+        <result property="code" column="code"/>
+        <result property="name" column="name"/>
+        <result property="description" column="description"/>
+        <result property="type" column="type"/>
+        <result property="source" column="source"/>
+        <result property="envId" column="env_id"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        id, code, name, description, type, source, envId, del_flag, create_time, update_time
+    </sql>
+
+    <insert id="saveEnvInstance" parameterType="com.hfwas.devops.dto.env.DevopsEnvDto" useGeneratedKeys="true" keyProperty="id">
+        insert into devops_env_instance(code, name, description, type, source, env_id) values
+            (#{envInstance.code}, #{envInstance.name}, #{envInstance.description}, #{envInstance.type}, #{envInstance.source}, #{envInstance.envId})
+    </insert>
+
+    <update id="updateEnvInstance" >
+        update devops_env_instance
+        <set>
+            code=#{envInstance.code},
+            name=#{envInstance.name}, 
+            description=#{envInstance.description}, 
+            type=#{envInstance.type},
+            source=#{envInstance.source},
+            env_id=#{envInstance.envId}
+        </set>
+        <where>
+            id = #{envInstance.id}
+        </where>
+    </update>
+
+    <update id="deleteEnvInstance" parameterType="long">
+        update devops_env_instance
+        <set>
+            del_flag = 1
+        </set>
+        <where>
+            id = #{id}
+        </where>
+    </update>
+
+</mapper>
