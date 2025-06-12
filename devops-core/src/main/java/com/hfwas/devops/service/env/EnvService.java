@@ -1,7 +1,7 @@
 package com.hfwas.devops.service.env;
 
 import com.hfwas.devops.dto.env.DevopsEnvDto;
-import com.hfwas.devops.entity.DevopsEnv;
+import com.hfwas.devops.vo.env.DevopsEnvVO;
 
 import java.util.List;
 
@@ -38,6 +38,6 @@ public interface EnvService {
      * @param projectId
      * @return
      */
-    List<DevopsEnv> listEnv(Long projectId);
+    List<DevopsEnvVO> listEnv(Long projectId);
 
 }
