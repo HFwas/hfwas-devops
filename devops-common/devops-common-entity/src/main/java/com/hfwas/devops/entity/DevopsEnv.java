@@ -1,6 +1,7 @@
 package com.hfwas.devops.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
  * @package com.hfwas.devops.entity
  * @date 2025/3/16
  */
+@Data
 @TableName("devops_env")
 public class DevopsEnv {
     @TableId(type = IdType.ASSIGN_ID)

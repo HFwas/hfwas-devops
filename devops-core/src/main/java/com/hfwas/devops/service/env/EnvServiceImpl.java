@@ -25,19 +25,21 @@ public class EnvServiceImpl implements EnvService {
 
     @Override
     public Long saveEnv(DevopsEnvDto devopsEnvDto) {
-        devopsEnvMapper.saveEnv(devopsEnvDto);
-        return devopsEnvDto.getId();
+        DevopsEnv devopsEnv = DevopsEnvConvert.INSTANCE.to(devopsEnvDto);
+        this.devopsEnvMapper.insert(devopsEnv);
+        return devopsEnv.getId();
     }
 
     @Override
     public boolean updateEnv(DevopsEnvDto devopsEnvDto) {
-        devopsEnvMapper.updateEnv(devopsEnvDto);
+        DevopsEnv devopsEnv = DevopsEnvConvert.INSTANCE.to(devopsEnvDto);
+        devopsEnvMapper.updateById(devopsEnv);
         return true;
     }
 
     @Override
     public boolean deleteEnvById(Long id) {
-        devopsEnvMapper.deleteEnvById(id);
+        devopsEnvMapper.deleteById(id);
         return true;
     }
 

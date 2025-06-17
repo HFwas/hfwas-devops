@@ -1,5 +1,7 @@
 package com.hfwas.devops.service.env;
 
+import com.hfwas.devops.convert.DevopsEnvInstanceConvert;
+import com.hfwas.devops.dto.env.DevopsEnvInstanceDto;
 import com.hfwas.devops.entity.DevopsEnvInstance;
 import com.hfwas.devops.mapper.DevopsEnvInstanceMapper;
 import org.springframework.stereotype.Service;
@@ -19,26 +21,28 @@ public class EnvInstanceServiceImpl implements EnvInstanceService {
     }
 
     @Override
-    public boolean saveEnvInstance(DevopsEnvInstance devopsEnvInstance) {
-        devopsEnvInstanceMapper.saveEnvInstance(devopsEnvInstance);
-        return false;
+    public boolean saveEnvInstance(DevopsEnvInstanceDto devopsEnvInstanceDto) {
+        DevopsEnvInstance devopsEnvInstance = DevopsEnvInstanceConvert.INSTANCE.to(devopsEnvInstanceDto);
+        devopsEnvInstanceMapper.insert(devopsEnvInstance);
+        return true;
     }
 
     @Override
-    public boolean updateEnvInstance(DevopsEnvInstance devopsEnvInstance) {
-        devopsEnvInstanceMapper.updateEnvInstance(devopsEnvInstance);
-        return false;
+    public boolean updateEnvInstance(DevopsEnvInstanceDto devopsEnvInstanceDto) {
+        DevopsEnvInstance devopsEnvInstance = DevopsEnvInstanceConvert.INSTANCE.to(devopsEnvInstanceDto);
+        devopsEnvInstanceMapper.updateById(devopsEnvInstance);
+        return true;
     }
 
     @Override
     public boolean deleteEnvInstance(Long id) {
-        devopsEnvInstanceMapper.deleteEnvInstance(id);
-        return false;
+        devopsEnvInstanceMapper.deleteById(id);
+        return true;
     }
 
     @Override
     public boolean connect(Long id) {
-        return false;
+        return true;
     }
 
 }
