@@ -3,7 +3,6 @@ package com.hfwas.devops.service.impl;
 import com.hfwas.devops.entity.Node;
 import com.hfwas.devops.mapper.NodeMapper;
 import com.hfwas.devops.service.NodeService;
-import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
@@ -12,11 +11,13 @@ import org.springframework.stereotype.Service;
  * @date 2025/6/6
  */
 @Service
-@AllArgsConstructor
 public class NodeServiceImpl implements NodeService {
 
-    private NodeMapper nodeMapper;
+    private final NodeMapper nodeMapper;
 
+    public NodeServiceImpl(NodeMapper nodeMapper) {
+        this.nodeMapper = nodeMapper;
+    }
 
     @Override
     public boolean saveNode(Node node) {

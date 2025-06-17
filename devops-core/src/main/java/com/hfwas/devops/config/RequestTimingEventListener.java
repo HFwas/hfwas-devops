@@ -21,11 +21,12 @@ public class RequestTimingEventListener implements ApplicationListener<ServletRe
         String clientAddress = event.getClientAddress();
         String requestUrl = event.getRequestUrl();
         String method = event.getMethod();
+        int statusCode = event.getStatusCode();
         long processingTimeMillis = event.getProcessingTimeMillis();
         if (failureCause == null) {
-            log.info("客户端地址：{}，请求路径：{}，请求方法：{}，处理耗时：{} ms", clientAddress, requestUrl, method, processingTimeMillis);
+            log.info("客户端地址：{}, 状态码：{}，请求路径：{}，请求方法：{}，处理耗时：{} ms", clientAddress, statusCode, requestUrl, method, processingTimeMillis);
         } else {
-            log.error("客户端地址：{}，请求路径：{}，请求方法：{}，处理耗时：{} ms，错误信息：{}", clientAddress, requestUrl, method, processingTimeMillis, failureCauseMessage);
+            log.error("客户端地址：{}，状态码：{}，请求路径：{}，请求方法：{}，处理耗时：{} ms，错误信息：{}", clientAddress, statusCode, requestUrl, method, processingTimeMillis, failureCauseMessage);
         }
     }
 }

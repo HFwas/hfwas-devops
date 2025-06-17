@@ -13,6 +13,9 @@ public class DevopsEnvDto {
     private String name;
     private String code;
     private String description;
+    /**
+     * 环境类型，1、dev，2、uat，3、pre、4、prod
+     */
     private Integer type;
     private Long projectId;
 }
