@@ -59,6 +59,11 @@ public class DataBaseServiceImpl implements DataBaseService {
         return null;
     }
 
+    @Override
+    public void doc(String name) {
+
+    }
+
     private static List<TableInfo> getTableInfos() {
         // 使用 MyBatis Plus Generator 解析表结构
         DataSourceConfig.Builder dataSourceConfigBuilder = new DataSourceConfig.Builder("jdbc:mysql://localhost:3306/hfwas-devops-base",

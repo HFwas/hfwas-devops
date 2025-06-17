@@ -44,4 +44,10 @@ public class DataBaseController {
         return BaseResult.ok(colums);
     }
 
+    @PostMapping("/doc")
+    public BaseResult doc(@RequestParam("name") String name) {
+        dataBaseService.doc(name);
+        return BaseResult.ok();
+    }
+
 }

@@ -15,6 +15,6 @@ public interface DataBaseService {
     List<String> schema();
     Set<String> tables();
     List<TableField> colums(String name);
-
+    void doc(String name);
 
 }
