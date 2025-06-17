@@ -2,8 +2,8 @@ package com.hfwas.devops.controller.env;
 
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.dto.env.DevopsEnvDto;
-import com.hfwas.devops.entity.DevopsEnv;
 import com.hfwas.devops.service.env.EnvService;
+import com.hfwas.devops.vo.env.DevopsEnvVO;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -62,8 +62,8 @@ public class EnvController {
      * @return
      */
     @PostMapping("/list")
-    public BaseResult<List<DevopsEnv>> list(@RequestParam("projectId") Long projectId) {
-        List<DevopsEnv> devopsEnvs = envService.listEnv(projectId);
+    public BaseResult<List<DevopsEnvVO>> list(@RequestParam("projectId") Long projectId) {
+        List<DevopsEnvVO> devopsEnvs = envService.listEnv(projectId);
         return BaseResult.ok(devopsEnvs);
     }
 

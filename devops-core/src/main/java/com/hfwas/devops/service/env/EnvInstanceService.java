@@ -1,6 +1,6 @@
 package com.hfwas.devops.service.env;
 
-import com.hfwas.devops.entity.DevopsEnvInstance;
+import com.hfwas.devops.dto.env.DevopsEnvInstanceDto;
 
 /**
  * @author houfei
@@ -9,9 +9,9 @@ import com.hfwas.devops.entity.DevopsEnvInstance;
  */
 public interface EnvInstanceService {
 
-    boolean saveEnvInstance(DevopsEnvInstance envInstance);
+    boolean saveEnvInstance(DevopsEnvInstanceDto envInstance);
 
-    boolean updateEnvInstance(DevopsEnvInstance devopsEnvInstance);
+    boolean updateEnvInstance(DevopsEnvInstanceDto devopsEnvInstance);
 
     boolean deleteEnvInstance(Long id);
 

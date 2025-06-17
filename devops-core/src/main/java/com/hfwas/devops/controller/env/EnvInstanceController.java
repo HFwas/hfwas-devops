@@ -1,7 +1,7 @@
 package com.hfwas.devops.controller.env;
 
 import com.hfwas.devops.common.core.base.BaseResult;
-import com.hfwas.devops.entity.DevopsEnvInstance;
+import com.hfwas.devops.dto.env.DevopsEnvInstanceDto;
 import com.hfwas.devops.service.env.EnvInstanceService;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,13 +21,13 @@ public class EnvInstanceController {
     }
 
     @PostMapping("/save")
-    public BaseResult save(@RequestBody DevopsEnvInstance devopsEnvInstance) {
+    public BaseResult save(@RequestBody DevopsEnvInstanceDto devopsEnvInstance) {
         envInstanceService.saveEnvInstance(devopsEnvInstance);
         return BaseResult.ok();
     }
 
     @PostMapping("/update")
-    public BaseResult update(@RequestBody DevopsEnvInstance devopsEnvInstance) {
+    public BaseResult update(@RequestBody DevopsEnvInstanceDto devopsEnvInstance) {
         envInstanceService.updateEnvInstance(devopsEnvInstance);
         return BaseResult.ok();
     }

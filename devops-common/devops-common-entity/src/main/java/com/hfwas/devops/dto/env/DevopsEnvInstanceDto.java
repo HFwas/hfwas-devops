@@ -9,4 +9,13 @@ import lombok.Data;
  */
 @Data
 public class DevopsEnvInstanceDto {
+    private Long id;
+    private String name;
+    private String code;
+    private String description;
+    private Integer source;
+    private Integer type;
+    private Long    envId;
+    private String ip;
+    private Integer port;
 }

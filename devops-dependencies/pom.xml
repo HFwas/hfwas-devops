@@ -33,7 +33,7 @@
         <mapstruct-processor.version>1.6.3</mapstruct-processor.version>
         <commons-io.version>2.17.0</commons-io.version>
         <commons-collections.version>3.2.2</commons-collections.version>
-        <tomcat-embed.version>10.1.41</tomcat-embed.version>
+        <tomcat-embed.version>10.1.42</tomcat-embed.version>
         <protobuf-java.version>3.25.5</protobuf-java.version>
         <semver.version>0.10.2</semver.version>
         <jenkins-rest.version>1.0.2</jenkins-rest.version>

@@ -2,6 +2,7 @@ name: jenkins-agent
 
 on:
   push:
+    branches: [ "master","dev" ]
     paths:
       - 'deploy/jenkins-agent/**'
       - '.github/workflows/jenkins-agent.yml'
