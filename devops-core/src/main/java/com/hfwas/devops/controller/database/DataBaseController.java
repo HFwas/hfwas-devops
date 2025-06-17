@@ -38,10 +38,10 @@ public class DataBaseController {
         return BaseResult.ok(tables);
     }
 
-    @PostMapping("/colums")
-    public BaseResult<List<TableField>> colums(@RequestParam("name") String name) {
-        List<TableField> colums = dataBaseService.colums(name);
-        return BaseResult.ok(colums);
+    @PostMapping("/columns")
+    public BaseResult<List<TableField>> columns(@RequestParam("name") String name) {
+        List<TableField> columns = dataBaseService.columns(name);
+        return BaseResult.ok(columns);
     }
 
     @PostMapping("/doc")

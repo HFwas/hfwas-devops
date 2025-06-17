@@ -46,8 +46,7 @@ public class EnvServiceImpl implements EnvService {
     @Override
     public List<DevopsEnvVO> listEnv(Long projectId) {
         List<DevopsEnv> devopsEnvs = devopsEnvMapper.listEnv(projectId);
-        List<DevopsEnvVO> devopsEnvVOS = DevopsEnvConvert.INSTANCE.to(devopsEnvs);
-        return devopsEnvVOS;
+        return DevopsEnvConvert.INSTANCE.to(devopsEnvs);
     }
 
 }
