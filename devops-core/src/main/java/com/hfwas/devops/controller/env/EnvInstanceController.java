@@ -21,25 +21,25 @@ public class EnvInstanceController {
     }
 
     @PostMapping("/save")
-    public BaseResult save(@RequestBody DevopsEnvInstanceDto devopsEnvInstance) {
+    public BaseResult<Void> save(@RequestBody DevopsEnvInstanceDto devopsEnvInstance) {
         envInstanceService.saveEnvInstance(devopsEnvInstance);
         return BaseResult.ok();
     }
 
     @PostMapping("/update")
-    public BaseResult update(@RequestBody DevopsEnvInstanceDto devopsEnvInstance) {
+    public BaseResult<Void> update(@RequestBody DevopsEnvInstanceDto devopsEnvInstance) {
         envInstanceService.updateEnvInstance(devopsEnvInstance);
         return BaseResult.ok();
     }
 
     @PostMapping("/delete")
-    public BaseResult delete(@RequestParam("id") Long id) {
+    public BaseResult<Void> delete(@RequestParam("id") Long id) {
         envInstanceService.deleteEnvInstance(id);
         return BaseResult.ok();
     }
 
     @PostMapping("/connect")
-    public BaseResult connect(@RequestParam("id") Long id) {
+    public BaseResult<Void> connect(@RequestParam("id") Long id) {
         envInstanceService.connect(id);
         return BaseResult.ok();
     }

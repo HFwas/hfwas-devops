@@ -40,7 +40,7 @@ public class EnvController {
      * @return
      */
     @PostMapping("/update")
-    public BaseResult update(@RequestBody DevopsEnvDto devopsEnvDto) {
+    public BaseResult<Void> update(@RequestBody DevopsEnvDto devopsEnvDto) {
         envService.updateEnv(devopsEnvDto);
         return BaseResult.ok();
     }
@@ -51,7 +51,7 @@ public class EnvController {
      * @return
      */
     @PostMapping("/delete")
-    public BaseResult delete(@RequestParam("id") Long id) {
+    public BaseResult<Void> delete(@RequestParam("id") Long id) {
         envService.deleteEnvById(id);
         return BaseResult.ok();
     }
