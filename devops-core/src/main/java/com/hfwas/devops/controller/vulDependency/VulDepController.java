@@ -1,8 +1,8 @@
 package com.hfwas.devops.controller.vulDependency;
 
+import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.entity.DevopsVulCodeDependency;
 import com.hfwas.devops.service.vulDependency.VulDepService;
-import jakarta.annotation.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,19 +19,22 @@ import java.util.List;
 @RequestMapping("/vulDep")
 public class VulDepController {
 
-    @Resource
-    VulDepService vulDepService;
+    private final VulDepService vulDepService;
+
+    public  VulDepController(VulDepService vulDepService) {
+        this.vulDepService = vulDepService;
+    }
 
     @PostMapping(value = "/depResolve", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public List<DevopsVulCodeDependency> depResolve(@RequestPart("file") MultipartFile multipartFile, @RequestParam("language") String language) throws IOException {
+    public BaseResult<List<DevopsVulCodeDependency>> depResolve(@RequestPart("file") MultipartFile multipartFile, @RequestParam("language") String language) throws IOException {
         List<DevopsVulCodeDependency> codeDependencies = vulDepService.depResolve(multipartFile, language);
-        return codeDependencies;
+        return BaseResult.ok(codeDependencies);
     }
 
     @PostMapping(value = "/dep")
-    public List<DevopsVulCodeDependency> dep(@RequestParam Long codeId) {
+    public BaseResult<List<DevopsVulCodeDependency>> dep(@RequestParam Long codeId) {
         List<DevopsVulCodeDependency> dep = vulDepService.dep(codeId);
-        return dep;
+        return BaseResult.ok(dep);
     }
 
 }
