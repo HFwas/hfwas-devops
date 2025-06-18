@@ -158,7 +158,7 @@
         </dependency>
         <dependency>
             <groupId>com.hfwas.devops</groupId>
-            <artifactId>devops-common-core</artifactId>
+            <artifactId>hfwas-common-core</artifactId>
         </dependency>
         <dependency>
             <groupId>com.hfwas.devops</groupId>

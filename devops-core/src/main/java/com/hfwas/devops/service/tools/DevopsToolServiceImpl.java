@@ -51,8 +51,7 @@ public class DevopsToolServiceImpl implements DevopsToolService {
 
     @Override
     public boolean delete(Integer id) {
-        //
-        this.devopsToolMapper.removeDevopsToolById(id);
+        this.devopsToolMapper.deleteById(id);
         return false;
     }
 
