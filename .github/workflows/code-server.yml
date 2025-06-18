@@ -2,7 +2,7 @@ name: code-server
 
 on:
   push:
-    branches: [ "master","dev" ]
+    branches: [ "master" ]
     paths:
       - 'deploy/dockerfile/**'
       - '.github/workflows/code-server.yml'

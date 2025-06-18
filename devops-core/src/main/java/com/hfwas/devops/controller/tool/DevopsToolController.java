@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/tools")
 public class DevopsToolController {
 
-    DevopsToolService devopsToolService;
+    private final DevopsToolService devopsToolService;
 
     public DevopsToolController(DevopsToolService devopsToolService) {
         this.devopsToolService = devopsToolService;
@@ -69,8 +69,4 @@ public class DevopsToolController {
         return BaseResult.ok();
     }
 
-
 }
-
-
-

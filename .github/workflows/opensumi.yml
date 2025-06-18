@@ -2,7 +2,7 @@ name: opensumi
 
 on:
   push:
-    branches: [ "master","dev" ]
+    branches: [ "master" ]
     paths:
       - 'deploy/opensumi/**'
       - '.github/workflows/opensumi.yml'
