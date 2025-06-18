@@ -20,8 +20,7 @@ public class MetricsController {
 
     @GetMapping("/process")
     public ProcessHandle process() {
-        ProcessHandle processHandle = metricsService.processHandle();
-        return processHandle;
+        return metricsService.processHandle();
     }
 
 }

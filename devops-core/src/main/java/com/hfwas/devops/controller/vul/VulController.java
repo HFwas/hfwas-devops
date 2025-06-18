@@ -1,11 +1,11 @@
 package com.hfwas.devops.controller.vul;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.dto.vul.VulDto;
 import com.hfwas.devops.entity.DevopsVul;
 import com.hfwas.devops.service.sync.VulSyncApi;
 import com.hfwas.devops.service.vul.DevopsVulService;
-import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,39 +19,45 @@ import java.util.List;
 @RequestMapping("/vul")
 public class VulController {
 
-    @Resource
-    DevopsVulService devopsVulService;
-    @Resource
-    List<VulSyncApi> nvdVulSyncApi;
+    private final DevopsVulService devopsVulService;
+    private final List<VulSyncApi> nvdVulSyncApi;
+
+    public VulController(DevopsVulService devopsVulService,
+                         List<VulSyncApi> nvdVulSyncApi) {
+        this.devopsVulService = devopsVulService;
+        this.nvdVulSyncApi = nvdVulSyncApi;
+    }
 
     @PostMapping("/page")
-    public IPage<DevopsVul> list(@RequestBody VulDto vulDto) {
+    public BaseResult<IPage<DevopsVul>> list(@RequestBody VulDto vulDto) {
         IPage<DevopsVul> page = devopsVulService.page(vulDto);
-        return page;
+        return BaseResult.ok(page);
     }
 
     @GetMapping("/getById")
-    public DevopsVul getById(@RequestParam Long id) {
+    public BaseResult<DevopsVul> getById(@RequestParam Long id) {
         DevopsVul devopsVul = devopsVulService.getById(id);
-        return devopsVul;
+        return BaseResult.ok(devopsVul);
     }
 
     @GetMapping("/codeVul")
-    public List<DevopsVul> codeVul(@RequestParam Long codeId) {
-        List<DevopsVul> devopsVul = devopsVulService.codeVul(codeId);
-        return devopsVul;
+    public BaseResult<List<DevopsVul>> codeVul(@RequestParam Long codeId) {
+        List<DevopsVul> devopsVuls = devopsVulService.codeVul(codeId);
+        return BaseResult.ok(devopsVuls);
     }
 
     @GetMapping("/sync")
-    public void sync() {
+    public BaseResult<Void> sync() {
         devopsVulService.sync();
+        return BaseResult.ok();
     }
 
     @GetMapping("/nvd")
-    public void nvd() {
+    public BaseResult<Void> nvd() {
         for (VulSyncApi vulSyncApi : nvdVulSyncApi) {
             vulSyncApi.sync();
         }
+        return BaseResult.ok();
     }
 
 }

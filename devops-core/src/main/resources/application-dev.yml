@@ -25,6 +25,10 @@ spring:
   mvc:
     converters:
       preferred-json-mapper: jackson
+
+  jackson:
+    serialization:
+      FAIL_ON_EMPTY_BEANS: false
 # springdoc-openapi项目配置
 springdoc:
   swagger-ui:

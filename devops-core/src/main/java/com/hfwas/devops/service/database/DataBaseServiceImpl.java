@@ -41,22 +41,17 @@ public class DataBaseServiceImpl implements DataBaseService {
     @Override
     public Set<String> tables() {
         List<TableInfo> tables = getTableInfos();
-        Set<String> tableNames = tables.stream().map(TableInfo::getName).collect(Collectors.toSet());
-        return tableNames;
+        return tables.stream().map(TableInfo::getName).collect(Collectors.toSet());
     }
 
     @Override
-    public List<TableField> colums(String name) {
+    public List<TableField> columns(String name) {
         List<TableInfo> tableInfos = getTableInfos();
         Optional<List<TableField>> first = tableInfos.stream()
                 .filter(tableInfo -> tableInfo.getName().equals(name))
-                .map(tableInfo -> tableInfo.getFields()).collect(Collectors.toList()).stream().findFirst();
+                .map(TableInfo::getFields).toList().stream().findFirst();
 
-        if (first.isPresent()) {
-            List<TableField> tableFields = first.get();
-            return tableFields;
-        }
-        return null;
+        return first.orElse(null);
     }
 
     @Override

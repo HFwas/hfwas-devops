@@ -32,9 +32,8 @@ public class DevopsToolController {
      * @return
      */
     @PostMapping("/save")
-    public BaseResult save(@RequestBody DevopsToolDto devopsTool) {
-        devopsToolService.insert(devopsTool);
-        return BaseResult.ok();
+    public BaseResult<Integer> save(@RequestBody DevopsToolDto devopsTool) {
+        return BaseResult.ok(devopsToolService.insert(devopsTool));
     }
 
     /**
@@ -43,7 +42,7 @@ public class DevopsToolController {
      * @return
      */
     @PostMapping("/edit")
-    public BaseResult edit(@RequestBody DevopsToolUpdateDto devopsTool) {
+    public BaseResult<Void> edit(@RequestBody DevopsToolUpdateDto devopsTool) {
         devopsToolService.edit(devopsTool);
         return BaseResult.ok();
     }
@@ -65,7 +64,7 @@ public class DevopsToolController {
      * @return
      */
     @PostMapping
-    public BaseResult delete(@RequestBody Integer id) {
+    public BaseResult<Void> delete(@RequestBody Integer id) {
         devopsToolService.delete(id);
         return BaseResult.ok();
     }
