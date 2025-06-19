@@ -25,21 +25,25 @@ public class RepoController {
 
     @PostMapping("/create")
     public BaseResult<Long> create(@RequestBody DevopsRepoDto devopsRepoDto) {
+        devopsRepoService.create(devopsRepoDto);
         return BaseResult.ok();
     }
 
     @PostMapping("/delete")
-    public BaseResult<Void> delete(@RequestBody  Long id){
+    public BaseResult<Void> delete(@RequestBody Long id){
+        devopsRepoService.delete(id);
         return BaseResult.ok();
     }
 
     @PostMapping("/update")
-    public BaseResult<Long> update(@RequestBody DevopsRepoDto devopsRepoDto) {
+    public BaseResult<Void> update(@RequestBody DevopsRepoDto devopsRepoDto) {
+        devopsRepoService.update(devopsRepoDto);
         return BaseResult.ok();
     }
 
     @PostMapping("/page")
     public BaseResult page(@RequestBody DevopsRepoDto devopsRepoDto) {
+        devopsRepoService.page(devopsRepoDto);
         return BaseResult.ok();
     }
 
