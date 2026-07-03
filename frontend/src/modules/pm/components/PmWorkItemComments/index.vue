@@ -10,8 +10,10 @@ import {
   getCurrentAuthorName,
 } from '@/modules/pm/utils/comment'
 
+import type { EntityId } from '@/modules/pm/utils/id'
+
 const props = withDefaults(defineProps<{
-  workItemId: number
+  workItemId: EntityId
   embedded?: boolean
 }>(), {
   embedded: false,

@@ -6,6 +6,7 @@ import type { FieldDefinition, PmWorkItem, QuerySpec } from '@/modules/pm/types'
 import { TYPE_META, systemFieldProp } from '@/modules/pm/types'
 import { useProjectModules } from '@/modules/pm/composables/useProjectModules'
 import { formatDateTime } from '@/modules/pm/utils/comment'
+import { asId, routeId } from '@/modules/pm/utils/id'
 
 const props = defineProps<{
   fieldDefs: FieldDefinition[]
@@ -16,7 +17,7 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
-const projectId = computed(() => props.querySpec.projectId ?? (Number(route.params.projectId) || undefined))
+const projectId = computed(() => props.querySpec.projectId ?? (routeId(route.params.projectId) || undefined))
 const { labelMap: moduleLabelMap } = useProjectModules(projectId)
 
 const emit = defineEmits<{
@@ -48,7 +49,7 @@ const columns = computed<DataTableColumns<PmWorkItem>>(() => {
       key: 'comments',
       width: 70,
       render: (row) => {
-        const count = row.id != null ? (props.commentCounts?.[String(row.id)] ?? 0) : 0
+        const count = row.id != null ? (props.commentCounts?.[asId(row.id)] ?? 0) : 0
         return count > 0 ? String(count) : '-'
       },
     },
@@ -134,7 +135,7 @@ function readValue(row: PmWorkItem, field: FieldDefinition) {
     :data="data"
     :loading="loading"
     :scroll-x="1200"
-    :row-key="(row: PmWorkItem) => String(row.id)"
+    :row-key="(row: PmWorkItem) => asId(row.id)"
     @update:page="emit('refresh')"
     @row-click="(_: unknown, row: PmWorkItem) => emit('rowClick', row)"
   />

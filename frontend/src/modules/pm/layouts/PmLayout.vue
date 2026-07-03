@@ -2,12 +2,13 @@
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useProjectStore } from '@/modules/pm/stores'
 import { TYPE_META, WORK_ITEM_TYPE_CODES, resolveWorkItemTypeCode } from '@/modules/pm/types'
+import { routeId } from '@/modules/pm/utils/id'
 
 const route = useRoute()
 const router = useRouter()
 const projectStore = useProjectStore()
 
-const projectId = computed(() => Number(route.params.projectId))
+const projectId = computed(() => routeId(route.params.projectId))
 
 onMounted(async () => {
   await projectStore.loadProjects()

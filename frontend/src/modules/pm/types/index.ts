@@ -32,7 +32,7 @@ export interface SortSpec {
 }
 
 export interface QuerySpec {
-  projectId?: number
+  projectId?: number | string
   typeCode?: string
   logic?: QueryLogic
   conditions?: QueryCondition[]
@@ -95,8 +95,8 @@ export interface PmProjectModule {
 }
 
 export interface PmWorkItem {
-  id?: number
-  projectId: number
+  id?: number | string
+  projectId: number | string
   itemNo?: number
   itemKey?: string
   typeCode: string
@@ -209,7 +209,7 @@ export const PRIORITY_OPTIONS = [
   { label: '紧急', value: 'critical' },
 ]
 
-export function emptyQuerySpec(projectId?: number, typeCode?: string): QuerySpec {
+export function emptyQuerySpec(projectId?: number | string, typeCode?: string): QuerySpec {
   return {
     projectId,
     typeCode,

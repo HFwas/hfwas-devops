@@ -6,6 +6,7 @@ import { pmWorkItemApi } from '@/modules/pm/api'
 import { useFieldSchemaStore } from '@/modules/pm/stores'
 import type { PmWorkItem, QuerySpec } from '@/modules/pm/types'
 import { TYPE_META, emptyQuerySpec } from '@/modules/pm/types'
+import { routeId, asId } from '@/modules/pm/utils/id'
 import { useMessage } from 'naive-ui'
 
 const route = useRoute()
@@ -13,7 +14,7 @@ const router = useRouter()
 const message = useMessage()
 const fieldStore = useFieldSchemaStore()
 
-const projectId = computed(() => Number(route.params.projectId))
+const projectId = computed(() => routeId(route.params.projectId))
 const typeCode = computed(() => String(route.params.typeCode))
 const pageTitle = computed(() => TYPE_META[typeCode.value]?.label ?? '事项')
 const querySpec = ref<QuerySpec>(emptyQuerySpec(projectId.value, typeCode.value))
@@ -36,7 +37,7 @@ async function search() {
     querySpec.value.typeCode = typeCode.value
     const page = await pmWorkItemApi.page(querySpec.value)
     items.value = page.records
-    const ids = items.value.map((item) => item.id).filter((id): id is number => id != null)
+    const ids = items.value.map((item) => item.id).filter((id) => id != null)
     commentCounts.value = ids.length ? await pmWorkItemApi.countCommentsBatch(ids) : {}
   } finally {
     loading.value = false
@@ -54,8 +55,9 @@ async function createItem() {
 }
 
 function openItem(item: PmWorkItem) {
+  if (item.id == null) return
   router.push({
-    path: `/pm/projects/${projectId.value}/items/${item.id}`,
+    path: `/pm/projects/${projectId.value}/items/${asId(item.id)}`,
     query: { tab: 'comments', type: typeCode.value },
   })
 }

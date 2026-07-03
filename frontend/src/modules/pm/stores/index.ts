@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { FieldDefinition, PmProject } from '@/modules/pm/types'
+import type { EntityId } from '@/modules/pm/utils/id'
 import { pmFieldApi, pmProjectApi } from '@/modules/pm/api'
 
 export const useProjectStore = defineStore('pm-project', () => {
@@ -12,7 +13,7 @@ export const useProjectStore = defineStore('pm-project', () => {
     projects.value = page.records
   }
 
-  async function selectProject(id: number) {
+  async function selectProject(id: EntityId) {
     currentProject.value = await pmProjectApi.getById(id)
   }
 
@@ -22,12 +23,12 @@ export const useProjectStore = defineStore('pm-project', () => {
 export const useFieldSchemaStore = defineStore('pm-field-schema', () => {
   const schemas = ref<Record<string, FieldDefinition[]>>({})
 
-  async function loadSchema(projectId: number, typeCode: string) {
+  async function loadSchema(projectId: EntityId, typeCode: string) {
     const key = `${projectId}:${typeCode}`
     schemas.value[key] = await pmFieldApi.list(projectId, typeCode)
   }
 
-  function getSchema(projectId: number, typeCode: string) {
+  function getSchema(projectId: EntityId, typeCode: string) {
     return schemas.value[`${projectId}:${typeCode}`] || []
   }
 

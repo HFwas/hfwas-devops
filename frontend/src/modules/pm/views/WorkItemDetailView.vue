@@ -7,6 +7,7 @@ import { useFieldSchemaStore } from '@/modules/pm/stores'
 import type { PmWorkItem } from '@/modules/pm/types'
 import { TYPE_META } from '@/modules/pm/types'
 import { formatDateTime } from '@/modules/pm/utils/comment'
+import { routeId } from '@/modules/pm/utils/id'
 import { useMessage } from 'naive-ui'
 
 interface WorkItemLink {
@@ -21,8 +22,8 @@ const router = useRouter()
 const message = useMessage()
 const fieldStore = useFieldSchemaStore()
 
-const projectId = computed(() => Number(route.params.projectId))
-const itemId = computed(() => Number(route.params.itemId))
+const projectId = computed(() => routeId(route.params.projectId))
+const itemId = computed(() => routeId(route.params.itemId))
 const activeTab = ref(String(route.query.tab ?? 'comments'))
 
 const item = ref<PmWorkItem | null>(null)
@@ -44,8 +45,12 @@ async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    item.value = await pmWorkItemApi.getById(itemId.value)
-    await fieldStore.loadSchema(projectId.value, item.value.typeCode)
+    const data = await pmWorkItemApi.getById(itemId.value)
+    if (!data) {
+      throw new Error('事项不存在或已删除')
+    }
+    item.value = data
+    await fieldStore.loadSchema(projectId.value, data.typeCode)
     links.value = await pmWorkItemApi.listLinks(itemId.value)
     commentCount.value = await pmWorkItemApi.countComments(itemId.value)
   } catch (e) {

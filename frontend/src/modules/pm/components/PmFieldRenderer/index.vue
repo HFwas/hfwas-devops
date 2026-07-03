@@ -4,6 +4,7 @@ import PmMarkdownEditor from '@/modules/pm/components/PmMarkdownEditor/index.vue
 import { useProjectModules } from '@/modules/pm/composables/useProjectModules'
 import type { FieldDefinition } from '@/modules/pm/types'
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/modules/pm/types'
+import { routeId } from '@/modules/pm/utils/id'
 
 const props = defineProps<{
   field: FieldDefinition
@@ -15,7 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [unknown] }>()
 
 const route = useRoute()
-const resolvedProjectId = computed(() => props.projectId ?? (Number(route.params.projectId) || undefined))
+const resolvedProjectId = computed(() => props.projectId ?? (routeId(route.params.projectId) || undefined))
 const { selectOptions: moduleOptions, labelMap, load: loadModules } = useProjectModules(resolvedProjectId)
 
 watch(resolvedProjectId, () => loadModules(), { immediate: true })

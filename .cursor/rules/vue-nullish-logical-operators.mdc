@@ -1,0 +1,36 @@
+---
+description: Vue SFC 中禁止 ?? 与 || 混用且不加括号
+globs: frontend/**/*.{vue,ts,tsx}
+alwaysApply: false
+---
+
+# Nullish coalescing（??）与 logical OR（||）
+
+Vue SFC 编译器（`@vue/compiler-sfc` / Babel）**不允许**在同一表达式中混用 `??` 与 `||`，除非用括号明确优先级。
+
+## 规则
+
+- 同一表达式里同时出现 `??` 和 `||` 时，必须用括号包裹其中一侧。
+- 优先写成可读的分步逻辑，避免多层混用。
+
+## 示例
+
+```typescript
+// ❌ BAD — 编译报错：Nullish coalescing operator(??) requires parens when mixing with logical operators
+const projectId = computed(() => props.projectId ?? routeId(route.params.projectId) || undefined)
+
+// ✅ GOOD — 用括号明确 ?? 的右操作数
+const projectId = computed(() => props.projectId ?? (routeId(route.params.projectId) || undefined))
+
+// ✅ GOOD — 拆成多行更清晰
+const projectId = computed(() => {
+  if (props.projectId != null && props.projectId !== '') return props.projectId
+  const fromRoute = routeId(route.params.projectId)
+  return fromRoute || undefined
+})
+```
+
+## 相关注意
+
+- `?.` 可选链与 `??` 组合通常没问题；问题集中在 `??` 与 `||` / `&&` 混用。
+- 修改 `.vue` 的 `<script setup>` 后若 Vite 报此错，先检查是否缺少括号。
