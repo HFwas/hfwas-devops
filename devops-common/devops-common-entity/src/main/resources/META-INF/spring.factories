@@ -1,3 +1,0 @@
-org.springframework.boot.autoconfigure.EnableAutoConfiguration= \
-   com.hfwas.devops.config.GsonConfiguration \
-    com.hfwas.devops.config.JavaManifestSerializer
