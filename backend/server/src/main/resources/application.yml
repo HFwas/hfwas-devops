@@ -18,3 +18,8 @@ mybatis-plus:
       logic-not-delete-value: 0
   configuration:
     map-underscore-to-camel-case: true
+
+user:
+  jwt:
+    secret: hfwas-devops-user-jwt-secret-key-change-in-production
+    expire-seconds: 86400

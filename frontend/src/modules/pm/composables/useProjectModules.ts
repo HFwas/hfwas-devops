@@ -1,12 +1,15 @@
 import { pmModuleApi } from '@/modules/pm/api'
 import type { PmProjectModule } from '@/modules/pm/types'
+import { asId, type EntityId } from '@/modules/pm/utils/id'
 
-const cache = new Map<number, { flat: PmProjectModule[]; labelMap: Record<number, string> }>()
+import type { EntityId } from '@/modules/pm/utils/id'
 
-export function useProjectModules(projectId: Ref<number | undefined>) {
+const cache = new Map<string, { flat: PmProjectModule[]; labelMap: Record<string, string> }>()
+
+export function useProjectModules(projectId: Ref<EntityId | undefined>) {
   const loading = ref(false)
   const flatModules = ref<PmProjectModule[]>([])
-  const labelMap = ref<Record<number, string>>({})
+  const labelMap = ref<Record<string, string>>({})
 
   async function load(force = false) {
     const id = projectId.value
@@ -15,8 +18,9 @@ export function useProjectModules(projectId: Ref<number | undefined>) {
       labelMap.value = {}
       return
     }
-    if (!force && cache.has(id)) {
-      const cached = cache.get(id)!
+    const cacheKey = asId(id)
+    if (!force && cache.has(cacheKey)) {
+      const cached = cache.get(cacheKey)!
       flatModules.value = cached.flat
       labelMap.value = cached.labelMap
       return
@@ -24,15 +28,15 @@ export function useProjectModules(projectId: Ref<number | undefined>) {
     loading.value = true
     try {
       const list = await pmModuleApi.flat(id)
-      const map: Record<number, string> = {}
+      const map: Record<string, string> = {}
       for (const item of list) {
         if (item.id != null) {
-          map[item.id] = item.pathLabel ?? item.name
+          map[asId(item.id)] = item.pathLabel ?? item.name
         }
       }
       flatModules.value = list
       labelMap.value = map
-      cache.set(id, { flat: list, labelMap: map })
+      cache.set(cacheKey, { flat: list, labelMap: map })
     } finally {
       loading.value = false
     }
@@ -54,6 +58,6 @@ export function useProjectModules(projectId: Ref<number | undefined>) {
   return { loading, flatModules, labelMap, selectOptions, load, invalidate }
 }
 
-export function invalidateProjectModules(projectId: number) {
-  cache.delete(projectId)
+export function invalidateProjectModules(projectId: EntityId) {
+  cache.delete(asId(projectId))
 }

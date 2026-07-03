@@ -29,6 +29,14 @@ export default defineConfig({
         target: 'http://localhost:8089',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const remoteAddress = req.socket?.remoteAddress
+            if (remoteAddress) {
+              proxyReq.setHeader('X-Forwarded-For', remoteAddress)
+            }
+          })
+        },
       },
     },
   },

@@ -5,8 +5,8 @@ import type { FieldDefinition, FieldOption, PmProject, PmProjectModule, PmSavedV
 import { asId } from '@/modules/pm/utils/id'
 
 export const pmModuleApi = {
-  tree: (projectId: number) => get<PmProjectModule[]>(`/pm/project-modules/tree?projectId=${projectId}`),
-  flat: (projectId: number) => get<PmProjectModule[]>(`/pm/project-modules/flat?projectId=${projectId}`),
+  tree: (projectId: EntityId) => get<PmProjectModule[]>(`/pm/project-modules/tree?projectId=${asId(projectId)}`),
+  flat: (projectId: EntityId) => get<PmProjectModule[]>(`/pm/project-modules/flat?projectId=${asId(projectId)}`),
   save: (data: PmProjectModule) => post<number>('/pm/project-modules/save', data),
   delete: (id: number) => post<void>(`/pm/project-modules/delete?id=${id}`, {}),
 }
@@ -34,7 +34,7 @@ export const pmWorkItemApi = {
   countComments: (id: EntityId) => get<number>(`/pm/work-items/${asId(id)}/comments/count`),
   countCommentsBatch: (workItemIds: EntityId[]) =>
     post<Record<string, number>>('/pm/work-items/comments/counts', workItemIds.map(asId)),
-  saveComment: (data: { workItemId: EntityId; content: string; parentId?: string | null; authorName?: string }) =>
+  saveComment: (data: { workItemId: EntityId; content: string; parentId?: string | null }) =>
     post<number>('/pm/work-items/comments/save', data),
   deleteComment: (id: EntityId) => post<void>(`/pm/work-items/comments/delete?id=${asId(id)}`, {}),
 }

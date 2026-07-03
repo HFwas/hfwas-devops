@@ -2,9 +2,10 @@
 import { computed } from 'vue'
 import PmMarkdownEditor from '@/modules/pm/components/PmMarkdownEditor/index.vue'
 import { useProjectModules } from '@/modules/pm/composables/useProjectModules'
+import { useUserOptions } from '@/modules/pm/composables/useUserOptions'
 import type { FieldDefinition } from '@/modules/pm/types'
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/modules/pm/types'
-import { routeId } from '@/modules/pm/utils/id'
+import { asId, routeId } from '@/modules/pm/utils/id'
 
 const props = defineProps<{
   field: FieldDefinition
@@ -18,8 +19,10 @@ const emit = defineEmits<{ 'update:modelValue': [unknown] }>()
 const route = useRoute()
 const resolvedProjectId = computed(() => props.projectId ?? (routeId(route.params.projectId) || undefined))
 const { selectOptions: moduleOptions, labelMap, load: loadModules } = useProjectModules(resolvedProjectId)
+const { selectOptions: userOptions, labelMap: userLabelMap, load: loadUsers } = useUserOptions()
 
 watch(resolvedProjectId, () => loadModules(), { immediate: true })
+watch(() => props.field.fieldType, (t) => { if (t === 'USER') loadUsers() }, { immediate: true })
 
 const readonly = computed(() => props.mode === 'view')
 
@@ -34,6 +37,7 @@ const options = computed(() => {
   if (props.field.fieldKey === 'status' || props.field.fieldType === 'STATUS') return STATUS_OPTIONS
   if (props.field.fieldKey === 'priority' || props.field.fieldType === 'PRIORITY') return PRIORITY_OPTIONS
   if (props.field.fieldType === 'MODULE') return moduleOptions.value
+  if (props.field.fieldType === 'USER') return userOptions.value
   return []
 })
 
@@ -44,8 +48,11 @@ const displayText = computed(() => {
   if (val == null || val === '') return '-'
   if (props.field.fieldType === 'BOOLEAN') return val ? '是' : '否'
   if (props.field.fieldType === 'MODULE') {
-    const id = typeof val === 'number' ? val : Number(val)
-    return labelMap.value[id] ?? String(val)
+    return labelMap.value[asId(val as string | number)] ?? String(val)
+  }
+  if (props.field.fieldType === 'USER') {
+    const id = asId(val as string | number)
+    return userLabelMap.value[id] ?? String(val)
   }
   if (['SELECT', 'STATUS', 'PRIORITY'].includes(props.field.fieldType)) {
     const opt = options.value.find((o) => o.value === val)
@@ -76,12 +83,12 @@ const displayText = computed(() => {
     :placeholder="field.fieldName"
   />
   <n-input-number
-    v-else-if="field.fieldType === 'NUMBER' || field.fieldType === 'USER'"
+    v-else-if="field.fieldType === 'NUMBER'"
     v-model:value="value as number"
     style="width: 100%"
   />
   <n-select
-    v-else-if="['SELECT', 'STATUS', 'PRIORITY', 'MODULE'].includes(field.fieldType) && !isNullOp"
+    v-else-if="['SELECT', 'STATUS', 'PRIORITY', 'MODULE', 'USER'].includes(field.fieldType) && !isNullOp"
     v-model:value="value"
     :options="options"
     clearable

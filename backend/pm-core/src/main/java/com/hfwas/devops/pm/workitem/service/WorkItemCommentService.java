@@ -1,6 +1,7 @@
 package com.hfwas.devops.pm.workitem.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.hfwas.devops.user.context.CurrentUserAccessor;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItemComment;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemCommentMapper;
@@ -20,10 +21,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class WorkItemCommentService {
 
-    private static final Long SYSTEM_USER_ID = 111111L;
-
     private final PmWorkItemCommentMapper commentMapper;
     private final PmWorkItemMapper workItemMapper;
+    private final CurrentUserAccessor currentUserAccessor;
 
     public List<WorkItemCommentVo> listByWorkItem(Long workItemId) {
         ensureWorkItemExists(workItemId);
@@ -62,7 +62,7 @@ public class WorkItemCommentService {
     }
 
     @Transactional
-    public Long save(Long workItemId, String content, Long parentId, String authorName) {
+    public Long save(Long workItemId, String content, Long parentId) {
         ensureWorkItemExists(workItemId);
         if (!StringUtils.hasText(content)) {
             throw new IllegalArgumentException("评论内容不能为空");
@@ -77,7 +77,7 @@ public class WorkItemCommentService {
         comment.setWorkItemId(workItemId);
         comment.setParentId(parentId);
         comment.setContent(content.trim());
-        comment.setAuthorName(StringUtils.hasText(authorName) ? authorName.trim() : "匿名用户");
+        comment.setAuthorName(currentUserAccessor.currentDisplayName());
         commentMapper.insert(comment);
         return comment.getId();
     }
@@ -102,7 +102,14 @@ public class WorkItemCommentService {
     }
 
     private boolean canDelete(PmWorkItemComment comment) {
-        return comment.getCreateBy() != null && comment.getCreateBy().equals(SYSTEM_USER_ID);
+        Long userId = currentUserAccessor.currentUserId();
+        if (userId == null) {
+            return false;
+        }
+        if (currentUserAccessor.isAdmin()) {
+            return true;
+        }
+        return comment.getCreateBy() != null && comment.getCreateBy().equals(userId);
     }
 
     private WorkItemCommentVo toVo(PmWorkItemComment comment) {

@@ -175,3 +175,19 @@ INSERT OR IGNORE INTO pm_status_definition (id, project_id, type_code, status_co
 (6, NULL, 'bug', 'in_progress', '修复中', 2, 0, 0, '["done"]'),
 (7, NULL, 'bug', 'done', '已修复', 3, 0, 0, '["closed"]'),
 (8, NULL, 'bug', 'closed', '已关闭', 4, 0, 1, '[]');
+
+CREATE TABLE IF NOT EXISTS sys_user (
+    id              INTEGER      PRIMARY KEY AUTOINCREMENT,
+    username        TEXT         NOT NULL UNIQUE,
+    password        TEXT         NOT NULL,
+    display_name    TEXT         NOT NULL,
+    email           TEXT,
+    phone           TEXT,
+    role            TEXT         NOT NULL DEFAULT 'user',
+    enabled         INTEGER      DEFAULT 1,
+    create_time     TEXT         DEFAULT (datetime('now')),
+    update_time     TEXT         DEFAULT (datetime('now')),
+    del_flag        INTEGER      DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_sys_user_username ON sys_user(username);

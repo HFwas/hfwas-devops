@@ -1,21 +1,21 @@
 package com.hfwas.devops.handler;
 
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
+import com.hfwas.devops.user.context.CurrentUserAccessor;
+import lombok.RequiredArgsConstructor;
 import org.apache.ibatis.reflection.MetaObject;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-/**
-* @package com.hfwas.devops.handler
-* @author houfei
-* @date  2025/1/24
-*/
 @Component
+@RequiredArgsConstructor
 public class MyMetaObjectHandler implements MetaObjectHandler {
 
     private static final Long SYSTEM = 111111L;
+
+    private final CurrentUserAccessor currentUserAccessor;
 
     @Override
     public void insertFill(MetaObject metaObject) {
@@ -25,7 +25,7 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
         }
         Object createBy = getFieldValByName("createBy", metaObject);
         if (Objects.isNull(createBy)) {
-            this.strictInsertFill(metaObject, "createBy", Long.class, SYSTEM);
+            this.strictInsertFill(metaObject, "createBy", Long.class, resolveUserId());
         }
         Object updateTime = getFieldValByName("updateTime", metaObject);
         if (Objects.isNull(updateTime)) {
@@ -33,7 +33,7 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
         }
         Object updateBy = getFieldValByName("updateBy", metaObject);
         if (Objects.isNull(updateBy)) {
-            this.strictInsertFill(metaObject, "updateBy", Long.class, SYSTEM);
+            this.strictInsertFill(metaObject, "updateBy", Long.class, resolveUserId());
         }
     }
 
@@ -45,8 +45,12 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
         }
         Object updateBy = getFieldValByName("updateBy", metaObject);
         if (Objects.isNull(updateBy)) {
-            this.strictInsertFill(metaObject, "updateBy", Long.class, SYSTEM);
+            this.strictUpdateFill(metaObject, "updateBy", Long.class, resolveUserId());
         }
     }
 
+    private Long resolveUserId() {
+        Long userId = currentUserAccessor.currentUserId();
+        return userId != null ? userId : SYSTEM;
+    }
 }

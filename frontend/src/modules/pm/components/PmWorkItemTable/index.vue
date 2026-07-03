@@ -5,6 +5,7 @@ import type { DataTableColumns } from 'naive-ui'
 import type { FieldDefinition, PmWorkItem, QuerySpec } from '@/modules/pm/types'
 import { TYPE_META, systemFieldProp } from '@/modules/pm/types'
 import { useProjectModules } from '@/modules/pm/composables/useProjectModules'
+import { useUserOptions } from '@/modules/pm/composables/useUserOptions'
 import { formatDateTime } from '@/modules/pm/utils/comment'
 import { asId, routeId } from '@/modules/pm/utils/id'
 
@@ -19,6 +20,7 @@ const props = defineProps<{
 const route = useRoute()
 const projectId = computed(() => props.querySpec.projectId ?? (routeId(route.params.projectId) || undefined))
 const { labelMap: moduleLabelMap } = useProjectModules(projectId)
+const { labelMap: userLabelMap } = useUserOptions()
 
 const emit = defineEmits<{
   rowClick: [PmWorkItem]
@@ -110,8 +112,12 @@ function renderCell(row: PmWorkItem, field: FieldDefinition) {
   if (field.fieldType === 'MODULE') {
     const val = readValue(row, field)
     if (val == null || val === '') return '-'
-    const id = typeof val === 'number' ? val : Number(val)
-    return moduleLabelMap.value[id] ?? String(val)
+    return moduleLabelMap.value[asId(val as string | number)] ?? String(val)
+  }
+  if (field.fieldType === 'USER') {
+    const val = readValue(row, field)
+    if (val == null || val === '') return '-'
+    return userLabelMap.value[asId(val as string | number)] ?? String(val)
   }
   if (field.fieldType === 'MARKDOWN') {
     const text = readValue(row, field)

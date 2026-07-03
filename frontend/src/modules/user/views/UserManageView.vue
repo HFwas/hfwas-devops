@@ -1,0 +1,172 @@
+<script setup lang="ts">
+import { h } from 'vue'
+import { NButton, NPopconfirm, NTag, useMessage } from 'naive-ui'
+import { userManageApi } from '@/modules/user/api'
+import type { UserProfile } from '@/modules/user/types'
+
+const message = useMessage()
+
+const keyword = ref('')
+const loading = ref(false)
+const users = ref<UserProfile[]>([])
+const showEditor = ref(false)
+const editing = ref<UserProfile | null>(null)
+
+const form = ref({
+  username: '',
+  displayName: '',
+  email: '',
+  phone: '',
+  role: 'user',
+  enabled: 1,
+  password: '',
+})
+
+async function load() {
+  loading.value = true
+  try {
+    const page = await userManageApi.page({ pageNo: 1, pageSize: 100, keyword: keyword.value.trim() || undefined })
+    users.value = page.records
+  } finally {
+    loading.value = false
+  }
+}
+
+function openCreate() {
+  editing.value = null
+  form.value = { username: '', displayName: '', email: '', phone: '', role: 'user', enabled: 1, password: '' }
+  showEditor.value = true
+}
+
+function openEdit(row: UserProfile) {
+  editing.value = row
+  form.value = {
+    username: row.username,
+    displayName: row.displayName,
+    email: row.email ?? '',
+    phone: row.phone ?? '',
+    role: row.role,
+    enabled: row.enabled ?? 1,
+    password: '',
+  }
+  showEditor.value = true
+}
+
+async function saveUser() {
+  try {
+    await userManageApi.save({
+      id: editing.value?.id,
+      username: form.value.username.trim(),
+      displayName: form.value.displayName.trim(),
+      email: form.value.email.trim() || undefined,
+      phone: form.value.phone.trim() || undefined,
+      role: form.value.role,
+      enabled: form.value.enabled,
+      password: form.value.password || undefined,
+    })
+    message.success(editing.value ? '已更新' : '已创建')
+    showEditor.value = false
+    await load()
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '保存失败')
+  }
+}
+
+async function removeUser(row: UserProfile) {
+  if (row.id == null) return
+  try {
+    await userManageApi.delete(row.id)
+    message.success('已删除')
+    await load()
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '删除失败')
+  }
+}
+
+const columns = [
+  { title: '用户名', key: 'username' },
+  { title: '显示名称', key: 'displayName' },
+  { title: '邮箱', key: 'email', render: (row: UserProfile) => row.email ?? '-' },
+  {
+    title: '角色',
+    key: 'role',
+    render: (row: UserProfile) =>
+      h(NTag, { size: 'small', type: row.role === 'admin' ? 'warning' : 'default' }, () =>
+        row.role === 'admin' ? '管理员' : '普通用户',
+      ),
+  },
+  {
+    title: '状态',
+    key: 'enabled',
+    render: (row: UserProfile) => (row.enabled === 1 ? '启用' : '禁用'),
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    render: (row: UserProfile) =>
+      h('div', { style: 'display:flex;gap:8px' }, [
+        h(NButton, { text: true, type: 'primary', onClick: () => openEdit(row) }, () => '编辑'),
+        h(
+          NPopconfirm,
+          { onPositiveClick: () => removeUser(row) },
+          {
+            trigger: () => h(NButton, { text: true, type: 'error' }, () => '删除'),
+            default: () => '确定删除该用户吗？',
+          },
+        ),
+      ]),
+  },
+]
+
+onMounted(load)
+</script>
+
+<template>
+  <n-space vertical size="large">
+    <n-page-header title="账号管理" subtitle="管理系统账号、角色与状态" />
+    <n-space>
+      <n-input v-model:value="keyword" placeholder="搜索用户名/姓名/邮箱" clearable style="width: 260px" />
+      <n-button @click="load">查询</n-button>
+      <n-button type="primary" @click="openCreate">新建用户</n-button>
+    </n-space>
+    <n-data-table :columns="columns" :data="users" :loading="loading" :row-key="(r: UserProfile) => String(r.id)" />
+
+    <n-modal v-model:show="showEditor" preset="card" :title="editing ? '编辑用户' : '新建用户'" style="width: 480px">
+      <n-form label-placement="top">
+        <n-form-item label="用户名" required>
+          <n-input v-model:value="form.username" :disabled="!!editing" placeholder="登录名，不可重复" />
+        </n-form-item>
+        <n-form-item label="显示名称" required>
+          <n-input v-model:value="form.displayName" placeholder="界面展示名称" />
+        </n-form-item>
+        <n-form-item :label="editing ? '新密码（留空不改）' : '密码'" :required="!editing">
+          <n-input v-model:value="form.password" type="password" show-password-on="click" />
+        </n-form-item>
+        <n-form-item label="邮箱">
+          <n-input v-model:value="form.email" />
+        </n-form-item>
+        <n-form-item label="手机">
+          <n-input v-model:value="form.phone" />
+        </n-form-item>
+        <n-form-item label="角色">
+          <n-select
+            v-model:value="form.role"
+            :options="[
+              { label: '普通用户', value: 'user' },
+              { label: '管理员', value: 'admin' },
+            ]"
+          />
+        </n-form-item>
+        <n-form-item label="状态">
+          <n-switch v-model:value="form.enabled" :checked-value="1" :unchecked-value="0" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showEditor = false">取消</n-button>
+          <n-button type="primary" @click="saveUser">保存</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+  </n-space>
+</template>

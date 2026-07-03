@@ -37,8 +37,7 @@ public class PmWorkItemCommentController {
         return BaseResult.ok(commentService.save(
                 dto.getWorkItemId(),
                 dto.getContent(),
-                dto.getParentId(),
-                dto.getAuthorName()
+                dto.getParentId()
         ));
     }
 

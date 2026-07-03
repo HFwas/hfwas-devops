@@ -1,12 +1,33 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { pmRoutes } from '@/modules/pm/router/pmRoutes'
+import { userRoutes } from '@/modules/user/router/userRoutes'
+import { useAuthStore } from '@/modules/user/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', redirect: '/pm/projects' },
+    ...userRoutes,
     ...pmRoutes,
   ],
+})
+
+router.beforeEach(async (to) => {
+  if (to.meta.public) return true
+  const auth = useAuthStore()
+  if (!auth.token) {
+    return { path: '/user/login', query: { redirect: to.fullPath } }
+  }
+  if (!auth.user) {
+    const me = await auth.fetchMe()
+    if (!me) {
+      return { path: '/user/login', query: { redirect: to.fullPath } }
+    }
+  }
+  if (to.meta.admin && !auth.isAdmin) {
+    return { path: '/pm/projects' }
+  }
+  return true
 })
 
 export default router

@@ -7,7 +7,6 @@ import {
   avatarInitial,
   formatCommentHtml,
   formatDateTime,
-  getCurrentAuthorName,
 } from '@/modules/pm/utils/comment'
 
 import type { EntityId } from '@/modules/pm/utils/id'
@@ -69,7 +68,6 @@ async function submit() {
       workItemId: props.workItemId,
       content: text,
       parentId: replyTarget.value?.id ?? null,
-      authorName: getCurrentAuthorName(),
     })
     content.value = ''
     replyTarget.value = null
