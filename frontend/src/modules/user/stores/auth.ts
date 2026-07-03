@@ -20,8 +20,8 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function login(username: string, password: string) {
-    const res = await userAuthApi.login(username, password)
+  async function login(username: string, password: string, tenantCode?: string) {
+    const res = await userAuthApi.login(username, password, tenantCode)
     setToken(res.token)
     user.value = res.user
     return res.user

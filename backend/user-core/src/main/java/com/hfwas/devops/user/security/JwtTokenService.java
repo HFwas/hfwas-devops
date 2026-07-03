@@ -37,6 +37,7 @@ public class JwtTokenService {
                 .subject(String.valueOf(user.getId()))
                 .claim("username", user.getUsername())
                 .claim("role", user.getRole())
+                .claim("tenantId", user.getTenantId())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expireAt))
                 .signWith(key)

@@ -4,6 +4,7 @@ import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.pm.api.dto.WorkItemCommentSaveDto;
 import com.hfwas.devops.pm.workitem.model.WorkItemCommentVo;
 import com.hfwas.devops.pm.workitem.service.WorkItemCommentService;
+import com.hfwas.devops.user.operlog.annotation.OperLog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,6 +33,7 @@ public class PmWorkItemCommentController {
         return BaseResult.ok(commentService.countByWorkItems(workItemIds));
     }
 
+    @OperLog(module = "pm", action = "save", bizType = "comment", summary = "保存工作项评论", bizId = "#result.data")
     @PostMapping("/comments/save")
     public BaseResult<Long> save(@RequestBody WorkItemCommentSaveDto dto) {
         return BaseResult.ok(commentService.save(
@@ -41,6 +43,7 @@ public class PmWorkItemCommentController {
         ));
     }
 
+    @OperLog(module = "pm", action = "delete", bizType = "comment", summary = "删除工作项评论", bizId = "#id")
     @PostMapping("/comments/delete")
     public BaseResult<Void> delete(@RequestParam("id") Long id) {
         commentService.delete(id);

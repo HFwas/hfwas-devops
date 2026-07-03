@@ -6,19 +6,27 @@ const router = useRouter()
 
 const menuOptions = [
   { label: '账号管理', key: '/user/accounts' },
+  { label: '租户管理', key: '/user/tenants' },
   { label: '在线会话', key: '/user/sessions' },
   { label: '登录日志', key: '/user/login-logs' },
+  { label: '操作日志', key: '/user/oper-logs' },
 ]
 
 const activeMenuKey = computed(() => {
   if (route.path.startsWith('/user/accounts') || route.path === '/user/manage') {
     return '/user/accounts'
   }
+  if (route.path.startsWith('/user/tenants')) {
+    return '/user/tenants'
+  }
   if (route.path.startsWith('/user/sessions')) {
     return '/user/sessions'
   }
   if (route.path.startsWith('/user/login-logs')) {
     return '/user/login-logs'
+  }
+  if (route.path.startsWith('/user/oper-logs')) {
+    return '/user/oper-logs'
   }
   return route.path
 })

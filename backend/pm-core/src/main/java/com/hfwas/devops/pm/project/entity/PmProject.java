@@ -12,6 +12,7 @@ import java.util.Map;
 public class PmProject {
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
+    private Long tenantId;
     private String code;
     private String name;
     private String description;

@@ -15,4 +15,5 @@ public class UserSaveRequest {
     private String phone;
     private String role;
     private Integer enabled;
+    private Long tenantId;
 }

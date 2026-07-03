@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class SysUser {
     @TableId(type = IdType.AUTO)
     private Long id;
+    private Long tenantId;
     private String username;
     private String password;
     private String displayName;

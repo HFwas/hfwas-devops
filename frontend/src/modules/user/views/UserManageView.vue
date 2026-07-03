@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import { h } from 'vue'
 import { NButton, NPopconfirm, NTag, useMessage } from 'naive-ui'
-import { userManageApi } from '@/modules/user/api'
-import type { UserProfile } from '@/modules/user/types'
+import { tenantManageApi, userManageApi } from '@/modules/user/api'
+import type { Tenant, UserProfile } from '@/modules/user/types'
 
 const message = useMessage()
 
 const keyword = ref('')
+const tenantFilter = ref<number | string | null>(null)
+const tenantOptions = ref<Tenant[]>([])
 const loading = ref(false)
 const users = ref<UserProfile[]>([])
 const showEditor = ref(false)
 const editing = ref<UserProfile | null>(null)
 
 const form = ref({
+  tenantId: null as number | string | null,
   username: '',
   displayName: '',
   email: '',
@@ -22,10 +25,19 @@ const form = ref({
   password: '',
 })
 
+async function loadTenants() {
+  tenantOptions.value = await tenantManageApi.options()
+}
+
 async function load() {
   loading.value = true
   try {
-    const page = await userManageApi.page({ pageNo: 1, pageSize: 100, keyword: keyword.value.trim() || undefined })
+    const page = await userManageApi.page({
+      pageNo: 1,
+      pageSize: 100,
+      keyword: keyword.value.trim() || undefined,
+      tenantId: tenantFilter.value ?? undefined,
+    })
     users.value = page.records
   } finally {
     loading.value = false
@@ -34,13 +46,24 @@ async function load() {
 
 function openCreate() {
   editing.value = null
-  form.value = { username: '', displayName: '', email: '', phone: '', role: 'user', enabled: 1, password: '' }
+  const defaultTenant = tenantOptions.value[0]
+  form.value = {
+    tenantId: defaultTenant?.id ?? null,
+    username: '',
+    displayName: '',
+    email: '',
+    phone: '',
+    role: 'user',
+    enabled: 1,
+    password: '',
+  }
   showEditor.value = true
 }
 
 function openEdit(row: UserProfile) {
   editing.value = row
   form.value = {
+    tenantId: row.tenantId ?? null,
     username: row.username,
     displayName: row.displayName,
     email: row.email ?? '',
@@ -56,6 +79,7 @@ async function saveUser() {
   try {
     await userManageApi.save({
       id: editing.value?.id,
+      tenantId: form.value.tenantId ?? undefined,
       username: form.value.username.trim(),
       displayName: form.value.displayName.trim(),
       email: form.value.email.trim() || undefined,
@@ -86,6 +110,7 @@ async function removeUser(row: UserProfile) {
 const columns = [
   { title: '用户名', key: 'username' },
   { title: '显示名称', key: 'displayName' },
+  { title: '租户', key: 'tenantName', render: (row: UserProfile) => row.tenantName ?? row.tenantCode ?? '-' },
   { title: '邮箱', key: 'email', render: (row: UserProfile) => row.email ?? '-' },
   {
     title: '角色',
@@ -118,13 +143,23 @@ const columns = [
   },
 ]
 
-onMounted(load)
+onMounted(async () => {
+  await loadTenants()
+  await load()
+})
 </script>
 
 <template>
   <n-space vertical size="large">
     <n-page-header title="账号管理" subtitle="管理系统账号、角色与状态" />
     <n-space>
+      <n-select
+        v-model:value="tenantFilter"
+        clearable
+        placeholder="全部租户"
+        :options="tenantOptions.map((t) => ({ label: t.name, value: t.id! }))"
+        style="width: 180px"
+      />
       <n-input v-model:value="keyword" placeholder="搜索用户名/姓名/邮箱" clearable style="width: 260px" />
       <n-button @click="load">查询</n-button>
       <n-button type="primary" @click="openCreate">新建用户</n-button>
@@ -133,8 +168,15 @@ onMounted(load)
 
     <n-modal v-model:show="showEditor" preset="card" :title="editing ? '编辑用户' : '新建用户'" style="width: 480px">
       <n-form label-placement="top">
+        <n-form-item label="所属租户" required>
+          <n-select
+            v-model:value="form.tenantId"
+            :options="tenantOptions.map((t) => ({ label: `${t.name} (${t.code})`, value: t.id! }))"
+            placeholder="选择租户"
+          />
+        </n-form-item>
         <n-form-item label="用户名" required>
-          <n-input v-model:value="form.username" :disabled="!!editing" placeholder="登录名，不可重复" />
+          <n-input v-model:value="form.username" :disabled="!!editing" placeholder="登录名，租户内不可重复" />
         </n-form-item>
         <n-form-item label="显示名称" required>
           <n-input v-model:value="form.displayName" placeholder="界面展示名称" />

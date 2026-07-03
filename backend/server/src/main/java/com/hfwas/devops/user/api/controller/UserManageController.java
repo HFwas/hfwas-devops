@@ -6,6 +6,7 @@ import com.hfwas.devops.user.model.UserPageRequest;
 import com.hfwas.devops.user.model.UserProfile;
 import com.hfwas.devops.user.model.UserSaveRequest;
 import com.hfwas.devops.user.service.AuthService;
+import com.hfwas.devops.user.operlog.annotation.OperLog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,11 +29,13 @@ public class UserManageController {
         return BaseResult.ok(authService.page(request));
     }
 
+    @OperLog(module = "user", action = "save", bizType = "user", summary = "保存用户账号", bizId = "#result.data")
     @PostMapping("/save")
     public BaseResult<Long> save(@RequestBody UserSaveRequest request) {
         return BaseResult.ok(authService.save(request));
     }
 
+    @OperLog(module = "user", action = "delete", bizType = "user", summary = "删除用户账号", bizId = "#id")
     @PostMapping("/delete")
     public BaseResult<Void> delete(@RequestParam("id") Long id) {
         authService.delete(id);

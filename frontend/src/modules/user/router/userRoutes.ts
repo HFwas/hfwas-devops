@@ -22,6 +22,11 @@ export const userRoutes: RouteRecordRaw[] = [
         component: () => import('@/modules/user/views/UserManageView.vue'),
       },
       {
+        path: 'tenants',
+        name: 'user-tenants',
+        component: () => import('@/modules/user/views/TenantManageView.vue'),
+      },
+      {
         path: 'sessions',
         name: 'user-sessions',
         component: () => import('@/modules/user/views/UserSessionView.vue'),
@@ -30,6 +35,11 @@ export const userRoutes: RouteRecordRaw[] = [
         path: 'login-logs',
         name: 'user-login-logs',
         component: () => import('@/modules/user/views/LoginLogView.vue'),
+      },
+      {
+        path: 'oper-logs',
+        name: 'user-oper-logs',
+        component: () => import('@/modules/user/views/OperLogView.vue'),
       },
     ],
   },

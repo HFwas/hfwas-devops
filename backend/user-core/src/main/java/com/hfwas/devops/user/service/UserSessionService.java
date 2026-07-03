@@ -13,6 +13,7 @@ import com.hfwas.devops.user.model.UserSessionPageRequest;
 import com.hfwas.devops.user.model.UserSessionStats;
 import com.hfwas.devops.user.model.UserSessionVO;
 import com.hfwas.devops.user.util.ClientIpResolver;
+import com.hfwas.devops.user.util.UserAgentUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +42,7 @@ public class UserSessionService {
     public void createSession(SysUser user, String jti, Instant expireAt, HttpServletRequest request) {
         LocalDateTime now = LocalDateTime.now();
         insertSession(user.getId(), jti, now, now, LocalDateTime.ofInstant(expireAt, ZoneId.systemDefault()),
-                ClientIpResolver.resolve(request), trimUserAgent(request.getHeader("User-Agent")));
+                ClientIpResolver.resolve(request), UserAgentUtils.trim(request.getHeader("User-Agent")));
     }
 
     /**
@@ -68,7 +69,7 @@ public class UserSessionService {
         LocalDateTime loginTime = toLocalDateTime(claims.getIssuedAt(), now);
         LocalDateTime expireTime = toLocalDateTime(claims.getExpiration(), now.plusSeconds(86400));
         insertSession(userId, sessionKey, loginTime, now, expireTime,
-                ClientIpResolver.resolve(request), trimUserAgent(request.getHeader("User-Agent")));
+                ClientIpResolver.resolve(request), UserAgentUtils.trim(request.getHeader("User-Agent")));
     }
 
     public boolean isSessionActive(String sessionKey) {
@@ -250,7 +251,7 @@ public class UserSessionService {
         }
         vo.setLoginIp(ClientIpResolver.normalize(StringUtils.defaultIfBlank(session.getLoginIp(), "-")));
         vo.setUserAgent(session.getUserAgent());
-        vo.setClientInfo(simplifyUserAgent(session.getUserAgent()));
+        vo.setClientInfo(UserAgentUtils.simplify(session.getUserAgent()));
         vo.setLoginTime(session.getLoginTime());
         vo.setLastActiveTime(session.getLastActiveTime());
         vo.setExpireTime(session.getExpireTime());
@@ -272,42 +273,5 @@ public class UserSessionService {
         if (!"admin".equalsIgnoreCase(ctx.getRole())) {
             throw new IllegalArgumentException("需要管理员权限");
         }
-    }
-
-    static String trimUserAgent(String userAgent) {
-        if (userAgent == null) {
-            return null;
-        }
-        return userAgent.length() > 512 ? userAgent.substring(0, 512) : userAgent;
-    }
-
-    static String simplifyUserAgent(String userAgent) {
-        if (StringUtils.isBlank(userAgent)) {
-            return "-";
-        }
-        String ua = userAgent;
-        String browser = "Unknown";
-        if (ua.contains("Edg/")) {
-            browser = "Edge";
-        } else if (ua.contains("Chrome/")) {
-            browser = "Chrome";
-        } else if (ua.contains("Firefox/")) {
-            browser = "Firefox";
-        } else if (ua.contains("Safari/") && !ua.contains("Chrome/")) {
-            browser = "Safari";
-        }
-        String os = "Unknown OS";
-        if (ua.contains("Windows")) {
-            os = "Windows";
-        } else if (ua.contains("Mac OS X")) {
-            os = "macOS";
-        } else if (ua.contains("Linux")) {
-            os = "Linux";
-        } else if (ua.contains("Android")) {
-            os = "Android";
-        } else if (ua.contains("iPhone") || ua.contains("iPad")) {
-            os = "iOS";
-        }
-        return browser + " / " + os;
     }
 }

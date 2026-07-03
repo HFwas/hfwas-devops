@@ -3,19 +3,25 @@ package com.hfwas.devops.user.config;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hfwas.devops.user.context.AnonymousUserAccessor;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
-import com.hfwas.devops.user.security.JwtAuthFilter;
+import com.hfwas.devops.user.operlog.spi.NoOpOperLogRecorder;
+import com.hfwas.devops.user.operlog.spi.OperLogRecorder;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
+@EnableAspectJAutoProxy
 @ComponentScan(basePackages = "com.hfwas.devops.user")
-@MapperScan(value = "com.hfwas.devops.user.mapper", markerInterface = BaseMapper.class)
+@MapperScan(value = {
+        "com.hfwas.devops.user.mapper",
+        "com.hfwas.devops.user.operlog.mapper"
+}, markerInterface = BaseMapper.class)
 @EnableConfigurationProperties(UserJwtProperties.class)
 public class UserCoreAutoConfiguration {
 
@@ -29,5 +35,11 @@ public class UserCoreAutoConfiguration {
     @ConditionalOnMissingBean(CurrentUserAccessor.class)
     public CurrentUserAccessor anonymousCurrentUserAccessor() {
         return AnonymousUserAccessor.INSTANCE;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(OperLogRecorder.class)
+    public OperLogRecorder noOpOperLogRecorder() {
+        return NoOpOperLogRecorder.INSTANCE;
     }
 }

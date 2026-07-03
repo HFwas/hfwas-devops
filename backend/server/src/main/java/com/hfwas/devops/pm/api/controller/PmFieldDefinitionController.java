@@ -7,6 +7,7 @@ import com.hfwas.devops.pm.api.dto.FieldDefinitionSaveDto;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.field.model.FieldOption;
 import com.hfwas.devops.pm.field.service.FieldDefinitionService;
+import com.hfwas.devops.user.operlog.annotation.OperLog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,11 +35,13 @@ public class PmFieldDefinitionController {
         return BaseResult.ok(fieldDefinitionService.getById(id));
     }
 
+    @OperLog(module = "pm", action = "save", bizType = "field_definition", summary = "保存字段定义", bizId = "#result.data")
     @PostMapping("/save")
     public BaseResult<Long> save(@RequestBody FieldDefinitionSaveDto dto) {
         return BaseResult.ok(fieldDefinitionService.save(dto.getDefinition(), dto.getOptions()));
     }
 
+    @OperLog(module = "pm", action = "delete", bizType = "field_definition", summary = "删除字段定义", bizId = "#id")
     @PostMapping("/delete")
     public BaseResult<Void> delete(@RequestParam("id") Long id) {
         fieldDefinitionService.deleteField(id);

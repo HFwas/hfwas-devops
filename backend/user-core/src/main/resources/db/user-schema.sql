@@ -1,9 +1,26 @@
 -- User module schema (SQLite)
 -- Also applied at runtime by UserSchemaMigration for existing databases.
 
+CREATE TABLE IF NOT EXISTS sys_tenant (
+    id              INTEGER      PRIMARY KEY AUTOINCREMENT,
+    code            TEXT         NOT NULL UNIQUE,
+    name            TEXT         NOT NULL,
+    contact_name    TEXT,
+    contact_phone   TEXT,
+    status          INTEGER      DEFAULT 1,
+    remark          TEXT,
+    create_time     TEXT         DEFAULT (datetime('now')),
+    update_time     TEXT         DEFAULT (datetime('now')),
+    del_flag        INTEGER      DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_sys_tenant_code ON sys_tenant(code);
+CREATE INDEX IF NOT EXISTS idx_sys_tenant_status ON sys_tenant(status);
+
 CREATE TABLE IF NOT EXISTS sys_user (
     id              INTEGER      PRIMARY KEY AUTOINCREMENT,
-    username        TEXT         NOT NULL UNIQUE,
+    tenant_id       INTEGER      NOT NULL DEFAULT 1,
+    username        TEXT         NOT NULL,
     password        TEXT         NOT NULL,
     display_name    TEXT         NOT NULL,
     email           TEXT,
@@ -15,7 +32,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
     del_flag        INTEGER      DEFAULT 0
 );
 
-CREATE INDEX IF NOT EXISTS idx_sys_user_username ON sys_user(username);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_user_tenant_username ON sys_user(tenant_id, username);
 
 CREATE TABLE IF NOT EXISTS sys_user_session (
     id               INTEGER      PRIMARY KEY AUTOINCREMENT,
@@ -49,3 +66,27 @@ CREATE TABLE IF NOT EXISTS sys_login_log (
 CREATE INDEX IF NOT EXISTS idx_sys_login_log_time ON sys_login_log(create_time);
 CREATE INDEX IF NOT EXISTS idx_sys_login_log_user ON sys_login_log(username);
 CREATE INDEX IF NOT EXISTS idx_sys_login_log_action ON sys_login_log(action);
+
+CREATE TABLE IF NOT EXISTS sys_oper_log (
+    id            INTEGER      PRIMARY KEY AUTOINCREMENT,
+    user_id       INTEGER,
+    username      TEXT,
+    display_name  TEXT,
+    module        TEXT         NOT NULL,
+    action        TEXT         NOT NULL,
+    biz_type      TEXT,
+    biz_id        TEXT,
+    summary       TEXT         NOT NULL,
+    status        TEXT         DEFAULT 'success',
+    fail_reason   TEXT,
+    request_ip    TEXT,
+    user_agent    TEXT,
+    client_info   TEXT,
+    extra_json    TEXT,
+    create_time   TEXT         DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_sys_oper_log_time ON sys_oper_log(create_time);
+CREATE INDEX IF NOT EXISTS idx_sys_oper_log_module ON sys_oper_log(module);
+CREATE INDEX IF NOT EXISTS idx_sys_oper_log_user ON sys_oper_log(username);
+CREATE INDEX IF NOT EXISTS idx_sys_oper_log_action ON sys_oper_log(action);

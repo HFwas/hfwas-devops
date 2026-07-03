@@ -38,6 +38,8 @@ public class SecurityConfig {
                         .requestMatchers("/user/users/page", "/user/users/save", "/user/users/delete").hasRole("admin")
                         .requestMatchers("/user/sessions/**").hasRole("admin")
                         .requestMatchers("/user/login-logs/**").hasRole("admin")
+                        .requestMatchers("/user/oper-logs/**").hasRole("admin")
+                        .requestMatchers("/user/tenants/**").hasRole("admin")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, e) -> writeError(response, 401, "未登录或登录已过期"))

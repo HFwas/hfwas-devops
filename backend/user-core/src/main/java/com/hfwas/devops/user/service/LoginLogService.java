@@ -11,6 +11,7 @@ import com.hfwas.devops.user.mapper.SysLoginLogMapper;
 import com.hfwas.devops.user.model.LoginLogPageRequest;
 import com.hfwas.devops.user.model.LoginLogVO;
 import com.hfwas.devops.user.util.ClientIpResolver;
+import com.hfwas.devops.user.util.UserAgentUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -74,9 +75,9 @@ public class LoginLogService {
     private SysLoginLog baseLog(HttpServletRequest request) {
         SysLoginLog log = new SysLoginLog();
         log.setLoginIp(ClientIpResolver.resolve(request));
-        String userAgent = trimUserAgent(request.getHeader("User-Agent"));
+        String userAgent = UserAgentUtils.trim(request.getHeader("User-Agent"));
         log.setUserAgent(userAgent);
-        log.setClientInfo(UserSessionService.simplifyUserAgent(userAgent));
+        log.setClientInfo(UserAgentUtils.simplify(userAgent));
         log.setCreateTime(LocalDateTime.now());
         return log;
     }
@@ -101,12 +102,5 @@ public class LoginLogService {
         if (!"admin".equalsIgnoreCase(ctx.getRole())) {
             throw new IllegalArgumentException("需要管理员权限");
         }
-    }
-
-    private static String trimUserAgent(String userAgent) {
-        if (userAgent == null) {
-            return null;
-        }
-        return userAgent.length() > 512 ? userAgent.substring(0, 512) : userAgent;
     }
 }

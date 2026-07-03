@@ -12,7 +12,7 @@
     <artifactId>user-api</artifactId>
     <packaging>jar</packaging>
     <name>user-api</name>
-    <description>User module SPI – context contract for cross-module integration (PM, tenant, etc.)</description>
+    <description>User module SPI – user context &amp; operation audit log contracts for cross-module integration</description>
 
     <dependencies>
         <dependency>

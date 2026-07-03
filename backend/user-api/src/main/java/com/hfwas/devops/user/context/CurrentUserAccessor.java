@@ -28,4 +28,8 @@ public interface CurrentUserAccessor {
     default boolean isAuthenticated() {
         return current().isPresent();
     }
+
+    default Long currentTenantId() {
+        return current().map(UserContext::getTenantId).orElse(null);
+    }
 }

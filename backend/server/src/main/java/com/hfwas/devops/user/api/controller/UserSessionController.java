@@ -7,6 +7,7 @@ import com.hfwas.devops.user.model.UserSessionStats;
 import com.hfwas.devops.user.model.UserSessionVO;
 import com.hfwas.devops.user.security.JwtTokenService;
 import com.hfwas.devops.user.service.UserSessionService;
+import com.hfwas.devops.user.operlog.annotation.OperLog;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -34,6 +35,7 @@ public class UserSessionController {
         return BaseResult.ok(userSessionService.page(request, currentSessionKey(httpRequest).orElse(null)));
     }
 
+    @OperLog(module = "user", action = "revoke", bizType = "session", summary = "强制下线用户会话", bizId = "#id")
     @PostMapping("/revoke")
     public BaseResult<Void> revoke(@RequestParam("id") Long id) {
         userSessionService.revokeById(id);

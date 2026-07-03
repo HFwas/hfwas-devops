@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hfwas.devops.pm.common.PmPageRequest;
 import com.hfwas.devops.pm.project.entity.PmProject;
 import com.hfwas.devops.pm.project.mapper.PmProjectMapper;
+import com.hfwas.devops.user.context.CurrentUserAccessor;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -15,29 +16,62 @@ import org.springframework.stereotype.Service;
 public class ProjectService {
 
     private final PmProjectMapper projectMapper;
+    private final CurrentUserAccessor currentUserAccessor;
 
     public IPage<PmProject> page(PmPageRequest request, String keyword) {
+        Long tenantId = requireTenantId();
         Page<PmProject> page = new Page<>(request.getPageNo(), request.getPageSize());
         return projectMapper.selectPage(page, Wrappers.<PmProject>lambdaQuery()
-                .like(StringUtils.isNotBlank(keyword), PmProject::getName, keyword)
-                .or(StringUtils.isNotBlank(keyword), w -> w.like(PmProject::getCode, keyword))
+                .eq(PmProject::getTenantId, tenantId)
+                .and(StringUtils.isNotBlank(keyword), w -> w
+                        .like(PmProject::getName, keyword)
+                        .or()
+                        .like(PmProject::getCode, keyword))
                 .orderByDesc(PmProject::getCreateTime));
     }
 
     public Long save(PmProject project) {
+        Long tenantId = requireTenantId();
         if (project.getId() == null) {
+            project.setTenantId(tenantId);
             projectMapper.insert(project);
         } else {
+            assertProjectTenant(project.getId(), tenantId);
+            project.setTenantId(tenantId);
             projectMapper.updateById(project);
         }
         return project.getId();
     }
 
     public PmProject getById(Long id) {
-        return projectMapper.selectById(id);
+        PmProject project = projectMapper.selectById(id);
+        if (project == null) {
+            return null;
+        }
+        Long tenantId = requireTenantId();
+        if (project.getTenantId() != null && !tenantId.equals(project.getTenantId())) {
+            throw new IllegalArgumentException("项目不存在或无权访问");
+        }
+        return project;
     }
 
     public void delete(Long id) {
+        assertProjectTenant(id, requireTenantId());
         projectMapper.deleteById(id);
+    }
+
+    private void assertProjectTenant(Long projectId, Long tenantId) {
+        PmProject project = projectMapper.selectById(projectId);
+        if (project == null || project.getTenantId() == null || !tenantId.equals(project.getTenantId())) {
+            throw new IllegalArgumentException("项目不存在或无权访问");
+        }
+    }
+
+    private Long requireTenantId() {
+        Long tenantId = currentUserAccessor.currentTenantId();
+        if (tenantId == null) {
+            throw new IllegalArgumentException("未登录或租户上下文缺失");
+        }
+        return tenantId;
     }
 }

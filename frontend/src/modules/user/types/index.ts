@@ -6,6 +6,23 @@ export interface UserProfile {
   phone?: string
   role: 'admin' | 'user' | string
   enabled?: number
+  tenantId?: number | string
+  tenantCode?: string
+  tenantName?: string
+}
+
+export interface Tenant {
+  id?: number | string
+  code: string
+  name: string
+  contactName?: string
+  contactPhone?: string
+  status?: number
+  remark?: string
+  userCount?: number
+  projectCount?: number
+  createTime?: string
+  updateTime?: string
 }
 
 export interface LoginResponse {
@@ -45,6 +62,25 @@ export interface LoginLog {
   clientInfo: string
   userAgent?: string
   failReason?: string
+  createTime: string
+}
+
+export interface OperLog {
+  id: number | string
+  userId?: number | string
+  username?: string
+  displayName?: string
+  module: string
+  action: string
+  bizType?: string
+  bizId?: string
+  summary: string
+  status: string
+  failReason?: string
+  requestIp: string
+  clientInfo: string
+  userAgent?: string
+  extraJson?: string
   createTime: string
 }
 

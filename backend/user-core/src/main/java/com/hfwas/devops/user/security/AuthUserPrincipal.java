@@ -33,7 +33,7 @@ public class AuthUserPrincipal implements UserDetails {
                 .username(user.getUsername())
                 .displayName(user.getDisplayName())
                 .role(user.getRole())
-                .tenantId(null)
+                .tenantId(user.getTenantId())
                 .build();
     }
 

@@ -18,6 +18,7 @@ public final class AnonymousUserAccessor implements CurrentUserAccessor {
                 .username("system")
                 .displayName("系统用户")
                 .role("user")
+                .tenantId(1L)
                 .build());
     }
 }

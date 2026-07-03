@@ -6,6 +6,7 @@ import com.hfwas.devops.pm.api.dto.FieldLayoutSaveDto;
 import com.hfwas.devops.pm.field.model.TypeFieldLayoutConfig;
 import com.hfwas.devops.pm.field.service.FieldDefinitionService;
 import com.hfwas.devops.pm.field.service.FieldLayoutService;
+import com.hfwas.devops.user.operlog.annotation.OperLog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +25,7 @@ public class PmFieldLayoutController {
         return BaseResult.ok(layout);
     }
 
+    @OperLog(module = "pm", action = "save", bizType = "field_layout", summary = "保存字段布局", bizId = "#dto.projectId")
     @PostMapping("/save")
     public BaseResult<Void> save(@RequestBody FieldLayoutSaveDto dto) {
         fieldLayoutService.saveLayout(dto.getProjectId(), dto.getTypeCode(), dto.getLayout());

@@ -14,4 +14,7 @@ public class UserProfile {
     private String phone;
     private String role;
     private Integer enabled;
+    private Long tenantId;
+    private String tenantCode;
+    private String tenantName;
 }

@@ -29,6 +29,7 @@ function logout() {
                 <router-link to="/pm/projects">项目管理</router-link>
                 <router-link v-if="auth.isAdmin" to="/user/accounts">用户中心</router-link>
                 <template v-if="auth.isLoggedIn">
+                  <n-text v-if="auth.user?.tenantName" depth="3">{{ auth.user.tenantName }}</n-text>
                   <n-text depth="3">{{ auth.user?.displayName ?? auth.user?.username }}</n-text>
                   <n-button text @click="logout">退出</n-button>
                 </template>

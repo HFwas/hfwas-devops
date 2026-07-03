@@ -3,6 +3,7 @@ package com.hfwas.devops.pm.api.controller;
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.pm.module.entity.PmProjectModule;
 import com.hfwas.devops.pm.module.service.ProjectModuleService;
+import com.hfwas.devops.user.operlog.annotation.OperLog;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,11 +26,13 @@ public class PmProjectModuleController {
         return BaseResult.ok(moduleService.listFlat(projectId));
     }
 
+    @OperLog(module = "pm", action = "save", bizType = "module", summary = "保存功能模块", bizId = "#result.data")
     @PostMapping("/save")
     public BaseResult<Long> save(@RequestBody PmProjectModule module) {
         return BaseResult.ok(moduleService.save(module));
     }
 
+    @OperLog(module = "pm", action = "delete", bizType = "module", summary = "删除功能模块", bizId = "#id")
     @PostMapping("/delete")
     public BaseResult<Void> delete(@RequestParam("id") Long id) {
         moduleService.delete(id);
