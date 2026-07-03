@@ -113,6 +113,16 @@ CREATE TABLE IF NOT EXISTS pm_saved_view (
     update_time TEXT         DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS pm_type_field_layout (
+    id            INTEGER      NOT NULL PRIMARY KEY,
+    project_id    INTEGER      NOT NULL,
+    type_code     TEXT         NOT NULL,
+    layout_config TEXT         NOT NULL,
+    create_time   TEXT         DEFAULT (datetime('now')),
+    update_time   TEXT         DEFAULT (datetime('now')),
+    UNIQUE(project_id, type_code)
+);
+
 INSERT OR IGNORE INTO pm_work_item_type (id, code, name, sort_order) VALUES
 (1, 'requirement', '需求', 1),
 (2, 'task', '任务', 2),

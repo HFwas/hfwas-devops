@@ -27,7 +27,7 @@ public class PmSavedViewController {
     }
 
     @PostMapping("/delete")
-    public BaseResult<Void> delete(@RequestParam Long id) {
+    public BaseResult<Void> delete(@RequestParam("id") Long id) {
         savedViewService.delete(id);
         return BaseResult.ok();
     }

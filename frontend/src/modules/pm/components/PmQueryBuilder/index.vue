@@ -10,6 +10,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{ 'update:modelValue': [QuerySpec] }>()
 
+const searchableFields = computed(() => props.fieldDefs.filter((f) => f.searchable))
+
 const rootGroup = computed({
   get: () => ({
     logic: props.modelValue.logic || 'AND',
@@ -34,7 +36,7 @@ function onGroupUpdate(g: QueryConditionGroup) {
 
 <template>
   <n-card title="查询条件" size="small">
-    <PmConditionGroup :field-defs="fieldDefs" :group="rootGroup" @update:group="onGroupUpdate" />
+    <PmConditionGroup :field-defs="searchableFields" :group="rootGroup" @update:group="onGroupUpdate" />
     <template #footer>
       <n-space justify="end">
         <n-button @click="reset">重置</n-button>

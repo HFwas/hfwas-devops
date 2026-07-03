@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import PmFieldRenderer from '@/modules/pm/components/PmFieldRenderer/index.vue'
 import type { FieldDefinition, PmWorkItem } from '@/modules/pm/types'
+import { systemFieldProp } from '@/modules/pm/types'
 
-const props = defineProps<{
+const FULL_WIDTH_TYPES = new Set(['TEXTAREA', 'MARKDOWN'])
+
+const props = withDefaults(defineProps<{
   fieldDefs: FieldDefinition[]
   modelValue: Partial<PmWorkItem>
-}>()
+  mode?: 'create' | 'edit' | 'all'
+}>(), {
+  mode: 'all',
+})
 
 const emit = defineEmits<{ 'update:modelValue': [Partial<PmWorkItem>]; submit: [] }>()
 
@@ -14,15 +20,24 @@ const form = computed({
   set: (v) => emit('update:modelValue', v),
 })
 
-const systemFields = computed(() => props.fieldDefs.filter((f) => f.systemFlag === 1))
-const customFields = computed(() => props.fieldDefs.filter((f) => f.systemFlag !== 1))
+const visibleFields = computed(() => {
+  if (props.mode === 'create') {
+    return props.fieldDefs.filter((f) => f.showInCreate)
+  }
+  return props.fieldDefs.filter((f) => f.fieldKey !== 'type_code')
+})
+
+const systemFields = computed(() => visibleFields.value.filter((f) => f.systemFlag === 1))
+const customFields = computed(() => visibleFields.value.filter((f) => f.systemFlag !== 1))
 
 function systemValue(key: string) {
-  return (form.value as Record<string, unknown>)[key]
+  const prop = systemFieldProp(key)
+  return (form.value as Record<string, unknown>)[prop]
 }
 
 function setSystem(key: string, val: unknown) {
-  emit('update:modelValue', { ...form.value, [key]: val })
+  const prop = systemFieldProp(key)
+  emit('update:modelValue', { ...form.value, [prop]: val })
 }
 
 function customValue(key: string) {
@@ -35,12 +50,16 @@ function setCustom(key: string, val: unknown) {
     customFields: { ...(form.value.customFields || {}), [key]: val },
   })
 }
+
+function isFullWidth(field: FieldDefinition) {
+  return FULL_WIDTH_TYPES.has(field.fieldType)
+}
 </script>
 
 <template>
   <n-form label-placement="top">
     <n-grid :cols="2" :x-gap="16">
-      <n-gi v-for="field in systemFields" :key="field.fieldKey">
+      <n-gi v-for="field in systemFields" :key="field.fieldKey" :span="isFullWidth(field) ? 2 : 1">
         <n-form-item :label="field.fieldName" :required="field.requiredFlag === 1">
           <PmFieldRenderer
             :field="field"
@@ -49,7 +68,7 @@ function setCustom(key: string, val: unknown) {
           />
         </n-form-item>
       </n-gi>
-      <n-gi v-for="field in customFields" :key="'c-' + field.fieldKey">
+      <n-gi v-for="field in customFields" :key="'c-' + field.fieldKey" :span="isFullWidth(field) ? 2 : 1">
         <n-form-item :label="field.fieldName" :required="field.requiredFlag === 1">
           <PmFieldRenderer
             :field="field"

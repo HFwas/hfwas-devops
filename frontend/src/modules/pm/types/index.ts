@@ -43,7 +43,7 @@ export interface QuerySpec {
 }
 
 export interface FieldDefinition {
-  id?: number
+  id?: number | string
   projectId?: number
   scope?: string
   fieldKey: string
@@ -54,6 +54,16 @@ export interface FieldDefinition {
   requiredFlag?: number
   sortOrder?: number
   systemFlag?: number
+  showInList?: boolean
+  searchable?: boolean
+  showInCreate?: boolean
+  listOrder?: number
+}
+
+export interface TypeFieldLayoutConfig {
+  listFields: string[]
+  searchFields: string[]
+  createFields: string[]
 }
 
 export interface FieldOption {
@@ -119,6 +129,41 @@ export const TYPE_META: Record<string, { label: string; color: string }> = {
   task: { label: '任务', color: '#18a058' },
   bug: { label: '缺陷', color: '#d03050' },
   test_case: { label: '测试用例', color: '#f0a020' },
+}
+
+export const WORK_ITEM_TYPE_CODES = Object.keys(TYPE_META) as Array<keyof typeof TYPE_META>
+
+export const FIELD_TYPE_LABELS: Record<string, string> = {
+  TEXT: '单行文本',
+  TEXTAREA: '多行文本',
+  MARKDOWN: 'Markdown',
+  NUMBER: '数字',
+  SELECT: '单选列表',
+  MULTI_SELECT: '多选列表',
+  DATE: '日期',
+  DATETIME: '日期时间',
+  USER: '用户',
+  BOOLEAN: '布尔',
+  STATUS: '状态',
+  PRIORITY: '优先级',
+}
+
+export const FIELD_TYPE_OPTIONS = Object.entries(FIELD_TYPE_LABELS)
+  .filter(([k]) => !['STATUS', 'PRIORITY'].includes(k))
+  .map(([value, label]) => ({ label, value }))
+
+export const SYSTEM_FIELD_PROP_MAP: Record<string, string> = {
+  assignee_id: 'assigneeId',
+  type_code: 'typeCode',
+}
+
+export function systemFieldProp(fieldKey: string): string {
+  return SYSTEM_FIELD_PROP_MAP[fieldKey] ?? fieldKey
+}
+
+export function resolveWorkItemTypeCode(path: string, fallback = 'task'): string {
+  const match = path.match(/\/(?:items|board|settings\/types)\/(requirement|task|bug|test_case)/)
+  return match?.[1] ?? fallback
 }
 
 export const STATUS_OPTIONS = [

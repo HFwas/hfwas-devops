@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FieldDefinition, PmWorkItem, QuerySpec } from '@/modules/pm/types'
-import { TYPE_META } from '@/modules/pm/types'
+import { TYPE_META, systemFieldProp } from '@/modules/pm/types'
 
 const props = defineProps<{
   fieldDefs: FieldDefinition[]
@@ -11,15 +11,18 @@ const props = defineProps<{
 
 const emit = defineEmits<{ rowClick: [PmWorkItem]; refresh: [] }>()
 
+const listFields = computed(() =>
+  props.fieldDefs
+    .filter((f) => f.showInList)
+    .sort((a, b) => (a.listOrder ?? 99) - (b.listOrder ?? 99)),
+)
+
 const columns = computed(() => {
-  const cols = props.fieldDefs
-    .filter((f) => ['title', 'status', 'priority', 'type_code', 'assignee_id'].includes(f.fieldKey) || f.systemFlag !== 1)
-    .slice(0, 8)
-    .map((f) => ({
-      title: f.fieldName,
-      key: f.systemFlag ? f.fieldKey : `custom.${f.fieldKey}`,
-      render: (row: PmWorkItem) => renderCell(row, f),
-    }))
+  const cols = listFields.value.map((f) => ({
+    title: f.fieldName,
+    key: f.systemFlag ? f.fieldKey : `custom.${f.fieldKey}`,
+    render: (row: PmWorkItem) => renderCell(row, f),
+  }))
   return [
     { title: 'ID', key: 'id', width: 80 },
     ...cols,
@@ -32,10 +35,19 @@ function renderCell(row: PmWorkItem, field: FieldDefinition) {
     const meta = TYPE_META[row.typeCode]
     return meta ? meta.label : row.typeCode
   }
-  if (field.systemFlag === 1) {
-    return (row as Record<string, unknown>)[field.fieldKey] as string
+  if (field.fieldType === 'MARKDOWN') {
+    const text = readValue(row, field)
+    return text ? `${String(text).slice(0, 40)}${String(text).length > 40 ? '…' : ''}` : ''
   }
-  return row.customFields?.[field.fieldKey] as string
+  return readValue(row, field)
+}
+
+function readValue(row: PmWorkItem, field: FieldDefinition) {
+  if (field.systemFlag === 1) {
+    const prop = systemFieldProp(field.fieldKey)
+    return (row as Record<string, unknown>)[prop]
+  }
+  return row.customFields?.[field.fieldKey]
 }
 </script>
 

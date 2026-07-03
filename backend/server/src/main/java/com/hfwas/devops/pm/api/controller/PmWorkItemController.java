@@ -36,7 +36,7 @@ public class PmWorkItemController {
     }
 
     @PostMapping("/delete")
-    public BaseResult<Void> delete(@RequestParam Long id) {
+    public BaseResult<Void> delete(@RequestParam("id") Long id) {
         workItemService.delete(id);
         return BaseResult.ok();
     }

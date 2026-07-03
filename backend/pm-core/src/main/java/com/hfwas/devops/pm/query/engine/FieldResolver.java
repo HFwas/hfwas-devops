@@ -17,11 +17,12 @@ import java.util.stream.Collectors;
 public class FieldResolver {
 
     private static final Set<String> SYSTEM_FIELDS = Set.of(
-            "title", "status", "type_code", "priority", "assignee_id", "reporter_id",
+            "title", "description", "status", "type_code", "priority", "assignee_id", "reporter_id",
             "parent_id", "project_id", "create_time", "update_time", "sprint_id"
     );
 
     private static final Map<String, String> COLUMN_MAP = Map.ofEntries(
+            Map.entry("description", "description"),
             Map.entry("type_code", "type_code"),
             Map.entry("assignee_id", "assignee_id"),
             Map.entry("reporter_id", "reporter_id"),

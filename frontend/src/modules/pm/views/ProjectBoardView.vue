@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { pmMetaApi, pmWorkItemApi } from '@/modules/pm/api'
-import type { PmWorkItem, PmWorkItemType } from '@/modules/pm/types'
+import type { PmWorkItem } from '@/modules/pm/types'
 import { STATUS_OPTIONS, TYPE_META } from '@/modules/pm/types'
 import { useMessage } from 'naive-ui'
 
 const route = useRoute()
 const message = useMessage()
 const projectId = computed(() => Number(route.params.projectId))
-const typeCode = ref('task')
-const types = ref<PmWorkItemType[]>([])
+const typeCode = computed(() => String(route.params.typeCode))
+const pageTitle = computed(() => `${TYPE_META[typeCode.value]?.label ?? ''}看板`)
 const board = ref<Record<string, PmWorkItem[]>>({})
 
 const columns = computed(() =>
@@ -20,7 +20,6 @@ const columns = computed(() =>
 )
 
 async function load() {
-  types.value = await pmMetaApi.types()
   board.value = await pmMetaApi.board(projectId.value, typeCode.value)
 }
 
@@ -36,11 +35,7 @@ onMounted(load)
 
 <template>
   <n-space vertical size="large">
-    <n-select
-      v-model:value="typeCode"
-      :options="types.map((t) => ({ label: t.name, value: t.code }))"
-      style="width: 160px"
-    />
+    <n-page-header :title="pageTitle" />
     <n-scrollbar x-scrollable>
       <n-space align="start" :size="16" style="min-width: 900px">
         <n-card

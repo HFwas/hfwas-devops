@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import PmMarkdownEditor from '@/modules/pm/components/PmMarkdownEditor/index.vue'
 import type { FieldDefinition } from '@/modules/pm/types'
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/modules/pm/types'
 
@@ -32,6 +33,12 @@ const isNullOp = computed(() => props.mode === 'query' && (value.value === '__nu
     v-if="field.fieldType === 'TEXT' || field.fieldType === 'TEXTAREA'"
     v-model:value="value as string"
     :type="field.fieldType === 'TEXTAREA' ? 'textarea' : 'text'"
+    :placeholder="field.fieldName"
+    :autosize="field.fieldType === 'TEXTAREA' ? { minRows: 4 } : undefined"
+  />
+  <PmMarkdownEditor
+    v-else-if="field.fieldType === 'MARKDOWN'"
+    v-model="value as string"
     :placeholder="field.fieldName"
   />
   <n-input-number

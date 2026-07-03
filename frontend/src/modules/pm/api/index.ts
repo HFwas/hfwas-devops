@@ -1,6 +1,6 @@
 import { get, post } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
-import type { FieldDefinition, FieldOption, PmProject, PmSavedView, PmWorkItem, PmWorkItemType, QuerySpec } from '@/modules/pm/types'
+import type { FieldDefinition, FieldOption, PmProject, PmSavedView, PmWorkItem, PmWorkItemType, QuerySpec, TypeFieldLayoutConfig } from '@/modules/pm/types'
 
 export const pmProjectApi = {
   page: (data: { pageNo?: number; pageSize?: number; keyword?: string }) =>
@@ -25,8 +25,20 @@ export const pmWorkItemApi = {
 export const pmFieldApi = {
   list: (projectId: number, typeCode: string) =>
     post<FieldDefinition[]>('/pm/fields/definitions/list', { projectId, typeCode }),
+  catalog: (projectId: number) =>
+    post<FieldDefinition[]>('/pm/fields/definitions/catalog', { projectId }),
+  getById: (id: number | string) => get<FieldDefinition>(`/pm/fields/definitions/${id}`),
+  options: (fieldId: number | string) => get<FieldOption[]>(`/pm/fields/definitions/options?fieldId=${fieldId}`),
   save: (definition: FieldDefinition, options?: FieldOption[]) =>
     post<number>('/pm/fields/definitions/save', { definition, options }),
+  delete: (id: number | string) => post<void>(`/pm/fields/definitions/delete?id=${id}`, {}),
+}
+
+export const pmFieldLayoutApi = {
+  get: (projectId: number, typeCode: string) =>
+    post<TypeFieldLayoutConfig>('/pm/fields/layout/get', { projectId, typeCode }),
+  save: (projectId: number, typeCode: string, layout: TypeFieldLayoutConfig) =>
+    post<void>('/pm/fields/layout/save', { projectId, typeCode, layout }),
 }
 
 export const pmViewApi = {

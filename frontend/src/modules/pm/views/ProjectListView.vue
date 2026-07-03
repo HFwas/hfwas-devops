@@ -30,7 +30,7 @@ async function save() {
 }
 
 function openProject(id: number) {
-  router.push(`/pm/projects/${id}/items`)
+  router.push(`/pm/projects/${id}/items/task`)
 }
 
 onMounted(load)
