@@ -5,6 +5,7 @@ import type { FieldDefinition, QueryCondition, QueryConditionGroup, QuerySpec } 
 const props = defineProps<{
   fieldDefs: FieldDefinition[]
   group: QueryConditionGroup
+  projectId?: number
 }>()
 
 const emit = defineEmits<{ 'update:group': [QueryConditionGroup] }>()
@@ -42,6 +43,7 @@ function removeCondition(index: number) {
       <PmConditionRow
         :field-defs="fieldDefs"
         :condition="cond"
+        :project-id="projectId"
         @update="(c) => updateCondition(idx, c)"
       />
       <n-button quaternary type="error" @click="removeCondition(idx)">删除</n-button>

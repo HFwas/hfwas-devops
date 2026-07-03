@@ -33,8 +33,9 @@ CREATE TABLE IF NOT EXISTS pm_work_item_type (
 );
 
 CREATE TABLE IF NOT EXISTS pm_work_item (
-    id              INTEGER      NOT NULL PRIMARY KEY,
+    id              INTEGER      PRIMARY KEY AUTOINCREMENT,
     project_id      INTEGER      NOT NULL,
+    item_no         INTEGER      NOT NULL,
     type_code       TEXT         NOT NULL,
     title           TEXT         NOT NULL,
     description     TEXT,
@@ -43,17 +44,40 @@ CREATE TABLE IF NOT EXISTS pm_work_item (
     assignee_id     INTEGER,
     reporter_id     INTEGER,
     parent_id       INTEGER,
+    module_id       INTEGER,
     sprint_id       INTEGER,
     custom_fields   TEXT,
     create_by       INTEGER,
     update_by       INTEGER,
     create_time     TEXT         DEFAULT (datetime('now')),
     update_time     TEXT         DEFAULT (datetime('now')),
-    del_flag        INTEGER      DEFAULT 0
+    del_flag        INTEGER      DEFAULT 0,
+    UNIQUE(project_id, item_no)
+);
+
+CREATE TABLE IF NOT EXISTS pm_project_sequence (
+    project_id    INTEGER      NOT NULL PRIMARY KEY,
+    next_item_no  INTEGER      NOT NULL DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS idx_pm_work_item_project ON pm_work_item(project_id, type_code);
 CREATE INDEX IF NOT EXISTS idx_pm_work_item_status ON pm_work_item(status);
+CREATE INDEX IF NOT EXISTS idx_pm_work_item_module ON pm_work_item(module_id);
+
+CREATE TABLE IF NOT EXISTS pm_project_module (
+    id              INTEGER      PRIMARY KEY AUTOINCREMENT,
+    project_id      INTEGER      NOT NULL,
+    parent_id       INTEGER,
+    name            TEXT         NOT NULL,
+    description     TEXT,
+    sort_order      INTEGER      DEFAULT 0,
+    enabled         INTEGER      DEFAULT 1,
+    create_time     TEXT         DEFAULT (datetime('now')),
+    update_time     TEXT         DEFAULT (datetime('now')),
+    del_flag        INTEGER      DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_pm_project_module ON pm_project_module(project_id, parent_id);
 
 CREATE TABLE IF NOT EXISTS pm_field_definition (
     id                INTEGER      NOT NULL PRIMARY KEY,
@@ -87,6 +111,19 @@ CREATE TABLE IF NOT EXISTS pm_work_item_link (
     link_type   TEXT         NOT NULL,
     create_time TEXT         DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS pm_work_item_comment (
+    id            INTEGER      NOT NULL PRIMARY KEY,
+    work_item_id  INTEGER      NOT NULL,
+    parent_id     INTEGER,
+    content       TEXT         NOT NULL,
+    author_name   TEXT         NOT NULL,
+    create_by     INTEGER,
+    create_time   TEXT         DEFAULT (datetime('now')),
+    del_flag      INTEGER      DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_pm_work_item_comment ON pm_work_item_comment(work_item_id, create_time);
 
 CREATE TABLE IF NOT EXISTS pm_status_definition (
     id          INTEGER      NOT NULL PRIMARY KEY,

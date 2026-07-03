@@ -1,6 +1,13 @@
 import { get, post } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
-import type { FieldDefinition, FieldOption, PmProject, PmSavedView, PmWorkItem, PmWorkItemType, QuerySpec, TypeFieldLayoutConfig } from '@/modules/pm/types'
+import type { FieldDefinition, FieldOption, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemComment, PmWorkItemType, QuerySpec, TypeFieldLayoutConfig } from '@/modules/pm/types'
+
+export const pmModuleApi = {
+  tree: (projectId: number) => get<PmProjectModule[]>(`/pm/project-modules/tree?projectId=${projectId}`),
+  flat: (projectId: number) => get<PmProjectModule[]>(`/pm/project-modules/flat?projectId=${projectId}`),
+  save: (data: PmProjectModule) => post<number>('/pm/project-modules/save', data),
+  delete: (id: number) => post<void>(`/pm/project-modules/delete?id=${id}`, {}),
+}
 
 export const pmProjectApi = {
   page: (data: { pageNo?: number; pageSize?: number; keyword?: string }) =>
@@ -19,7 +26,15 @@ export const pmWorkItemApi = {
     post<void>(`/pm/work-items/${id}/transition`, { toStatus }),
   addLink: (sourceId: number, targetId: number, linkType: string) =>
     post<number>('/pm/work-items/links/save', { sourceId, targetId, linkType }),
-  listLinks: (id: number) => get<Array<{ id: number; sourceId: number; targetId: number; linkType: string }>>(`/pm/work-items/${id}/links`),
+  listLinks: (id: number) =>
+    get<Array<{ id: number; sourceId: number; targetId: number; linkType: string }>>(`/pm/work-items/${id}/links`),
+  listComments: (id: number) => get<PmWorkItemComment[]>(`/pm/work-items/${id}/comments`),
+  countComments: (id: number) => get<number>(`/pm/work-items/${id}/comments/count`),
+  countCommentsBatch: (workItemIds: number[]) =>
+    post<Record<string, number>>('/pm/work-items/comments/counts', workItemIds),
+  saveComment: (data: { workItemId: number; content: string; parentId?: string | null; authorName?: string }) =>
+    post<number>('/pm/work-items/comments/save', data),
+  deleteComment: (id: number | string) => post<void>(`/pm/work-items/comments/delete?id=${id}`, {}),
 }
 
 export const pmFieldApi = {

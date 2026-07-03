@@ -12,5 +12,6 @@ public enum FieldType {
     USER,
     BOOLEAN,
     PRIORITY,
-    STATUS
+    STATUS,
+    MODULE
 }

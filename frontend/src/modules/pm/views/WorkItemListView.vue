@@ -18,6 +18,7 @@ const typeCode = computed(() => String(route.params.typeCode))
 const pageTitle = computed(() => TYPE_META[typeCode.value]?.label ?? '事项')
 const querySpec = ref<QuerySpec>(emptyQuerySpec(projectId.value, typeCode.value))
 const items = ref<PmWorkItem[]>([])
+const commentCounts = ref<Record<string, number>>({})
 const loading = ref(false)
 const showCreate = ref(false)
 const form = ref<Partial<PmWorkItem>>({ projectId: projectId.value, typeCode: typeCode.value, title: '' })
@@ -35,6 +36,8 @@ async function search() {
     querySpec.value.typeCode = typeCode.value
     const page = await pmWorkItemApi.page(querySpec.value)
     items.value = page.records
+    const ids = items.value.map((item) => item.id).filter((id): id is number => id != null)
+    commentCounts.value = ids.length ? await pmWorkItemApi.countCommentsBatch(ids) : {}
   } finally {
     loading.value = false
   }
@@ -46,7 +49,26 @@ async function createItem() {
   const id = await pmWorkItemApi.save(form.value as PmWorkItem)
   message.success('事项已创建')
   showCreate.value = false
-  router.push(`/pm/projects/${projectId.value}/items/${id}`)
+  form.value = { projectId: projectId.value, typeCode: typeCode.value, title: '' }
+  openItem({ id } as PmWorkItem)
+}
+
+function openItem(item: PmWorkItem) {
+  router.push({
+    path: `/pm/projects/${projectId.value}/items/${item.id}`,
+    query: { tab: 'comments', type: typeCode.value },
+  })
+}
+
+async function removeItem(item: PmWorkItem) {
+  if (!item.id) return
+  try {
+    await pmWorkItemApi.delete(item.id)
+    message.success('已删除')
+    await search()
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '删除失败')
+  }
 }
 
 watch(typeCode, async () => {
@@ -75,11 +97,23 @@ onMounted(async () => {
       :query-spec="querySpec"
       :data="items"
       :loading="loading"
+      :comment-counts="commentCounts"
       @refresh="search"
-      @row-click="(row) => router.push(`/pm/projects/${projectId}/items/${row.id}`)"
+      @row-click="openItem"
+      @open="openItem"
+      @delete="removeItem"
     />
     <n-modal v-model:show="showCreate" preset="card" :title="`新建${pageTitle}`" style="width: 640px">
-      <PmDynamicForm v-model:model-value="form" :field-defs="fieldDefs" mode="create" @submit="createItem" />
+      <n-spin :show="!fieldDefs.length">
+        <PmDynamicForm
+          v-if="fieldDefs.length"
+          v-model:model-value="form"
+          :field-defs="fieldDefs"
+          mode="create"
+          @submit="createItem"
+        />
+        <n-empty v-else description="正在加载字段配置..." />
+      </n-spin>
     </n-modal>
   </n-space>
 </template>

@@ -23,6 +23,7 @@ const menuRouteMap = computed(() => {
   return {
     [`settings-types:${id}`]: `/pm/projects/${id}/settings/types`,
     [`settings-fields:${id}`]: `/pm/projects/${id}/settings/fields`,
+    [`settings-modules:${id}`]: `/pm/projects/${id}/settings/modules`,
   } as Record<string, string>
 })
 
@@ -40,6 +41,11 @@ const menuOptions = computed(() => {
     { type: 'divider' as const, key: 'divider-1' },
     { label: '看板', key: `/pm/projects/${id}/board/${currentTypeCode.value}` },
     {
+      label: '项目配置',
+      key: 'project-settings',
+      children: [{ label: '功能模块', key: `settings-modules:${id}` }],
+    },
+    {
       label: '字段配置',
       key: 'field-settings',
       children: [
@@ -55,9 +61,14 @@ const expandedKeys = ref<string[]>([])
 watch(
   () => route.path,
   (path) => {
-    if (path.includes('/settings/') && !expandedKeys.value.includes('field-settings')) {
-      expandedKeys.value = [...expandedKeys.value, 'field-settings']
+    const expanded = [...expandedKeys.value]
+    if (path.includes('/settings/') && !expanded.includes('field-settings')) {
+      expanded.push('field-settings')
     }
+    if (path.includes('/settings/modules') && !expanded.includes('project-settings')) {
+      expanded.push('project-settings')
+    }
+    expandedKeys.value = expanded
   },
   { immediate: true },
 )
@@ -70,11 +81,16 @@ const activeMenuKey = computed(() => {
   const path = route.path
   const id = projectId.value
   if (path.match(/\/items\/(requirement|task|bug|test_case)$/)) return path
+  if (path.match(/\/items\/\d+/)) {
+    const type = typeof route.query.type === 'string' ? route.query.type : resolveWorkItemTypeCode(path)
+    return `/pm/projects/${id}/items/${type}`
+  }
   if (path.match(/\/board\/(requirement|task|bug|test_case)$/)) return path
   if (path.endsWith('/settings/types') || path.match(/\/settings\/types\/(requirement|task|bug|test_case)$/)) {
     return `settings-types:${id}`
   }
   if (path.endsWith('/settings/fields')) return `settings-fields:${id}`
+  if (path.endsWith('/settings/modules')) return `settings-modules:${id}`
   return null
 })
 
@@ -105,7 +121,10 @@ function onMenuSelect(key: string) {
       </div>
     </n-layout-sider>
     <n-layout-content content-style="padding: 20px">
-      <n-page-header v-if="projectStore.currentProject" :title="projectStore.currentProject.name" />
+      <n-page-header
+        v-if="projectStore.currentProject && !route.path.match(/\/items\/\d+/)"
+        :title="projectStore.currentProject.name"
+      />
       <RouterView :key="route.path" />
     </n-layout-content>
   </n-layout>

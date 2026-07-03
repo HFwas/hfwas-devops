@@ -36,7 +36,12 @@ function onGroupUpdate(g: QueryConditionGroup) {
 
 <template>
   <n-card title="查询条件" size="small">
-    <PmConditionGroup :field-defs="searchableFields" :group="rootGroup" @update:group="onGroupUpdate" />
+    <PmConditionGroup
+      :field-defs="searchableFields"
+      :group="rootGroup"
+      :project-id="modelValue.projectId"
+      @update:group="onGroupUpdate"
+    />
     <template #footer>
       <n-space justify="end">
         <n-button @click="reset">重置</n-button>

@@ -1,59 +1,92 @@
 <script setup lang="ts">
-import PmDynamicForm from '@/modules/pm/components/PmDynamicForm/index.vue'
+import PmWorkItemComments from '@/modules/pm/components/PmWorkItemComments/index.vue'
+import PmWorkItemFieldSidebar from '@/modules/pm/components/PmWorkItemFieldSidebar/index.vue'
+import PmMarkdownPreview from '@/modules/pm/components/PmMarkdownPreview/index.vue'
 import { pmWorkItemApi } from '@/modules/pm/api'
 import { useFieldSchemaStore } from '@/modules/pm/stores'
 import type { PmWorkItem } from '@/modules/pm/types'
-import { STATUS_OPTIONS } from '@/modules/pm/types'
+import { TYPE_META } from '@/modules/pm/types'
+import { formatDateTime } from '@/modules/pm/utils/comment'
 import { useMessage } from 'naive-ui'
 
 interface WorkItemLink {
-  id: number
-  sourceId: number
-  targetId: number
+  id: string
+  sourceId: string
+  targetId: string
   linkType: string
 }
 
 const route = useRoute()
+const router = useRouter()
 const message = useMessage()
 const fieldStore = useFieldSchemaStore()
 
 const projectId = computed(() => Number(route.params.projectId))
 const itemId = computed(() => Number(route.params.itemId))
+const activeTab = ref(String(route.query.tab ?? 'comments'))
+
 const item = ref<PmWorkItem | null>(null)
 const links = ref<WorkItemLink[]>([])
 const loading = ref(true)
-const toStatus = ref('')
-const linkTargetId = ref<number | null>(null)
+const loadError = ref('')
+const deleting = ref(false)
+const saving = ref(false)
+const commentCount = ref(0)
+const linkTargetId = ref<string | null>(null)
 const linkType = ref('relates_to')
 
-const fieldDefs = computed(() =>
-  item.value ? fieldStore.getSchema(projectId.value, item.value.typeCode) : [],
-)
+const typeCode = computed(() => item.value?.typeCode ?? 'task')
+const typeLabel = computed(() => TYPE_META[typeCode.value]?.label ?? '事项')
+const fieldDefs = computed(() => fieldStore.getSchema(projectId.value, typeCode.value))
+const listPath = computed(() => `/pm/projects/${projectId.value}/items/${typeCode.value}`)
 
 async function load() {
   loading.value = true
+  loadError.value = ''
   try {
     item.value = await pmWorkItemApi.getById(itemId.value)
     await fieldStore.loadSchema(projectId.value, item.value.typeCode)
     links.value = await pmWorkItemApi.listLinks(itemId.value)
+    commentCount.value = await pmWorkItemApi.countComments(itemId.value)
+  } catch (e) {
+    item.value = null
+    loadError.value = e instanceof Error ? e.message : '加载失败'
+    message.error(loadError.value)
   } finally {
     loading.value = false
   }
 }
 
-async function save() {
+async function persistItem() {
   if (!item.value) return
-  await pmWorkItemApi.save(item.value)
-  message.success('已保存')
-  await load()
+  saving.value = true
+  try {
+    await pmWorkItemApi.save(item.value)
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '保存失败')
+    await load()
+  } finally {
+    saving.value = false
+  }
 }
 
-async function transition() {
-  if (!toStatus.value) return
-  await pmWorkItemApi.transition(itemId.value, toStatus.value)
-  message.success('状态已更新')
-  toStatus.value = ''
-  await load()
+let saveTimer: ReturnType<typeof setTimeout> | undefined
+function scheduleSave() {
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => void persistItem(), 400)
+}
+
+async function removeItem() {
+  deleting.value = true
+  try {
+    await pmWorkItemApi.delete(itemId.value)
+    message.success('已删除')
+    router.push(listPath.value)
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '删除失败')
+  } finally {
+    deleting.value = false
+  }
 }
 
 async function addLink() {
@@ -64,39 +97,156 @@ async function addLink() {
   await load()
 }
 
-onMounted(load)
+function goBack() {
+  router.push({ path: listPath.value, query: { type: typeCode.value } })
+}
+
+function onCommentCountUpdate(count: number) {
+  commentCount.value = count
+}
+
+watch(activeTab, (tab) => {
+  router.replace({ query: { ...route.query, tab } })
+})
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    if (typeof tab === 'string' && tab !== activeTab.value) activeTab.value = tab
+  },
+)
+
+watch(itemId, load, { immediate: true })
 </script>
 
 <template>
   <n-spin :show="loading">
-    <n-card v-if="item" title="事项详情">
-      <PmDynamicForm v-if="fieldDefs.length" v-model:model-value="item" :field-defs="fieldDefs" @submit="save" />
-      <n-divider />
-      <n-space>
-        <n-select v-model:value="toStatus" :options="STATUS_OPTIONS" placeholder="流转到" style="width: 160px" />
-        <n-button @click="transition">状态流转</n-button>
-      </n-space>
-      <n-divider />
-      <n-card title="事项关联" size="small">
-        <n-list bordered>
-          <n-list-item v-for="link in links" :key="link.id">
-            {{ link.linkType }} → #{{ link.sourceId === itemId ? link.targetId : link.sourceId }}
-          </n-list-item>
-        </n-list>
-        <n-space style="margin-top: 12px">
-          <n-input-number v-model:value="linkTargetId" placeholder="目标事项 ID" />
-          <n-select
-            v-model:value="linkType"
-            :options="[
-              { label: '关联', value: 'relates_to' },
-              { label: '阻塞', value: 'blocks' },
-              { label: '重复', value: 'duplicates' },
-            ]"
-            style="width: 120px"
-          />
-          <n-button @click="addLink">添加关联</n-button>
-        </n-space>
-      </n-card>
-    </n-card>
+    <template v-if="item">
+      <div class="detail-page">
+        <div class="detail-body">
+          <n-card class="detail-main" :bordered="true" size="small">
+            <div class="item-header">
+              <n-space align="center" justify="space-between" style="width: 100%">
+                <n-space align="center" :size="12">
+                  <n-button text @click="goBack">← 返回</n-button>
+                  <n-text depth="3">{{ item.itemKey ?? `#${item.itemNo ?? item.id}` }}</n-text>
+                  <n-text strong>{{ item.title }}</n-text>
+                  <n-text depth="3">{{ typeLabel }}</n-text>
+                  <n-text depth="3">更新于 {{ formatDateTime(item.updateTime) }}</n-text>
+                  <n-text v-if="saving" depth="3">保存中...</n-text>
+                </n-space>
+                <n-popconfirm @positive-click="removeItem">
+                  <template #trigger>
+                    <n-button type="error" secondary size="small" :loading="deleting">删除</n-button>
+                  </template>
+                  确定删除该事项吗？
+                </n-popconfirm>
+              </n-space>
+            </div>
+            <n-divider style="margin: 12px 0" />
+            <n-tabs v-model:value="activeTab" type="line" animated>
+              <n-tab-pane name="comments" :tab="`评论 (${commentCount})`">
+                <PmWorkItemComments
+                  embedded
+                  :work-item-id="itemId"
+                  @update:count="onCommentCountUpdate"
+                />
+              </n-tab-pane>
+              <n-tab-pane name="detail" tab="详情">
+                <n-space vertical :size="16">
+                  <div>
+                    <n-text strong>描述</n-text>
+                    <div style="margin-top: 8px">
+                      <PmMarkdownPreview :content="item.description" />
+                    </div>
+                  </div>
+                  <n-divider />
+                  <div>
+                    <n-text strong>事项关联</n-text>
+                    <n-list bordered style="margin-top: 8px">
+                      <n-list-item v-for="link in links" :key="link.id">
+                        {{ link.linkType }} → #{{ String(link.sourceId) === String(itemId) ? link.targetId : link.sourceId }}
+                      </n-list-item>
+                      <n-empty v-if="!links.length" description="暂无关联" size="small" />
+                    </n-list>
+                    <n-space style="margin-top: 12px">
+                      <n-input v-model:value="linkTargetId" placeholder="目标事项 ID" style="width: 200px" />
+                      <n-select
+                        v-model:value="linkType"
+                        :options="[
+                          { label: '关联', value: 'relates_to' },
+                          { label: '阻塞', value: 'blocks' },
+                          { label: '重复', value: 'duplicates' },
+                        ]"
+                        style="width: 120px"
+                      />
+                      <n-button @click="addLink">添加关联</n-button>
+                    </n-space>
+                  </div>
+                </n-space>
+              </n-tab-pane>
+            </n-tabs>
+          </n-card>
+
+          <n-card class="detail-sidebar" title="基础字段" size="small">
+            <PmWorkItemFieldSidebar
+              v-if="item"
+              v-model:model-value="item"
+              :field-defs="fieldDefs"
+              @change="scheduleSave"
+            />
+          </n-card>
+        </div>
+      </div>
+    </template>
+
+    <n-result
+      v-else-if="!loading && loadError"
+      status="error"
+      title="无法加载事项"
+      :description="loadError"
+    >
+      <template #footer>
+        <n-button @click="goBack">返回列表</n-button>
+      </template>
+    </n-result>
   </n-spin>
 </template>
+
+<style scoped>
+.detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.item-header {
+  padding: 0 4px;
+}
+
+.detail-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+.detail-main {
+  min-height: 520px;
+}
+
+.detail-sidebar {
+  position: sticky;
+  top: 12px;
+}
+
+@media (max-width: 960px) {
+  .detail-body {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-sidebar {
+    position: static;
+  }
+}
+</style>

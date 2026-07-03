@@ -18,7 +18,7 @@ public class FieldResolver {
 
     private static final Set<String> SYSTEM_FIELDS = Set.of(
             "title", "description", "status", "type_code", "priority", "assignee_id", "reporter_id",
-            "parent_id", "project_id", "create_time", "update_time", "sprint_id"
+            "parent_id", "project_id", "item_no", "create_time", "update_time", "sprint_id", "module_id"
     );
 
     private static final Map<String, String> COLUMN_MAP = Map.ofEntries(
@@ -28,7 +28,9 @@ public class FieldResolver {
             Map.entry("reporter_id", "reporter_id"),
             Map.entry("parent_id", "parent_id"),
             Map.entry("project_id", "project_id"),
+            Map.entry("item_no", "item_no"),
             Map.entry("sprint_id", "sprint_id"),
+            Map.entry("module_id", "module_id"),
             Map.entry("create_time", "create_time"),
             Map.entry("update_time", "update_time")
     );

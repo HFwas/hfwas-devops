@@ -129,7 +129,8 @@ public class FieldDefinitionService {
         list.add(system("status", "状态", "STATUS", 3));
         list.add(system("priority", "优先级", "PRIORITY", 4));
         list.add(system("assignee_id", "负责人", "USER", 5));
-        list.add(system("type_code", "类型", "SELECT", 6));
+        list.add(system("module_id", "功能模块", "MODULE", 6));
+        list.add(system("type_code", "类型", "SELECT", 7));
         return list;
     }
 

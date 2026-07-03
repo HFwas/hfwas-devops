@@ -1,16 +1,26 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import PmMarkdownEditor from '@/modules/pm/components/PmMarkdownEditor/index.vue'
+import { useProjectModules } from '@/modules/pm/composables/useProjectModules'
 import type { FieldDefinition } from '@/modules/pm/types'
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/modules/pm/types'
 
 const props = defineProps<{
   field: FieldDefinition
   modelValue: unknown
-  mode?: 'edit' | 'query'
+  mode?: 'edit' | 'query' | 'view'
+  projectId?: number
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [unknown] }>()
+
+const route = useRoute()
+const resolvedProjectId = computed(() => props.projectId ?? (Number(route.params.projectId) || undefined))
+const { selectOptions: moduleOptions, labelMap, load: loadModules } = useProjectModules(resolvedProjectId)
+
+watch(resolvedProjectId, () => loadModules(), { immediate: true })
+
+const readonly = computed(() => props.mode === 'view')
 
 const value = computed({
   get: () => props.modelValue,
@@ -22,15 +32,38 @@ const options = computed(() => {
   if (cfg?.length) return cfg.map((o) => ({ label: o.label, value: o.value }))
   if (props.field.fieldKey === 'status' || props.field.fieldType === 'STATUS') return STATUS_OPTIONS
   if (props.field.fieldKey === 'priority' || props.field.fieldType === 'PRIORITY') return PRIORITY_OPTIONS
+  if (props.field.fieldType === 'MODULE') return moduleOptions.value
   return []
 })
 
 const isNullOp = computed(() => props.mode === 'query' && (value.value === '__null__' || value.value === '__not_null__'))
+
+const displayText = computed(() => {
+  const val = value.value
+  if (val == null || val === '') return '-'
+  if (props.field.fieldType === 'BOOLEAN') return val ? '是' : '否'
+  if (props.field.fieldType === 'MODULE') {
+    const id = typeof val === 'number' ? val : Number(val)
+    return labelMap.value[id] ?? String(val)
+  }
+  if (['SELECT', 'STATUS', 'PRIORITY'].includes(props.field.fieldType)) {
+    const opt = options.value.find((o) => o.value === val)
+    return opt?.label ?? String(val)
+  }
+  if (props.field.fieldType === 'MULTI_SELECT' && Array.isArray(val)) {
+    return val.map((v) => options.value.find((o) => o.value === v)?.label ?? v).join('、') || '-'
+  }
+  if (props.field.fieldType === 'DATE' && typeof val === 'number') {
+    return new Date(val).toLocaleDateString()
+  }
+  return String(val)
+})
 </script>
 
 <template>
+  <n-text v-if="readonly">{{ displayText }}</n-text>
   <n-input
-    v-if="field.fieldType === 'TEXT' || field.fieldType === 'TEXTAREA'"
+    v-else-if="field.fieldType === 'TEXT' || field.fieldType === 'TEXTAREA'"
     v-model:value="value as string"
     :type="field.fieldType === 'TEXTAREA' ? 'textarea' : 'text'"
     :placeholder="field.fieldName"
@@ -47,10 +80,11 @@ const isNullOp = computed(() => props.mode === 'query' && (value.value === '__nu
     style="width: 100%"
   />
   <n-select
-    v-else-if="['SELECT', 'STATUS', 'PRIORITY'].includes(field.fieldType) && !isNullOp"
+    v-else-if="['SELECT', 'STATUS', 'PRIORITY', 'MODULE'].includes(field.fieldType) && !isNullOp"
     v-model:value="value"
     :options="options"
     clearable
+    filterable
   />
   <n-select
     v-else-if="field.fieldType === 'MULTI_SELECT'"

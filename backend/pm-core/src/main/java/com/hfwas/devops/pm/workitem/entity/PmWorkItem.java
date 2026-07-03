@@ -10,9 +10,10 @@ import java.util.Map;
 @Data
 @TableName(value = "pm_work_item", autoResultMap = true)
 public class PmWorkItem {
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId(type = IdType.AUTO)
     private Long id;
     private Long projectId;
+    private Integer itemNo;
     private String typeCode;
     private String title;
     private String description;
@@ -21,6 +22,7 @@ public class PmWorkItem {
     private Long assigneeId;
     private Long reporterId;
     private Long parentId;
+    private Long moduleId;
     private Long sprintId;
     @TableField(typeHandler = JacksonTypeHandler.class)
     private Map<String, Object> customFields;
@@ -34,4 +36,7 @@ public class PmWorkItem {
     private LocalDateTime updateTime;
     @TableLogic
     private Integer delFlag;
+
+    @TableField(exist = false)
+    private String itemKey;
 }

@@ -38,6 +38,11 @@ export const pmRoutes: RouteRecordRaw[] = [
         component: () => import('@/modules/pm/views/ProjectBoardView.vue'),
       },
       {
+        path: 'settings/modules',
+        name: 'pm-module-settings',
+        component: () => import('@/modules/pm/views/settings/ModuleManageView.vue'),
+      },
+      {
         path: 'settings/fields',
         name: 'pm-field-catalog',
         component: () => import('@/modules/pm/views/settings/FieldCatalogView.vue'),

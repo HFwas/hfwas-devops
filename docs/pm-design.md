@@ -372,7 +372,9 @@ public interface WorkItemTypePlugin {
 
 ## 6. API 设计（server）
 
-Base URL：`http://localhost:8089`  
+> **完整接口文档见 [pm-api.md](./pm-api.md)**（含请求/响应字段、评论、字段布局等）。
+
+Base URL：`http://localhost:8089`（前端开发：`/api` 代理）  
 统一响应：`BaseResult<T>`（code=0 成功）
 
 | 方法 | 路径 | 说明 |
@@ -385,12 +387,16 @@ Base URL：`http://localhost:8089`
 | POST | `/pm/work-items/save` | 创建/更新事项 |
 | GET | `/pm/work-items/{id}` | 事项详情 |
 | POST | `/pm/work-items/delete?id=` | 删除事项 |
-| POST | `/pm/work-items/{id}/transition` | 状态流转 |
+| POST | `/pm/work-items/{id}/transition` | 状态更新 |
 | POST | `/pm/work-items/links/save` | 添加事项关联 |
 | GET | `/pm/work-items/{id}/links` | 查询关联 |
+| GET | `/pm/work-items/{id}/comments` | 评论列表 |
+| POST | `/pm/work-items/comments/save` | 发表评论 |
 | POST | `/pm/fields/definitions/list` | 获取字段 Schema |
+| POST | `/pm/fields/definitions/catalog` | 字段目录 |
 | POST | `/pm/fields/definitions/save` | 保存字段定义 |
-| GET | `/pm/fields/definitions/options?fieldId=` | 字段选项 |
+| POST | `/pm/fields/layout/get` | 获取字段布局 |
+| POST | `/pm/fields/layout/save` | 保存字段布局 |
 | POST | `/pm/views/save` | 保存视图 |
 | POST | `/pm/views/list` | 视图列表 |
 | POST | `/pm/views/delete?id=` | 删除视图 |

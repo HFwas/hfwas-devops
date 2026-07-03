@@ -8,12 +8,15 @@ const FULL_WIDTH_TYPES = new Set(['TEXTAREA', 'MARKDOWN'])
 const props = withDefaults(defineProps<{
   fieldDefs: FieldDefinition[]
   modelValue: Partial<PmWorkItem>
-  mode?: 'create' | 'edit' | 'all'
+  mode?: 'create' | 'edit' | 'view' | 'all'
 }>(), {
   mode: 'all',
 })
 
 const emit = defineEmits<{ 'update:modelValue': [Partial<PmWorkItem>]; submit: [] }>()
+
+const readonly = computed(() => props.mode === 'view')
+const fieldMode = computed(() => (readonly.value ? 'view' : 'edit') as 'view' | 'edit')
 
 const form = computed({
   get: () => props.modelValue,
@@ -22,7 +25,11 @@ const form = computed({
 
 const visibleFields = computed(() => {
   if (props.mode === 'create') {
-    return props.fieldDefs.filter((f) => f.showInCreate)
+    const selected = props.fieldDefs.filter((f) => f.showInCreate)
+    if (selected.length) return selected
+    const fallback = props.fieldDefs.filter((f) => f.fieldKey === 'title' || f.requiredFlag === 1)
+    if (fallback.length) return fallback
+    return props.fieldDefs.filter((f) => f.fieldKey !== 'type_code')
   }
   return props.fieldDefs.filter((f) => f.fieldKey !== 'type_code')
 })
@@ -63,6 +70,8 @@ function isFullWidth(field: FieldDefinition) {
         <n-form-item :label="field.fieldName" :required="field.requiredFlag === 1">
           <PmFieldRenderer
             :field="field"
+            :mode="fieldMode"
+            :project-id="form.projectId"
             :model-value="systemValue(field.fieldKey)"
             @update:model-value="(v) => setSystem(field.fieldKey, v)"
           />
@@ -72,13 +81,14 @@ function isFullWidth(field: FieldDefinition) {
         <n-form-item :label="field.fieldName" :required="field.requiredFlag === 1">
           <PmFieldRenderer
             :field="field"
+            :mode="fieldMode"
             :model-value="customValue(field.fieldKey)"
             @update:model-value="(v) => setCustom(field.fieldKey, v)"
           />
         </n-form-item>
       </n-gi>
     </n-grid>
-    <n-space justify="end" style="margin-top: 12px">
+    <n-space v-if="!readonly" justify="end" style="margin-top: 12px">
       <n-button type="primary" @click="emit('submit')">保存</n-button>
     </n-space>
   </n-form>

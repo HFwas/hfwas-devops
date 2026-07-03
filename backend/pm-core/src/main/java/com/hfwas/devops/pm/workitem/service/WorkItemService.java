@@ -8,10 +8,8 @@ import com.hfwas.devops.pm.field.service.FieldDefinitionService;
 import com.hfwas.devops.pm.query.engine.QueryEngine;
 import com.hfwas.devops.pm.query.model.QuerySpec;
 import com.hfwas.devops.pm.spi.registry.WorkItemTypeRegistry;
-import com.hfwas.devops.pm.workitem.entity.PmStatusDefinition;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItemLink;
-import com.hfwas.devops.pm.workitem.mapper.PmStatusDefinitionMapper;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemLinkMapper;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemMapper;
 import lombok.RequiredArgsConstructor;
@@ -27,18 +25,23 @@ public class WorkItemService {
 
     private final PmWorkItemMapper workItemMapper;
     private final PmWorkItemLinkMapper linkMapper;
-    private final PmStatusDefinitionMapper statusDefinitionMapper;
     private final FieldDefinitionService fieldDefinitionService;
     private final FieldValidator fieldValidator;
     private final WorkItemTypeRegistry typeRegistry;
     private final QueryEngine queryEngine;
+    private final WorkItemSequenceService sequenceService;
+    private final WorkItemKeyEnricher keyEnricher;
 
     public IPage<PmWorkItem> page(QuerySpec spec) {
-        return queryEngine.execute(spec);
+        IPage<PmWorkItem> page = queryEngine.execute(spec);
+        keyEnricher.enrich(page);
+        return page;
     }
 
     public PmWorkItem getById(Long id) {
-        return workItemMapper.selectById(id);
+        PmWorkItem item = workItemMapper.selectById(id);
+        keyEnricher.enrich(item);
+        return item;
     }
 
     @Transactional
@@ -49,12 +52,14 @@ public class WorkItemService {
 
         if (item.getId() == null) {
             typeRegistry.get(item.getTypeCode()).ifPresent(p -> p.validateOnCreate(item));
+            item.setItemNo(sequenceService.nextItemNo(item.getProjectId()));
             workItemMapper.insert(item);
         } else {
             PmWorkItem old = workItemMapper.selectById(item.getId());
             typeRegistry.get(item.getTypeCode()).ifPresent(p -> p.validateOnUpdate(old, item));
             workItemMapper.updateById(item);
         }
+        keyEnricher.enrich(item);
         return item.getId();
     }
 
@@ -64,28 +69,8 @@ public class WorkItemService {
         if (item == null) {
             throw new IllegalArgumentException("Work item not found");
         }
-        validateTransition(item, toStatus);
         item.setStatus(toStatus);
         workItemMapper.updateById(item);
-    }
-
-    private void validateTransition(PmWorkItem item, String toStatus) {
-        List<PmStatusDefinition> statuses = statusDefinitionMapper.selectList(
-                Wrappers.<PmStatusDefinition>lambdaQuery()
-                        .eq(PmStatusDefinition::getTypeCode, item.getTypeCode())
-                        .and(w -> w.eq(PmStatusDefinition::getProjectId, item.getProjectId()).or().isNull(PmStatusDefinition::getProjectId))
-        );
-        if (statuses.isEmpty()) {
-            return;
-        }
-        PmStatusDefinition current = statuses.stream()
-                .filter(s -> s.getStatusCode().equals(item.getStatus()))
-                .findFirst().orElse(null);
-        if (current != null && current.getTransitions() != null && !current.getTransitions().isEmpty()) {
-            if (!current.getTransitions().contains(toStatus)) {
-                throw new IllegalArgumentException("不允许从 " + item.getStatus() + " 流转到 " + toStatus);
-            }
-        }
     }
 
     public void delete(Long id) {
@@ -109,10 +94,12 @@ public class WorkItemService {
     }
 
     public List<PmWorkItem> listByStatus(Long projectId, String typeCode, String status) {
-        return workItemMapper.selectList(Wrappers.<PmWorkItem>lambdaQuery()
+        List<PmWorkItem> items = workItemMapper.selectList(Wrappers.<PmWorkItem>lambdaQuery()
                 .eq(PmWorkItem::getProjectId, projectId)
                 .eq(PmWorkItem::getTypeCode, typeCode)
                 .eq(PmWorkItem::getStatus, status)
                 .orderByDesc(PmWorkItem::getUpdateTime));
+        keyEnricher.enrich(items);
+        return items;
     }
 }

@@ -82,9 +82,23 @@ export interface PmProject {
   settings?: Record<string, unknown>
 }
 
+export interface PmProjectModule {
+  id?: number
+  projectId: number
+  parentId?: number | null
+  name: string
+  description?: string
+  sortOrder?: number
+  enabled?: number
+  pathLabel?: string
+  children?: PmProjectModule[]
+}
+
 export interface PmWorkItem {
   id?: number
   projectId: number
+  itemNo?: number
+  itemKey?: string
   typeCode: string
   title: string
   description?: string
@@ -93,7 +107,20 @@ export interface PmWorkItem {
   assigneeId?: number
   reporterId?: number
   parentId?: number
+  moduleId?: number | null
   customFields?: Record<string, unknown>
+  updateTime?: string
+}
+
+export interface PmWorkItemComment {
+  id: string
+  workItemId: string
+  parentId?: string | null
+  content: string
+  authorName: string
+  authorId?: string
+  createTime?: string
+  deletable?: boolean
 }
 
 export interface PmWorkItemType {
@@ -146,6 +173,7 @@ export const FIELD_TYPE_LABELS: Record<string, string> = {
   BOOLEAN: '布尔',
   STATUS: '状态',
   PRIORITY: '优先级',
+  MODULE: '功能模块',
 }
 
 export const FIELD_TYPE_OPTIONS = Object.entries(FIELD_TYPE_LABELS)
@@ -155,6 +183,7 @@ export const FIELD_TYPE_OPTIONS = Object.entries(FIELD_TYPE_LABELS)
 export const SYSTEM_FIELD_PROP_MAP: Record<string, string> = {
   assignee_id: 'assigneeId',
   type_code: 'typeCode',
+  module_id: 'moduleId',
 }
 
 export function systemFieldProp(fieldKey: string): string {

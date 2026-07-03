@@ -6,6 +6,7 @@ import { OPERATORS } from '@/modules/pm/types'
 const props = defineProps<{
   fieldDefs: FieldDefinition[]
   condition: QueryCondition
+  projectId?: number
 }>()
 
 const emit = defineEmits<{ update: [QueryCondition] }>()
@@ -65,6 +66,7 @@ const hideValue = computed(() =>
       <PmFieldRenderer
         :field="selectedField"
         :model-value="condition.value"
+        :project-id="projectId"
         mode="query"
         @update:model-value="(v) => patch({ value: v })"
       />
