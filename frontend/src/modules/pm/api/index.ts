@@ -1,7 +1,7 @@
 import { get, post } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
 import type { EntityId } from '@/modules/pm/utils/id'
-import type { AllowedTransitions, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemComment, PmWorkItemType, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, StatusDefinition, StatusWorkflow, TypeFieldLayoutConfig } from '@/modules/pm/types'
+import type { AllowedTransitions, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemActivity, PmWorkItemComment, PmWorkItemType, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, StatusDefinition, StatusWorkflow, TypeFieldLayoutConfig } from '@/modules/pm/types'
 import { asId } from '@/modules/pm/utils/id'
 
 export const pmModuleApi = {
@@ -37,6 +37,7 @@ export const pmWorkItemApi = {
   saveComment: (data: { workItemId: EntityId; content: string; parentId?: string | null }) =>
     post<number>('/pm/work-items/comments/save', data),
   deleteComment: (id: EntityId) => post<void>(`/pm/work-items/comments/delete?id=${asId(id)}`, {}),
+  listActivities: (id: EntityId) => get<PmWorkItemActivity[]>(`/pm/work-items/${asId(id)}/activities`),
 }
 
 export const pmFieldApi = {

@@ -38,6 +38,7 @@ public class WorkItemService {
     private final StatusDefinitionService statusDefinitionService;
     private final SiteMessagePublisher siteMessagePublisher;
     private final CurrentUserAccessor currentUserAccessor;
+    private final WorkItemActivityService activityService;
 
     public IPage<PmWorkItem> page(QuerySpec spec) {
         IPage<PmWorkItem> page = queryEngine.execute(spec);
@@ -65,6 +66,7 @@ public class WorkItemService {
             item.setItemNo(sequenceService.nextItemNo(item.getProjectId()));
             workItemMapper.insert(item);
             notifyAssigneeIfChanged(new PmWorkItem(), item);
+            activityService.recordCreate(item);
         } else {
             PmWorkItem old = workItemMapper.selectById(item.getId());
             typeRegistry.get(item.getTypeCode()).ifPresent(p -> p.validateOnUpdate(old, item));
@@ -74,6 +76,7 @@ public class WorkItemService {
             }
             workItemMapper.updateById(item);
             notifyAssigneeIfChanged(old, item);
+            activityService.recordChanges(old, item, definitions);
         }
         keyEnricher.enrich(item);
         return item.getId();
@@ -87,8 +90,16 @@ public class WorkItemService {
         }
         statusDefinitionService.validateTransition(
                 item.getProjectId(), item.getTypeCode(), item.getStatus(), toStatus);
+        String fromStatus = item.getStatus();
         item.setStatus(toStatus);
         workItemMapper.updateById(item);
+        List<FieldDefinition> definitions = fieldDefinitionService.listByProjectAndType(item.getProjectId(), item.getTypeCode());
+        PmWorkItem before = new PmWorkItem();
+        before.setId(item.getId());
+        before.setProjectId(item.getProjectId());
+        before.setTypeCode(item.getTypeCode());
+        before.setStatus(fromStatus);
+        activityService.recordChanges(before, item, definitions);
     }
 
     public void delete(Long id) {
@@ -102,6 +113,7 @@ public class WorkItemService {
         link.setTargetId(targetId);
         link.setLinkType(linkType);
         linkMapper.insert(link);
+        activityService.recordLinkAdd(sourceId, targetId, linkType);
         return link.getId();
     }
 

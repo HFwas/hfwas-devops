@@ -172,6 +172,37 @@ export interface PmWorkItemComment {
   deletable?: boolean
 }
 
+export type WorkItemActivityEventType = 'CREATE' | 'FIELD_CHANGE' | 'LINK_ADD'
+
+export interface PmWorkItemActivity {
+  id: string
+  workItemId: string
+  batchId?: string | null
+  eventType: WorkItemActivityEventType
+  actorId?: string
+  actorName: string
+  fieldKey?: string
+  fieldName?: string
+  fieldType?: string
+  oldValue?: string | null
+  newValue?: string | null
+  oldLabel?: string | null
+  newLabel?: string | null
+  extraJson?: string | null
+  createTime?: string
+}
+
+export type ActivityFilter = 'all' | 'change' | 'comment' | 'link'
+
+export interface PmWorkItemTimelineItem {
+  kind: 'activity' | 'comment'
+  time: string
+  activity?: PmWorkItemActivity
+  comment?: PmWorkItemComment
+  /** grouped field changes in one save batch */
+  groupedChanges?: PmWorkItemActivity[]
+}
+
 export interface PmWorkItemType {
   id: number
   code: string

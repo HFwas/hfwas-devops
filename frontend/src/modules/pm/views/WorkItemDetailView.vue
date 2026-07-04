@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PmWorkItemActivity from '@/modules/pm/components/PmWorkItemActivity/index.vue'
 import PmWorkItemComments from '@/modules/pm/components/PmWorkItemComments/index.vue'
 import PmWorkItemFieldSidebar from '@/modules/pm/components/PmWorkItemFieldSidebar/index.vue'
 import PmMarkdownPreview from '@/modules/pm/components/PmMarkdownPreview/index.vue'
@@ -24,7 +25,7 @@ const fieldStore = useFieldSchemaStore()
 
 const projectId = computed(() => routeId(route.params.projectId))
 const itemId = computed(() => routeId(route.params.itemId))
-const activeTab = ref(String(route.query.tab ?? 'comments'))
+const activeTab = ref(String(route.query.tab ?? 'activity'))
 
 const item = ref<PmWorkItem | null>(null)
 const links = ref<WorkItemLink[]>([])
@@ -33,6 +34,7 @@ const loadError = ref('')
 const deleting = ref(false)
 const saving = ref(false)
 const commentCount = ref(0)
+const activityRef = ref<InstanceType<typeof PmWorkItemActivity> | null>(null)
 const linkTargetId = ref<string | null>(null)
 const linkType = ref('relates_to')
 
@@ -67,6 +69,7 @@ async function persistItem() {
   saving.value = true
   try {
     await pmWorkItemApi.save(item.value)
+    activityRef.value?.reload()
   } catch (e) {
     message.error(e instanceof Error ? e.message : '保存失败')
     await load()
@@ -108,6 +111,7 @@ function goBack() {
 
 function onCommentCountUpdate(count: number) {
   commentCount.value = count
+  activityRef.value?.reload()
 }
 
 watch(activeTab, (tab) => {
@@ -150,6 +154,9 @@ watch(itemId, load, { immediate: true })
             </div>
             <n-divider style="margin: 12px 0" />
             <n-tabs v-model:value="activeTab" type="line" animated>
+              <n-tab-pane name="activity" tab="动态">
+                <PmWorkItemActivity ref="activityRef" :work-item-id="itemId" />
+              </n-tab-pane>
               <n-tab-pane name="comments" :tab="`评论 (${commentCount})`">
                 <PmWorkItemComments
                   embedded

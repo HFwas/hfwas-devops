@@ -129,6 +129,26 @@ CREATE TABLE IF NOT EXISTS pm_work_item_comment (
 
 CREATE INDEX IF NOT EXISTS idx_pm_work_item_comment ON pm_work_item_comment(work_item_id, create_time);
 
+CREATE TABLE IF NOT EXISTS pm_work_item_activity (
+    id              INTEGER      NOT NULL PRIMARY KEY,
+    work_item_id    INTEGER      NOT NULL,
+    batch_id        TEXT,
+    event_type      TEXT         NOT NULL,
+    actor_id        INTEGER,
+    actor_name      TEXT         NOT NULL,
+    field_key       TEXT,
+    field_name      TEXT,
+    field_type      TEXT,
+    old_value       TEXT,
+    new_value       TEXT,
+    old_label       TEXT,
+    new_label       TEXT,
+    extra_json      TEXT,
+    create_time     TEXT         DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_pm_work_item_activity ON pm_work_item_activity(work_item_id, create_time);
+
 CREATE TABLE IF NOT EXISTS pm_status_definition (
     id          INTEGER      NOT NULL PRIMARY KEY,
     project_id  INTEGER,

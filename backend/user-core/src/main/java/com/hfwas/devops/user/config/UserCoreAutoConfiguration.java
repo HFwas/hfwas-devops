@@ -7,6 +7,8 @@ import com.hfwas.devops.user.message.spi.NoOpSiteMessagePublisher;
 import com.hfwas.devops.user.message.spi.SiteMessagePublisher;
 import com.hfwas.devops.user.operlog.spi.NoOpOperLogRecorder;
 import com.hfwas.devops.user.operlog.spi.OperLogRecorder;
+import com.hfwas.devops.user.spi.NoOpUserDisplayNameResolver;
+import com.hfwas.devops.user.spi.UserDisplayNameResolver;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -51,5 +53,11 @@ public class UserCoreAutoConfiguration {
     @ConditionalOnMissingBean(OperLogRecorder.class)
     public OperLogRecorder noOpOperLogRecorder() {
         return NoOpOperLogRecorder.INSTANCE;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(UserDisplayNameResolver.class)
+    public UserDisplayNameResolver noOpUserDisplayNameResolver() {
+        return NoOpUserDisplayNameResolver.INSTANCE;
     }
 }
