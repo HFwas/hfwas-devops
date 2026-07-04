@@ -48,7 +48,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     return;
                 }
 
-                AuthUserPrincipal principal = userDetailsService.loadById(userId);
+                AuthUserPrincipal principal = userDetailsService.loadById(userId,
+                        jwtTokenService.tenantIdFromClaims(claims));
                 if (principal.isEnabled()) {
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());

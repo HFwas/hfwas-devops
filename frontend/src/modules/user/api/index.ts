@@ -1,12 +1,15 @@
 import { get, post } from '@/shared/api/request'
-import type { LoginLog, LoginResponse, OperLog, Tenant, UserProfile, UserSession, UserSessionStats } from '@/modules/user/types'
+import type { LoginLog, LoginResponse, OperLog, PlatformUserOption, Tenant, TenantMember, TenantOption, UserProfile, UserSession, UserSessionStats } from '@/modules/user/types'
 import type { PageResult } from '@/shared/types/common'
 import { asId } from '@/modules/pm/utils/id'
 
 export const userAuthApi = {
-  login: (username: string, password: string, tenantCode?: string) =>
-    post<LoginResponse>('/user/auth/login', { username, password, tenantCode: tenantCode || 'default' }),
+  login: (username: string, password: string) =>
+    post<LoginResponse>('/user/auth/login', { username, password }),
   me: () => get<UserProfile>('/user/auth/me'),
+  myTenants: () => get<TenantOption[]>('/user/auth/my-tenants'),
+  switchTenant: (tenantId: number | string) =>
+    post<LoginResponse>('/user/auth/switch-tenant', { tenantId }),
   logout: () => post<void>('/user/auth/logout', {}),
   userOptions: () => get<UserProfile[]>('/user/users/options'),
 }
@@ -43,4 +46,17 @@ export const tenantManageApi = {
   getById: (id: number | string) => get<Tenant>(`/user/tenants/${asId(id)}`),
   save: (data: Partial<Tenant>) => post<number>('/user/tenants/save', data),
   delete: (id: number | string) => post<void>(`/user/tenants/delete?id=${asId(id)}`, {}),
+}
+
+export const tenantMemberApi = {
+  page: (tenantId: number | string, data: { pageNo?: number; pageSize?: number; keyword?: string }) =>
+    post<PageResult<TenantMember>>(`/user/tenants/${asId(tenantId)}/members/page`, data),
+  available: (tenantId: number | string, keyword?: string) =>
+    get<PlatformUserOption[]>(`/user/tenants/${asId(tenantId)}/members/available`, keyword ? { keyword } : undefined),
+  add: (tenantId: number | string, data: { userIds: (number | string)[]; tenantRole?: string }) =>
+    post<void>(`/user/tenants/${asId(tenantId)}/members/add`, data),
+  save: (tenantId: number | string, data: { userId: number | string; tenantRole?: string; status?: number }) =>
+    post<void>(`/user/tenants/${asId(tenantId)}/members/save`, data),
+  remove: (tenantId: number | string, userId: number | string) =>
+    post<void>(`/user/tenants/${asId(tenantId)}/members/remove?userId=${asId(userId)}`, {}),
 }

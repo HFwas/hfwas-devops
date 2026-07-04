@@ -14,9 +14,16 @@ import java.util.List;
 public class AuthUserPrincipal implements UserDetails {
 
     private final SysUser user;
+    /** Login tenant context from JWT, not user's home tenant. */
+    private final Long loginTenantId;
 
     public AuthUserPrincipal(SysUser user) {
+        this(user, null);
+    }
+
+    public AuthUserPrincipal(SysUser user, Long loginTenantId) {
         this.user = user;
+        this.loginTenantId = loginTenantId;
     }
 
     public Long getUserId() {
@@ -33,7 +40,7 @@ public class AuthUserPrincipal implements UserDetails {
                 .username(user.getUsername())
                 .displayName(user.getDisplayName())
                 .role(user.getRole())
-                .tenantId(user.getTenantId())
+                .tenantId(loginTenantId)
                 .build();
     }
 

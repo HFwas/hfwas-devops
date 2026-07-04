@@ -28,7 +28,7 @@ public class JwtTokenService {
         this.expireSeconds = properties.getExpireSeconds();
     }
 
-    public IssuedToken issueToken(SysUser user) {
+    public IssuedToken issueToken(SysUser user, Long tenantId) {
         Instant now = Instant.now();
         Instant expireAt = now.plusSeconds(expireSeconds);
         String jti = UUID.randomUUID().toString().replace("-", "");
@@ -37,12 +37,23 @@ public class JwtTokenService {
                 .subject(String.valueOf(user.getId()))
                 .claim("username", user.getUsername())
                 .claim("role", user.getRole())
-                .claim("tenantId", user.getTenantId())
+                .claim("tenantId", tenantId)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expireAt))
                 .signWith(key)
                 .compact();
         return new IssuedToken(token, jti, expireAt);
+    }
+
+    public Long tenantIdFromClaims(Claims claims) {
+        Object tenantId = claims.get("tenantId");
+        if (tenantId == null) {
+            return null;
+        }
+        if (tenantId instanceof Number number) {
+            return number.longValue();
+        }
+        return Long.valueOf(tenantId.toString());
     }
 
     public Claims parseToken(String token) {

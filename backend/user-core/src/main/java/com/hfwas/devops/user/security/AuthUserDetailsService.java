@@ -32,4 +32,12 @@ public class AuthUserDetailsService implements UserDetailsService {
         }
         return new AuthUserPrincipal(user);
     }
+
+    public AuthUserPrincipal loadById(Long id, Long loginTenantId) {
+        SysUser user = userMapper.selectById(id);
+        if (user == null) {
+            throw new UsernameNotFoundException("用户不存在");
+        }
+        return new AuthUserPrincipal(user, loginTenantId);
+    }
 }

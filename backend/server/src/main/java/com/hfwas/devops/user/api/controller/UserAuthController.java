@@ -3,7 +3,11 @@ package com.hfwas.devops.user.api.controller;
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.user.model.LoginRequest;
 import com.hfwas.devops.user.model.LoginResponse;
+import com.hfwas.devops.user.model.SwitchTenantRequest;
+import com.hfwas.devops.user.model.TenantOptionVO;
 import com.hfwas.devops.user.model.UserProfile;
+
+import java.util.List;
 import com.hfwas.devops.user.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +30,18 @@ public class UserAuthController {
     @GetMapping("/me")
     public BaseResult<UserProfile> me() {
         return BaseResult.ok(authService.me());
+    }
+
+    @GetMapping("/my-tenants")
+    public BaseResult<List<TenantOptionVO>> myTenants() {
+        return BaseResult.ok(authService.listMyTenants());
+    }
+
+    @PostMapping("/switch-tenant")
+    public BaseResult<LoginResponse> switchTenant(@RequestBody SwitchTenantRequest request,
+                                                  HttpServletRequest httpRequest) {
+        String token = resolveToken(httpRequest);
+        return BaseResult.ok(authService.switchTenant(request, token, httpRequest));
     }
 
     @PostMapping("/logout")

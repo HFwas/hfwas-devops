@@ -76,6 +76,7 @@ export interface FieldOption {
 
 export interface PmProject {
   id?: number
+  tenantId?: number | string
   code: string
   name: string
   description?: string

@@ -9,7 +9,6 @@ const message = useMessage()
 
 const username = ref('')
 const password = ref('')
-const tenantCode = ref('default')
 const loading = ref(false)
 
 async function submit() {
@@ -19,7 +18,7 @@ async function submit() {
   }
   loading.value = true
   try {
-    await auth.login(username.value.trim(), password.value, tenantCode.value.trim() || 'default')
+    await auth.login(username.value.trim(), password.value)
     message.success('登录成功')
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/pm/projects'
     router.replace(redirect)
@@ -35,9 +34,6 @@ async function submit() {
   <div class="login-page">
     <n-card title="用户中心 · 登录" style="width: 400px">
       <n-form @submit.prevent="submit">
-        <n-form-item label="租户编码">
-          <n-input v-model:value="tenantCode" placeholder="default" autocomplete="organization" />
-        </n-form-item>
         <n-form-item label="用户名">
           <n-input v-model:value="username" placeholder="用户名" autocomplete="username" />
         </n-form-item>
@@ -54,7 +50,7 @@ async function submit() {
         <n-button type="primary" block :loading="loading" @click="submit">登录</n-button>
       </n-form>
       <n-text depth="3" style="display: block; margin-top: 16px; font-size: 12px">
-        默认租户 default，管理员：admin / admin123（首次启动自动创建）
+        管理员：admin / admin123（首次启动自动创建）
       </n-text>
     </n-card>
   </div>

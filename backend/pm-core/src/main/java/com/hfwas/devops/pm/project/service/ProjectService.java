@@ -32,6 +32,19 @@ public class ProjectService {
 
     public Long save(PmProject project) {
         Long tenantId = requireTenantId();
+        if (StringUtils.isBlank(project.getCode()) || StringUtils.isBlank(project.getName())) {
+            throw new IllegalArgumentException("项目编码和名称不能为空");
+        }
+        String code = project.getCode().trim();
+        Long dup = projectMapper.selectCount(Wrappers.<PmProject>lambdaQuery()
+                .eq(PmProject::getTenantId, tenantId)
+                .eq(PmProject::getCode, code)
+                .ne(project.getId() != null, PmProject::getId, project.getId()));
+        if (dup != null && dup > 0) {
+            throw new IllegalArgumentException("当前租户下项目编码已存在");
+        }
+        project.setCode(code);
+        project.setName(project.getName().trim());
         if (project.getId() == null) {
             project.setTenantId(tenantId);
             projectMapper.insert(project);

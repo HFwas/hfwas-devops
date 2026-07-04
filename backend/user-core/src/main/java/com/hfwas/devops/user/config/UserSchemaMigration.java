@@ -25,10 +25,14 @@ public class UserSchemaMigration implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         ensureTenantTable();
         ensureUserTable();
+        migrateTenantColumns();
+        ensureUserTenantIndex();
+        ensureTenantMemberTable();
+        migrateToTenantMembers();
+        ensureGlobalUsernameIndex();
         ensureSessionTable();
         ensureLoginLogTable();
         ensureOperLogTable();
-        migrateTenantColumns();
         seedDefaultTenant();
         seedAdminUser();
     }
@@ -70,12 +74,56 @@ public class UserSchemaMigration implements ApplicationRunner {
                 )
                 """);
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_user_username ON sys_user(username)");
+    }
+
+    private void ensureUserTenantIndex() {
         jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_user_tenant_username ON sys_user(tenant_id, username)");
     }
 
     private void migrateTenantColumns() {
         addColumnIfMissing("sys_user", "tenant_id", "INTEGER DEFAULT 1");
         jdbcTemplate.update("UPDATE sys_user SET tenant_id = 1 WHERE tenant_id IS NULL");
+    }
+
+    private void ensureTenantMemberTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS sys_tenant_member (
+                    id              INTEGER      PRIMARY KEY AUTOINCREMENT,
+                    tenant_id       INTEGER      NOT NULL,
+                    user_id         INTEGER      NOT NULL,
+                    tenant_role     TEXT         NOT NULL DEFAULT 'member',
+                    status          INTEGER      DEFAULT 1,
+                    join_time       TEXT         DEFAULT (datetime('now')),
+                    del_flag        INTEGER      DEFAULT 0
+                )
+                """);
+        jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_tenant_member ON sys_tenant_member(tenant_id, user_id)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_tenant_member_user ON sys_tenant_member(user_id)");
+    }
+
+    private void migrateToTenantMembers() {
+        Long memberCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sys_tenant_member WHERE del_flag = 0", Long.class);
+        if (memberCount != null && memberCount > 0) {
+            return;
+        }
+        if (!columnExists("sys_user", "tenant_id")) {
+            return;
+        }
+        jdbcTemplate.update("""
+                INSERT OR IGNORE INTO sys_tenant_member (tenant_id, user_id, tenant_role, status)
+                SELECT tenant_id, id,
+                       CASE WHEN role = 'admin' THEN 'tenant_admin' ELSE 'member' END,
+                       COALESCE(enabled, 1)
+                FROM sys_user
+                WHERE tenant_id IS NOT NULL AND del_flag = 0
+                """);
+        log.info("Migrated sys_user.tenant_id into sys_tenant_member");
+    }
+
+    private void ensureGlobalUsernameIndex() {
+        jdbcTemplate.execute("DROP INDEX IF EXISTS idx_sys_user_tenant_username");
+        jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_user_username_unique ON sys_user(username)");
     }
 
     private void ensureSessionTable() {
@@ -159,15 +207,28 @@ public class UserSchemaMigration implements ApplicationRunner {
     private void seedAdminUser() {
         Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sys_user WHERE del_flag = 0", Long.class);
         if (count != null && count > 0) {
-            jdbcTemplate.update("UPDATE sys_user SET tenant_id = 1 WHERE tenant_id IS NULL");
+            jdbcTemplate.update("""
+                    INSERT OR IGNORE INTO sys_tenant_member (tenant_id, user_id, tenant_role, status)
+                    SELECT COALESCE(tenant_id, 1), id,
+                           CASE WHEN role = 'admin' THEN 'tenant_admin' ELSE 'member' END,
+                           COALESCE(enabled, 1)
+                    FROM sys_user WHERE del_flag = 0
+                    """);
             return;
         }
         String encoded = passwordEncoder.encode("admin123");
         jdbcTemplate.update("""
-                INSERT INTO sys_user (tenant_id, username, password, display_name, role, enabled)
-                VALUES (1, ?, ?, ?, 'admin', 1)
+                INSERT INTO sys_user (username, password, display_name, role, enabled)
+                VALUES (?, ?, ?, 'admin', 1)
                 """, "admin", encoded, "系统管理员");
-        log.info("Seeded default admin user: admin / admin123 (tenant=default)");
+        Long adminId = jdbcTemplate.queryForObject("SELECT id FROM sys_user WHERE username = 'admin'", Long.class);
+        if (adminId != null) {
+            jdbcTemplate.update("""
+                    INSERT OR IGNORE INTO sys_tenant_member (tenant_id, user_id, tenant_role, status)
+                    VALUES (1, ?, 'tenant_admin', 1)
+                    """, adminId);
+        }
+        log.info("Seeded default admin user: admin / admin123 (member of tenant=default)");
     }
 
     private void addColumnIfMissing(String table, String column, String definition) {

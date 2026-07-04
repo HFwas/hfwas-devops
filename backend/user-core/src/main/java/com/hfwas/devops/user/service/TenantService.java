@@ -6,11 +6,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hfwas.devops.user.context.UserContext;
 import com.hfwas.devops.user.context.UserContextHolder;
 import com.hfwas.devops.user.entity.SysTenant;
-import com.hfwas.devops.user.entity.SysUser;
 import com.hfwas.devops.user.mapper.SysTenantMapper;
-import com.hfwas.devops.user.mapper.SysUserMapper;
 import com.hfwas.devops.user.model.TenantPageRequest;
 import com.hfwas.devops.user.model.TenantSaveRequest;
+import com.hfwas.devops.user.model.TenantOptionVO;
 import com.hfwas.devops.user.model.TenantVO;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -29,7 +28,7 @@ public class TenantService {
     public static final long DEFAULT_TENANT_ID = 1L;
 
     private final SysTenantMapper tenantMapper;
-    private final SysUserMapper userMapper;
+    private final TenantMemberService tenantMemberService;
     private final JdbcTemplate jdbcTemplate;
 
     public IPage<TenantVO> page(TenantPageRequest request) {
@@ -58,6 +57,22 @@ public class TenantService {
                         .orderByAsc(SysTenant::getName))
                 .stream()
                 .map(this::toVo)
+                .toList();
+    }
+
+    /** All enabled tenants for platform admin tenant switching. */
+    public List<TenantOptionVO> listEnabledOptions() {
+        return tenantMapper.selectList(Wrappers.<SysTenant>lambdaQuery()
+                        .eq(SysTenant::getStatus, 1)
+                        .orderByAsc(SysTenant::getName))
+                .stream()
+                .map(t -> {
+                    TenantOptionVO vo = new TenantOptionVO();
+                    vo.setId(t.getId());
+                    vo.setCode(t.getCode());
+                    vo.setName(t.getName());
+                    return vo;
+                })
                 .toList();
     }
 
@@ -139,9 +154,9 @@ public class TenantService {
         if (tenant == null) {
             throw new IllegalArgumentException("租户不存在");
         }
-        long users = userMapper.selectCount(Wrappers.<SysUser>lambdaQuery().eq(SysUser::getTenantId, id));
+        long users = tenantMemberService.countMembers(id);
         if (users > 0) {
-            throw new IllegalArgumentException("租户下仍有用户，无法删除");
+            throw new IllegalArgumentException("租户下仍有成员，无法删除");
         }
         Long projects = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM pm_project WHERE tenant_id = ? AND del_flag = 0", Long.class, id);
@@ -178,8 +193,7 @@ public class TenantService {
     }
 
     private long countUsers(Long tenantId) {
-        Long count = userMapper.selectCount(Wrappers.<SysUser>lambdaQuery().eq(SysUser::getTenantId, tenantId));
-        return count == null ? 0 : count;
+        return tenantMemberService.countMembers(tenantId);
     }
 
     private long countProjects(Long tenantId) {

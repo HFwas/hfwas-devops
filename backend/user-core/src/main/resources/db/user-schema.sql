@@ -19,8 +19,7 @@ CREATE INDEX IF NOT EXISTS idx_sys_tenant_status ON sys_tenant(status);
 
 CREATE TABLE IF NOT EXISTS sys_user (
     id              INTEGER      PRIMARY KEY AUTOINCREMENT,
-    tenant_id       INTEGER      NOT NULL DEFAULT 1,
-    username        TEXT         NOT NULL,
+    username        TEXT         NOT NULL UNIQUE,
     password        TEXT         NOT NULL,
     display_name    TEXT         NOT NULL,
     email           TEXT,
@@ -32,7 +31,18 @@ CREATE TABLE IF NOT EXISTS sys_user (
     del_flag        INTEGER      DEFAULT 0
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_user_tenant_username ON sys_user(tenant_id, username);
+CREATE TABLE IF NOT EXISTS sys_tenant_member (
+    id              INTEGER      PRIMARY KEY AUTOINCREMENT,
+    tenant_id       INTEGER      NOT NULL,
+    user_id         INTEGER      NOT NULL,
+    tenant_role     TEXT         NOT NULL DEFAULT 'member',
+    status          INTEGER      DEFAULT 1,
+    join_time       TEXT         DEFAULT (datetime('now')),
+    del_flag        INTEGER      DEFAULT 0
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_tenant_member ON sys_tenant_member(tenant_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_sys_tenant_member_user ON sys_tenant_member(user_id);
 
 CREATE TABLE IF NOT EXISTS sys_user_session (
     id               INTEGER      PRIMARY KEY AUTOINCREMENT,

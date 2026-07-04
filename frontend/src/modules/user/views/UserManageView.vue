@@ -15,7 +15,6 @@ const showEditor = ref(false)
 const editing = ref<UserProfile | null>(null)
 
 const form = ref({
-  tenantId: null as number | string | null,
   username: '',
   displayName: '',
   email: '',
@@ -46,24 +45,13 @@ async function load() {
 
 function openCreate() {
   editing.value = null
-  const defaultTenant = tenantOptions.value[0]
-  form.value = {
-    tenantId: defaultTenant?.id ?? null,
-    username: '',
-    displayName: '',
-    email: '',
-    phone: '',
-    role: 'user',
-    enabled: 1,
-    password: '',
-  }
+  form.value = { username: '', displayName: '', email: '', phone: '', role: 'user', enabled: 1, password: '' }
   showEditor.value = true
 }
 
 function openEdit(row: UserProfile) {
   editing.value = row
   form.value = {
-    tenantId: row.tenantId ?? null,
     username: row.username,
     displayName: row.displayName,
     email: row.email ?? '',
@@ -79,7 +67,6 @@ async function saveUser() {
   try {
     await userManageApi.save({
       id: editing.value?.id,
-      tenantId: form.value.tenantId ?? undefined,
       username: form.value.username.trim(),
       displayName: form.value.displayName.trim(),
       email: form.value.email.trim() || undefined,
@@ -110,14 +97,19 @@ async function removeUser(row: UserProfile) {
 const columns = [
   { title: '用户名', key: 'username' },
   { title: '显示名称', key: 'displayName' },
-  { title: '租户', key: 'tenantName', render: (row: UserProfile) => row.tenantName ?? row.tenantCode ?? '-' },
+  {
+    title: '已加入租户',
+    key: 'tenantNames',
+    render: (row: UserProfile) =>
+      row.tenantNames?.length ? row.tenantNames.join('、') : h(NTag, { size: 'small' }, () => '未加入租户'),
+  },
   { title: '邮箱', key: 'email', render: (row: UserProfile) => row.email ?? '-' },
   {
-    title: '角色',
+    title: '平台角色',
     key: 'role',
     render: (row: UserProfile) =>
       h(NTag, { size: 'small', type: row.role === 'admin' ? 'warning' : 'default' }, () =>
-        row.role === 'admin' ? '管理员' : '普通用户',
+        row.role === 'admin' ? '平台管理员' : '普通用户',
       ),
   },
   {
@@ -151,32 +143,28 @@ onMounted(async () => {
 
 <template>
   <n-space vertical size="large">
-    <n-page-header title="账号管理" subtitle="管理系统账号、角色与状态" />
+    <n-page-header
+      title="账号管理"
+      subtitle="管理平台级用户账号；用户需加入租户后，方可在该租户项目中使用"
+    />
     <n-space>
       <n-select
         v-model:value="tenantFilter"
         clearable
-        placeholder="全部租户"
+        placeholder="筛选已加入某租户的用户"
         :options="tenantOptions.map((t) => ({ label: t.name, value: t.id! }))"
-        style="width: 180px"
+        style="width: 200px"
       />
       <n-input v-model:value="keyword" placeholder="搜索用户名/姓名/邮箱" clearable style="width: 260px" />
       <n-button @click="load">查询</n-button>
-      <n-button type="primary" @click="openCreate">新建用户</n-button>
+      <n-button type="primary" @click="openCreate">新建平台用户</n-button>
     </n-space>
     <n-data-table :columns="columns" :data="users" :loading="loading" :row-key="(r: UserProfile) => String(r.id)" />
 
-    <n-modal v-model:show="showEditor" preset="card" :title="editing ? '编辑用户' : '新建用户'" style="width: 480px">
+    <n-modal v-model:show="showEditor" preset="card" :title="editing ? '编辑用户' : '新建平台用户'" style="width: 480px">
       <n-form label-placement="top">
-        <n-form-item label="所属租户" required>
-          <n-select
-            v-model:value="form.tenantId"
-            :options="tenantOptions.map((t) => ({ label: `${t.name} (${t.code})`, value: t.id! }))"
-            placeholder="选择租户"
-          />
-        </n-form-item>
         <n-form-item label="用户名" required>
-          <n-input v-model:value="form.username" :disabled="!!editing" placeholder="登录名，租户内不可重复" />
+          <n-input v-model:value="form.username" :disabled="!!editing" placeholder="全局唯一登录名" />
         </n-form-item>
         <n-form-item label="显示名称" required>
           <n-input v-model:value="form.displayName" placeholder="界面展示名称" />
@@ -190,18 +178,21 @@ onMounted(async () => {
         <n-form-item label="手机">
           <n-input v-model:value="form.phone" />
         </n-form-item>
-        <n-form-item label="角色">
+        <n-form-item label="平台角色">
           <n-select
             v-model:value="form.role"
             :options="[
               { label: '普通用户', value: 'user' },
-              { label: '管理员', value: 'admin' },
+              { label: '平台管理员', value: 'admin' },
             ]"
           />
         </n-form-item>
         <n-form-item label="状态">
           <n-switch v-model:value="form.enabled" :checked-value="1" :unchecked-value="0" />
         </n-form-item>
+        <n-alert v-if="!editing" type="info" :bordered="false">
+          新建用户为平台级账号，请在「租户管理 → 成员」中将用户加入租户。
+        </n-alert>
       </n-form>
       <template #footer>
         <n-space justify="end">

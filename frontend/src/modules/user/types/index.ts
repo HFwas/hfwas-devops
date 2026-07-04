@@ -9,6 +9,26 @@ export interface UserProfile {
   tenantId?: number | string
   tenantCode?: string
   tenantName?: string
+  tenantNames?: string[]
+}
+
+export interface TenantMember {
+  id?: number | string
+  tenantId?: number | string
+  userId?: number | string
+  username: string
+  displayName: string
+  email?: string
+  tenantRole: 'tenant_admin' | 'member' | string
+  status?: number
+  joinTime?: string
+}
+
+export interface PlatformUserOption {
+  id: number | string
+  username: string
+  displayName: string
+  email?: string
 }
 
 export interface Tenant {
@@ -23,6 +43,12 @@ export interface Tenant {
   projectCount?: number
   createTime?: string
   updateTime?: string
+}
+
+export interface TenantOption {
+  id: number | string
+  code: string
+  name: string
 }
 
 export interface LoginResponse {

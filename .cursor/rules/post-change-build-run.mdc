@@ -1,0 +1,66 @@
+---
+description: 代码更新后自动构建并启动前后端开发服务
+alwaysApply: true
+---
+
+# 代码更新后自动构建与启动
+
+完成实质性代码修改后（非纯问答/阅读），**必须**在终端执行以下流程验证改动。Java/Maven 环境见 `java-maven-env` 规则。
+
+## 触发时机
+
+- 修改了 `backend/**` 或 `frontend/**` 源码、配置、依赖后
+- 任务收尾前，作为验证步骤执行
+- 纯解释、review、只读排查时不执行
+
+## 执行顺序
+
+### 1. 后端：构建
+
+在 `backend` 根目录执行（多模块，必须 `-am`）：
+
+```bash
+zsh -l -c 'cd /Users/hfwas/WebstormProjects/hfwas-devops/backend && mvn install -DskipTests'
+```
+
+Shell 工具需 `required_permissions: ["all"]`。
+
+### 2. 后端：启动
+
+本项目无 `mvn run`，使用 Spring Boot 插件：
+
+```bash
+zsh -l -c 'cd /Users/hfwas/WebstormProjects/hfwas-devops/backend/server && mvn spring-boot:run'
+```
+
+- **后台运行**（`block_until_ms: 0`）
+- 启动前先查看 `terminals/` 文件夹，若已有 spring-boot 进程在跑且仅改了前端，可跳过重启
+- 改了后端 Java/配置/依赖时，需先停旧进程再重启
+
+### 3. 前端：依赖与启动
+
+```bash
+cd /Users/hfwas/WebstormProjects/hfwas-devops/frontend && npm install && npm run dev
+```
+
+- **后台运行**（`block_until_ms: 0`）
+- 启动前检查是否已有 `npm run dev` 在跑；仅改后端时可跳过
+- `package.json` 未变且 `node_modules` 已存在时，可只跑 `npm run dev`
+
+## 按改动范围裁剪
+
+| 改动范围 | 必做 | 可跳过 |
+|----------|------|--------|
+| 仅 backend | `mvn install` + 重启 spring-boot | 前端 |
+| 仅 frontend | `npm install`（如需）+ `npm run dev` | 后端 |
+| 前后端都改 | 全部执行 | — |
+
+## 失败处理
+
+- `mvn install` 失败：修复编译错误，**不要**启动服务
+- 端口占用：检查已有终端进程，复用或先结束旧进程
+- 构建成功但启动失败：汇报错误日志，继续排查
+
+## 汇报
+
+任务结束时简要说明：是否已构建、服务是否在跑、访问地址（前端 Vite 端口、后端默认 8080）。

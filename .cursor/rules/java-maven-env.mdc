@@ -1,0 +1,51 @@
+---
+description: 本机 Java 与 Maven 环境配置（Agent 终端命令）
+alwaysApply: true
+---
+
+# Java & Maven 环境
+
+Agent 沙箱 shell 与用户终端环境不一致，直接运行 `java` / `mvn` 可能找不到 JRE 或用到错误 JDK。**执行 Java/Maven 相关命令前必须先设置环境**。
+
+## 本机配置
+
+| 工具 | 版本 | 路径 |
+|------|------|------|
+| Java | OpenJDK 21.0.3 (Azul Zulu) | `JAVA_HOME=/Users/hfwas/Library/Java/JavaVirtualMachines/azul-21.0.3/Contents/Home` |
+| Maven | 3.8.1 | `/usr/local/apache-maven-3.8.1/bin/mvn` |
+
+## 执行方式
+
+优先使用登录 shell（与用户终端一致）：
+
+```bash
+zsh -l -c 'java -version && mvn -v'
+```
+
+或在命令前导出环境变量：
+
+```bash
+export JAVA_HOME=/Users/hfwas/Library/Java/JavaVirtualMachines/azul-21.0.3/Contents/Home
+export PATH="$JAVA_HOME/bin:/usr/local/apache-maven-3.8.1/bin:$PATH"
+```
+
+需要完整环境时，Shell 工具应请求 `required_permissions: ["all"]`。
+
+## 预期输出
+
+```
+openjdk version "21.0.3" 2024-04-16 LTS
+OpenJDK Runtime Environment Zulu21.34+19-CA (build 21.0.3+9-LTS)
+OpenJDK 64-Bit Server VM Zulu21.34+19-CA (build 21.0.3+9-LTS, mixed mode, sharing)
+```
+
+```
+Apache Maven 3.8.1
+Java version: 21.0.3, vendor: Azul Systems, Inc.
+runtime: /Users/hfwas/Library/Java/JavaVirtualMachines/azul-21.0.3/Contents/Home
+```
+
+## 注意
+
+- 不要使用 `/Library/Java/JavaVirtualMachines/zulu-17.jdk` 等系统旧 JDK，除非用户明确要求切换版本。
+- 沙箱中 `JAVA_HOME` 为空且 `/usr/bin/java` 可能解析失败，不要据此判断用户未安装 Java。

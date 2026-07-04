@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { h } from 'vue'
 import { NButton, NPopconfirm, NTag, useMessage } from 'naive-ui'
-import { tenantManageApi } from '@/modules/user/api'
-import type { Tenant } from '@/modules/user/types'
+import { tenantManageApi, tenantMemberApi } from '@/modules/user/api'
+import type { PlatformUserOption, Tenant, TenantMember } from '@/modules/user/types'
 import { formatDateTime } from '@/modules/pm/utils/comment'
+import { invalidateUserOptionsCache } from '@/modules/pm/composables/useUserOptions'
 
 const message = useMessage()
 
@@ -13,6 +14,16 @@ const loading = ref(false)
 const tenants = ref<Tenant[]>([])
 const showEditor = ref(false)
 const editing = ref<Tenant | null>(null)
+
+const showMembers = ref(false)
+const memberTenant = ref<Tenant | null>(null)
+const memberLoading = ref(false)
+const members = ref<TenantMember[]>([])
+const memberKeyword = ref('')
+const showAddMember = ref(false)
+const availableUsers = ref<PlatformUserOption[]>([])
+const selectedUserIds = ref<(number | string)[]>([])
+const addRole = ref('member')
 
 const form = ref({
   code: '',
@@ -87,6 +98,93 @@ async function removeTenant(row: Tenant) {
   }
 }
 
+async function openMembers(row: Tenant) {
+  memberTenant.value = row
+  memberKeyword.value = ''
+  showMembers.value = true
+  await loadMembers()
+}
+
+async function loadMembers() {
+  if (!memberTenant.value?.id) return
+  memberLoading.value = true
+  try {
+    const page = await tenantMemberApi.page(memberTenant.value.id, {
+      pageNo: 1,
+      pageSize: 200,
+      keyword: memberKeyword.value.trim() || undefined,
+    })
+    members.value = page.records
+  } finally {
+    memberLoading.value = false
+  }
+}
+
+async function openAddMember() {
+  if (!memberTenant.value?.id) return
+  selectedUserIds.value = []
+  addRole.value = 'member'
+  availableUsers.value = await tenantMemberApi.available(memberTenant.value.id)
+  showAddMember.value = true
+}
+
+async function confirmAddMembers() {
+  if (!memberTenant.value?.id || selectedUserIds.value.length === 0) {
+    message.warning('请选择要加入的用户')
+    return
+  }
+  try {
+    await tenantMemberApi.add(memberTenant.value.id, {
+      userIds: selectedUserIds.value,
+      tenantRole: addRole.value,
+    })
+    message.success('已加入租户')
+    showAddMember.value = false
+    invalidateUserOptionsCache()
+    await loadMembers()
+    await load()
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '添加失败')
+  }
+}
+
+async function updateMemberRole(row: TenantMember, tenantRole: string) {
+  if (!memberTenant.value?.id || row.userId == null) return
+  try {
+    await tenantMemberApi.save(memberTenant.value.id, { userId: row.userId, tenantRole })
+    message.success('已更新')
+    await loadMembers()
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '更新失败')
+  }
+}
+
+async function toggleMemberStatus(row: TenantMember) {
+  if (!memberTenant.value?.id || row.userId == null) return
+  const next = row.status === 1 ? 0 : 1
+  try {
+    await tenantMemberApi.save(memberTenant.value.id, { userId: row.userId, status: next })
+    message.success(next === 1 ? '已启用' : '已停用')
+    invalidateUserOptionsCache()
+    await loadMembers()
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '更新失败')
+  }
+}
+
+async function removeMember(row: TenantMember) {
+  if (!memberTenant.value?.id || row.userId == null) return
+  try {
+    await tenantMemberApi.remove(memberTenant.value.id, row.userId)
+    message.success('已移除')
+    invalidateUserOptionsCache()
+    await loadMembers()
+    await load()
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '移除失败')
+  }
+}
+
 const columns = [
   { title: '编码', key: 'code', width: 120 },
   { title: '名称', key: 'name' },
@@ -101,7 +199,7 @@ const columns = [
         row.status === 1 ? '启用' : '停用',
       ),
   },
-  { title: '用户数', key: 'userCount', width: 80 },
+  { title: '成员数', key: 'userCount', width: 80 },
   { title: '项目数', key: 'projectCount', width: 80 },
   {
     title: '创建时间',
@@ -112,10 +210,11 @@ const columns = [
   {
     title: '操作',
     key: 'actions',
-    width: 140,
+    width: 200,
     render: (row: Tenant) =>
-      h('div', { style: 'display:flex;gap:8px' }, [
-        h(NButton, { text: true, type: 'primary', onClick: () => openEdit(row) }, () => '编辑'),
+      h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, [
+        h(NButton, { text: true, type: 'primary', onClick: () => openMembers(row) }, () => '成员'),
+        h(NButton, { text: true, onClick: () => openEdit(row) }, () => '编辑'),
         row.code !== 'default'
           ? h(
               NPopconfirm,
@@ -130,12 +229,63 @@ const columns = [
   },
 ]
 
+const memberColumns = [
+  { title: '用户名', key: 'username' },
+  { title: '显示名称', key: 'displayName' },
+  {
+    title: '租户角色',
+    key: 'tenantRole',
+    render: (row: TenantMember) =>
+      h(
+        NTag,
+        { size: 'small', type: row.tenantRole === 'tenant_admin' ? 'warning' : 'default' },
+        () => (row.tenantRole === 'tenant_admin' ? '租户管理员' : '成员'),
+      ),
+  },
+  {
+    title: '状态',
+    key: 'status',
+    render: (row: TenantMember) => (row.status === 1 ? '启用' : '停用'),
+  },
+  {
+    title: '加入时间',
+    key: 'joinTime',
+    render: (row: TenantMember) => (row.joinTime ? formatDateTime(row.joinTime) : '-'),
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    render: (row: TenantMember) =>
+      h('div', { style: 'display:flex;gap:8px' }, [
+        row.tenantRole === 'member'
+          ? h(NButton, { text: true, onClick: () => updateMemberRole(row, 'tenant_admin') }, () => '设为管理员')
+          : h(NButton, { text: true, onClick: () => updateMemberRole(row, 'member') }, () => '设为成员'),
+        h(
+          NButton,
+          { text: true, onClick: () => toggleMemberStatus(row) },
+          () => (row.status === 1 ? '停用' : '启用'),
+        ),
+        h(
+          NPopconfirm,
+          { onPositiveClick: () => removeMember(row) },
+          {
+            trigger: () => h(NButton, { text: true, type: 'error' }, () => '移除'),
+            default: () => '确定将该用户移出租户吗？',
+          },
+        ),
+      ]),
+  },
+]
+
 onMounted(load)
 </script>
 
 <template>
   <n-space vertical size="large">
-    <n-page-header title="租户管理" subtitle="管理平台租户、隔离用户与项目数据" />
+    <n-page-header
+      title="租户管理"
+      subtitle="管理租户并将平台用户拉入租户；仅租户成员可在该租户项目中分配"
+    />
     <n-space>
       <n-input v-model:value="keyword" placeholder="搜索编码/名称/联系人" clearable style="width: 260px" />
       <n-select
@@ -155,11 +305,7 @@ onMounted(load)
     <n-modal v-model:show="showEditor" preset="card" :title="editing ? '编辑租户' : '新建租户'" style="width: 520px">
       <n-form label-placement="top">
         <n-form-item label="租户编码" required>
-          <n-input
-            v-model:value="form.code"
-            :disabled="!!editing"
-            placeholder="小写字母开头，如 acme"
-          />
+          <n-input v-model:value="form.code" :disabled="!!editing" placeholder="小写字母开头，如 acme" />
         </n-form-item>
         <n-form-item label="租户名称" required>
           <n-input v-model:value="form.name" placeholder="企业或组织名称" />
@@ -171,7 +317,12 @@ onMounted(load)
           <n-input v-model:value="form.contactPhone" />
         </n-form-item>
         <n-form-item label="状态">
-          <n-switch v-model:value="form.status" :checked-value="1" :unchecked-value="0" :disabled="editing?.code === 'default'" />
+          <n-switch
+            v-model:value="form.status"
+            :checked-value="1"
+            :unchecked-value="0"
+            :disabled="editing?.code === 'default'"
+          />
         </n-form-item>
         <n-form-item label="备注">
           <n-input v-model:value="form.remark" type="textarea" :rows="2" />
@@ -181,6 +332,67 @@ onMounted(load)
         <n-space justify="end">
           <n-button @click="showEditor = false">取消</n-button>
           <n-button type="primary" @click="saveTenant">保存</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-drawer v-model:show="showMembers" :width="720" placement="right">
+      <n-drawer-content :title="`租户成员 · ${memberTenant?.name ?? ''}`" closable>
+        <n-space vertical size="large" style="width: 100%">
+          <n-alert type="info" :bordered="false">
+            从平台用户池拉入成员；只有已加入且启用的成员，才会出现在该租户项目的用户选择器中。
+          </n-alert>
+          <n-space>
+            <n-input
+              v-model:value="memberKeyword"
+              placeholder="搜索成员"
+              clearable
+              style="width: 220px"
+              @keyup.enter="loadMembers"
+            />
+            <n-button @click="loadMembers">查询</n-button>
+            <n-button type="primary" @click="openAddMember">拉入用户</n-button>
+          </n-space>
+          <n-data-table
+            :columns="memberColumns"
+            :data="members"
+            :loading="memberLoading"
+            :row-key="(r: TenantMember) => String(r.userId)"
+          />
+        </n-space>
+      </n-drawer-content>
+    </n-drawer>
+
+    <n-modal v-model:show="showAddMember" preset="card" title="拉入平台用户" style="width: 520px">
+      <n-form label-placement="top">
+        <n-form-item label="选择用户" required>
+          <n-select
+            v-model:value="selectedUserIds"
+            multiple
+            filterable
+            placeholder="选择尚未加入该租户的平台用户"
+            :options="
+              availableUsers.map((u) => ({
+                label: `${u.displayName} (${u.username})`,
+                value: u.id,
+              }))
+            "
+          />
+        </n-form-item>
+        <n-form-item label="租户角色">
+          <n-select
+            v-model:value="addRole"
+            :options="[
+              { label: '成员', value: 'member' },
+              { label: '租户管理员', value: 'tenant_admin' },
+            ]"
+          />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showAddMember = false">取消</n-button>
+          <n-button type="primary" @click="confirmAddMembers">确认加入</n-button>
         </n-space>
       </template>
     </n-modal>

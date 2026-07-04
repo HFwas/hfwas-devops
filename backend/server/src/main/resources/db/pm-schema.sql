@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS pm_project (
     id              INTEGER      NOT NULL PRIMARY KEY,
     tenant_id       INTEGER      NOT NULL DEFAULT 1,
-    code            TEXT         NOT NULL UNIQUE,
+    code            TEXT         NOT NULL,
     name            TEXT         NOT NULL,
     description     TEXT,
     settings        TEXT,
@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS pm_project (
     del_flag        INTEGER      DEFAULT 0
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pm_project_tenant_code ON pm_project(tenant_id, code);
 CREATE INDEX IF NOT EXISTS idx_pm_project_tenant ON pm_project(tenant_id);
 
 CREATE TABLE IF NOT EXISTS pm_project_member (

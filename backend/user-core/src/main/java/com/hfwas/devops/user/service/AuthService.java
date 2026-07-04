@@ -33,6 +33,7 @@ public class AuthService {
     private final UserSessionService userSessionService;
     private final LoginLogService loginLogService;
     private final TenantService tenantService;
+    private final TenantMemberService tenantMemberService;
 
     public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest) {
         String username = StringUtils.trimToEmpty(request.getUsername());
@@ -51,7 +52,6 @@ public class AuthService {
             throw new IllegalArgumentException("租户已停用");
         }
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
-                .eq(SysUser::getTenantId, tenant.getId())
                 .eq(SysUser::getUsername, username));
         if (user == null || user.getEnabled() == null || user.getEnabled() != 1) {
             loginLogService.recordLoginFail(username, "用户名或密码错误", httpRequest);
@@ -61,12 +61,16 @@ public class AuthService {
             loginLogService.recordLoginFail(username, "用户名或密码错误", httpRequest);
             throw new IllegalArgumentException("用户名或密码错误");
         }
-        IssuedToken issued = jwtTokenService.issueToken(user);
+        if (!tenantMemberService.isActiveMember(tenant.getId(), user.getId())) {
+            loginLogService.recordLoginFail(username, "您尚未加入该租户", httpRequest);
+            throw new IllegalArgumentException("您尚未加入该租户，请联系管理员");
+        }
+        IssuedToken issued = jwtTokenService.issueToken(user, tenant.getId());
         userSessionService.createSession(user, issued.jti(), issued.expireAt(), httpRequest);
         loginLogService.recordLoginSuccess(user, httpRequest);
         LoginResponse response = new LoginResponse();
         response.setToken(issued.token());
-        response.setUser(toProfile(user));
+        response.setUser(toProfile(user, tenant));
         return response;
     }
 
@@ -75,9 +79,50 @@ public class AuthService {
         UserContextHolder.current().ifPresent(user -> loginLogService.recordLogout(user, httpRequest));
     }
 
+    public List<TenantOptionVO> listMyTenants() {
+        UserContext ctx = UserContextHolder.require();
+        if ("admin".equalsIgnoreCase(ctx.getRole())) {
+            return tenantService.listEnabledOptions();
+        }
+        return tenantMemberService.listEnabledTenantsByUser(ctx.getUserId());
+    }
+
+    public LoginResponse switchTenant(SwitchTenantRequest request, String oldToken, HttpServletRequest httpRequest) {
+        UserContext ctx = UserContextHolder.require();
+        if (request.getTenantId() == null) {
+            throw new IllegalArgumentException("租户 ID 不能为空");
+        }
+        if (request.getTenantId().equals(ctx.getTenantId())) {
+            SysUser user = loadUser(ctx.getUserId());
+            SysTenant tenant = tenantMapper.selectById(request.getTenantId());
+            LoginResponse response = new LoginResponse();
+            response.setToken(oldToken);
+            response.setUser(toProfile(user, tenant));
+            return response;
+        }
+        SysTenant tenant = tenantService.requireEnabled(request.getTenantId());
+        boolean platformAdmin = "admin".equalsIgnoreCase(ctx.getRole());
+        if (!platformAdmin && !tenantMemberService.isActiveMember(tenant.getId(), ctx.getUserId())) {
+            throw new IllegalArgumentException("您尚未加入该租户");
+        }
+        SysUser user = loadUser(ctx.getUserId());
+        if (StringUtils.isNotBlank(oldToken)) {
+            userSessionService.revokeByJti(jwtTokenService.resolveSessionKey(oldToken));
+        }
+        IssuedToken issued = jwtTokenService.issueToken(user, tenant.getId());
+        userSessionService.createSession(user, issued.jti(), issued.expireAt(), httpRequest);
+        loginLogService.recordLoginSuccess(user, httpRequest);
+        LoginResponse response = new LoginResponse();
+        response.setToken(issued.token());
+        response.setUser(toProfile(user, tenant));
+        return response;
+    }
+
     public UserProfile me() {
         UserContext ctx = UserContextHolder.require();
-        return toProfile(loadUser(ctx.getUserId()));
+        SysUser user = loadUser(ctx.getUserId());
+        SysTenant tenant = ctx.getTenantId() != null ? tenantMapper.selectById(ctx.getTenantId()) : null;
+        return toProfile(user, tenant);
     }
 
     private SysUser loadUser(Long id) {
@@ -94,28 +139,37 @@ public class AuthService {
         int pageSize = request.getPageSize() == null || request.getPageSize() < 1 ? 20 : request.getPageSize();
         String keyword = StringUtils.trimToEmpty(request.getKeyword());
         Long tenantFilter = request.getTenantId();
+        List<Long> memberUserIds = null;
+        if (tenantFilter != null) {
+            memberUserIds = tenantMemberService.listUserIdsByTenant(tenantFilter);
+            if (memberUserIds.isEmpty()) {
+                return new Page<>(pageNo, pageSize, 0);
+            }
+        }
         Page<SysUser> page = userMapper.selectPage(new Page<>(pageNo, pageSize),
                 Wrappers.<SysUser>lambdaQuery()
-                        .eq(tenantFilter != null, SysUser::getTenantId, tenantFilter)
+                        .in(memberUserIds != null, SysUser::getId, memberUserIds)
                         .and(StringUtils.isNotBlank(keyword), w -> w
                                 .like(SysUser::getUsername, keyword)
                                 .or().like(SysUser::getDisplayName, keyword)
                                 .or().like(SysUser::getEmail, keyword))
                         .orderByDesc(SysUser::getCreateTime));
-        return page.convert(this::toProfile);
+        return page.convert(user -> {
+            UserProfile profile = toProfile(user, null);
+            profile.setTenantNames(tenantMemberService.listTenantNamesByUser(user.getId()));
+            return profile;
+        });
     }
 
     public List<UserProfile> listEnabled() {
         Long tenantId = UserContextHolder.current()
                 .map(UserContext::getTenantId)
                 .orElse(TenantService.DEFAULT_TENANT_ID);
-        List<SysUser> users = userMapper.selectList(Wrappers.<SysUser>lambdaQuery()
-                .eq(SysUser::getTenantId, tenantId)
-                .eq(SysUser::getEnabled, 1)
-                .orderByAsc(SysUser::getDisplayName));
+        List<SysUser> users = tenantMemberService.listEnabledMembers(tenantId);
         List<UserProfile> list = new ArrayList<>();
+        SysTenant tenant = tenantMapper.selectById(tenantId);
         for (SysUser user : users) {
-            list.add(toProfile(user));
+            list.add(toProfile(user, tenant));
         }
         return list;
     }
@@ -131,17 +185,11 @@ public class AuthService {
         if (!List.of("admin", "user").contains(role)) {
             throw new IllegalArgumentException("无效的角色");
         }
-        Long tenantId = request.getTenantId();
-        if (tenantId == null) {
-            tenantId = TenantService.DEFAULT_TENANT_ID;
-        }
-        tenantService.requireEnabled(tenantId);
         Long dup = userMapper.selectCount(Wrappers.<SysUser>lambdaQuery()
-                .eq(SysUser::getTenantId, tenantId)
                 .eq(SysUser::getUsername, username)
                 .ne(request.getId() != null, SysUser::getId, request.getId()));
         if (dup != null && dup > 0) {
-            throw new IllegalArgumentException("该租户下用户名已存在");
+            throw new IllegalArgumentException("用户名已存在");
         }
         SysUser user;
         if (request.getId() == null) {
@@ -149,7 +197,6 @@ public class AuthService {
                 throw new IllegalArgumentException("新建用户必须设置密码");
             }
             user = new SysUser();
-            user.setTenantId(tenantId);
             user.setUsername(username);
             user.setPassword(passwordEncoder.encode(request.getPassword()));
             user.setEnabled(request.getEnabled() == null ? 1 : request.getEnabled());
@@ -159,10 +206,6 @@ public class AuthService {
                 throw new IllegalArgumentException("用户不存在");
             }
             user.setUsername(username);
-            if (request.getTenantId() != null) {
-                tenantService.requireEnabled(request.getTenantId());
-                user.setTenantId(request.getTenantId());
-            }
             if (StringUtils.isNotBlank(request.getPassword())) {
                 user.setPassword(passwordEncoder.encode(request.getPassword()));
             }
@@ -199,7 +242,7 @@ public class AuthService {
         }
     }
 
-    private UserProfile toProfile(SysUser user) {
+    private UserProfile toProfile(SysUser user, SysTenant tenant) {
         UserProfile profile = new UserProfile();
         profile.setId(user.getId());
         profile.setUsername(user.getUsername());
@@ -208,13 +251,10 @@ public class AuthService {
         profile.setPhone(user.getPhone());
         profile.setRole(user.getRole());
         profile.setEnabled(user.getEnabled());
-        profile.setTenantId(user.getTenantId());
-        if (user.getTenantId() != null) {
-            SysTenant tenant = tenantMapper.selectById(user.getTenantId());
-            if (tenant != null) {
-                profile.setTenantCode(tenant.getCode());
-                profile.setTenantName(tenant.getName());
-            }
+        if (tenant != null) {
+            profile.setTenantId(tenant.getId());
+            profile.setTenantCode(tenant.getCode());
+            profile.setTenantName(tenant.getName());
         }
         return profile;
     }
