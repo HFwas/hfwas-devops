@@ -5,6 +5,8 @@ import com.hfwas.devops.pm.api.dto.BoardQueryDto;
 import com.hfwas.devops.pm.meta.PmMetaService;
 import com.hfwas.devops.pm.meta.PmWorkItemType;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
+import com.hfwas.devops.pm.workitem.model.StatusDefinitionVO;
+import com.hfwas.devops.pm.workitem.service.StatusDefinitionService;
 import com.hfwas.devops.pm.workitem.service.WorkItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +22,7 @@ public class PmMetaController {
 
     private final PmMetaService metaService;
     private final WorkItemService workItemService;
+    private final StatusDefinitionService statusDefinitionService;
 
     @PostMapping("/meta/types")
     public BaseResult<List<PmWorkItemType>> types() {
@@ -29,10 +32,10 @@ public class PmMetaController {
     @PostMapping("/board")
     public BaseResult<Map<String, List<PmWorkItem>>> board(@RequestBody BoardQueryDto dto) {
         Map<String, List<PmWorkItem>> board = new LinkedHashMap<>();
-        board.put("open", workItemService.listByStatus(dto.getProjectId(), dto.getTypeCode(), "open"));
-        board.put("in_progress", workItemService.listByStatus(dto.getProjectId(), dto.getTypeCode(), "in_progress"));
-        board.put("done", workItemService.listByStatus(dto.getProjectId(), dto.getTypeCode(), "done"));
-        board.put("closed", workItemService.listByStatus(dto.getProjectId(), dto.getTypeCode(), "closed"));
+        for (StatusDefinitionVO status : statusDefinitionService.listStatusOptions(dto.getProjectId(), dto.getTypeCode())) {
+            board.put(status.getStatusCode(),
+                    workItemService.listByStatus(dto.getProjectId(), dto.getTypeCode(), status.getStatusCode()));
+        }
         return BaseResult.ok(board);
     }
 }

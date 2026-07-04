@@ -98,6 +98,30 @@ export interface RemoteOptionFetchResult {
   options?: ResolvedFieldOption[]
 }
 
+export interface StatusDefinition {
+  id?: number | string
+  statusCode: string
+  statusName: string
+  sortOrder?: number
+  isInitial?: number
+  isFinal?: number
+  transitions?: string[]
+}
+
+export interface StatusWorkflow {
+  projectId?: number
+  typeCode?: string
+  customized?: boolean
+  statuses: StatusDefinition[]
+}
+
+export interface AllowedTransitions {
+  fromStatus?: string
+  targets: StatusDefinition[]
+}
+
+export const ANY_STATUS_CODE = '__any__'
+
 export interface PmProject {
   id?: number
   tenantId?: number | string
@@ -226,6 +250,14 @@ export const STATUS_OPTIONS = [
   { label: '已完成', value: 'done' },
   { label: '已关闭', value: 'closed' },
 ]
+
+export const STATUS_COLOR_PALETTE = ['#2080f0', '#18a058', '#f0a020', '#d03050', '#7c3aed', '#0891b2', '#64748b']
+
+export function statusTagColor(status: StatusDefinition, index = 0): string {
+  if (status.isInitial === 1) return '#2080f0'
+  if (status.isFinal === 1) return '#64748b'
+  return STATUS_COLOR_PALETTE[index % STATUS_COLOR_PALETTE.length]
+}
 
 export const PRIORITY_OPTIONS = [
   { label: '低', value: 'low' },

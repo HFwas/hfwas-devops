@@ -35,6 +35,7 @@ public class WorkItemService {
     private final QueryEngine queryEngine;
     private final WorkItemSequenceService sequenceService;
     private final WorkItemKeyEnricher keyEnricher;
+    private final StatusDefinitionService statusDefinitionService;
     private final SiteMessagePublisher siteMessagePublisher;
     private final CurrentUserAccessor currentUserAccessor;
 
@@ -58,12 +59,19 @@ public class WorkItemService {
 
         if (item.getId() == null) {
             typeRegistry.get(item.getTypeCode()).ifPresent(p -> p.validateOnCreate(item));
+            if (item.getStatus() == null || item.getStatus().isBlank()) {
+                item.setStatus(statusDefinitionService.initialStatus(item.getProjectId(), item.getTypeCode()));
+            }
             item.setItemNo(sequenceService.nextItemNo(item.getProjectId()));
             workItemMapper.insert(item);
             notifyAssigneeIfChanged(new PmWorkItem(), item);
         } else {
             PmWorkItem old = workItemMapper.selectById(item.getId());
             typeRegistry.get(item.getTypeCode()).ifPresent(p -> p.validateOnUpdate(old, item));
+            if (old != null && item.getStatus() != null && !item.getStatus().equals(old.getStatus())) {
+                statusDefinitionService.validateTransition(
+                        item.getProjectId(), item.getTypeCode(), old.getStatus(), item.getStatus());
+            }
             workItemMapper.updateById(item);
             notifyAssigneeIfChanged(old, item);
         }
@@ -77,6 +85,8 @@ public class WorkItemService {
         if (item == null) {
             throw new IllegalArgumentException("Work item not found");
         }
+        statusDefinitionService.validateTransition(
+                item.getProjectId(), item.getTypeCode(), item.getStatus(), toStatus);
         item.setStatus(toStatus);
         workItemMapper.updateById(item);
     }

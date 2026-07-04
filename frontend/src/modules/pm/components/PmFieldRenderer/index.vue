@@ -3,31 +3,45 @@ import { computed } from 'vue'
 import PmMarkdownEditor from '@/modules/pm/components/PmMarkdownEditor/index.vue'
 import { useFieldOptions } from '@/modules/pm/composables/useFieldOptions'
 import { useProjectModules } from '@/modules/pm/composables/useProjectModules'
+import { useStatusOptions } from '@/modules/pm/composables/useStatusOptions'
 import { useUserOptions } from '@/modules/pm/composables/useUserOptions'
 import type { FieldDefinition } from '@/modules/pm/types'
+import { PRIORITY_OPTIONS } from '@/modules/pm/types'
 import { asId, routeId } from '@/modules/pm/utils/id'
 
 const props = defineProps<{
   field: FieldDefinition
   modelValue: unknown
   mode?: 'edit' | 'query' | 'view'
-  projectId?: number
+  projectId?: number | string
+  typeCode?: string
+  restrictStatus?: boolean
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [unknown] }>()
 
 const route = useRoute()
 const resolvedProjectId = computed(() => props.projectId ?? (routeId(route.params.projectId) || undefined))
+const resolvedTypeCode = computed(() => props.typeCode ?? (typeof route.params.typeCode === 'string' ? route.params.typeCode : undefined))
+const isStatusField = computed(() => props.field.fieldKey === 'status' || props.field.fieldType === 'STATUS')
+const statusFrom = computed(() => (props.restrictStatus && props.modelValue ? String(props.modelValue) : undefined))
+
 const { selectOptions: moduleOptions, labelMap, load: loadModules } = useProjectModules(resolvedProjectId)
 const { selectOptions: userOptions, labelMap: userLabelMap, load: loadUsers } = useUserOptions()
-const { options: fieldSelectOptions, loading: optionsLoading, error: optionsError } = useFieldOptions(
-  computed(() => props.field),
+const { options: fieldSelectOptions, loading: fieldOptionsLoading, error: optionsError } = useFieldOptions(
+  computed(() => (isStatusField.value ? undefined : props.field)),
+)
+const { selectOptions: statusOptions, labelMap: statusLabelMap, loading: statusLoading } = useStatusOptions(
+  resolvedProjectId,
+  resolvedTypeCode,
+  statusFrom,
 )
 
 watch(resolvedProjectId, () => loadModules(), { immediate: true })
 watch(() => props.field.fieldType, (t) => { if (t === 'USER') loadUsers() }, { immediate: true })
 
 const readonly = computed(() => props.mode === 'view')
+const optionsLoading = computed(() => fieldOptionsLoading.value || statusLoading.value)
 
 const value = computed({
   get: () => props.modelValue,
@@ -35,8 +49,10 @@ const value = computed({
 })
 
 const options = computed(() => {
+  if (isStatusField.value) return statusOptions.value
   if (props.field.fieldType === 'MODULE') return moduleOptions.value
   if (props.field.fieldType === 'USER') return userOptions.value
+  if (props.field.fieldKey === 'priority' || props.field.fieldType === 'PRIORITY') return PRIORITY_OPTIONS
   return fieldSelectOptions.value
 })
 
@@ -53,7 +69,10 @@ const displayText = computed(() => {
     const id = asId(val as string | number)
     return userLabelMap.value[id] ?? String(val)
   }
-  if (['SELECT', 'STATUS', 'PRIORITY'].includes(props.field.fieldType)) {
+  if (isStatusField.value) {
+    return statusLabelMap.value[String(val)] ?? String(val)
+  }
+  if (['SELECT', 'PRIORITY'].includes(props.field.fieldType)) {
     const opt = options.value.find((o) => o.value === val)
     return opt?.label ?? String(val)
   }

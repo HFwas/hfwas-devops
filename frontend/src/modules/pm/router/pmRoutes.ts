@@ -58,6 +58,11 @@ export const pmRoutes: RouteRecordRaw[] = [
         component: () => import('@/modules/pm/views/settings/IssueTypeLayoutView.vue'),
       },
       {
+        path: 'settings/workflow/:typeCode',
+        name: 'pm-status-workflow',
+        component: () => import('@/modules/pm/views/settings/StatusWorkflowView.vue'),
+      },
+      {
         path: 'fields',
         redirect: (to) => `/pm/projects/${to.params.projectId}/settings/types`,
       },

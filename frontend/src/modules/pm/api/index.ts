@@ -1,7 +1,7 @@
 import { get, post } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
 import type { EntityId } from '@/modules/pm/utils/id'
-import type { FieldDefinition, FieldOption, FieldRemoteOptionsConfig, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemComment, PmWorkItemType, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, TypeFieldLayoutConfig } from '@/modules/pm/types'
+import type { AllowedTransitions, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemComment, PmWorkItemType, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, StatusDefinition, StatusWorkflow, TypeFieldLayoutConfig } from '@/modules/pm/types'
 import { asId } from '@/modules/pm/utils/id'
 
 export const pmModuleApi = {
@@ -60,6 +60,19 @@ export const pmFieldLayoutApi = {
     post<TypeFieldLayoutConfig>('/pm/fields/layout/get', { projectId, typeCode }),
   save: (projectId: EntityId, typeCode: string, layout: TypeFieldLayoutConfig) =>
     post<void>('/pm/fields/layout/save', { projectId, typeCode, layout }),
+}
+
+export const pmStatusApi = {
+  get: (projectId: EntityId, typeCode: string) =>
+    post<StatusWorkflow>('/pm/status/workflow/get', { projectId, typeCode }),
+  options: (projectId: EntityId, typeCode: string) =>
+    post<StatusDefinition[]>('/pm/status/workflow/options', { projectId, typeCode }),
+  allowed: (projectId: EntityId, typeCode: string, fromStatus: string) =>
+    post<AllowedTransitions>('/pm/status/workflow/allowed', { projectId, typeCode, fromStatus }),
+  save: (projectId: EntityId, typeCode: string, statuses: StatusDefinition[]) =>
+    post<void>('/pm/status/workflow/save', { projectId, typeCode, statuses }),
+  reset: (projectId: EntityId, typeCode: string) =>
+    post<void>('/pm/status/workflow/reset', { projectId, typeCode }),
 }
 
 export const pmViewApi = {

@@ -42,10 +42,15 @@ onMounted(load)
                 </n-tag>
                 <n-text depth="3">{{ t.code }}</n-text>
               </n-space>
-              <n-button text type="primary">配置字段 →</n-button>
+              <n-space>
+                <n-button text type="primary" @click.stop="router.push(`/pm/projects/${projectId}/settings/workflow/${t.code}`)">
+                  状态流转
+                </n-button>
+                <n-button text type="primary" @click.stop="openType(t.code)">字段布局 →</n-button>
+              </n-space>
             </n-space>
             <n-text depth="3" style="display: block; margin-top: 12px">
-              配置该事项在列表、搜索条件、新建表单中使用的字段
+              配置该事项的字段展示方案与状态流转规则
             </n-text>
           </n-card>
         </n-gi>

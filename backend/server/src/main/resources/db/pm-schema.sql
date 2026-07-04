@@ -175,10 +175,22 @@ INSERT OR IGNORE INTO pm_status_definition (id, project_id, type_code, status_co
 (2, NULL, 'task', 'in_progress', '进行中', 2, 0, 0, '["done","open"]'),
 (3, NULL, 'task', 'done', '已完成', 3, 0, 0, '["closed"]'),
 (4, NULL, 'task', 'closed', '已关闭', 4, 0, 1, '[]'),
-(5, NULL, 'bug', 'open', '待处理', 1, 1, 0, '["in_progress","closed"]'),
-(6, NULL, 'bug', 'in_progress', '修复中', 2, 0, 0, '["done"]'),
-(7, NULL, 'bug', 'done', '已修复', 3, 0, 0, '["closed"]'),
-(8, NULL, 'bug', 'closed', '已关闭', 4, 0, 1, '[]');
+(5, NULL, 'task', '__any__', '任何状态', 99, 0, 0, '[]'),
+(6, NULL, 'bug', 'open', '待处理', 1, 1, 0, '["in_progress","closed"]'),
+(7, NULL, 'bug', 'in_progress', '修复中', 2, 0, 0, '["done"]'),
+(8, NULL, 'bug', 'done', '已修复', 3, 0, 0, '["closed"]'),
+(9, NULL, 'bug', 'closed', '已关闭', 4, 0, 1, '[]'),
+(10, NULL, 'bug', '__any__', '任何状态', 99, 0, 0, '[]'),
+(11, NULL, 'requirement', 'open', '待处理', 1, 1, 0, '["in_progress","closed"]'),
+(12, NULL, 'requirement', 'in_progress', '进行中', 2, 0, 0, '["done","open"]'),
+(13, NULL, 'requirement', 'done', '已完成', 3, 0, 0, '["closed"]'),
+(14, NULL, 'requirement', 'closed', '已关闭', 4, 0, 1, '[]'),
+(15, NULL, 'requirement', '__any__', '任何状态', 99, 0, 0, '[]'),
+(16, NULL, 'test_case', 'open', '待执行', 1, 1, 0, '["in_progress","closed"]'),
+(17, NULL, 'test_case', 'in_progress', '执行中', 2, 0, 0, '["done","open"]'),
+(18, NULL, 'test_case', 'done', '已通过', 3, 0, 0, '["closed"]'),
+(19, NULL, 'test_case', 'closed', '已关闭', 4, 0, 1, '[]'),
+(20, NULL, 'test_case', '__any__', '任何状态', 99, 0, 0, '[]');
 
 CREATE TABLE IF NOT EXISTS sys_user (
     id              INTEGER      PRIMARY KEY AUTOINCREMENT,

@@ -25,6 +25,7 @@ const menuRouteMap = computed(() => {
     [`settings-types:${id}`]: `/pm/projects/${id}/settings/types`,
     [`settings-fields:${id}`]: `/pm/projects/${id}/settings/fields`,
     [`settings-modules:${id}`]: `/pm/projects/${id}/settings/modules`,
+    [`settings-workflow:${id}`]: `/pm/projects/${id}/settings/workflow/task`,
   } as Record<string, string>
 })
 
@@ -51,6 +52,7 @@ const menuOptions = computed(() => {
       key: 'field-settings',
       children: [
         { label: '事项配置', key: `settings-types:${id}` },
+        { label: '状态流转', key: `settings-workflow:${id}` },
         { label: '字段', key: `settings-fields:${id}` },
       ],
     },
@@ -91,6 +93,7 @@ const activeMenuKey = computed(() => {
     return `settings-types:${id}`
   }
   if (path.endsWith('/settings/fields')) return `settings-fields:${id}`
+  if (path.includes('/settings/workflow')) return `settings-workflow:${id}`
   if (path.endsWith('/settings/modules')) return `settings-modules:${id}`
   return null
 })
