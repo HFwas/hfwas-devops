@@ -3,6 +3,7 @@ package com.hfwas.devops.user.service;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.hfwas.devops.user.context.UserContext;
 import com.hfwas.devops.user.context.UserContextHolder;
+import com.hfwas.devops.user.message.SiteMessageNotifier;
 import com.hfwas.devops.user.entity.SysIdentityConnector;
 import com.hfwas.devops.user.entity.SysUser;
 import com.hfwas.devops.user.integration.engine.IdentityConnectorRegistry;
@@ -34,6 +35,7 @@ public class IdentityConnectorSyncService {
     private final IdentityConnectorService connectorService;
     private final TenantMemberService tenantMemberService;
     private final PasswordEncoder passwordEncoder;
+    private final SiteMessageNotifier messageNotifier;
 
     @Transactional
     public ConnectorSyncResult sync(Long connectorId) {
@@ -107,6 +109,10 @@ public class IdentityConnectorSyncService {
         connectorMapper.updateById(connector);
 
         handler.afterSync(configJson, result);
+        UserContext ctx = UserContextHolder.current().orElse(null);
+        if (ctx != null) {
+            messageNotifier.notifyLdapSyncComplete(ctx.getUserId(), result.getMessage());
+        }
         return result;
     }
 

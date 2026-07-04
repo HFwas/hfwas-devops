@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/modules/user/stores/auth'
+import MessageBell from '@/modules/user/components/MessageBell.vue'
 import { useMessage } from 'naive-ui'
 
 const auth = useAuthStore()
 const router = useRouter()
 const message = useMessage()
+const messageBellRef = ref<InstanceType<typeof MessageBell> | null>(null)
 
 onMounted(() => {
   if (!auth.isLoggedIn) return
@@ -29,6 +31,7 @@ async function onSwitchTenant(tenantId: string | number) {
   try {
     await auth.switchTenant(tenantId)
     message.success('已切换租户')
+    messageBellRef.value?.refresh()
     await router.replace('/pm/projects')
   } catch (e) {
     message.error(e instanceof Error ? e.message : '切换租户失败')
@@ -51,6 +54,7 @@ function logout() {
           <router-link to="/pm/projects">项目管理</router-link>
           <router-link v-if="auth.isAdmin" to="/user/accounts">用户中心</router-link>
           <template v-if="auth.isLoggedIn">
+            <MessageBell ref="messageBellRef" />
             <n-dropdown
               v-if="showTenantSwitcher"
               trigger="click"

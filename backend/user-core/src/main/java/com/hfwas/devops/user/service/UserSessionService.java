@@ -9,6 +9,7 @@ import com.hfwas.devops.user.entity.SysUser;
 import com.hfwas.devops.user.entity.SysUserSession;
 import com.hfwas.devops.user.mapper.SysUserMapper;
 import com.hfwas.devops.user.mapper.SysUserSessionMapper;
+import com.hfwas.devops.user.message.SiteMessageNotifier;
 import com.hfwas.devops.user.model.UserSessionPageRequest;
 import com.hfwas.devops.user.model.UserSessionStats;
 import com.hfwas.devops.user.model.UserSessionVO;
@@ -37,6 +38,7 @@ public class UserSessionService {
 
     private final SysUserSessionMapper sessionMapper;
     private final SysUserMapper userMapper;
+    private final SiteMessageNotifier messageNotifier;
 
     @Transactional
     public void createSession(SysUser user, String jti, Instant expireAt, HttpServletRequest request) {
@@ -117,6 +119,7 @@ public class UserSessionService {
         }
         session.setRevoked(1);
         sessionMapper.updateById(session);
+        messageNotifier.notifySessionRevoked(session.getUserId());
     }
 
     public UserSessionStats stats() {

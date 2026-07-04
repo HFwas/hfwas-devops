@@ -165,3 +165,44 @@ export interface ConnectorSyncResult {
   skipped: number
   disabled: number
 }
+
+export interface NotifyChannel {
+  id?: number | string
+  channel: 'site' | 'dingtalk' | 'feishu' | string
+  channelLabel?: string
+  enabled?: number
+  configJson?: string
+  remark?: string
+  updateTime?: string
+}
+
+export interface WebhookChannelConfig {
+  webhookUrl: string
+  secret?: string
+}
+
+export interface NotifyTestResult {
+  success: boolean
+  message: string
+}
+
+export interface UserMessage {
+  id?: number | string
+  userId?: number | string
+  username?: string
+  displayName?: string
+  tenantId?: number | string
+  tenantName?: string
+  category: 'system' | 'operation' | 'announcement' | string
+  categoryLabel?: string
+  title: string
+  content?: string
+  readFlag?: number
+  senderId?: number | string
+  senderName?: string
+  bizType?: string
+  bizId?: string
+  linkUrl?: string
+  createTime?: string
+  readTime?: string
+}

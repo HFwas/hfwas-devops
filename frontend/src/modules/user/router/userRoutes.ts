@@ -2,6 +2,11 @@ import type { RouteRecordRaw } from 'vue-router'
 
 export const userRoutes: RouteRecordRaw[] = [
   {
+    path: '/messages',
+    name: 'message-inbox',
+    component: () => import('@/modules/user/views/MessageInboxView.vue'),
+  },
+  {
     path: '/user/login',
     name: 'user-login',
     component: () => import('@/modules/user/views/LoginView.vue'),
@@ -45,6 +50,16 @@ export const userRoutes: RouteRecordRaw[] = [
         path: 'integrations',
         name: 'user-integrations',
         component: () => import('@/modules/user/views/IntegrationManageView.vue'),
+      },
+      {
+        path: 'messages',
+        name: 'user-messages-admin',
+        component: () => import('@/modules/user/views/MessageManageView.vue'),
+      },
+      {
+        path: 'message-notify',
+        name: 'user-message-notify',
+        component: () => import('@/modules/user/views/MessageNotifyView.vue'),
       },
     ],
   },

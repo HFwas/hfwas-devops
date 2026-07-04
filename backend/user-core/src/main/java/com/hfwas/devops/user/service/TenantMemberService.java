@@ -14,6 +14,7 @@ import com.hfwas.devops.user.model.TenantMemberPageRequest;
 import com.hfwas.devops.user.model.TenantMemberSaveRequest;
 import com.hfwas.devops.user.model.TenantMemberVO;
 import com.hfwas.devops.user.model.TenantOptionVO;
+import com.hfwas.devops.user.message.SiteMessageNotifier;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class TenantMemberService {
     private final SysTenantMemberMapper memberMapper;
     private final SysUserMapper userMapper;
     private final SysTenantMapper tenantMapper;
+    private final SiteMessageNotifier messageNotifier;
 
     public IPage<TenantMemberVO> page(Long tenantId, TenantMemberPageRequest request) {
         requireEnabledTenant(tenantId);
@@ -95,6 +97,7 @@ public class TenantMemberService {
     @Transactional
     public void addMembers(Long tenantId, TenantMemberAddRequest request) {
         requireEnabledTenant(tenantId);
+        SysTenant tenant = tenantMapper.selectById(tenantId);
         if (request.getUserIds() == null || request.getUserIds().isEmpty()) {
             throw new IllegalArgumentException("请选择要加入的用户");
         }
@@ -118,6 +121,9 @@ public class TenantMemberService {
                 member.setTenantRole(role);
                 member.setStatus(1);
                 memberMapper.insert(member);
+            }
+            if (tenant != null) {
+                messageNotifier.notifyTenantJoined(userId, tenantId, tenant.getName());
             }
         }
     }
@@ -146,9 +152,13 @@ public class TenantMemberService {
     @Transactional
     public void removeMember(Long tenantId, Long userId) {
         requireEnabledTenant(tenantId);
+        SysTenant tenant = tenantMapper.selectById(tenantId);
         memberMapper.delete(Wrappers.<SysTenantMember>lambdaQuery()
                 .eq(SysTenantMember::getTenantId, tenantId)
                 .eq(SysTenantMember::getUserId, userId));
+        if (tenant != null) {
+            messageNotifier.notifyTenantRemoved(userId, tenant.getName());
+        }
     }
 
     public boolean isActiveMember(Long tenantId, Long userId) {

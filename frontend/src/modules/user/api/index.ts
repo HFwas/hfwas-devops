@@ -1,5 +1,5 @@
 import { get, post } from '@/shared/api/request'
-import type { LoginLog, LoginResponse, OperLog, PlatformUserOption, Tenant, TenantMember, TenantOption, UserProfile, UserSession, UserSessionStats, IdentityConnector, IdentityConnectorType, ConnectorTestResult, ConnectorSyncResult } from '@/modules/user/types'
+import type { LoginLog, LoginResponse, OperLog, PlatformUserOption, Tenant, TenantMember, TenantOption, UserProfile, UserSession, UserSessionStats, IdentityConnector, IdentityConnectorType, ConnectorTestResult, ConnectorSyncResult, UserMessage, NotifyChannel, NotifyTestResult } from '@/modules/user/types'
 import type { PageResult } from '@/shared/types/common'
 import { asId } from '@/modules/pm/utils/id'
 
@@ -72,4 +72,35 @@ export const identityConnectorApi = {
   testConnection: (data: Partial<IdentityConnector> & { configJson?: string }) =>
     post<ConnectorTestResult>('/user/integrations/test-connection', data),
   sync: (id: number | string) => post<ConnectorSyncResult>(`/user/integrations/sync?id=${asId(id)}`, {}),
+}
+
+export const messageApi = {
+  unreadCount: () => get<number>('/user/messages/unread-count'),
+  recent: (limit = 5) => get<UserMessage[]>('/user/messages/recent', { limit }),
+  page: (data: { pageNo?: number; pageSize?: number; readFlag?: string; category?: string; keyword?: string }) =>
+    post<PageResult<UserMessage>>('/user/messages/page', data),
+  detail: (id: number | string) => get<UserMessage>(`/user/messages/${asId(id)}`),
+  markRead: (id: number | string) => post<void>(`/user/messages/mark-read?id=${asId(id)}`, {}),
+  markAllRead: () => post<void>('/user/messages/mark-all-read', {}),
+  markReadBatch: (ids: (number | string)[]) => post<void>('/user/messages/mark-read-batch', ids),
+  delete: (id: number | string) => post<void>(`/user/messages/delete?id=${asId(id)}`, {}),
+  adminPage: (data: { pageNo?: number; pageSize?: number; userId?: number | string; category?: string; keyword?: string }) =>
+    post<PageResult<UserMessage>>('/user/messages/admin/page', data),
+  adminSend: (data: {
+    targetType: 'all' | 'tenant' | 'users'
+    tenantId?: number | string
+    userIds?: (number | string)[]
+    category?: string
+    title: string
+    content?: string
+    linkUrl?: string
+  }) => post<void>('/user/messages/admin/send', data),
+}
+
+export const messageNotifyApi = {
+  channels: () => get<NotifyChannel[]>('/user/message-notify/channels'),
+  save: (data: { channel: string; enabled?: number; configJson?: string; remark?: string }) =>
+    post<void>('/user/message-notify/save', data),
+  test: (data: { channel: string; enabled?: number; configJson?: string }) =>
+    post<NotifyTestResult>('/user/message-notify/test', data),
 }

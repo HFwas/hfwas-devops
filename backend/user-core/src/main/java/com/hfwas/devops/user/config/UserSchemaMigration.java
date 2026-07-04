@@ -35,6 +35,8 @@ public class UserSchemaMigration implements ApplicationRunner {
         ensureOperLogTable();
         ensureIdentityConnectorTable();
         migrateUserAuthSourceColumns();
+        ensureUserMessageTable();
+        ensureNotifyChannelTable();
         seedDefaultTenant();
         seedAdminUser();
     }
@@ -222,6 +224,45 @@ public class UserSchemaMigration implements ApplicationRunner {
         addColumnIfMissing("sys_user", "connector_id", "INTEGER");
         jdbcTemplate.update("UPDATE sys_user SET auth_source = 'local' WHERE auth_source IS NULL");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_user_connector ON sys_user(connector_id, external_id)");
+    }
+
+    private void ensureUserMessageTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS sys_user_message (
+                    id              INTEGER      PRIMARY KEY AUTOINCREMENT,
+                    user_id         INTEGER      NOT NULL,
+                    tenant_id       INTEGER,
+                    category        TEXT         NOT NULL DEFAULT 'operation',
+                    title           TEXT         NOT NULL,
+                    content         TEXT,
+                    read_flag       INTEGER      DEFAULT 0,
+                    sender_id       INTEGER,
+                    sender_name     TEXT,
+                    biz_type        TEXT,
+                    biz_id          TEXT,
+                    link_url        TEXT,
+                    create_time     TEXT         DEFAULT (datetime('now')),
+                    read_time       TEXT,
+                    del_flag        INTEGER      DEFAULT 0
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_user_message_user ON sys_user_message(user_id, read_flag)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_user_message_time ON sys_user_message(create_time)");
+    }
+
+    private void ensureNotifyChannelTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS sys_notify_channel (
+                    id              INTEGER      PRIMARY KEY AUTOINCREMENT,
+                    channel         TEXT         NOT NULL UNIQUE,
+                    enabled         INTEGER      DEFAULT 0,
+                    config_json     TEXT,
+                    remark          TEXT,
+                    create_time     TEXT         DEFAULT (datetime('now')),
+                    update_time     TEXT         DEFAULT (datetime('now')),
+                    del_flag        INTEGER      DEFAULT 0
+                )
+                """);
     }
 
     private void seedDefaultTenant() {

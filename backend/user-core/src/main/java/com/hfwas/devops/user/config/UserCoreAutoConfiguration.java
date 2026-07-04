@@ -3,6 +3,8 @@ package com.hfwas.devops.user.config;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hfwas.devops.user.context.AnonymousUserAccessor;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
+import com.hfwas.devops.user.message.spi.NoOpSiteMessagePublisher;
+import com.hfwas.devops.user.message.spi.SiteMessagePublisher;
 import com.hfwas.devops.user.operlog.spi.NoOpOperLogRecorder;
 import com.hfwas.devops.user.operlog.spi.OperLogRecorder;
 import org.mybatis.spring.annotation.MapperScan;
@@ -12,11 +14,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 @EnableAspectJAutoProxy
+@EnableAsync
 @ComponentScan(basePackages = "com.hfwas.devops.user")
 @MapperScan(value = {
         "com.hfwas.devops.user.mapper",
@@ -35,6 +39,12 @@ public class UserCoreAutoConfiguration {
     @ConditionalOnMissingBean(CurrentUserAccessor.class)
     public CurrentUserAccessor anonymousCurrentUserAccessor() {
         return AnonymousUserAccessor.INSTANCE;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SiteMessagePublisher.class)
+    public SiteMessagePublisher noOpSiteMessagePublisher() {
+        return NoOpSiteMessagePublisher.INSTANCE;
     }
 
     @Bean

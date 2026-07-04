@@ -7,6 +7,7 @@ import com.hfwas.devops.user.entity.SysTenant;
 import com.hfwas.devops.user.entity.SysUser;
 import com.hfwas.devops.user.mapper.SysTenantMapper;
 import com.hfwas.devops.user.mapper.SysUserMapper;
+import com.hfwas.devops.user.message.SiteMessageNotifier;
 import com.hfwas.devops.user.model.*;
 import com.hfwas.devops.user.context.UserContext;
 import com.hfwas.devops.user.context.UserContextHolder;
@@ -34,6 +35,7 @@ public class AuthService {
     private final LoginLogService loginLogService;
     private final TenantService tenantService;
     private final TenantMemberService tenantMemberService;
+    private final SiteMessageNotifier messageNotifier;
 
     public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest) {
         String username = StringUtils.trimToEmpty(request.getUsername());
@@ -218,6 +220,7 @@ public class AuthService {
         user.setRole(role);
         if (request.getId() == null) {
             userMapper.insert(user);
+            messageNotifier.notifyAccountCreated(user.getId(), user.getUsername());
         } else {
             userMapper.updateById(user);
         }

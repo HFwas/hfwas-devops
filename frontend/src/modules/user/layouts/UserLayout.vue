@@ -11,6 +11,8 @@ const menuOptions = [
   { label: '登录日志', key: '/user/login-logs' },
   { label: '操作日志', key: '/user/oper-logs' },
   { label: '三方对接', key: '/user/integrations' },
+  { label: '消息管理', key: '/user/messages' },
+  { label: '消息通知', key: '/user/message-notify' },
 ]
 
 const activeMenuKey = computed(() => {
@@ -31,6 +33,12 @@ const activeMenuKey = computed(() => {
   }
   if (route.path.startsWith('/user/integrations')) {
     return '/user/integrations'
+  }
+  if (route.path.startsWith('/user/messages')) {
+    return '/user/messages'
+  }
+  if (route.path.startsWith('/user/message-notify')) {
+    return '/user/message-notify'
   }
   return route.path
 })

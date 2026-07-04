@@ -12,6 +12,10 @@ import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItemLink;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemLinkMapper;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemMapper;
+import com.hfwas.devops.user.message.MessageCategories;
+import com.hfwas.devops.user.message.model.SiteMessageCommand;
+import com.hfwas.devops.user.message.spi.SiteMessagePublisher;
+import com.hfwas.devops.user.context.CurrentUserAccessor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +35,8 @@ public class WorkItemService {
     private final QueryEngine queryEngine;
     private final WorkItemSequenceService sequenceService;
     private final WorkItemKeyEnricher keyEnricher;
+    private final SiteMessagePublisher siteMessagePublisher;
+    private final CurrentUserAccessor currentUserAccessor;
 
     public IPage<PmWorkItem> page(QuerySpec spec) {
         IPage<PmWorkItem> page = queryEngine.execute(spec);
@@ -54,10 +60,12 @@ public class WorkItemService {
             typeRegistry.get(item.getTypeCode()).ifPresent(p -> p.validateOnCreate(item));
             item.setItemNo(sequenceService.nextItemNo(item.getProjectId()));
             workItemMapper.insert(item);
+            notifyAssigneeIfChanged(new PmWorkItem(), item);
         } else {
             PmWorkItem old = workItemMapper.selectById(item.getId());
             typeRegistry.get(item.getTypeCode()).ifPresent(p -> p.validateOnUpdate(old, item));
             workItemMapper.updateById(item);
+            notifyAssigneeIfChanged(old, item);
         }
         keyEnricher.enrich(item);
         return item.getId();
@@ -101,5 +109,26 @@ public class WorkItemService {
                 .orderByDesc(PmWorkItem::getUpdateTime));
         keyEnricher.enrich(items);
         return items;
+    }
+
+    private void notifyAssigneeIfChanged(PmWorkItem old, PmWorkItem item) {
+        if (item.getAssigneeId() == null || item.getAssigneeId().equals(old.getAssigneeId())) {
+            return;
+        }
+        Long currentUserId = currentUserAccessor.currentUserId();
+        if (item.getAssigneeId().equals(currentUserId)) {
+            return;
+        }
+        siteMessagePublisher.publishToUser(item.getAssigneeId(), SiteMessageCommand.builder()
+                .category(MessageCategories.OPERATION)
+                .title("工作项已分配给您")
+                .content("工作项「" + (item.getTitle() != null ? item.getTitle() : "#" + item.getId()) + "」已分配给您。")
+                .tenantId(currentUserAccessor.currentTenantId())
+                .bizType("work_item")
+                .bizId(String.valueOf(item.getId()))
+                .linkUrl("/pm/projects/" + item.getProjectId() + "/items/" + item.getId() + "?type=" + item.getTypeCode())
+                .senderId(currentUserId)
+                .senderName(currentUserAccessor.currentDisplayName())
+                .build());
     }
 }
