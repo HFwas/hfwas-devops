@@ -1,5 +1,5 @@
 import { get, post } from '@/shared/api/request'
-import type { LoginLog, LoginResponse, OperLog, PlatformUserOption, Tenant, TenantMember, TenantOption, UserProfile, UserSession, UserSessionStats } from '@/modules/user/types'
+import type { LoginLog, LoginResponse, OperLog, PlatformUserOption, Tenant, TenantMember, TenantOption, UserProfile, UserSession, UserSessionStats, IdentityConnector, IdentityConnectorType, ConnectorTestResult, ConnectorSyncResult } from '@/modules/user/types'
 import type { PageResult } from '@/shared/types/common'
 import { asId } from '@/modules/pm/utils/id'
 
@@ -59,4 +59,17 @@ export const tenantMemberApi = {
     post<void>(`/user/tenants/${asId(tenantId)}/members/save`, data),
   remove: (tenantId: number | string, userId: number | string) =>
     post<void>(`/user/tenants/${asId(tenantId)}/members/remove?userId=${asId(userId)}`, {}),
+}
+
+export const identityConnectorApi = {
+  types: () => get<IdentityConnectorType[]>('/user/integrations/types'),
+  page: (data: { pageNo?: number; pageSize?: number; keyword?: string; type?: string }) =>
+    post<PageResult<IdentityConnector>>('/user/integrations/page', data),
+  getById: (id: number | string) => get<IdentityConnector>(`/user/integrations/${asId(id)}`),
+  save: (data: Partial<IdentityConnector> & { configJson?: string }) =>
+    post<number>('/user/integrations/save', data),
+  delete: (id: number | string) => post<void>(`/user/integrations/delete?id=${asId(id)}`, {}),
+  testConnection: (data: Partial<IdentityConnector> & { configJson?: string }) =>
+    post<ConnectorTestResult>('/user/integrations/test-connection', data),
+  sync: (id: number | string) => post<ConnectorSyncResult>(`/user/integrations/sync?id=${asId(id)}`, {}),
 }

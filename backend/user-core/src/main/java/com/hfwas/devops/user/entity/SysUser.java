@@ -19,6 +19,12 @@ public class SysUser {
     private String phone;
     /** admin | user */
     private String role;
+    /** local | ldap | oauth2 */
+    private String authSource;
+    /** External directory id when synced from connector. */
+    private String externalId;
+    /** Source connector id; null for local users. */
+    private Long connectorId;
     private Integer enabled;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

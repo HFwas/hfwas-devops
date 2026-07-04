@@ -33,6 +33,8 @@ public class UserSchemaMigration implements ApplicationRunner {
         ensureSessionTable();
         ensureLoginLogTable();
         ensureOperLogTable();
+        ensureIdentityConnectorTable();
+        migrateUserAuthSourceColumns();
         seedDefaultTenant();
         seedAdminUser();
     }
@@ -190,6 +192,36 @@ public class UserSchemaMigration implements ApplicationRunner {
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_oper_log_module ON sys_oper_log(module)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_oper_log_user ON sys_oper_log(username)");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_oper_log_action ON sys_oper_log(action)");
+    }
+
+    private void ensureIdentityConnectorTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS sys_identity_connector (
+                    id                  INTEGER      PRIMARY KEY AUTOINCREMENT,
+                    name                TEXT         NOT NULL,
+                    type                TEXT         NOT NULL,
+                    config_json         TEXT         NOT NULL,
+                    enabled             INTEGER      DEFAULT 1,
+                    default_tenant_id   INTEGER,
+                    auto_create_member  INTEGER      DEFAULT 1,
+                    last_sync_time      TEXT,
+                    last_sync_status    TEXT,
+                    last_sync_message   TEXT,
+                    last_sync_count     INTEGER,
+                    create_time         TEXT         DEFAULT (datetime('now')),
+                    update_time         TEXT         DEFAULT (datetime('now')),
+                    del_flag            INTEGER      DEFAULT 0
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_identity_connector_type ON sys_identity_connector(type)");
+    }
+
+    private void migrateUserAuthSourceColumns() {
+        addColumnIfMissing("sys_user", "auth_source", "TEXT DEFAULT 'local'");
+        addColumnIfMissing("sys_user", "external_id", "TEXT");
+        addColumnIfMissing("sys_user", "connector_id", "INTEGER");
+        jdbcTemplate.update("UPDATE sys_user SET auth_source = 'local' WHERE auth_source IS NULL");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_user_connector ON sys_user(connector_id, external_id)");
     }
 
     private void seedDefaultTenant() {

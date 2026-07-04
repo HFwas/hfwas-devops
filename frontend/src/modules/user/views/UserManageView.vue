@@ -108,6 +108,16 @@ const columns = [
   { title: '用户名', key: 'username' },
   { title: '显示名称', key: 'displayName' },
   {
+    title: '来源',
+    key: 'authSource',
+    width: 90,
+    render: (row: UserProfile) => {
+      const src = row.authSource || 'local'
+      const label = src === 'ldap' ? 'LDAP' : src === 'local' ? '本地' : src
+      return h(NTag, { size: 'small', bordered: false, type: src === 'local' ? 'default' : 'info' }, () => label)
+    },
+  },
+  {
     title: '已加入租户',
     key: 'tenantNames',
     render: (row: UserProfile) =>

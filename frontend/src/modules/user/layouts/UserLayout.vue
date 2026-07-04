@@ -10,6 +10,7 @@ const menuOptions = [
   { label: '在线会话', key: '/user/sessions' },
   { label: '登录日志', key: '/user/login-logs' },
   { label: '操作日志', key: '/user/oper-logs' },
+  { label: '三方对接', key: '/user/integrations' },
 ]
 
 const activeMenuKey = computed(() => {
@@ -27,6 +28,9 @@ const activeMenuKey = computed(() => {
   }
   if (route.path.startsWith('/user/oper-logs')) {
     return '/user/oper-logs'
+  }
+  if (route.path.startsWith('/user/integrations')) {
+    return '/user/integrations'
   }
   return route.path
 })

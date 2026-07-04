@@ -10,6 +10,8 @@ export interface UserProfile {
   tenantCode?: string
   tenantName?: string
   tenantNames?: string[]
+  authSource?: 'local' | 'ldap' | string
+  connectorName?: string
 }
 
 export interface TenantMember {
@@ -111,3 +113,55 @@ export interface OperLog {
 }
 
 export const AUTH_TOKEN_KEY = 'hfwas.auth.token'
+
+export interface IdentityConnectorType {
+  type: string
+  label: string
+  description?: string
+}
+
+export interface LdapConnectorConfig {
+  url: string
+  baseDn: string
+  bindDn: string
+  bindPassword: string
+  userFilter?: string
+  usernameAttribute?: string
+  displayNameAttribute?: string
+  emailAttribute?: string
+  phoneAttribute?: string
+  externalIdAttribute?: string
+}
+
+export interface IdentityConnector {
+  id?: number | string
+  name: string
+  type: string
+  typeLabel?: string
+  configJson?: string
+  enabled?: number
+  defaultTenantId?: number | string
+  defaultTenantName?: string
+  autoCreateMember?: number
+  lastSyncTime?: string
+  lastSyncStatus?: string
+  lastSyncMessage?: string
+  lastSyncCount?: number
+  createTime?: string
+}
+
+export interface ConnectorTestResult {
+  success: boolean
+  message: string
+  sampleCount?: number
+}
+
+export interface ConnectorSyncResult {
+  success: boolean
+  message: string
+  fetched: number
+  created: number
+  updated: number
+  skipped: number
+  disabled: number
+}

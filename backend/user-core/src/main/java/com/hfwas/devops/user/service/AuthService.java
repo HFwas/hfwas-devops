@@ -250,6 +250,7 @@ public class AuthService {
         profile.setPhone(user.getPhone());
         profile.setRole(user.getRole());
         profile.setEnabled(user.getEnabled());
+        profile.setAuthSource(StringUtils.defaultIfBlank(user.getAuthSource(), "local"));
         if (tenant != null) {
             profile.setTenantId(tenant.getId());
             profile.setTenantCode(tenant.getCode());

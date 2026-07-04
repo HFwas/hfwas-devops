@@ -39,6 +39,7 @@ public class SecurityConfig {
                         .requestMatchers("/user/sessions/**").hasRole("admin")
                         .requestMatchers("/user/login-logs/**").hasRole("admin")
                         .requestMatchers("/user/oper-logs/**").hasRole("admin")
+                        .requestMatchers("/user/integrations/**").hasRole("admin")
                         .requestMatchers("/user/tenants/**").hasRole("admin")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex

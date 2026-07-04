@@ -41,6 +41,11 @@ export const userRoutes: RouteRecordRaw[] = [
         name: 'user-oper-logs',
         component: () => import('@/modules/user/views/OperLogView.vue'),
       },
+      {
+        path: 'integrations',
+        name: 'user-integrations',
+        component: () => import('@/modules/user/views/IntegrationManageView.vue'),
+      },
     ],
   },
   {

@@ -22,4 +22,7 @@ public class UserProfile {
     private String tenantName;
     /** Tenants this user has joined (platform user list) */
     private List<String> tenantNames;
+    /** local | ldap | oauth2 */
+    private String authSource;
+    private String connectorName;
 }
