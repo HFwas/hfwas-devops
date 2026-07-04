@@ -153,6 +153,7 @@ watch(projectId, load, { immediate: true })
       :row-key="(r: FieldDefinition, index: number) => fieldId(r) || `row-${index}`"
     />
     <PmFieldEditorDrawer
+      :key="`${showDrawer}-${editingId ?? 'new'}`"
       v-model:show="showDrawer"
       :project-id="projectId"
       :field-id="editingId"

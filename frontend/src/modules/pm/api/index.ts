@@ -1,7 +1,7 @@
 import { get, post } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
 import type { EntityId } from '@/modules/pm/utils/id'
-import type { FieldDefinition, FieldOption, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemComment, PmWorkItemType, QuerySpec, TypeFieldLayoutConfig } from '@/modules/pm/types'
+import type { FieldDefinition, FieldOption, FieldRemoteOptionsConfig, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemComment, PmWorkItemType, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, TypeFieldLayoutConfig } from '@/modules/pm/types'
 import { asId } from '@/modules/pm/utils/id'
 
 export const pmModuleApi = {
@@ -46,6 +46,10 @@ export const pmFieldApi = {
     post<FieldDefinition[]>('/pm/fields/definitions/catalog', { projectId }),
   getById: (id: number | string) => get<FieldDefinition>(`/pm/fields/definitions/${id}`),
   options: (fieldId: number | string) => get<FieldOption[]>(`/pm/fields/definitions/options?fieldId=${fieldId}`),
+  resolveOptions: (fieldId: number | string) =>
+    get<ResolvedFieldOption[]>(`/pm/fields/definitions/options/resolve?fieldId=${fieldId}`),
+  previewRemoteOptions: (config: FieldRemoteOptionsConfig) =>
+    post<RemoteOptionFetchResult>('/pm/fields/definitions/options/remote/preview', config),
   save: (definition: FieldDefinition, options?: FieldOption[]) =>
     post<number>('/pm/fields/definitions/save', { definition, options }),
   delete: (id: number | string) => post<void>(`/pm/fields/definitions/delete?id=${id}`, {}),

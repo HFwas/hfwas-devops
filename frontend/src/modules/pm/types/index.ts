@@ -74,6 +74,30 @@ export interface FieldOption {
   sortOrder?: number
 }
 
+export type FieldOptionSource = 'static' | 'remote'
+
+export interface FieldRemoteOptionsConfig {
+  url: string
+  method?: 'GET' | 'POST'
+  headers?: Record<string, string>
+  body?: string
+  dataPath?: string
+  valueField?: string
+  labelField?: string
+  cacheSeconds?: number
+}
+
+export interface ResolvedFieldOption {
+  value: string
+  label: string
+}
+
+export interface RemoteOptionFetchResult {
+  success: boolean
+  message?: string
+  options?: ResolvedFieldOption[]
+}
+
 export interface PmProject {
   id?: number
   tenantId?: number | string

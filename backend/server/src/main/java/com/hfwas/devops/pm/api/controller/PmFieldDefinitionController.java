@@ -6,6 +6,9 @@ import com.hfwas.devops.pm.api.dto.FieldDefinitionListDto;
 import com.hfwas.devops.pm.api.dto.FieldDefinitionSaveDto;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.field.model.FieldOption;
+import com.hfwas.devops.pm.field.model.FieldRemoteOptionsConfig;
+import com.hfwas.devops.pm.field.model.RemoteOptionFetchResult;
+import com.hfwas.devops.pm.field.model.ResolvedFieldOption;
 import com.hfwas.devops.pm.field.service.FieldDefinitionService;
 import com.hfwas.devops.user.operlog.annotation.OperLog;
 import lombok.RequiredArgsConstructor;
@@ -30,11 +33,6 @@ public class PmFieldDefinitionController {
         return BaseResult.ok(fieldDefinitionService.listCatalogByProject(dto.getProjectId()));
     }
 
-    @GetMapping("/{id}")
-    public BaseResult<FieldDefinition> getById(@PathVariable Long id) {
-        return BaseResult.ok(fieldDefinitionService.getById(id));
-    }
-
     @OperLog(module = "pm", action = "save", bizType = "field_definition", summary = "保存字段定义", bizId = "#result.data")
     @PostMapping("/save")
     public BaseResult<Long> save(@RequestBody FieldDefinitionSaveDto dto) {
@@ -51,5 +49,20 @@ public class PmFieldDefinitionController {
     @GetMapping("/options")
     public BaseResult<List<FieldOption>> options(@RequestParam("fieldId") Long fieldId) {
         return BaseResult.ok(fieldDefinitionService.listOptions(fieldId));
+    }
+
+    @GetMapping("/options/resolve")
+    public BaseResult<List<ResolvedFieldOption>> resolveOptions(@RequestParam("fieldId") Long fieldId) {
+        return BaseResult.ok(fieldDefinitionService.resolveOptions(fieldId));
+    }
+
+    @PostMapping("/options/remote/preview")
+    public BaseResult<RemoteOptionFetchResult> previewRemoteOptions(@RequestBody FieldRemoteOptionsConfig config) {
+        return BaseResult.ok(fieldDefinitionService.previewRemoteOptions(config));
+    }
+
+    @GetMapping("/{id}")
+    public BaseResult<FieldDefinition> getById(@PathVariable Long id) {
+        return BaseResult.ok(fieldDefinitionService.getById(id));
     }
 }

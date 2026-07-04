@@ -5,6 +5,10 @@ import com.hfwas.devops.pm.field.mapper.FieldDefinitionMapper;
 import com.hfwas.devops.pm.field.mapper.FieldOptionMapper;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.field.model.FieldOption;
+import com.hfwas.devops.pm.field.model.FieldOptionSource;
+import com.hfwas.devops.pm.field.model.FieldRemoteOptionsConfig;
+import com.hfwas.devops.pm.field.model.ResolvedFieldOption;
+import com.hfwas.devops.pm.field.model.RemoteOptionFetchResult;
 import com.hfwas.devops.pm.field.model.TypeFieldLayoutConfig;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -14,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +27,8 @@ public class FieldDefinitionService {
     private final FieldDefinitionMapper fieldDefinitionMapper;
     private final FieldOptionMapper fieldOptionMapper;
     private final FieldLayoutService fieldLayoutService;
+    private final FieldOptionRemoteService fieldOptionRemoteService;
+    private final FieldOptionConfigHelper fieldOptionConfigHelper;
 
     public List<FieldDefinition> listByProjectAndType(Long projectId, String typeCode) {
         List<FieldDefinition> merged = listRawByProjectAndType(projectId, typeCode);
@@ -67,12 +74,18 @@ public class FieldDefinitionService {
                 && (definition.getApplicableTypes() == null || definition.getApplicableTypes().isEmpty())) {
             throw new IllegalArgumentException("项目字段必须指定适用的事项类型");
         }
+        fieldOptionConfigHelper.validateSelectOptions(definition, options);
+        if (FieldOptionConfigHelper.isSelectType(definition.getFieldType())
+                && FieldOptionSource.REMOTE.equals(fieldOptionConfigHelper.optionSource(definition))) {
+            options = null;
+        }
         if (definition.getId() == null) {
             fieldDefinitionMapper.insert(definition);
         } else {
             fieldDefinitionMapper.updateById(definition);
             fieldOptionMapper.delete(Wrappers.<FieldOption>lambdaQuery().eq(FieldOption::getFieldId, definition.getId()));
         }
+        fieldOptionRemoteService.invalidateCache(definition.getId());
         if (options != null) {
             for (FieldOption option : options) {
                 option.setFieldId(definition.getId());
@@ -86,6 +99,49 @@ public class FieldDefinitionService {
         return fieldOptionMapper.selectList(Wrappers.<FieldOption>lambdaQuery()
                 .eq(FieldOption::getFieldId, fieldId)
                 .orderByAsc(FieldOption::getSortOrder));
+    }
+
+    public List<ResolvedFieldOption> resolveOptions(Long fieldId) {
+        FieldDefinition def = fieldDefinitionMapper.selectById(fieldId);
+        if (def == null) {
+            throw new IllegalArgumentException("字段不存在或已删除");
+        }
+        return resolveOptions(def);
+    }
+
+    public List<ResolvedFieldOption> resolveOptions(FieldDefinition def) {
+        if (!FieldOptionConfigHelper.isSelectType(def.getFieldType())) {
+            return List.of();
+        }
+        if (FieldOptionSource.REMOTE.equals(fieldOptionConfigHelper.optionSource(def))) {
+            FieldRemoteOptionsConfig remote = fieldOptionConfigHelper.remoteConfig(def);
+            RemoteOptionFetchResult result = fieldOptionRemoteService.fetch(remote, def.getId());
+            if (!result.isSuccess()) {
+                throw new IllegalStateException(StringUtils.defaultIfBlank(result.getMessage(), "远程选项加载失败"));
+            }
+            return result.getOptions() != null ? result.getOptions() : List.of();
+        }
+        List<FieldOption> dbOptions = listOptions(def.getId());
+        if (!dbOptions.isEmpty()) {
+            return dbOptions.stream()
+                    .filter(o -> StringUtils.isNotBlank(o.getOptionKey()) && StringUtils.isNotBlank(o.getOptionLabel()))
+                    .map(o -> new ResolvedFieldOption(o.getOptionKey(), o.getOptionLabel()))
+                    .toList();
+        }
+        List<Map<String, String>> cfgOptions = fieldOptionConfigHelper.staticOptionsFromConfig(def);
+        List<ResolvedFieldOption> resolved = new ArrayList<>();
+        for (Map<String, String> item : cfgOptions) {
+            String value = item.get("value");
+            String label = item.get("label");
+            if (StringUtils.isNotBlank(value) && StringUtils.isNotBlank(label)) {
+                resolved.add(new ResolvedFieldOption(value, label));
+            }
+        }
+        return resolved;
+    }
+
+    public RemoteOptionFetchResult previewRemoteOptions(FieldRemoteOptionsConfig config) {
+        return fieldOptionRemoteService.fetch(config, null);
     }
 
     public List<FieldDefinition> listCatalogByProject(Long projectId) {
@@ -119,6 +175,7 @@ public class FieldDefinitionService {
             throw new IllegalArgumentException("系统字段不可删除");
         }
         fieldOptionMapper.delete(Wrappers.<FieldOption>lambdaQuery().eq(FieldOption::getFieldId, id));
+        fieldOptionRemoteService.invalidateCache(id);
         fieldDefinitionMapper.deleteById(id);
     }
 

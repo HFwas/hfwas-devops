@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useMessage } from 'naive-ui'
 import { pmFieldApi } from '@/modules/pm/api'
-import type { FieldDefinition, FieldOption } from '@/modules/pm/types'
+import { invalidateFieldOptionsCache } from '@/modules/pm/composables/useFieldOptions'
+import type { FieldDefinition, FieldOption, FieldOptionSource, FieldRemoteOptionsConfig } from '@/modules/pm/types'
 import { FIELD_TYPE_OPTIONS, TYPE_META, WORK_ITEM_TYPE_CODES } from '@/modules/pm/types'
 
 const props = defineProps<{
@@ -15,9 +16,15 @@ const emit = defineEmits<{ 'update:show': [boolean]; saved: [] }>()
 const message = useMessage()
 const loading = ref(false)
 const saving = ref(false)
+const testingRemote = ref(false)
+const previewOptions = ref<Array<{ label: string; value: string }>>([])
 
 const form = ref<Partial<FieldDefinition>>({})
 const options = ref<FieldOption[]>([])
+const optionSource = ref<FieldOptionSource>('static')
+const remoteConfig = ref<FieldRemoteOptionsConfig>(emptyRemoteConfig())
+const headerRows = ref<Array<{ key: string; value: string }>>([])
+
 const isEdit = computed(() => !!props.fieldId)
 
 const typeOptions = WORK_ITEM_TYPE_CODES.map((code) => ({
@@ -25,10 +32,26 @@ const typeOptions = WORK_ITEM_TYPE_CODES.map((code) => ({
   value: code,
 }))
 
+const methodOptions = [
+  { label: 'GET', value: 'GET' },
+  { label: 'POST', value: 'POST' },
+]
+
 const visible = computed({
   get: () => props.show,
   set: (v) => emit('update:show', v),
 })
+
+function emptyRemoteConfig(): FieldRemoteOptionsConfig {
+  return {
+    url: '',
+    method: 'GET',
+    valueField: 'value',
+    labelField: 'label',
+    dataPath: '',
+    cacheSeconds: 300,
+  }
+}
 
 function emptyForm(): Partial<FieldDefinition> {
   return {
@@ -43,10 +66,21 @@ function emptyForm(): Partial<FieldDefinition> {
   }
 }
 
+function applyRemoteFromConfig(cfg?: FieldRemoteOptionsConfig) {
+  remoteConfig.value = { ...emptyRemoteConfig(), ...cfg }
+  headerRows.value = Object.entries(cfg?.headers ?? {}).map(([key, value]) => ({ key, value }))
+  if (headerRows.value.length === 0) {
+    headerRows.value = [{ key: '', value: '' }]
+  }
+}
+
 async function loadField() {
+  previewOptions.value = []
   if (!props.fieldId) {
     form.value = emptyForm()
     options.value = []
+    optionSource.value = 'static'
+    applyRemoteFromConfig()
     return
   }
   loading.value = true
@@ -61,6 +95,8 @@ async function loadField() {
         sortOrder: i + 1,
       }))
     }
+    optionSource.value = form.value.config?.optionSource === 'remote' ? 'remote' : 'static'
+    applyRemoteFromConfig(form.value.config?.remoteOptions as FieldRemoteOptionsConfig | undefined)
   } finally {
     loading.value = false
   }
@@ -74,6 +110,62 @@ function removeOption(index: number) {
   options.value.splice(index, 1)
 }
 
+function addHeaderRow() {
+  headerRows.value.push({ key: '', value: '' })
+}
+
+function removeHeaderRow(index: number) {
+  headerRows.value.splice(index, 1)
+  if (headerRows.value.length === 0) {
+    headerRows.value = [{ key: '', value: '' }]
+  }
+}
+
+function buildHeaders(): Record<string, string> | undefined {
+  const headers: Record<string, string> = {}
+  for (const row of headerRows.value) {
+    if (row.key.trim() && row.value.trim()) {
+      headers[row.key.trim()] = row.value.trim()
+    }
+  }
+  return Object.keys(headers).length ? headers : undefined
+}
+
+function buildRemotePayload(): FieldRemoteOptionsConfig {
+  return {
+    ...remoteConfig.value,
+    url: remoteConfig.value.url?.trim() ?? '',
+    method: remoteConfig.value.method ?? 'GET',
+    valueField: remoteConfig.value.valueField?.trim() || 'value',
+    labelField: remoteConfig.value.labelField?.trim() || 'label',
+    dataPath: remoteConfig.value.dataPath?.trim() || undefined,
+    headers: buildHeaders(),
+    body: remoteConfig.value.body?.trim() || undefined,
+    cacheSeconds: remoteConfig.value.cacheSeconds ?? 300,
+  }
+}
+
+async function testRemoteOptions() {
+  const payload = buildRemotePayload()
+  if (!payload.url) {
+    message.warning('请填写远程接口地址')
+    return
+  }
+  testingRemote.value = true
+  try {
+    const result = await pmFieldApi.previewRemoteOptions(payload)
+    if (!result.success) {
+      message.error(result.message || '接口测试失败')
+      previewOptions.value = []
+      return
+    }
+    previewOptions.value = (result.options ?? []).map((o) => ({ label: o.label, value: o.value }))
+    message.success(`测试成功，共 ${previewOptions.value.length} 个选项`)
+  } finally {
+    testingRemote.value = false
+  }
+}
+
 async function save() {
   if (!form.value.fieldKey?.trim() || !form.value.fieldName?.trim()) {
     message.warning('请填写字段编码和名称')
@@ -82,6 +174,18 @@ async function save() {
   if (!form.value.applicableTypes?.length) {
     message.warning('请至少选择一个适用事项类型')
     return
+  }
+  if (form.value.fieldType === 'SELECT' || form.value.fieldType === 'MULTI_SELECT') {
+    if (optionSource.value === 'static') {
+      const valid = options.value.filter((o) => o.optionKey && o.optionLabel)
+      if (!valid.length) {
+        message.warning('请至少添加一个静态选项')
+        return
+      }
+    } else if (!buildRemotePayload().url) {
+      message.warning('请填写远程接口地址')
+      return
+    }
   }
   saving.value = true
   try {
@@ -93,10 +197,18 @@ async function save() {
     const opts = form.value.fieldType === 'SELECT' || form.value.fieldType === 'MULTI_SELECT'
       ? options.value.filter((o) => o.optionKey && o.optionLabel)
       : undefined
-    if (opts?.length) {
-      payload.config = { options: opts.map((o) => ({ label: o.optionLabel, value: o.optionKey })) }
+    if (form.value.fieldType === 'SELECT' || form.value.fieldType === 'MULTI_SELECT') {
+      payload.config = {
+        optionSource: optionSource.value,
+        ...(optionSource.value === 'static' && opts?.length
+          ? { options: opts.map((o) => ({ label: o.optionLabel, value: o.optionKey })) }
+          : {}),
+        ...(optionSource.value === 'remote' ? { remoteOptions: buildRemotePayload() } : {}),
+      }
     }
-    await pmFieldApi.save(payload, opts)
+    const saveOpts = optionSource.value === 'static' ? opts : undefined
+    await pmFieldApi.save(payload, saveOpts)
+    if (props.fieldId) invalidateFieldOptionsCache(props.fieldId)
     message.success(isEdit.value ? '字段已更新' : '字段已创建')
     emit('saved')
   } finally {
@@ -110,8 +222,8 @@ watch(() => [props.show, props.fieldId], ([show]) => {
 </script>
 
 <template>
-  <n-drawer v-model:show="visible" :width="520" :title="isEdit ? '编辑字段' : '新建字段'">
-    <n-drawer-content :title="isEdit ? '编辑字段' : '新建字段'" closable>
+  <n-drawer v-model:show="visible" :width="600" :title="isEdit ? '编辑字段' : '新建字段'">
+    <n-drawer-content :title="isEdit ? '编辑字段' : '新建字段'" closable :native-scrollbar="true">
       <n-spin :show="loading">
         <n-form label-placement="top">
           <n-form-item label="字段名称" required>
@@ -145,16 +257,80 @@ watch(() => [props.show, props.fieldId], ([show]) => {
           <n-form-item label="必填">
             <n-switch :value="form.requiredFlag === 1" @update:value="(v) => (form.requiredFlag = v ? 1 : 0)" />
           </n-form-item>
-          <n-form-item v-if="form.fieldType === 'SELECT' || form.fieldType === 'MULTI_SELECT'" label="选项列表">
-            <n-space vertical style="width: 100%">
-              <n-space v-for="(opt, idx) in options" :key="idx" align="center">
-                <n-input v-model:value="opt.optionKey" placeholder="值" style="width: 120px" />
-                <n-input v-model:value="opt.optionLabel" placeholder="显示文本" style="width: 160px" />
-                <n-button quaternary type="error" @click="removeOption(idx)">删除</n-button>
-              </n-space>
-              <n-button dashed block @click="addOption">添加选项</n-button>
-            </n-space>
-          </n-form-item>
+
+          <template v-if="form.fieldType === 'SELECT' || form.fieldType === 'MULTI_SELECT'">
+            <n-divider title-placement="left">选项配置</n-divider>
+            <n-tabs v-model:value="optionSource" type="segment" animated>
+              <n-tab-pane name="static" tab="静态值">
+                <n-form-item label="选项列表">
+                  <n-space vertical style="width: 100%">
+                    <n-space v-for="(opt, idx) in options" :key="idx" align="center">
+                      <n-input v-model:value="opt.optionKey" placeholder="值" style="width: 120px" />
+                      <n-input v-model:value="opt.optionLabel" placeholder="显示文本" style="width: 160px" />
+                      <n-button quaternary type="error" @click="removeOption(idx)">删除</n-button>
+                    </n-space>
+                    <n-button dashed block @click="addOption">添加选项</n-button>
+                  </n-space>
+                </n-form-item>
+              </n-tab-pane>
+              <n-tab-pane name="remote" tab="远程接口">
+                <n-alert type="info" :bordered="false" style="margin: 12px 0">
+                  通过 HTTP 接口动态加载选项，类似 Jira Data Source。请求由服务端代理，支持 GET/POST。
+                </n-alert>
+                <n-form-item label="接口地址" required>
+                  <n-input v-model:value="remoteConfig.url" placeholder="https://api.example.com/options" />
+                </n-form-item>
+                <n-form-item label="请求方式">
+                  <n-select v-model:value="remoteConfig.method" :options="methodOptions" style="width: 120px" />
+                </n-form-item>
+                <n-form-item label="数据路径">
+                  <n-input v-model:value="remoteConfig.dataPath" placeholder="如 data.items，留空表示根节点为数组" />
+                </n-form-item>
+                <n-grid :cols="2" :x-gap="12">
+                  <n-gi>
+                    <n-form-item label="值字段">
+                      <n-input v-model:value="remoteConfig.valueField" placeholder="value" />
+                    </n-form-item>
+                  </n-gi>
+                  <n-gi>
+                    <n-form-item label="显示字段">
+                      <n-input v-model:value="remoteConfig.labelField" placeholder="label" />
+                    </n-form-item>
+                  </n-gi>
+                </n-grid>
+                <n-form-item label="缓存时间（秒）">
+                  <n-input-number v-model:value="remoteConfig.cacheSeconds" :min="0" :max="3600" style="width: 160px" />
+                </n-form-item>
+                <n-form-item label="请求头">
+                  <n-space vertical style="width: 100%">
+                    <n-space v-for="(row, idx) in headerRows" :key="idx" align="center">
+                      <n-input v-model:value="row.key" placeholder="Header 名" style="width: 140px" />
+                      <n-input v-model:value="row.value" placeholder="Header 值" style="width: 220px" />
+                      <n-button quaternary type="error" @click="removeHeaderRow(idx)">删除</n-button>
+                    </n-space>
+                    <n-button dashed block @click="addHeaderRow">添加请求头</n-button>
+                  </n-space>
+                </n-form-item>
+                <n-form-item v-if="remoteConfig.method === 'POST'" label="请求体">
+                  <n-input
+                    v-model:value="remoteConfig.body"
+                    type="textarea"
+                    placeholder='{"key":"value"}'
+                    :autosize="{ minRows: 3, maxRows: 8 }"
+                  />
+                </n-form-item>
+                <n-form-item label="接口测试">
+                  <n-space vertical style="width: 100%">
+                    <n-button type="primary" ghost :loading="testingRemote" @click="testRemoteOptions">测试接口</n-button>
+                    <n-text v-if="previewOptions.length" depth="3">
+                      预览：{{ previewOptions.slice(0, 5).map((o) => o.label).join('、') }}
+                      <span v-if="previewOptions.length > 5"> 等 {{ previewOptions.length }} 项</span>
+                    </n-text>
+                  </n-space>
+                </n-form-item>
+              </n-tab-pane>
+            </n-tabs>
+          </template>
         </n-form>
       </n-spin>
       <template #footer>

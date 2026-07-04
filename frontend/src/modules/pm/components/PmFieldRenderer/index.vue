@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import PmMarkdownEditor from '@/modules/pm/components/PmMarkdownEditor/index.vue'
+import { useFieldOptions } from '@/modules/pm/composables/useFieldOptions'
 import { useProjectModules } from '@/modules/pm/composables/useProjectModules'
 import { useUserOptions } from '@/modules/pm/composables/useUserOptions'
 import type { FieldDefinition } from '@/modules/pm/types'
-import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/modules/pm/types'
 import { asId, routeId } from '@/modules/pm/utils/id'
 
 const props = defineProps<{
@@ -20,6 +20,9 @@ const route = useRoute()
 const resolvedProjectId = computed(() => props.projectId ?? (routeId(route.params.projectId) || undefined))
 const { selectOptions: moduleOptions, labelMap, load: loadModules } = useProjectModules(resolvedProjectId)
 const { selectOptions: userOptions, labelMap: userLabelMap, load: loadUsers } = useUserOptions()
+const { options: fieldSelectOptions, loading: optionsLoading, error: optionsError } = useFieldOptions(
+  computed(() => props.field),
+)
 
 watch(resolvedProjectId, () => loadModules(), { immediate: true })
 watch(() => props.field.fieldType, (t) => { if (t === 'USER') loadUsers() }, { immediate: true })
@@ -32,13 +35,9 @@ const value = computed({
 })
 
 const options = computed(() => {
-  const cfg = props.field.config?.options as Array<{ label: string; value: string }> | undefined
-  if (cfg?.length) return cfg.map((o) => ({ label: o.label, value: o.value }))
-  if (props.field.fieldKey === 'status' || props.field.fieldType === 'STATUS') return STATUS_OPTIONS
-  if (props.field.fieldKey === 'priority' || props.field.fieldType === 'PRIORITY') return PRIORITY_OPTIONS
   if (props.field.fieldType === 'MODULE') return moduleOptions.value
   if (props.field.fieldType === 'USER') return userOptions.value
-  return []
+  return fieldSelectOptions.value
 })
 
 const isNullOp = computed(() => props.mode === 'query' && (value.value === '__null__' || value.value === '__not_null__'))
@@ -87,20 +86,26 @@ const displayText = computed(() => {
     v-model:value="value as number"
     style="width: 100%"
   />
-  <n-select
-    v-else-if="['SELECT', 'STATUS', 'PRIORITY', 'MODULE', 'USER'].includes(field.fieldType) && !isNullOp"
-    v-model:value="value"
-    :options="options"
-    clearable
-    filterable
-  />
-  <n-select
-    v-else-if="field.fieldType === 'MULTI_SELECT'"
-    v-model:value="value"
-    :options="options"
-    multiple
-    clearable
-  />
+  <n-space v-else-if="['SELECT', 'STATUS', 'PRIORITY', 'MODULE', 'USER'].includes(field.fieldType) && !isNullOp" vertical style="width: 100%">
+    <n-select
+      v-model:value="value"
+      :options="options"
+      :loading="optionsLoading"
+      clearable
+      filterable
+    />
+    <n-text v-if="optionsError" type="error" depth="3">{{ optionsError }}</n-text>
+  </n-space>
+  <n-space v-else-if="field.fieldType === 'MULTI_SELECT'" vertical style="width: 100%">
+    <n-select
+      v-model:value="value"
+      :options="options"
+      :loading="optionsLoading"
+      multiple
+      clearable
+    />
+    <n-text v-if="optionsError" type="error" depth="3">{{ optionsError }}</n-text>
+  </n-space>
   <n-date-picker
     v-else-if="field.fieldType === 'DATE'"
     v-model:value="value as number"
