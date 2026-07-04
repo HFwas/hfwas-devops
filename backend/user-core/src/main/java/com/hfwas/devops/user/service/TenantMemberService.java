@@ -32,8 +32,8 @@ public class TenantMemberService {
 
     public IPage<TenantMemberVO> page(Long tenantId, TenantMemberPageRequest request) {
         requireEnabledTenant(tenantId);
-        int pageNo = request.getPageNo() == null || request.getPageNo() < 1 ? 1 : request.getPageNo();
-        int pageSize = request.getPageSize() == null || request.getPageSize() < 1 ? 20 : request.getPageSize();
+        int pageNo = request.resolvePageNo();
+        int pageSize = request.resolvePageSize();
         String keyword = StringUtils.trimToEmpty(request.getKeyword());
         List<Long> userIdFilter = null;
         if (StringUtils.isNotBlank(keyword)) {

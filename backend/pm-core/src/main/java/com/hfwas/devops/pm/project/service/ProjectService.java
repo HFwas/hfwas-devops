@@ -20,7 +20,7 @@ public class ProjectService {
 
     public IPage<PmProject> page(PmPageRequest request, String keyword) {
         Long tenantId = requireTenantId();
-        Page<PmProject> page = new Page<>(request.getPageNo(), request.getPageSize());
+        Page<PmProject> page = new Page<>(request.resolvePageNo(), request.resolvePageSize());
         return projectMapper.selectPage(page, Wrappers.<PmProject>lambdaQuery()
                 .eq(PmProject::getTenantId, tenantId)
                 .and(StringUtils.isNotBlank(keyword), w -> w

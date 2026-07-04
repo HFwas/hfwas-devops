@@ -136,8 +136,8 @@ public class UserSessionService {
 
     public IPage<UserSessionVO> page(UserSessionPageRequest request, String currentSessionKey) {
         requireAdmin();
-        int pageNo = request.getPageNo() == null || request.getPageNo() < 1 ? 1 : request.getPageNo();
-        int pageSize = request.getPageSize() == null || request.getPageSize() < 1 ? 20 : request.getPageSize();
+        int pageNo = request.resolvePageNo();
+        int pageSize = request.resolvePageSize();
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime onlineThreshold = now.minusSeconds(ONLINE_IDLE_SECONDS);
         String status = StringUtils.defaultIfBlank(request.getStatus(), "all");

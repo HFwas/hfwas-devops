@@ -5,6 +5,7 @@ import { tenantManageApi, tenantMemberApi } from '@/modules/user/api'
 import type { PlatformUserOption, Tenant, TenantMember } from '@/modules/user/types'
 import { formatDateTime } from '@/modules/pm/utils/comment'
 import { invalidateUserOptionsCache } from '@/modules/pm/composables/useUserOptions'
+import { useDataTablePagination, usePagination } from '@/shared/composables/usePagination'
 
 const message = useMessage()
 
@@ -12,6 +13,7 @@ const keyword = ref('')
 const status = ref<'all' | '1' | '0'>('all')
 const loading = ref(false)
 const tenants = ref<Tenant[]>([])
+const pagination = usePagination()
 const showEditor = ref(false)
 const editing = ref<Tenant | null>(null)
 
@@ -19,6 +21,7 @@ const showMembers = ref(false)
 const memberTenant = ref<Tenant | null>(null)
 const memberLoading = ref(false)
 const members = ref<TenantMember[]>([])
+const memberPagination = usePagination()
 const memberKeyword = ref('')
 const showAddMember = ref(false)
 const availableUsers = ref<PlatformUserOption[]>([])
@@ -38,15 +41,22 @@ async function load() {
   loading.value = true
   try {
     const page = await tenantManageApi.page({
-      pageNo: 1,
-      pageSize: 100,
+      ...pagination.query.value,
       keyword: keyword.value.trim() || undefined,
       status: status.value,
     })
     tenants.value = page.records
+    pagination.setTotal(page.total)
   } finally {
     loading.value = false
   }
+}
+
+const { tablePagination, handlePageChange, handlePageSizeChange } = useDataTablePagination(pagination, load)
+
+function onSearch() {
+  pagination.resetPage()
+  void load()
 }
 
 function openCreate() {
@@ -101,6 +111,7 @@ async function removeTenant(row: Tenant) {
 async function openMembers(row: Tenant) {
   memberTenant.value = row
   memberKeyword.value = ''
+  memberPagination.resetPage()
   showMembers.value = true
   await loadMembers()
 }
@@ -110,14 +121,25 @@ async function loadMembers() {
   memberLoading.value = true
   try {
     const page = await tenantMemberApi.page(memberTenant.value.id, {
-      pageNo: 1,
-      pageSize: 200,
+      ...memberPagination.query.value,
       keyword: memberKeyword.value.trim() || undefined,
     })
     members.value = page.records
+    memberPagination.setTotal(page.total)
   } finally {
     memberLoading.value = false
   }
+}
+
+const {
+  tablePagination: memberTablePagination,
+  handlePageChange: handleMemberPageChange,
+  handlePageSizeChange: handleMemberPageSizeChange,
+} = useDataTablePagination(memberPagination, loadMembers)
+
+function onMemberSearch() {
+  memberPagination.resetPage()
+  void loadMembers()
 }
 
 async function openAddMember() {
@@ -297,10 +319,19 @@ onMounted(load)
         ]"
         style="width: 120px"
       />
-      <n-button @click="load">查询</n-button>
+      <n-button @click="onSearch">查询</n-button>
       <n-button type="primary" @click="openCreate">新建租户</n-button>
     </n-space>
-    <n-data-table :columns="columns" :data="tenants" :loading="loading" :row-key="(r: Tenant) => String(r.id)" />
+    <n-data-table
+      :columns="columns"
+      :data="tenants"
+      :loading="loading"
+      :row-key="(r: Tenant) => String(r.id)"
+      :pagination="tablePagination"
+      remote
+      @update:page="handlePageChange"
+      @update:page-size="handlePageSizeChange"
+    />
 
     <n-modal v-model:show="showEditor" preset="card" :title="editing ? '编辑租户' : '新建租户'" style="width: 520px">
       <n-form label-placement="top">
@@ -348,9 +379,9 @@ onMounted(load)
               placeholder="搜索成员"
               clearable
               style="width: 220px"
-              @keyup.enter="loadMembers"
+              @keyup.enter="onMemberSearch"
             />
-            <n-button @click="loadMembers">查询</n-button>
+            <n-button @click="onMemberSearch">查询</n-button>
             <n-button type="primary" @click="openAddMember">拉入用户</n-button>
           </n-space>
           <n-data-table
@@ -358,6 +389,10 @@ onMounted(load)
             :data="members"
             :loading="memberLoading"
             :row-key="(r: TenantMember) => String(r.userId)"
+            :pagination="memberTablePagination"
+            remote
+            @update:page="handleMemberPageChange"
+            @update:page-size="handleMemberPageSizeChange"
           />
         </n-space>
       </n-drawer-content>

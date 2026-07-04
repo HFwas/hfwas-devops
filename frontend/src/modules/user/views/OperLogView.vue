@@ -4,15 +4,14 @@ import { NTag, NTooltip } from 'naive-ui'
 import { operLogApi } from '@/modules/user/api'
 import type { OperLog } from '@/modules/user/types'
 import { formatDateTime } from '@/modules/pm/utils/comment'
+import { useDataTablePagination, usePagination } from '@/shared/composables/usePagination'
 
 const keyword = ref('')
 const module = ref('all')
 const action = ref('')
 const loading = ref(false)
 const logs = ref<OperLog[]>([])
-const pageNo = ref(1)
-const pageSize = ref(20)
-const total = ref(0)
+const pagination = usePagination()
 
 const moduleOptions = [
   { label: '全部模块', value: 'all' },
@@ -48,26 +47,22 @@ async function load() {
   loading.value = true
   try {
     const page = await operLogApi.page({
-      pageNo: pageNo.value,
-      pageSize: pageSize.value,
+      ...pagination.query.value,
       keyword: keyword.value.trim() || undefined,
       module: module.value,
       action: action.value || undefined,
     })
     logs.value = page.records
-    total.value = page.total
+    pagination.setTotal(page.total)
   } finally {
     loading.value = false
   }
 }
 
-function onPageChange(page: number) {
-  pageNo.value = page
-  void load()
-}
+const { tablePagination, handlePageChange, handlePageSizeChange } = useDataTablePagination(pagination, load)
 
 function onSearch() {
-  pageNo.value = 1
+  pagination.resetPage()
   void load()
 }
 
@@ -169,12 +164,10 @@ onMounted(load)
       :data="logs"
       :loading="loading"
       :row-key="(r: OperLog) => String(r.id)"
-      :pagination="{
-        page: pageNo,
-        pageSize,
-        itemCount: total,
-        onUpdatePage: onPageChange,
-      }"
+      :pagination="tablePagination"
+      remote
+      @update:page="handlePageChange"
+      @update:page-size="handlePageSizeChange"
     />
   </n-space>
 </template>

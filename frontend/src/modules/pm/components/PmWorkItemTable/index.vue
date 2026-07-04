@@ -142,7 +142,6 @@ function readValue(row: PmWorkItem, field: FieldDefinition) {
     :loading="loading"
     :scroll-x="1200"
     :row-key="(row: PmWorkItem) => asId(row.id)"
-    @update:page="emit('refresh')"
     @row-click="(_: unknown, row: PmWorkItem) => emit('rowClick', row)"
   />
 </template>

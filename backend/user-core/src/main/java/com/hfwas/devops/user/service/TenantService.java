@@ -33,8 +33,8 @@ public class TenantService {
 
     public IPage<TenantVO> page(TenantPageRequest request) {
         requirePlatformAdmin();
-        int pageNo = request.getPageNo() == null || request.getPageNo() < 1 ? 1 : request.getPageNo();
-        int pageSize = request.getPageSize() == null || request.getPageSize() < 1 ? 20 : request.getPageSize();
+        int pageNo = request.resolvePageNo();
+        int pageSize = request.resolvePageSize();
         String keyword = StringUtils.trimToEmpty(request.getKeyword());
         String status = StringUtils.defaultIfBlank(request.getStatus(), "all");
 

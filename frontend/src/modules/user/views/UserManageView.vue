@@ -3,6 +3,7 @@ import { h } from 'vue'
 import { NButton, NPopconfirm, NTag, useMessage } from 'naive-ui'
 import { tenantManageApi, userManageApi } from '@/modules/user/api'
 import type { Tenant, UserProfile } from '@/modules/user/types'
+import { useDataTablePagination, usePagination } from '@/shared/composables/usePagination'
 
 const message = useMessage()
 
@@ -11,6 +12,7 @@ const tenantFilter = ref<number | string | null>(null)
 const tenantOptions = ref<Tenant[]>([])
 const loading = ref(false)
 const users = ref<UserProfile[]>([])
+const pagination = usePagination()
 const showEditor = ref(false)
 const editing = ref<UserProfile | null>(null)
 
@@ -32,15 +34,22 @@ async function load() {
   loading.value = true
   try {
     const page = await userManageApi.page({
-      pageNo: 1,
-      pageSize: 100,
+      ...pagination.query.value,
       keyword: keyword.value.trim() || undefined,
       tenantId: tenantFilter.value ?? undefined,
     })
     users.value = page.records
+    pagination.setTotal(page.total)
   } finally {
     loading.value = false
   }
+}
+
+const { tablePagination, handlePageChange, handlePageSizeChange } = useDataTablePagination(pagination, load)
+
+function onSearch() {
+  pagination.resetPage()
+  void load()
 }
 
 function openCreate() {
@@ -88,6 +97,7 @@ async function removeUser(row: UserProfile) {
   try {
     await userManageApi.delete(row.id)
     message.success('已删除')
+    pagination.afterDelete(users.value.length)
     await load()
   } catch (e) {
     message.error(e instanceof Error ? e.message : '删除失败')
@@ -156,10 +166,19 @@ onMounted(async () => {
         style="width: 200px"
       />
       <n-input v-model:value="keyword" placeholder="搜索用户名/姓名/邮箱" clearable style="width: 260px" />
-      <n-button @click="load">查询</n-button>
+      <n-button @click="onSearch">查询</n-button>
       <n-button type="primary" @click="openCreate">新建平台用户</n-button>
     </n-space>
-    <n-data-table :columns="columns" :data="users" :loading="loading" :row-key="(r: UserProfile) => String(r.id)" />
+    <n-data-table
+      :columns="columns"
+      :data="users"
+      :loading="loading"
+      :row-key="(r: UserProfile) => String(r.id)"
+      :pagination="tablePagination"
+      remote
+      @update:page="handlePageChange"
+      @update:page-size="handlePageSizeChange"
+    />
 
     <n-modal v-model:show="showEditor" preset="card" :title="editing ? '编辑用户' : '新建平台用户'" style="width: 480px">
       <n-form label-placement="top">

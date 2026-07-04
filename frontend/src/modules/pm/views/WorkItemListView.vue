@@ -8,6 +8,8 @@ import type { PmWorkItem, QuerySpec } from '@/modules/pm/types'
 import { TYPE_META, emptyQuerySpec } from '@/modules/pm/types'
 import { routeId, asId } from '@/modules/pm/utils/id'
 import { useMessage } from 'naive-ui'
+import AppPagination from '@/shared/components/AppPagination.vue'
+import { usePagination } from '@/shared/composables/usePagination'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,6 +20,7 @@ const projectId = computed(() => routeId(route.params.projectId))
 const typeCode = computed(() => String(route.params.typeCode))
 const pageTitle = computed(() => TYPE_META[typeCode.value]?.label ?? '事项')
 const querySpec = ref<QuerySpec>(emptyQuerySpec(projectId.value, typeCode.value))
+const pagination = usePagination()
 const items = ref<PmWorkItem[]>([])
 const commentCounts = ref<Record<string, number>>({})
 const loading = ref(false)
@@ -35,13 +38,21 @@ async function search() {
   try {
     querySpec.value.projectId = projectId.value
     querySpec.value.typeCode = typeCode.value
+    querySpec.value.pageNo = pagination.pageNo.value
+    querySpec.value.pageSize = pagination.pageSize.value
     const page = await pmWorkItemApi.page(querySpec.value)
     items.value = page.records
+    pagination.setTotal(page.total)
     const ids = items.value.map((item) => item.id).filter((id) => id != null)
     commentCounts.value = ids.length ? await pmWorkItemApi.countCommentsBatch(ids) : {}
   } finally {
     loading.value = false
   }
+}
+
+function onSearch() {
+  pagination.resetPage()
+  void search()
 }
 
 async function createItem() {
@@ -67,6 +78,7 @@ async function removeItem(item: PmWorkItem) {
   try {
     await pmWorkItemApi.delete(item.id)
     message.success('已删除')
+    pagination.afterDelete(items.value.length)
     await search()
   } catch (e) {
     message.error(e instanceof Error ? e.message : '删除失败')
@@ -76,6 +88,7 @@ async function removeItem(item: PmWorkItem) {
 watch(typeCode, async () => {
   querySpec.value = emptyQuerySpec(projectId.value, typeCode.value)
   form.value = { projectId: projectId.value, typeCode: typeCode.value, title: '' }
+  pagination.resetPage()
   await loadSchema()
   await search()
 })
@@ -91,7 +104,7 @@ onMounted(async () => {
     <n-page-header :title="pageTitle" />
     <n-space>
       <n-button type="primary" @click="showCreate = true">新建{{ pageTitle }}</n-button>
-      <n-button @click="search">查询</n-button>
+      <n-button @click="onSearch">查询</n-button>
     </n-space>
     <PmQueryBuilder v-model:model-value="querySpec" :field-defs="fieldDefs" />
     <PmWorkItemTable
@@ -105,6 +118,7 @@ onMounted(async () => {
       @open="openItem"
       @delete="removeItem"
     />
+    <AppPagination :pagination="pagination" :on-change="search" />
     <n-modal v-model:show="showCreate" preset="card" :title="`新建${pageTitle}`" style="width: 640px">
       <n-spin :show="!fieldDefs.length">
         <PmDynamicForm

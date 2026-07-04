@@ -40,7 +40,7 @@ public class QueryEngine {
             fieldResolver.applyGroup(wrapper, group, customFieldMap);
         }
         applySort(wrapper, spec.getSort());
-        Page<PmWorkItem> page = new Page<>(spec.getPageNo(), spec.getPageSize());
+        Page<PmWorkItem> page = new Page<>(spec.resolvePageNo(), spec.resolvePageSize());
         return workItemMapper.selectPage(page, wrapper);
     }
 

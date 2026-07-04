@@ -6,6 +6,7 @@ import type { UserSession, UserSessionStats } from '@/modules/user/types'
 import { formatDateTime } from '@/modules/pm/utils/comment'
 import { useAuthStore } from '@/modules/user/stores/auth'
 import { useRouter } from 'vue-router'
+import { useDataTablePagination, usePagination } from '@/shared/composables/usePagination'
 
 const message = useMessage()
 const auth = useAuthStore()
@@ -15,6 +16,7 @@ const keyword = ref('')
 const status = ref<'all' | 'online' | 'idle'>('all')
 const loading = ref(false)
 const sessions = ref<UserSession[]>([])
+const pagination = usePagination()
 const stats = ref<UserSessionStats>({ onlineCount: 0, idleCount: 0, totalActive: 0 })
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
@@ -27,15 +29,22 @@ async function loadSessions() {
   loading.value = true
   try {
     const page = await userSessionApi.page({
-      pageNo: 1,
-      pageSize: 200,
+      ...pagination.query.value,
       keyword: keyword.value.trim() || undefined,
       status: status.value,
     })
     sessions.value = page.records
+    pagination.setTotal(page.total)
   } finally {
     loading.value = false
   }
+}
+
+const { tablePagination, handlePageChange, handlePageSizeChange } = useDataTablePagination(pagination, loadSessions)
+
+function onSearch() {
+  pagination.resetPage()
+  void loadAll()
 }
 
 async function loadAll() {
@@ -186,7 +195,7 @@ onUnmounted(() => {
     <n-space align="center">
       <n-input v-model:value="keyword" placeholder="搜索用户名/姓名" clearable style="width: 220px" />
       <n-select v-model:value="status" :options="statusOptions" style="width: 120px" />
-      <n-button @click="loadAll">查询</n-button>
+      <n-button @click="onSearch">查询</n-button>
       <n-button @click="loadAll">刷新</n-button>
       <n-text depth="3">每 30 秒自动刷新 · 5 分钟无活动视为空闲</n-text>
     </n-space>
@@ -196,6 +205,10 @@ onUnmounted(() => {
       :data="sessions"
       :loading="loading"
       :row-key="(r: UserSession) => String(r.id)"
+      :pagination="tablePagination"
+      remote
+      @update:page="handlePageChange"
+      @update:page-size="handlePageSizeChange"
     />
   </n-space>
 </template>

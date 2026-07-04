@@ -4,14 +4,13 @@ import { NTag, NTooltip } from 'naive-ui'
 import { loginLogApi } from '@/modules/user/api'
 import type { LoginLog } from '@/modules/user/types'
 import { formatDateTime } from '@/modules/pm/utils/comment'
+import { useDataTablePagination, usePagination } from '@/shared/composables/usePagination'
 
 const keyword = ref('')
 const action = ref('all')
 const loading = ref(false)
 const logs = ref<LoginLog[]>([])
-const pageNo = ref(1)
-const pageSize = ref(20)
-const total = ref(0)
+const pagination = usePagination()
 
 const actionOptions = [
   { label: '全部', value: 'all' },
@@ -38,25 +37,21 @@ async function load() {
   loading.value = true
   try {
     const page = await loginLogApi.page({
-      pageNo: pageNo.value,
-      pageSize: pageSize.value,
+      ...pagination.query.value,
       keyword: keyword.value.trim() || undefined,
       action: action.value,
     })
     logs.value = page.records
-    total.value = page.total
+    pagination.setTotal(page.total)
   } finally {
     loading.value = false
   }
 }
 
-function onPageChange(page: number) {
-  pageNo.value = page
-  void load()
-}
+const { tablePagination, handlePageChange, handlePageSizeChange } = useDataTablePagination(pagination, load)
 
 function onSearch() {
-  pageNo.value = 1
+  pagination.resetPage()
   void load()
 }
 
@@ -79,11 +74,7 @@ const columns = [
         default: () => actionLabel(row.action),
       }),
   },
-  {
-    title: 'IP',
-    key: 'loginIp',
-    width: 140,
-  },
+  { title: 'IP', key: 'loginIp', width: 140 },
   {
     title: '客户端',
     key: 'clientInfo',
@@ -129,12 +120,10 @@ onMounted(load)
       :data="logs"
       :loading="loading"
       :row-key="(r: LoginLog) => String(r.id)"
-      :pagination="{
-        page: pageNo,
-        pageSize,
-        itemCount: total,
-        onUpdatePage: onPageChange,
-      }"
+      :pagination="tablePagination"
+      remote
+      @update:page="handlePageChange"
+      @update:page-size="handlePageSizeChange"
     />
   </n-space>
 </template>

@@ -135,18 +135,17 @@ public class AuthService {
 
     public IPage<UserProfile> page(UserPageRequest request) {
         requireAdmin();
-        int pageNo = request.getPageNo() == null || request.getPageNo() < 1 ? 1 : request.getPageNo();
-        int pageSize = request.getPageSize() == null || request.getPageSize() < 1 ? 20 : request.getPageSize();
         String keyword = StringUtils.trimToEmpty(request.getKeyword());
         Long tenantFilter = request.getTenantId();
         List<Long> memberUserIds = null;
         if (tenantFilter != null) {
             memberUserIds = tenantMemberService.listUserIdsByTenant(tenantFilter);
             if (memberUserIds.isEmpty()) {
-                return new Page<>(pageNo, pageSize, 0);
+                return new Page<>(request.resolvePageNo(), request.resolvePageSize(), 0);
             }
         }
-        Page<SysUser> page = userMapper.selectPage(new Page<>(pageNo, pageSize),
+        Page<SysUser> page = userMapper.selectPage(
+                new Page<>(request.resolvePageNo(), request.resolvePageSize()),
                 Wrappers.<SysUser>lambdaQuery()
                         .in(memberUserIds != null, SysUser::getId, memberUserIds)
                         .and(StringUtils.isNotBlank(keyword), w -> w

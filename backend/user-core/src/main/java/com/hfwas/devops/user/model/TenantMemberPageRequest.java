@@ -1,10 +1,11 @@
 package com.hfwas.devops.user.model;
 
+import com.hfwas.devops.common.page.PageRequest;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
-public class TenantMemberPageRequest {
-    private Integer pageNo = 1;
-    private Integer pageSize = 20;
+@EqualsAndHashCode(callSuper = true)
+public class TenantMemberPageRequest extends PageRequest {
     private String keyword;
 }

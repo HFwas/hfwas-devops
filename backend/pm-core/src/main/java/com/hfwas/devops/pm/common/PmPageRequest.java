@@ -1,9 +1,10 @@
 package com.hfwas.devops.pm.common;
 
+import com.hfwas.devops.common.page.PageRequest;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
-public class PmPageRequest {
-    private Integer pageNo = 1;
-    private Integer pageSize = 20;
+@EqualsAndHashCode(callSuper = true)
+public class PmPageRequest extends PageRequest {
 }

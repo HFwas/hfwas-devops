@@ -2,6 +2,8 @@
 import { pmProjectApi } from '@/modules/pm/api'
 import type { PmProject } from '@/modules/pm/types'
 import { useAuthStore } from '@/modules/user/stores/auth'
+import AppPagination from '@/shared/components/AppPagination.vue'
+import { usePagination } from '@/shared/composables/usePagination'
 import { useDialog, useMessage } from 'naive-ui'
 
 const router = useRouter()
@@ -10,9 +12,7 @@ const message = useMessage()
 const dialog = useDialog()
 const loading = ref(false)
 const keyword = ref('')
-const pageNo = ref(1)
-const pageSize = ref(9)
-const total = ref(0)
+const pagination = usePagination({ pageSize: 9, pageSizes: [9, 18, 36] })
 const projects = ref<PmProject[]>([])
 const showModal = ref(false)
 const form = ref<PmProject>({ code: '', name: '', description: '' })
@@ -21,30 +21,18 @@ async function load() {
   loading.value = true
   try {
     const page = await pmProjectApi.page({
-      pageNo: pageNo.value,
-      pageSize: pageSize.value,
-      keyword: keyword.value,
+      ...pagination.query.value,
+      keyword: keyword.value.trim() || undefined,
     })
     projects.value = page.records
-    total.value = Number(page.total) || 0
+    pagination.setTotal(page.total)
   } finally {
     loading.value = false
   }
 }
 
 function onSearch() {
-  pageNo.value = 1
-  void load()
-}
-
-function onPageChange(page: number) {
-  pageNo.value = page
-  void load()
-}
-
-function onPageSizeChange(size: number) {
-  pageSize.value = size
-  pageNo.value = 1
+  pagination.resetPage()
   void load()
 }
 
@@ -53,7 +41,7 @@ async function save() {
   message.success('项目已保存')
   showModal.value = false
   form.value = { code: '', name: '', description: '' }
-  pageNo.value = 1
+  pagination.resetPage()
   await load()
 }
 
@@ -74,9 +62,7 @@ function confirmDelete(project: PmProject) {
 async function remove(id: number | string) {
   await pmProjectApi.delete(id)
   message.success('项目已删除')
-  if (projects.value.length <= 1 && pageNo.value > 1) {
-    pageNo.value -= 1
-  }
+  pagination.afterDelete(projects.value.length)
   await load()
 }
 
@@ -85,7 +71,7 @@ onMounted(load)
 watch(
   () => [auth.user?.tenantId, auth.tenantVersion] as const,
   () => {
-    pageNo.value = 1
+    pagination.resetPage()
     void load()
   },
 )
@@ -119,17 +105,7 @@ watch(
         </n-gi>
       </n-grid>
     </n-spin>
-    <n-space v-if="total > 0" justify="end">
-      <n-pagination
-        :page="pageNo"
-        :page-size="pageSize"
-        :item-count="total"
-        show-size-picker
-        :page-sizes="[9, 18, 36]"
-        @update:page="onPageChange"
-        @update:page-size="onPageSizeChange"
-      />
-    </n-space>
+    <AppPagination :pagination="pagination" :on-change="load" />
     <n-modal v-model:show="showModal" preset="card" title="新建项目" style="width: 480px">
       <n-form label-placement="top">
         <n-form-item label="项目编码"><n-input v-model:value="form.code" /></n-form-item>

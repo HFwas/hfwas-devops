@@ -51,8 +51,8 @@ public class OperLogService implements OperLogRecorder {
 
     public IPage<OperLogVO> page(OperLogPageRequest request) {
         requireAdmin();
-        int pageNo = request.getPageNo() == null || request.getPageNo() < 1 ? 1 : request.getPageNo();
-        int pageSize = request.getPageSize() == null || request.getPageSize() < 1 ? 20 : request.getPageSize();
+        int pageNo = request.resolvePageNo();
+        int pageSize = request.resolvePageSize();
         String keyword = StringUtils.trimToEmpty(request.getKeyword());
         String module = StringUtils.defaultIfBlank(request.getModule(), "all");
         String action = StringUtils.trimToNull(request.getAction());

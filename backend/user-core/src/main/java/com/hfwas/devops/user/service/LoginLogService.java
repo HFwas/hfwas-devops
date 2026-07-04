@@ -57,8 +57,8 @@ public class LoginLogService {
 
     public IPage<LoginLogVO> page(LoginLogPageRequest request) {
         requireAdmin();
-        int pageNo = request.getPageNo() == null || request.getPageNo() < 1 ? 1 : request.getPageNo();
-        int pageSize = request.getPageSize() == null || request.getPageSize() < 1 ? 20 : request.getPageSize();
+        int pageNo = request.resolvePageNo();
+        int pageSize = request.resolvePageSize();
         String keyword = StringUtils.trimToEmpty(request.getKeyword());
         String action = StringUtils.defaultIfBlank(request.getAction(), "all");
 
