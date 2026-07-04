@@ -2,6 +2,7 @@
 import PmQueryBuilder from '@/modules/pm/components/PmQueryBuilder/index.vue'
 import PmWorkItemTable from '@/modules/pm/components/PmWorkItemTable/index.vue'
 import PmDynamicForm from '@/modules/pm/components/PmDynamicForm/index.vue'
+import PmWorkItemImportExportDrawer from '@/modules/pm/components/PmWorkItemImportExportDrawer/index.vue'
 import { pmWorkItemApi } from '@/modules/pm/api'
 import { useFieldSchemaStore } from '@/modules/pm/stores'
 import type { PmWorkItem, QuerySpec } from '@/modules/pm/types'
@@ -25,6 +26,9 @@ const items = ref<PmWorkItem[]>([])
 const commentCounts = ref<Record<string, number>>({})
 const loading = ref(false)
 const showCreate = ref(false)
+const ioMode = ref<'export' | 'import'>('export')
+const showIoDrawer = ref(false)
+const checkedRowKeys = ref<string[]>([])
 const form = ref<Partial<PmWorkItem>>({ projectId: projectId.value, typeCode: typeCode.value, title: '' })
 
 const fieldDefs = computed(() => fieldStore.getSchema(projectId.value, typeCode.value))
@@ -73,6 +77,24 @@ function openItem(item: PmWorkItem) {
   })
 }
 
+function openExport() {
+  if (!fieldDefs.value.length) {
+    message.warning('字段配置加载中，请稍后再试')
+    return
+  }
+  ioMode.value = 'export'
+  showIoDrawer.value = true
+}
+
+function openImport() {
+  if (!fieldDefs.value.length) {
+    message.warning('字段配置加载中，请稍后再试')
+    return
+  }
+  ioMode.value = 'import'
+  showIoDrawer.value = true
+}
+
 async function removeItem(item: PmWorkItem) {
   if (!item.id) return
   try {
@@ -88,6 +110,7 @@ async function removeItem(item: PmWorkItem) {
 watch(typeCode, async () => {
   querySpec.value = emptyQuerySpec(projectId.value, typeCode.value)
   form.value = { projectId: projectId.value, typeCode: typeCode.value, title: '' }
+  checkedRowKeys.value = []
   pagination.resetPage()
   await loadSchema()
   await search()
@@ -104,10 +127,15 @@ onMounted(async () => {
     <n-page-header :title="pageTitle" />
     <n-space>
       <n-button type="primary" @click="showCreate = true">新建{{ pageTitle }}</n-button>
+      <n-button @click="openExport">导出</n-button>
+      <n-button @click="openImport">导入</n-button>
       <n-button @click="onSearch">查询</n-button>
+      <n-text v-if="checkedRowKeys.length" depth="3">已选 {{ checkedRowKeys.length }} 条</n-text>
     </n-space>
     <PmQueryBuilder v-model:model-value="querySpec" :field-defs="fieldDefs" />
     <PmWorkItemTable
+      v-model:checked-row-keys="checkedRowKeys"
+      selectable
       :field-defs="fieldDefs"
       :query-spec="querySpec"
       :data="items"
@@ -131,5 +159,17 @@ onMounted(async () => {
         <n-empty v-else description="正在加载字段配置..." />
       </n-spin>
     </n-modal>
+
+    <PmWorkItemImportExportDrawer
+      v-model:show="showIoDrawer"
+      :mode="ioMode"
+      :project-id="projectId"
+      :type-code="typeCode"
+      :type-label="pageTitle"
+      :field-defs="fieldDefs"
+      :query-spec="querySpec"
+      :selected-ids="checkedRowKeys"
+      @done="search"
+    />
   </n-space>
 </template>

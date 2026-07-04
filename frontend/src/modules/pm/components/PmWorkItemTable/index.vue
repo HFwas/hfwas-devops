@@ -15,6 +15,8 @@ const props = defineProps<{
   data: PmWorkItem[]
   loading?: boolean
   commentCounts?: Record<string, number>
+  selectable?: boolean
+  checkedRowKeys?: string[]
 }>()
 
 const route = useRoute()
@@ -27,7 +29,18 @@ const emit = defineEmits<{
   open: [PmWorkItem]
   delete: [PmWorkItem]
   refresh: []
+  'update:checkedRowKeys': [string[]]
 }>()
+
+const internalCheckedKeys = ref<string[]>([])
+
+const checkedKeys = computed({
+  get: () => props.checkedRowKeys ?? internalCheckedKeys.value,
+  set: (keys: string[]) => {
+    internalCheckedKeys.value = keys
+    emit('update:checkedRowKeys', keys)
+  },
+})
 
 const listFields = computed(() =>
   props.fieldDefs
@@ -41,7 +54,7 @@ const columns = computed<DataTableColumns<PmWorkItem>>(() => {
     key: f.systemFlag ? f.fieldKey : `custom.${f.fieldKey}`,
     render: (row) => renderCell(row, f),
   }))
-  return [
+  const base: DataTableColumns<PmWorkItem> = [
     { title: '编号', key: 'itemKey', width: 120, ellipsis: { tooltip: true },
       render: (row) => row.itemKey ?? (row.itemNo != null ? `#${row.itemNo}` : String(row.id ?? '')),
     },
@@ -102,6 +115,10 @@ const columns = computed<DataTableColumns<PmWorkItem>>(() => {
         ]),
     },
   ]
+  if (props.selectable) {
+    return [{ type: 'selection', fixed: 'left' }, ...base]
+  }
+  return base
 })
 
 function renderCell(row: PmWorkItem, field: FieldDefinition) {
@@ -142,6 +159,8 @@ function readValue(row: PmWorkItem, field: FieldDefinition) {
     :loading="loading"
     :scroll-x="1200"
     :row-key="(row: PmWorkItem) => asId(row.id)"
+    :checked-row-keys="selectable ? checkedKeys : undefined"
+    @update:checked-row-keys="selectable ? (keys: string[]) => { checkedKeys = keys } : undefined"
     @row-click="(_: unknown, row: PmWorkItem) => emit('rowClick', row)"
   />
 </template>

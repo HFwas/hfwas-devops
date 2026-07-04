@@ -66,6 +66,113 @@ export interface TypeFieldLayoutConfig {
   createFields: string[]
 }
 
+export interface ExportedFieldOption {
+  optionKey: string
+  optionLabel: string
+  sortOrder?: number
+}
+
+export interface ExportedFieldDefinition {
+  fieldKey: string
+  fieldName: string
+  fieldType: string
+  requiredFlag?: number
+  sortOrder?: number
+  config?: Record<string, unknown>
+  options?: ExportedFieldOption[]
+}
+
+/** @deprecated Legacy field-only export; use IssueTypeSchemeExport */
+export interface TypeFieldSchemeExport {
+  schemaVersion: number
+  kind: 'pm_type_field_scheme'
+  typeCode: string
+  typeName?: string
+  layout: TypeFieldLayoutConfig
+  customFields: ExportedFieldDefinition[]
+  exportedAt?: string
+}
+
+/** @deprecated Legacy project field export; use ProjectIssueTypeSchemeExport */
+export interface ProjectFieldSchemeExport {
+  schemaVersion: number
+  kind: 'pm_project_field_schemes'
+  schemes: TypeFieldSchemeExport[]
+  exportedAt?: string
+}
+
+export interface FieldSchemeSection {
+  layout: TypeFieldLayoutConfig
+  customFields: ExportedFieldDefinition[]
+}
+
+export interface ExportedStatusDefinition {
+  statusCode: string
+  statusName: string
+  sortOrder?: number
+  isInitial?: number
+  isFinal?: number
+  transitions?: string[]
+}
+
+export interface StatusWorkflowSection {
+  statuses: ExportedStatusDefinition[]
+}
+
+/** Unified issue type scheme (fields + workflow + extensible sections). */
+export interface IssueTypeSchemeExport {
+  schemaVersion: number
+  kind: 'pm_issue_type_scheme'
+  typeCode: string
+  typeName?: string
+  fieldScheme?: FieldSchemeSection
+  statusWorkflow?: StatusWorkflowSection
+  exportedAt?: string
+}
+
+export interface ProjectIssueTypeSchemeExport {
+  schemaVersion: number
+  kind: 'pm_project_issue_type_schemes'
+  schemes: IssueTypeSchemeExport[]
+  exportedAt?: string
+}
+
+export type SchemeImportMode = 'MERGE' | 'REPLACE'
+
+/** @deprecated alias */
+export type FieldSchemeImportMode = SchemeImportMode
+
+export interface IssueTypeSchemeImportPreview {
+  typeCode: string
+  sourceTypeCode: string
+  sections: string[]
+  customFieldCount: number
+  layoutFieldCount: number
+  fieldsToCreate: number
+  fieldsToUpdate: number
+  statusCount: number
+  statusWorkflowWillApply: boolean
+  warnings: string[]
+}
+
+export interface IssueTypeSchemeImportResult {
+  typeCode: string
+  fieldsCreated: number
+  fieldsUpdated: number
+  fieldsSkipped: number
+  layoutApplied: boolean
+  statusWorkflowApplied: boolean
+  statusCount: number
+  sectionsApplied: string[]
+  warnings: string[]
+}
+
+/** Section key → display label for import/export UI */
+export const SCHEME_SECTION_LABELS: Record<string, string> = {
+  fieldScheme: '字段配置',
+  statusWorkflow: '状态流转',
+}
+
 export interface FieldOption {
   id?: number
   fieldId?: number
@@ -159,6 +266,37 @@ export interface PmWorkItem {
   moduleId?: number | null
   customFields?: Record<string, unknown>
   updateTime?: string
+}
+
+export interface WorkItemIoColumn {
+  fieldKey: string
+  fieldName: string
+  fieldType: string
+  systemField: boolean
+  exportable: boolean
+  importable: boolean
+  defaultSelected: boolean
+}
+
+export type WorkItemImportMode = 'CREATE' | 'UPSERT'
+
+export type WorkItemExportScope = 'selected' | 'query' | 'all'
+
+export interface WorkItemImportPreview {
+  totalRows: number
+  validRows: number
+  detectedHeaders: string[]
+  sampleRows: Array<Record<string, string>>
+  warnings: string[]
+}
+
+export interface WorkItemImportResult {
+  created: number
+  updated: number
+  skipped: number
+  failed: number
+  errors: string[]
+  warnings: string[]
 }
 
 export interface PmWorkItemComment {

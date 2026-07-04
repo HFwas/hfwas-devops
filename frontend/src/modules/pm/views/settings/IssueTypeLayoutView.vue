@@ -180,7 +180,7 @@ watch(typeCode, load, { immediate: true })
   <n-space vertical size="large">
     <n-page-header :title="`${typeLabel} — 字段方案`" @back="goBack">
       <template #subtitle>
-        配置该事项类型下的字段及在列表、搜索、新建中的启用状态；支持新建、编辑和移除自定义字段
+        配置该事项类型下的字段及在列表、搜索、新建中的启用状态
       </template>
       <template #extra>
         <n-space>

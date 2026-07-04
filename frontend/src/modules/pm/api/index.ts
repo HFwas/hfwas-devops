@@ -1,7 +1,7 @@
-import { get, post } from '@/shared/api/request'
+import { get, post, postBlob, postFormData } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
 import type { EntityId } from '@/modules/pm/utils/id'
-import type { AllowedTransitions, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemActivity, PmWorkItemComment, PmWorkItemType, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, StatusDefinition, StatusWorkflow, TypeFieldLayoutConfig } from '@/modules/pm/types'
+import type { AllowedTransitions, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, IssueTypeSchemeExport, IssueTypeSchemeImportPreview, IssueTypeSchemeImportResult, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemActivity, PmWorkItemComment, PmWorkItemType, ProjectFieldSchemeExport, ProjectIssueTypeSchemeExport, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, SchemeImportMode, StatusDefinition, StatusWorkflow, TypeFieldLayoutConfig, TypeFieldSchemeExport, WorkItemImportMode, WorkItemImportPreview, WorkItemImportResult } from '@/modules/pm/types'
 import { asId } from '@/modules/pm/utils/id'
 
 export const pmModuleApi = {
@@ -40,6 +40,60 @@ export const pmWorkItemApi = {
   listActivities: (id: EntityId) => get<PmWorkItemActivity[]>(`/pm/work-items/${asId(id)}/activities`),
 }
 
+export const pmWorkItemIoApi = {
+  exportExcel: async (payload: {
+    projectId: EntityId
+    typeCode: string
+    ids?: string[]
+    querySpec?: QuerySpec
+    fieldKeys: string[]
+  }) => {
+    const { blob, filename } = await postBlob('/pm/work-items/io/export', {
+      ...payload,
+      projectId: asId(payload.projectId),
+      ids: payload.ids?.map(asId),
+    })
+    return { blob, filename }
+  },
+  downloadImportTemplate: async (payload: {
+    projectId: EntityId
+    typeCode: string
+    fieldKeys: string[]
+  }) => {
+    const { blob, filename } = await postBlob(
+      '/pm/work-items/io/import/template',
+      {
+        projectId: asId(payload.projectId),
+        typeCode: payload.typeCode,
+        fieldKeys: payload.fieldKeys,
+      },
+      'import-template.xlsx',
+    )
+    return { blob, filename }
+  },
+  previewImport: (projectId: EntityId, typeCode: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return postFormData<WorkItemImportPreview>(
+      `/pm/work-items/io/import/preview?projectId=${asId(projectId)}&typeCode=${typeCode}`,
+      form,
+    )
+  },
+  importExcel: (projectId: EntityId, typeCode: string, file: File, mode: WorkItemImportMode, fieldKeys?: string[]) => {
+    const form = new FormData()
+    form.append('file', file)
+    const params = new URLSearchParams({
+      projectId: asId(projectId),
+      typeCode,
+      mode,
+    })
+    if (fieldKeys?.length) {
+      params.set('fieldKeys', JSON.stringify(fieldKeys))
+    }
+    return postFormData<WorkItemImportResult>(`/pm/work-items/io/import?${params.toString()}`, form)
+  },
+}
+
 export const pmFieldApi = {
   list: (projectId: EntityId, typeCode: string) =>
     post<FieldDefinition[]>('/pm/fields/definitions/list', { projectId, typeCode }),
@@ -67,6 +121,34 @@ export const pmFieldLayoutApi = {
     post<TypeFieldLayoutConfig>('/pm/fields/layout/get', { projectId, typeCode }),
   save: (projectId: EntityId, typeCode: string, layout: TypeFieldLayoutConfig) =>
     post<void>('/pm/fields/layout/save', { projectId, typeCode, layout }),
+}
+
+export const pmIssueTypeSchemeApi = {
+  exportType: (projectId: EntityId, typeCode: string) =>
+    post<IssueTypeSchemeExport>('/pm/issue-type-schemes/export', { projectId, typeCode }),
+  exportProject: (projectId: EntityId) =>
+    post<ProjectIssueTypeSchemeExport>('/pm/issue-type-schemes/export-project', { projectId }),
+  previewImport: (
+    projectId: EntityId,
+    typeCode: string,
+    payload: { scheme?: IssueTypeSchemeExport; legacyScheme?: TypeFieldSchemeExport },
+  ) => post<IssueTypeSchemeImportPreview>('/pm/issue-type-schemes/preview', { projectId, typeCode, ...payload }),
+  importType: (
+    projectId: EntityId,
+    typeCode: string,
+    payload: { scheme?: IssueTypeSchemeExport; legacyScheme?: TypeFieldSchemeExport },
+    mode: SchemeImportMode,
+  ) => post<IssueTypeSchemeImportResult>('/pm/issue-type-schemes/import', { projectId, typeCode, mode, ...payload }),
+  importProject: (
+    projectId: EntityId,
+    payload: { projectScheme?: ProjectIssueTypeSchemeExport; legacyProjectScheme?: ProjectFieldSchemeExport },
+    mode: SchemeImportMode,
+  ) =>
+    post<IssueTypeSchemeImportResult[]>('/pm/issue-type-schemes/import-project', {
+      projectId,
+      mode,
+      ...payload,
+    }),
 }
 
 export const pmStatusApi = {

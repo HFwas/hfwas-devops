@@ -2,10 +2,11 @@
 import { pmMetaApi } from '@/modules/pm/api'
 import type { PmWorkItemType } from '@/modules/pm/types'
 import { TYPE_META } from '@/modules/pm/types'
+import { routeId } from '@/modules/pm/utils/id'
 
 const route = useRoute()
 const router = useRouter()
-const projectId = computed(() => Number(route.params.projectId))
+const projectId = computed(() => routeId(route.params.projectId))
 const types = ref<PmWorkItemType[]>([])
 const loading = ref(false)
 
@@ -29,7 +30,7 @@ onMounted(load)
   <n-space vertical size="large">
     <n-page-header
       title="事项配置"
-      subtitle="管理各事项类型的字段展示方案，配置列表、搜索与新建表单的字段启用状态"
+      subtitle="管理各事项类型的字段展示方案与状态流转规则"
     />
     <n-spin :show="loading">
       <n-grid :cols="2" :x-gap="16" :y-gap="16">

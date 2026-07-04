@@ -48,4 +48,37 @@ export async function get<T>(url: string, params?: unknown): Promise<T> {
   return res.data.data
 }
 
+/** POST and download binary response (e.g. Excel export). */
+export async function postBlob(url: string, data?: unknown, defaultFilename = 'export.xlsx'): Promise<{ blob: Blob; filename: string }> {
+  const res = await request.post(url, data, { responseType: 'blob' })
+  const blob = res.data as Blob
+  if (blob.type?.includes('json')) {
+    const text = await blob.text()
+    try {
+      const err = JSON.parse(text) as BaseResult<unknown>
+      throw new Error(err.msg || '下载失败')
+    } catch (e) {
+      if (e instanceof Error && !e.message.includes('JSON')) throw e
+      throw new Error('下载失败')
+    }
+  }
+  const disposition = res.headers['content-disposition'] as string | undefined
+  let filename = defaultFilename
+  if (disposition) {
+    const match = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+    if (match?.[1]) {
+      filename = decodeURIComponent(match[1])
+    }
+  }
+  return { blob, filename }
+}
+
+/** POST multipart form for file upload APIs. */
+export async function postFormData<T>(url: string, form: FormData): Promise<T> {
+  const res = await request.post<BaseResult<T>>(url, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data.data
+}
+
 export default request
