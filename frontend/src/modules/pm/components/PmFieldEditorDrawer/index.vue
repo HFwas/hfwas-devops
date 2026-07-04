@@ -5,6 +5,18 @@ import { invalidateFieldOptionsCache } from '@/modules/pm/composables/useFieldOp
 import type { FieldDefinition, FieldOption, FieldOptionSource, FieldRemoteOptionsConfig } from '@/modules/pm/types'
 import { FIELD_TYPE_OPTIONS, TYPE_META, WORK_ITEM_TYPE_CODES } from '@/modules/pm/types'
 
+type FieldOptionRow = FieldOption & { _uid: number }
+
+let optionUidSeq = 0
+
+function wrapOption(option: FieldOption): FieldOptionRow {
+  return { ...option, _uid: ++optionUidSeq }
+}
+
+function wrapOptions(list: FieldOption[]): FieldOptionRow[] {
+  return list.map((o) => wrapOption(o))
+}
+
 const props = defineProps<{
   show: boolean
   projectId: number
@@ -20,10 +32,12 @@ const testingRemote = ref(false)
 const previewOptions = ref<Array<{ label: string; value: string }>>([])
 
 const form = ref<Partial<FieldDefinition>>({})
-const options = ref<FieldOption[]>([])
+const options = ref<FieldOptionRow[]>([])
 const optionSource = ref<FieldOptionSource>('static')
 const remoteConfig = ref<FieldRemoteOptionsConfig>(emptyRemoteConfig())
 const headerRows = ref<Array<{ key: string; value: string }>>([])
+const dragFromIndex = ref<number | null>(null)
+const dragOverIndex = ref<number | null>(null)
 
 const isEdit = computed(() => !!props.fieldId)
 
@@ -86,14 +100,17 @@ async function loadField() {
   loading.value = true
   try {
     form.value = await pmFieldApi.getById(props.fieldId)
-    options.value = await pmFieldApi.options(props.fieldId)
+    options.value = wrapOptions(
+      (await pmFieldApi.options(props.fieldId))
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    )
     if (options.value.length === 0 && form.value.config?.options) {
       const cfg = form.value.config.options as Array<{ label: string; value: string }>
-      options.value = cfg.map((o, i) => ({
+      options.value = wrapOptions(cfg.map((o, i) => ({
         optionKey: o.value,
         optionLabel: o.label,
         sortOrder: i + 1,
-      }))
+      })))
     }
     optionSource.value = form.value.config?.optionSource === 'remote' ? 'remote' : 'static'
     applyRemoteFromConfig(form.value.config?.remoteOptions as FieldRemoteOptionsConfig | undefined)
@@ -103,11 +120,60 @@ async function loadField() {
 }
 
 function addOption() {
-  options.value.push({ optionKey: '', optionLabel: '', sortOrder: options.value.length + 1 })
+  options.value.push(wrapOption({ optionKey: '', optionLabel: '', sortOrder: options.value.length + 1 }))
+}
+
+function normalizeOptionOrder() {
+  options.value.forEach((o, i) => {
+    o.sortOrder = i + 1
+  })
+}
+
+function reorderOptions(from: number, to: number) {
+  if (from === to) return
+  const list = [...options.value]
+  const [item] = list.splice(from, 1)
+  list.splice(to, 0, item)
+  options.value = list
+  normalizeOptionOrder()
+}
+
+function onOptionDragStart(index: number, event: DragEvent) {
+  dragFromIndex.value = index
+  dragOverIndex.value = index
+  event.dataTransfer?.setData('text/plain', String(index))
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+function onOptionDragOver(index: number, event: DragEvent) {
+  event.preventDefault()
+  const from = dragFromIndex.value
+  if (from == null) return
+  if (from !== index) {
+    reorderOptions(from, index)
+    dragFromIndex.value = index
+  }
+  dragOverIndex.value = index
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+}
+
+function onOptionDrop(index: number, event: DragEvent) {
+  event.preventDefault()
+  onOptionDragEnd()
+}
+
+function onOptionDragEnd() {
+  dragFromIndex.value = null
+  dragOverIndex.value = null
 }
 
 function removeOption(index: number) {
   options.value.splice(index, 1)
+  normalizeOptionOrder()
 }
 
 function addHeaderRow() {
@@ -194,9 +260,10 @@ async function save() {
       projectId: props.projectId,
       scope: 'project',
     } as FieldDefinition
-    const opts = form.value.fieldType === 'SELECT' || form.value.fieldType === 'MULTI_SELECT'
+    const rawOpts = form.value.fieldType === 'SELECT' || form.value.fieldType === 'MULTI_SELECT'
       ? options.value.filter((o) => o.optionKey && o.optionLabel)
       : undefined
+    const opts = rawOpts?.map((o, i) => ({ ...o, sortOrder: i + 1 }))
     if (form.value.fieldType === 'SELECT' || form.value.fieldType === 'MULTI_SELECT') {
       payload.config = {
         optionSource: optionSource.value,
@@ -263,14 +330,41 @@ watch(() => [props.show, props.fieldId], ([show]) => {
             <n-tabs v-model:value="optionSource" type="segment" animated>
               <n-tab-pane name="static" tab="静态值">
                 <n-form-item label="选项列表">
-                  <n-space vertical style="width: 100%">
-                    <n-space v-for="(opt, idx) in options" :key="idx" align="center">
-                      <n-input v-model:value="opt.optionKey" placeholder="值" style="width: 120px" />
-                      <n-input v-model:value="opt.optionLabel" placeholder="显示文本" style="width: 160px" />
+                  <div class="option-list">
+                    <n-text depth="3" class="option-list-hint">拖拽左侧手柄调整选项顺序</n-text>
+                    <div
+                      v-for="(opt, idx) in options"
+                      :key="opt._uid"
+                      class="option-row"
+                      :class="{
+                        'option-row--dragging': dragFromIndex === idx,
+                        'option-row--over': dragOverIndex === idx && dragFromIndex !== null && dragFromIndex !== idx,
+                      }"
+                      @dragover="onOptionDragOver(idx, $event)"
+                      @drop="onOptionDrop(idx, $event)"
+                    >
+                      <span
+                        class="option-drag-handle"
+                        draggable="true"
+                        title="拖拽排序"
+                        @dragstart="onOptionDragStart(idx, $event)"
+                        @dragend="onOptionDragEnd"
+                      >
+                        <svg viewBox="0 0 10 16" width="10" height="16" aria-hidden="true">
+                          <circle cx="2.5" cy="2.5" r="1.2" fill="currentColor" />
+                          <circle cx="7.5" cy="2.5" r="1.2" fill="currentColor" />
+                          <circle cx="2.5" cy="8" r="1.2" fill="currentColor" />
+                          <circle cx="7.5" cy="8" r="1.2" fill="currentColor" />
+                          <circle cx="2.5" cy="13.5" r="1.2" fill="currentColor" />
+                          <circle cx="7.5" cy="13.5" r="1.2" fill="currentColor" />
+                        </svg>
+                      </span>
+                      <n-input v-model:value="opt.optionKey" placeholder="值" class="option-input-key" />
+                      <n-input v-model:value="opt.optionLabel" placeholder="显示文本" class="option-input-label" />
                       <n-button quaternary type="error" @click="removeOption(idx)">删除</n-button>
-                    </n-space>
+                    </div>
                     <n-button dashed block @click="addOption">添加选项</n-button>
-                  </n-space>
+                  </div>
                 </n-form-item>
               </n-tab-pane>
               <n-tab-pane name="remote" tab="远程接口">
@@ -342,3 +436,75 @@ watch(() => [props.show, props.fieldId], ([show]) => {
     </n-drawer-content>
   </n-drawer>
 </template>
+
+<style scoped>
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.option-list-hint {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--n-border-color, #e8e8ec);
+  border-radius: 6px;
+  background: var(--n-color-modal, #fff);
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.option-row:hover {
+  background: var(--n-color-hover, #f7f8fa);
+}
+
+.option-row--dragging {
+  opacity: 0.55;
+  background: #f7f8fa;
+  border-color: #d0d0d5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.option-row--over {
+  background: #eef3ff;
+  border-color: #91afff;
+}
+
+.option-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  flex-shrink: 0;
+  color: #999;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.option-drag-handle:active {
+  cursor: grabbing;
+}
+
+.option-drag-handle:hover {
+  color: #666;
+}
+
+.option-input-key {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.option-input-label {
+  flex: 1;
+  min-width: 0;
+}
+</style>
