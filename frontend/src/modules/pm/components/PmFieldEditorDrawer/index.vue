@@ -19,11 +19,14 @@ function wrapOptions(list: FieldOption[]): FieldOptionRow[] {
 
 const props = defineProps<{
   show: boolean
-  projectId: number
+  projectId: number | string
   fieldId?: number | string | null
+  /** Pre-select issue type when creating from type layout page */
+  defaultTypeCode?: string
+  lockTypeCode?: boolean
 }>()
 
-const emit = defineEmits<{ 'update:show': [boolean]; saved: [] }>()
+const emit = defineEmits<{ 'update:show': [boolean]; saved: [id?: string] }>()
 
 const message = useMessage()
 const loading = ref(false)
@@ -68,15 +71,16 @@ function emptyRemoteConfig(): FieldRemoteOptionsConfig {
 }
 
 function emptyForm(): Partial<FieldDefinition> {
+  const types = props.defaultTypeCode ? [props.defaultTypeCode] : ['task']
   return {
     fieldKey: '',
     fieldName: '',
     fieldType: 'TEXT',
     requiredFlag: 0,
     sortOrder: 100,
-    projectId: props.projectId,
+    projectId: props.projectId as unknown as number,
     scope: 'project',
-    applicableTypes: ['task'],
+    applicableTypes: types,
   }
 }
 
@@ -274,10 +278,10 @@ async function save() {
       }
     }
     const saveOpts = optionSource.value === 'static' ? opts : undefined
-    await pmFieldApi.save(payload, saveOpts)
+    const savedId = await pmFieldApi.save(payload, saveOpts)
     if (props.fieldId) invalidateFieldOptionsCache(props.fieldId)
     message.success(isEdit.value ? '字段已更新' : '字段已创建')
-    emit('saved')
+    emit('saved', savedId != null ? String(savedId) : undefined)
   } finally {
     saving.value = false
   }
@@ -318,6 +322,7 @@ watch(() => [props.show, props.fieldId], ([show]) => {
               v-model:value="form.applicableTypes"
               :options="typeOptions"
               multiple
+              :disabled="lockTypeCode"
               placeholder="选择该字段适用的事项类型"
             />
           </n-form-item>

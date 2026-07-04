@@ -4,6 +4,7 @@ import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.pm.api.dto.FieldCatalogListDto;
 import com.hfwas.devops.pm.api.dto.FieldDefinitionListDto;
 import com.hfwas.devops.pm.api.dto.FieldDefinitionSaveDto;
+import com.hfwas.devops.pm.api.dto.FieldTypeBindingDto;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.field.model.FieldOption;
 import com.hfwas.devops.pm.field.model.FieldRemoteOptionsConfig;
@@ -31,6 +32,25 @@ public class PmFieldDefinitionController {
     @PostMapping("/catalog")
     public BaseResult<List<FieldDefinition>> catalog(@RequestBody FieldCatalogListDto dto) {
         return BaseResult.ok(fieldDefinitionService.listCatalogByProject(dto.getProjectId()));
+    }
+
+    @PostMapping("/available")
+    public BaseResult<List<FieldDefinition>> available(@RequestBody FieldDefinitionListDto dto) {
+        return BaseResult.ok(fieldDefinitionService.listAvailableForType(dto.getProjectId(), dto.getTypeCode()));
+    }
+
+    @OperLog(module = "pm", action = "save", bizType = "field_definition", summary = "添加字段到事项类型")
+    @PostMapping("/add-to-type")
+    public BaseResult<Void> addToType(@RequestBody FieldTypeBindingDto dto) {
+        fieldDefinitionService.addToType(dto.getProjectId(), dto.getFieldId(), dto.getTypeCode());
+        return BaseResult.ok(null);
+    }
+
+    @OperLog(module = "pm", action = "delete", bizType = "field_definition", summary = "从事项类型移除字段")
+    @PostMapping("/remove-from-type")
+    public BaseResult<Void> removeFromType(@RequestBody FieldTypeBindingDto dto) {
+        fieldDefinitionService.removeFromType(dto.getProjectId(), dto.getFieldId(), dto.getTypeCode());
+        return BaseResult.ok(null);
     }
 
     @OperLog(module = "pm", action = "save", bizType = "field_definition", summary = "保存字段定义", bizId = "#result.data")

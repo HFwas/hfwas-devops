@@ -6,8 +6,10 @@ import { pmFieldApi } from '@/modules/pm/api'
 import type { FieldDefinition } from '@/modules/pm/types'
 import { FIELD_TYPE_LABELS, TYPE_META } from '@/modules/pm/types'
 
+import { routeId } from '@/modules/pm/utils/id'
+
 const route = useRoute()
-const projectId = computed(() => Number(route.params.projectId))
+const projectId = computed(() => routeId(route.params.projectId))
 const message = useMessage()
 
 const fields = ref<FieldDefinition[]>([])

@@ -54,6 +54,12 @@ export const pmFieldApi = {
   save: (definition: FieldDefinition, options?: FieldOption[]) =>
     post<number>('/pm/fields/definitions/save', { definition, options }),
   delete: (id: number | string) => post<void>(`/pm/fields/definitions/delete?id=${id}`, {}),
+  listAvailable: (projectId: EntityId, typeCode: string) =>
+    post<FieldDefinition[]>('/pm/fields/definitions/available', { projectId, typeCode }),
+  addToType: (projectId: EntityId, fieldId: EntityId, typeCode: string) =>
+    post<void>('/pm/fields/definitions/add-to-type', { projectId, fieldId, typeCode }),
+  removeFromType: (projectId: EntityId, fieldId: EntityId, typeCode: string) =>
+    post<void>('/pm/fields/definitions/remove-from-type', { projectId, fieldId, typeCode }),
 }
 
 export const pmFieldLayoutApi = {

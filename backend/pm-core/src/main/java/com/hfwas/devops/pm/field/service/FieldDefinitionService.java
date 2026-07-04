@@ -1,6 +1,7 @@
 package com.hfwas.devops.pm.field.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.hfwas.devops.pm.common.IdUtils;
 import com.hfwas.devops.pm.field.mapper.FieldDefinitionMapper;
 import com.hfwas.devops.pm.field.mapper.FieldOptionMapper;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
@@ -19,6 +20,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -41,13 +44,13 @@ public class FieldDefinitionService {
         List<FieldDefinition> systemFields = systemFieldDefinitions();
         List<FieldDefinition> custom = fieldDefinitionMapper.selectList(
                 Wrappers.<FieldDefinition>lambdaQuery()
-                        .and(w -> w.eq(FieldDefinition::getProjectId, projectId).or().isNull(FieldDefinition::getProjectId))
+                        .isNotNull(FieldDefinition::getProjectId)
                         .eq(FieldDefinition::getDelFlag, 0)
                         .orderByAsc(FieldDefinition::getSortOrder)
         );
         List<FieldDefinition> merged = new ArrayList<>(systemFields);
         for (FieldDefinition def : custom) {
-            if (appliesToType(def, typeCode)) {
+            if (IdUtils.sameId(def.getProjectId(), projectId) && appliesToType(def, typeCode)) {
                 merged.add(def);
             }
         }
@@ -148,12 +151,15 @@ public class FieldDefinitionService {
         List<FieldDefinition> system = systemFieldDefinitions();
         List<FieldDefinition> custom = fieldDefinitionMapper.selectList(
                 Wrappers.<FieldDefinition>lambdaQuery()
-                        .eq(FieldDefinition::getProjectId, projectId)
+                        .isNotNull(FieldDefinition::getProjectId)
                         .eq(FieldDefinition::getDelFlag, 0)
                         .orderByAsc(FieldDefinition::getSortOrder)
         );
         List<FieldDefinition> catalog = new ArrayList<>(system);
         for (FieldDefinition def : custom) {
+            if (!IdUtils.sameId(def.getProjectId(), projectId)) {
+                continue;
+            }
             if (StringUtils.isNotBlank(def.getFieldKey()) && StringUtils.isNotBlank(def.getFieldName())) {
                 catalog.add(def);
             }
@@ -177,6 +183,102 @@ public class FieldDefinitionService {
         fieldOptionMapper.delete(Wrappers.<FieldOption>lambdaQuery().eq(FieldOption::getFieldId, id));
         fieldOptionRemoteService.invalidateCache(id);
         fieldDefinitionMapper.deleteById(id);
+    }
+
+    @Transactional
+    public void removeFromType(Long projectId, Long fieldId, String typeCode) {
+        FieldDefinition def = fieldDefinitionMapper.selectById(fieldId);
+        if (def == null) {
+            throw new IllegalArgumentException("字段不存在或已删除");
+        }
+        if (def.getSystemFlag() != null && def.getSystemFlag() == 1) {
+            throw new IllegalArgumentException("系统字段不可修改绑定");
+        }
+        List<FieldDefinition> currentFields = listRawByProjectAndType(projectId, typeCode);
+        boolean bound = currentFields.stream().anyMatch(f ->
+                Objects.equals(f.getId(), fieldId)
+                        || (def.getFieldKey() != null && def.getFieldKey().equals(f.getFieldKey())));
+        if (!bound) {
+            throw new IllegalArgumentException("该字段未绑定到当前事项类型");
+        }
+        List<String> types = def.getApplicableTypes();
+        if (types == null || types.isEmpty() || (types.size() == 1 && types.contains(typeCode))) {
+            deleteField(fieldId);
+        } else if (types.contains(typeCode)) {
+            List<String> updated = new ArrayList<>(types);
+            updated.remove(typeCode);
+            def.setApplicableTypes(updated);
+            fieldDefinitionMapper.updateById(def);
+        }
+        fieldLayoutService.removeFieldKey(projectId, typeCode, def.getFieldKey(), currentFields);
+    }
+
+    @Transactional
+    public void addToType(Long projectId, Long fieldId, String typeCode) {
+        FieldDefinition def = fieldDefinitionMapper.selectById(fieldId);
+        if (def == null) {
+            throw new IllegalArgumentException("字段不存在或已删除");
+        }
+        if (def.getSystemFlag() != null && def.getSystemFlag() == 1) {
+            throw new IllegalArgumentException("系统字段不可修改绑定");
+        }
+        if (def.getProjectId() != null && !IdUtils.sameId(def.getProjectId(), projectId)) {
+            throw new IllegalArgumentException("字段不属于当前项目");
+        }
+        List<String> types = def.getApplicableTypes();
+        if (types == null) {
+            types = new ArrayList<>();
+        } else {
+            types = new ArrayList<>(types);
+        }
+        if (!types.contains(typeCode)) {
+            types.add(typeCode);
+            def.setApplicableTypes(types);
+            fieldDefinitionMapper.updateById(def);
+        }
+        List<FieldDefinition> fields = listRawByProjectAndType(projectId, typeCode);
+        if (fields.stream().noneMatch(f -> def.getFieldKey().equals(f.getFieldKey()))) {
+            fields = new ArrayList<>(fields);
+            fields.add(def);
+        }
+        fieldLayoutService.ensureFieldKey(projectId, typeCode, def.getFieldKey(), fields);
+    }
+
+    public List<FieldDefinition> listAvailableForType(Long projectId, String typeCode) {
+        List<FieldDefinition> catalog = listCatalogByProject(projectId);
+        List<FieldDefinition> current = listRawByProjectAndType(projectId, typeCode);
+        Set<String> currentKeys = current.stream()
+                .map(FieldDefinition::getFieldKey)
+                .filter(StringUtils::isNotBlank)
+                .collect(java.util.stream.Collectors.toSet());
+        List<FieldDefinition> available = new ArrayList<>();
+        for (FieldDefinition def : catalog) {
+            if (def.getSystemFlag() != null && def.getSystemFlag() == 1) {
+                continue;
+            }
+            if (def.getId() == null) {
+                continue;
+            }
+            if (currentKeys.contains(def.getFieldKey())) {
+                continue;
+            }
+            available.add(def);
+        }
+        return available;
+    }
+
+    private FieldDefinition requireProjectField(Long projectId, Long fieldId) {
+        FieldDefinition def = fieldDefinitionMapper.selectById(fieldId);
+        if (def == null) {
+            throw new IllegalArgumentException("字段不存在或已删除");
+        }
+        if (def.getSystemFlag() != null && def.getSystemFlag() == 1) {
+            throw new IllegalArgumentException("系统字段不可修改绑定");
+        }
+        if (def.getProjectId() != null && !IdUtils.sameId(def.getProjectId(), projectId)) {
+            throw new IllegalArgumentException("字段不属于当前项目");
+        }
+        return def;
     }
 
     private List<FieldDefinition> systemFieldDefinitions() {
