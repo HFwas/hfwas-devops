@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.pm.api.dto.ProjectPageDto;
 import com.hfwas.devops.pm.project.entity.PmProject;
+import com.hfwas.devops.pm.project.model.ProjectAccessContextVO;
 import com.hfwas.devops.pm.project.service.ProjectService;
 import com.hfwas.devops.user.operlog.annotation.OperLog;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,11 @@ public class PmProjectController {
     @PostMapping("/save")
     public BaseResult<Long> save(@RequestBody PmProject project) {
         return BaseResult.ok(projectService.save(project));
+    }
+
+    @GetMapping("/{id}/access-context")
+    public BaseResult<ProjectAccessContextVO> accessContext(@PathVariable Long id) {
+        return BaseResult.ok(projectService.resolveAccessContext(id));
     }
 
     @GetMapping("/{id}")

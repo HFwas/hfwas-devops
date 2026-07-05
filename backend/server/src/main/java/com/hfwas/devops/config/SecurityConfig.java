@@ -26,6 +26,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final TenantContextFilter tenantContextFilter;
     private final ObjectMapper objectMapper;
 
     @Bean
@@ -34,6 +35,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/health/check").permitAll()
                         .requestMatchers("/user/auth/login").permitAll()
                         .requestMatchers("/user/users/page", "/user/users/save", "/user/users/delete").hasRole("admin")
                         .requestMatchers("/user/sessions/**").hasRole("admin")
@@ -47,7 +49,8 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, e) -> writeError(response, 401, "未登录或登录已过期"))
                         .accessDeniedHandler((request, response, e) -> writeError(response, 403, "无权访问")))
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(tenantContextFilter, JwtAuthFilter.class);
         return http.build();
     }
 

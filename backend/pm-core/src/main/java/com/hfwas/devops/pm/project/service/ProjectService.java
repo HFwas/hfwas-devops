@@ -6,7 +6,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hfwas.devops.pm.common.PmPageRequest;
 import com.hfwas.devops.pm.project.entity.PmProject;
 import com.hfwas.devops.pm.project.mapper.PmProjectMapper;
+import com.hfwas.devops.pm.project.model.ProjectAccessContextVO;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
+import com.hfwas.devops.user.context.UserContext;
+import com.hfwas.devops.user.spi.TenantAccessValidator;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -17,6 +20,25 @@ public class ProjectService {
 
     private final PmProjectMapper projectMapper;
     private final CurrentUserAccessor currentUserAccessor;
+    private final TenantAccessValidator tenantAccessValidator;
+
+    /**
+     * Resolves project tenant for deep links: does not require current tenant header to match.
+     */
+    public ProjectAccessContextVO resolveAccessContext(Long projectId) {
+        PmProject project = projectMapper.selectById(projectId);
+        if (project == null || project.getTenantId() == null) {
+            throw new IllegalArgumentException("项目不存在");
+        }
+        UserContext ctx = currentUserAccessor.current()
+                .orElseThrow(() -> new IllegalArgumentException("未登录或登录已过期"));
+        tenantAccessValidator.assertAccess(ctx.getUserId(), ctx.getRole(), project.getTenantId());
+        ProjectAccessContextVO vo = new ProjectAccessContextVO();
+        vo.setProjectId(project.getId());
+        vo.setProjectName(project.getName());
+        vo.setTenantId(project.getTenantId());
+        return vo;
+    }
 
     public IPage<PmProject> page(PmPageRequest request, String keyword) {
         Long tenantId = requireTenantId();

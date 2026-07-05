@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type { BaseResult } from '@/shared/types/common'
-import { AUTH_TOKEN_KEY } from '@/modules/user/types'
+import { AUTH_TOKEN_KEY, TENANT_ID_KEY, TENANT_NAME_KEY } from '@/modules/user/types'
 
 const request = axios.create({
   baseURL: '/api',
@@ -11,6 +11,10 @@ request.interceptors.request.use((config) => {
   const token = localStorage.getItem(AUTH_TOKEN_KEY)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  const tenantId = localStorage.getItem(TENANT_ID_KEY)
+  if (tenantId) {
+    config.headers['X-Tenant-Id'] = tenantId
   }
   return config
 })
@@ -27,6 +31,8 @@ request.interceptors.response.use(
     const status = error.response?.status
     if (status === 401) {
       localStorage.removeItem(AUTH_TOKEN_KEY)
+      localStorage.removeItem(TENANT_ID_KEY)
+      localStorage.removeItem(TENANT_NAME_KEY)
       const path = window.location.pathname
       if (!path.startsWith('/user/login')) {
         const redirect = encodeURIComponent(path + window.location.search)

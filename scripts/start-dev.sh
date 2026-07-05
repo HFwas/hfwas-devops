@@ -54,6 +54,7 @@ cleanup() {
 
 if [ "$FORCE" = true ]; then
   "$SCRIPT_DIR/stop-dev.sh" 2>/dev/null || true
+  sleep 2
 fi
 
 trap cleanup EXIT INT TERM
@@ -62,7 +63,7 @@ trap cleanup EXIT INT TERM
 log "后台启动后端 ..."
 nohup "$SCRIPT_DIR/start-backend.sh" "${BACKEND_ARGS[@]}" >"$RUN_DIR/backend.log" 2>&1 &
 echo $! >"$RUN_DIR/backend.pid"
-wait_for_port "$BACKEND_PORT" "后端"
+wait_for_backend "后端" 120
 
 log "后端日志: $RUN_DIR/backend.log"
 log "API: http://localhost:$BACKEND_PORT"

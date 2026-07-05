@@ -23,7 +23,7 @@ const tenantOptions = computed(() =>
   auth.myTenants.map((t) => ({
     label: t.name,
     key: String(t.id),
-    disabled: String(t.id) === String(auth.user?.tenantId),
+    disabled: String(t.id) === String(auth.activeTenantId),
   })),
 )
 
@@ -63,10 +63,10 @@ function logout() {
               @select="onSwitchTenant"
             >
               <n-button text :loading="auth.switchingTenant">
-                {{ auth.user?.tenantName ?? '选择租户' }} ▾
+                {{ auth.activeTenantName ?? '选择租户' }} ▾
               </n-button>
             </n-dropdown>
-            <n-text v-else-if="auth.user?.tenantName" depth="3">{{ auth.user.tenantName }}</n-text>
+            <n-text v-else-if="auth.activeTenantName" depth="3">{{ auth.activeTenantName }}</n-text>
             <n-text depth="3">{{ auth.user?.displayName ?? auth.user?.username }}</n-text>
             <n-button text @click="logout">退出</n-button>
           </template>
@@ -75,7 +75,7 @@ function logout() {
       </n-space>
     </n-layout-header>
     <n-layout-content>
-      <router-view :key="String(auth.user?.tenantId ?? '') + '-' + auth.tenantVersion" />
+      <router-view :key="String(auth.activeTenantId ?? '') + '-' + auth.tenantVersion" />
     </n-layout-content>
   </n-layout>
 </template>

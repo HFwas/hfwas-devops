@@ -1,7 +1,7 @@
 import { get, post, postBlob, postFormData } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
 import type { EntityId } from '@/modules/pm/utils/id'
-import type { AllowedTransitions, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, IssueTypeSchemeExport, IssueTypeSchemeImportPreview, IssueTypeSchemeImportResult, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemActivity, PmWorkItemComment, PmWorkItemType, ProjectFieldSchemeExport, ProjectIssueTypeSchemeExport, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, SchemeImportMode, StatusDefinition, StatusWorkflow, TypeFieldLayoutConfig, TypeFieldSchemeExport, WorkItemImportMode, WorkItemImportPreview, WorkItemImportResult } from '@/modules/pm/types'
+import type { AllowedTransitions, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, IssueTypeSchemeExport, IssueTypeSchemeImportPreview, IssueTypeSchemeImportResult, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemActivity, PmWorkItemComment, PmWorkItemType, ProjectAccessContext, ProjectFieldSchemeExport, ProjectIssueTypeSchemeExport, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, SchemeImportMode, StatusDefinition, StatusWorkflow, TypeFieldLayoutConfig, TypeFieldSchemeExport, WorkItemImportMode, WorkItemImportPreview, WorkItemImportResult } from '@/modules/pm/types'
 import { asId } from '@/modules/pm/utils/id'
 
 export const pmModuleApi = {
@@ -16,6 +16,7 @@ export const pmProjectApi = {
     post<PageResult<PmProject>>('/pm/projects/page', data),
   save: (data: PmProject) => post<number>('/pm/projects/save', data),
   getById: (id: EntityId) => get<PmProject>(`/pm/projects/${asId(id)}`),
+  accessContext: (id: EntityId) => get<ProjectAccessContext>(`/pm/projects/${asId(id)}/access-context`),
   delete: (id: EntityId) => post<void>(`/pm/projects/delete?id=${asId(id)}`, {}),
 }
 

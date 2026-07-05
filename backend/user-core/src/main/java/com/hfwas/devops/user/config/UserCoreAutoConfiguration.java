@@ -7,10 +7,14 @@ import com.hfwas.devops.user.message.spi.NoOpSiteMessagePublisher;
 import com.hfwas.devops.user.message.spi.SiteMessagePublisher;
 import com.hfwas.devops.user.operlog.spi.NoOpOperLogRecorder;
 import com.hfwas.devops.user.operlog.spi.OperLogRecorder;
+import com.hfwas.devops.user.security.DefaultTenantAccessValidator;
+import com.hfwas.devops.user.service.TenantMemberService;
+import com.hfwas.devops.user.service.TenantService;
 import com.hfwas.devops.user.spi.NoOpUserDisplayNameResolver;
 import com.hfwas.devops.user.spi.NoOpUserIdentityResolver;
 import com.hfwas.devops.user.spi.UserDisplayNameResolver;
 import com.hfwas.devops.user.spi.UserIdentityResolver;
+import com.hfwas.devops.user.spi.TenantAccessValidator;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -67,5 +71,12 @@ public class UserCoreAutoConfiguration {
     @ConditionalOnMissingBean(UserIdentityResolver.class)
     public UserIdentityResolver noOpUserIdentityResolver() {
         return NoOpUserIdentityResolver.INSTANCE;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(TenantAccessValidator.class)
+    public TenantAccessValidator tenantAccessValidator(TenantService tenantService,
+            TenantMemberService tenantMemberService) {
+        return new DefaultTenantAccessValidator(tenantService, tenantMemberService);
     }
 }

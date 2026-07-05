@@ -113,6 +113,8 @@ export interface OperLog {
 }
 
 export const AUTH_TOKEN_KEY = 'hfwas.auth.token'
+export const TENANT_ID_KEY = 'hfwas.auth.tenantId'
+export const TENANT_NAME_KEY = 'hfwas.auth.tenantName'
 
 export interface IdentityConnectorType {
   type: string

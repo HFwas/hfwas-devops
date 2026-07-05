@@ -238,6 +238,12 @@ export interface PmProject {
   settings?: Record<string, unknown>
 }
 
+export interface ProjectAccessContext {
+  projectId: number | string
+  projectName: string
+  tenantId: number | string
+}
+
 export interface PmProjectModule {
   id?: number
   projectId: number

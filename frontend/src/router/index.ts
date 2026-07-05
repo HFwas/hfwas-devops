@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { pmRoutes } from '@/modules/pm/router/pmRoutes'
 import { userRoutes } from '@/modules/user/router/userRoutes'
 import { useAuthStore } from '@/modules/user/stores/auth'
+import { resolveRouteProjectId } from '@/modules/pm/utils/projectRoute'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -22,6 +23,14 @@ router.beforeEach(async (to) => {
     const me = await auth.fetchMe()
     if (!me) {
       return { path: '/user/login', query: { redirect: to.fullPath } }
+    }
+  }
+  const projectId = resolveRouteProjectId(to)
+  if (projectId) {
+    try {
+      await auth.ensureTenantForProject(projectId)
+    } catch {
+      return { path: '/pm/projects' }
     }
   }
   if (to.meta.admin && !auth.isAdmin) {

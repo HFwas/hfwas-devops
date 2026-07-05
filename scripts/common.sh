@@ -40,3 +40,22 @@ wait_for_port() {
   done
   die "$name 启动超时（端口 $port）"
 }
+
+# Poll HTTP until Spring Boot responds (avoids false-positive when port is briefly held by a dying process).
+wait_for_backend() {
+  local name=${1:-后端}
+  local max=${2:-120}
+  local url="http://localhost:$BACKEND_PORT/health/check"
+  local i=0
+  while [ "$i" -lt "$max" ]; do
+    local code
+    code=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+    if [ "$code" != "000" ]; then
+      log "$name 已就绪 (HTTP $code)"
+      return 0
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+  die "$name 启动超时（$url），请查看 $RUN_DIR/backend.log"
+}

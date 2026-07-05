@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { pmProjectApi } from '@/modules/pm/api'
 import type { PmProject } from '@/modules/pm/types'
+import { asId } from '@/modules/pm/utils/id'
 import { useAuthStore } from '@/modules/user/stores/auth'
 import AppPagination from '@/shared/components/AppPagination.vue'
 import { usePagination } from '@/shared/composables/usePagination'
@@ -46,7 +47,7 @@ async function save() {
 }
 
 function openProject(id: number | string) {
-  router.push(`/pm/projects/${id}/items/task`)
+  router.push(`/pm/projects/${asId(id)}/items/task`)
 }
 
 function confirmDelete(project: PmProject) {
@@ -69,7 +70,7 @@ async function remove(id: number | string) {
 onMounted(load)
 
 watch(
-  () => [auth.user?.tenantId, auth.tenantVersion] as const,
+  () => [auth.activeTenantId, auth.tenantVersion] as const,
   () => {
     pagination.resetPage()
     void load()
