@@ -37,3 +37,6 @@ build/
 ### SQLite ###
 data/
 *.db
+
+### Local dev runtime ###
+.run/
