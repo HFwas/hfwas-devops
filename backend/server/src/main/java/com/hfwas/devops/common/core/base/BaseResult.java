@@ -1,14 +1,11 @@
 package com.hfwas.devops.common.core.base;
 
+import com.hfwas.devops.common.error.ErrorCode;
+import com.hfwas.devops.common.error.ResultCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * @author houfei
- * @package com.hfwas.devops.common.core.base
- * @date 2025/1/4
- */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -18,31 +15,43 @@ public class BaseResult<T> {
     private T data;
 
     public static <T> BaseResult<T> ok() {
-        return restResult(0, "", null);
+        return restResult(ResultCode.SUCCESS.getCode(), null, null);
     }
 
     public static <T> BaseResult<T> ok(T data) {
-        return restResult(0, null, data);
+        return restResult(ResultCode.SUCCESS.getCode(), null, data);
     }
 
     public static <T> BaseResult<T> ok(T data, String msg) {
-        return restResult(0, msg, data);
+        return restResult(ResultCode.SUCCESS.getCode(), msg, data);
     }
 
+    /** @deprecated use {@link #failed(ErrorCode)} or {@link #failed(int, String)} */
+    @Deprecated
     public static <T> BaseResult<T> failed() {
-        return restResult(1, null, null);
+        return failed(ResultCode.BAD_REQUEST);
     }
 
+    /** @deprecated use {@link #failed(ErrorCode, String)} or {@link #failed(int, String)} */
+    @Deprecated
     public static <T> BaseResult<T> failed(String msg) {
-        return restResult(1, msg, null);
+        return failed(ResultCode.BAD_REQUEST, msg);
     }
 
-    public static <T> BaseResult<T> failed(T data) {
-        return restResult(1, null, data);
+    public static <T> BaseResult<T> failed(ErrorCode errorCode) {
+        return restResult(errorCode.getCode(), errorCode.getMessage(), null);
     }
 
-    public static <T> BaseResult<T> failed(T data, String msg) {
-        return restResult(1, msg, data);
+    public static <T> BaseResult<T> failed(ErrorCode errorCode, String msg) {
+        return restResult(errorCode.getCode(), msg, null);
+    }
+
+    public static <T> BaseResult<T> failed(int code, String msg) {
+        return restResult(code, msg, null);
+    }
+
+    public boolean isSuccess() {
+        return code != null && code == ResultCode.SUCCESS.getCode();
     }
 
     private static <T> BaseResult<T> restResult(int code, String msg, T data) {

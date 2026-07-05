@@ -1,23 +1,21 @@
 package com.hfwas.devops.config;
 
-import com.hfwas.devops.common.core.base.BaseResult;
+import com.hfwas.devops.common.core.exception.ApiErrorWriter;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.user.security.JwtAuthFilter;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.context.annotation.Bean;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Configuration
@@ -27,7 +25,7 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final TenantContextFilter tenantContextFilter;
-    private final ObjectMapper objectMapper;
+    private final ApiErrorWriter apiErrorWriter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -47,18 +45,13 @@ public class SecurityConfig {
                         .requestMatchers("/user/tenants/**").hasRole("admin")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, e) -> writeError(response, 401, "未登录或登录已过期"))
-                        .accessDeniedHandler((request, response, e) -> writeError(response, 403, "无权访问")))
+                        .authenticationEntryPoint((request, response, e) ->
+                                apiErrorWriter.write(response, HttpStatus.UNAUTHORIZED, ResultCode.UNAUTHORIZED))
+                        .accessDeniedHandler((request, response, e) ->
+                                apiErrorWriter.write(response, HttpStatus.FORBIDDEN, ResultCode.FORBIDDEN)))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(tenantContextFilter, JwtAuthFilter.class);
         return http.build();
-    }
-
-    private void writeError(HttpServletResponse response, int status, String message) throws java.io.IOException {
-        response.setStatus(status);
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        objectMapper.writeValue(response.getWriter(), BaseResult.failed(message));
     }
 
     @Bean

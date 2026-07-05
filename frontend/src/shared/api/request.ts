@@ -1,11 +1,29 @@
 import axios from 'axios'
 import type { BaseResult } from '@/shared/types/common'
+import { ApiError, isApiError, toApiError } from '@/shared/errors/apiError'
+import { ResultCode } from '@/shared/errors/resultCode'
 import { AUTH_TOKEN_KEY, TENANT_ID_KEY, TENANT_NAME_KEY } from '@/modules/user/types'
 
 const request = axios.create({
   baseURL: '/api',
   timeout: 30000,
 })
+
+function rejectResult(result: BaseResult<unknown>): Promise<never> {
+  const code = typeof result.code === 'number' ? result.code : ResultCode.BAD_REQUEST
+  return Promise.reject(toApiError(code, result.msg))
+}
+
+function handleUnauthorized() {
+  localStorage.removeItem(AUTH_TOKEN_KEY)
+  localStorage.removeItem(TENANT_ID_KEY)
+  localStorage.removeItem(TENANT_NAME_KEY)
+  const path = window.location.pathname
+  if (!path.startsWith('/user/login')) {
+    const redirect = encodeURIComponent(path + window.location.search)
+    window.location.href = `/user/login?redirect=${redirect}`
+  }
+}
 
 request.interceptors.request.use((config) => {
   const token = localStorage.getItem(AUTH_TOKEN_KEY)
@@ -22,25 +40,26 @@ request.interceptors.request.use((config) => {
 request.interceptors.response.use(
   (response) => {
     const result = response.data as BaseResult<unknown>
-    if (result && typeof result.code === 'number' && result.code !== 0) {
-      return Promise.reject(new Error(result.msg || '请求失败'))
+    if (result && typeof result.code === 'number' && result.code !== ResultCode.SUCCESS) {
+      return rejectResult(result)
     }
     return response
   },
   (error) => {
     const status = error.response?.status
-    if (status === 401) {
-      localStorage.removeItem(AUTH_TOKEN_KEY)
-      localStorage.removeItem(TENANT_ID_KEY)
-      localStorage.removeItem(TENANT_NAME_KEY)
-      const path = window.location.pathname
-      if (!path.startsWith('/user/login')) {
-        const redirect = encodeURIComponent(path + window.location.search)
-        window.location.href = `/user/login?redirect=${redirect}`
-      }
+    const payload = error.response?.data as BaseResult<unknown> | undefined
+    const code = typeof payload?.code === 'number' ? payload.code : undefined
+
+    if (status === 401 || code === ResultCode.UNAUTHORIZED) {
+      handleUnauthorized()
     }
-    const msg = error.response?.data?.msg
-    return Promise.reject(new Error(msg || error.message || '请求失败'))
+
+    if (code != null) {
+      return Promise.reject(toApiError(code, payload?.msg))
+    }
+
+    const msg = payload?.msg
+    return Promise.reject(new ApiError(ResultCode.INTERNAL_ERROR, msg || error.message || '请求失败'))
   },
 )
 
@@ -62,10 +81,10 @@ export async function postBlob(url: string, data?: unknown, defaultFilename = 'e
     const text = await blob.text()
     try {
       const err = JSON.parse(text) as BaseResult<unknown>
-      throw new Error(err.msg || '下载失败')
+      throw toApiError(typeof err.code === 'number' ? err.code : ResultCode.BAD_REQUEST, err.msg)
     } catch (e) {
-      if (e instanceof Error && !e.message.includes('JSON')) throw e
-      throw new Error('下载失败')
+      if (isApiError(e)) throw e
+      throw new ApiError(ResultCode.BAD_REQUEST, '下载失败')
     }
   }
   const disposition = res.headers['content-disposition'] as string | undefined
