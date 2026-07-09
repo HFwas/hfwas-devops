@@ -17,6 +17,6 @@ public class PmStatusDefinition {
     private Integer sortOrder;
     private Integer isInitial;
     private Integer isFinal;
-    /** JSON array of target status codes */
+    /** JSON array of TransitionVO */
     private String transitions;
 }

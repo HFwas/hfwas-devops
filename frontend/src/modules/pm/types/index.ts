@@ -112,7 +112,7 @@ export interface ExportedStatusDefinition {
   sortOrder?: number
   isInitial?: number
   isFinal?: number
-  transitions?: string[]
+  transitions?: Transition[]
 }
 
 export interface StatusWorkflowSection {
@@ -212,7 +212,79 @@ export interface StatusDefinition {
   sortOrder?: number
   isInitial?: number
   isFinal?: number
-  transitions?: string[]
+  transitions?: Transition[]
+}
+
+export type TransitionPostFunctionType = 'SET_FIELD' | 'NOTIFY_ASSIGNEE' | 'NOTIFY_USER' | 'WEBHOOK'
+
+export interface TransitionPostFunction {
+  type: TransitionPostFunctionType
+  fieldKey?: string
+  value?: unknown
+  userId?: number | string
+  title?: string
+  content?: string
+}
+
+export interface Transition {
+  id: string
+  name: string
+  toStatus: string
+  validators?: TransitionValidator[]
+  postFunctions?: TransitionPostFunction[]
+}
+
+export interface TransitionOption {
+  id: string
+  name: string
+  toStatus: string
+  toStatusName: string
+}
+
+export type TransitionValidatorType = 'REQUIRED_FIELDS'
+
+export interface TransitionValidator {
+  type: TransitionValidatorType
+  fieldKeys?: string[]
+}
+
+export interface TransitionMeta {
+  transitionId?: string
+  name?: string
+  fromStatus?: string
+  toStatus?: string
+  validators?: TransitionValidator[]
+  requiredFields?: TransitionFieldMeta[]
+}
+
+export interface TransitionFieldOption {
+  label: string
+  value: string
+}
+
+export interface TransitionFieldMeta {
+  fieldKey: string
+  fieldName: string
+  fieldType: string
+  systemFlag?: number
+  options?: TransitionFieldOption[]
+}
+
+export interface TransitionPostFunctionPreset {
+  id: string
+  label: string
+  description?: string
+  icon?: string
+  type: TransitionPostFunctionType
+  fieldKey?: string
+  value?: unknown
+  kind?: 'preset' | 'template'
+}
+
+export interface TransitionPostFunctionMeta {
+  presets: TransitionPostFunctionPreset[]
+  fields: TransitionFieldMeta[]
+  placeholders?: string[]
 }
 
 export interface StatusWorkflow {
@@ -224,7 +296,7 @@ export interface StatusWorkflow {
 
 export interface AllowedTransitions {
   fromStatus?: string
-  targets: StatusDefinition[]
+  transitions: TransitionOption[]
 }
 
 export const ANY_STATUS_CODE = '__any__'
@@ -246,7 +318,7 @@ export interface ProjectAccessContext {
 
 export interface PmProjectModule {
   id?: number
-  projectId: number
+  projectId: number | string
   parentId?: number | null
   name: string
   description?: string
@@ -406,8 +478,11 @@ export const FIELD_TYPE_OPTIONS = Object.entries(FIELD_TYPE_LABELS)
 
 export const SYSTEM_FIELD_PROP_MAP: Record<string, string> = {
   assignee_id: 'assigneeId',
+  reporter_id: 'reporterId',
   type_code: 'typeCode',
   module_id: 'moduleId',
+  parent_id: 'parentId',
+  sprint_id: 'sprintId',
 }
 
 export function systemFieldProp(fieldKey: string): string {

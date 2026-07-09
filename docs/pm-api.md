@@ -354,14 +354,14 @@ Base path: `/pm/work-items`
 
 ```json
 {
-  "toStatus": "closed",
+  "transitionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "fields": {
     "priority": "high"
   }
 }
 ```
 
-按项目 + 类型的工作流配置校验路径；若配置了 `REQUIRED_FIELDS` 校验器，则先校验（可附带 `fields` 一并写入）再更新状态、执行后置函数并记录活动日志。
+按项目 + 类型的工作流配置，以 `transitionId` 定位流转边；若配置了 `REQUIRED_FIELDS` 校验器，则先校验（可附带 `fields` 一并写入）再更新状态、执行后置函数并记录活动日志。
 
 **响应 data：** `null`
 
@@ -817,8 +817,17 @@ Base path: `/pm/status/workflow`
 | sortOrder | 排序 |
 | isInitial | 是否初始状态（1/0） |
 | isFinal | 是否终态 |
-| transitions | 允许流转到的目标 statusCode 列表（与 transitionRules 同步） |
-| transitionRules | 流转规则：`toStatus` + `validators[]` + `postFunctions[]` |
+| transitions | `Transition[]`：`id`、`name`、`toStatus`、`validators[]`、`postFunctions[]` |
+
+**Transition：**
+
+| 字段 | 说明 |
+|------|------|
+| id | 流转 UUID |
+| name | 显示名（如「开始处理」） |
+| toStatus | 目标状态编码 |
+| validators | 校验器列表 |
+| postFunctions | 后置函数列表 |
 
 **TransitionValidator：**
 
@@ -866,7 +875,12 @@ Base path: `/pm/status/workflow`
 }
 ```
 
-**响应 data：** `AllowedTransitionsVO`（`fromStatus` + `targets` 列表）
+**响应 data：** `AllowedTransitionsVO`
+
+| 字段 | 说明 |
+|------|------|
+| fromStatus | 当前状态 |
+| transitions | `TransitionOption[]`：`id`、`name`、`toStatus`、`toStatusName` |
 
 ---
 
@@ -896,8 +910,8 @@ Base path: `/pm/status/workflow`
 {
   "projectId": "...",
   "typeCode": "task",
-  "fromStatus": "done",
-  "toStatus": "closed"
+  "transitionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "fromStatus": "done"
 }
 ```
 
@@ -905,6 +919,9 @@ Base path: `/pm/status/workflow`
 
 | 字段 | 说明 |
 |------|------|
+| transitionId | 流转 ID |
+| name | 流转显示名 |
+| fromStatus / toStatus | 源/目标状态 |
 | validators | 合并后的校验器列表（含 `__any__`） |
 | requiredFields | 需在流转弹窗中填写的字段元数据 |
 
@@ -920,7 +937,7 @@ Base path: `/pm/status/workflow`
 {
   "projectId": "2073615378310627330",
   "typeCode": "task",
-  "statuses": [ /* StatusDefinitionVO[]，含 transitionRules */ ]
+  "statuses": [ /* StatusDefinitionVO[]，含 transitions: Transition[] */ ]
 }
 ```
 

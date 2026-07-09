@@ -12,14 +12,17 @@ import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItemLink;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemLinkMapper;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemMapper;
+import com.hfwas.devops.pm.workitem.model.TransitionVO;
 import com.hfwas.devops.user.message.MessageCategories;
 import com.hfwas.devops.user.message.model.SiteMessageCommand;
 import com.hfwas.devops.user.message.spi.SiteMessagePublisher;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +42,9 @@ public class WorkItemService {
     private final SiteMessagePublisher siteMessagePublisher;
     private final CurrentUserAccessor currentUserAccessor;
     private final WorkItemActivityService activityService;
+    private final TransitionPostFunctionExecutor transitionPostFunctionExecutor;
+    private final TransitionValidatorExecutor transitionValidatorExecutor;
+    private final WorkItemFieldApplicator workItemFieldApplicator;
 
     public IPage<PmWorkItem> page(QuerySpec spec) {
         IPage<PmWorkItem> page = queryEngine.execute(spec);
@@ -71,8 +77,7 @@ public class WorkItemService {
             PmWorkItem old = workItemMapper.selectById(item.getId());
             typeRegistry.get(item.getTypeCode()).ifPresent(p -> p.validateOnUpdate(old, item));
             if (old != null && item.getStatus() != null && !item.getStatus().equals(old.getStatus())) {
-                statusDefinitionService.validateTransition(
-                        item.getProjectId(), item.getTypeCode(), old.getStatus(), item.getStatus());
+                throw new IllegalArgumentException("请通过 transition API 变更状态（需指定 transitionId）");
             }
             workItemMapper.updateById(item);
             notifyAssigneeIfChanged(old, item);
@@ -83,23 +88,43 @@ public class WorkItemService {
     }
 
     @Transactional
-    public void transition(Long id, String toStatus) {
-        PmWorkItem item = workItemMapper.selectById(id);
-        if (item == null) {
+    public void transition(Long id, String transitionId) {
+        transition(id, transitionId, null);
+    }
+
+    @Transactional
+    public void transition(Long id, String transitionId, Map<String, Object> fields) {
+        if (StringUtils.isBlank(transitionId)) {
+            throw new IllegalArgumentException("transitionId 不能为空");
+        }
+        PmWorkItem old = workItemMapper.selectById(id);
+        if (old == null) {
             throw new IllegalArgumentException("Work item not found");
         }
+        PmWorkItem before = snapshot(old);
+        String fromStatus = before.getStatus();
         statusDefinitionService.validateTransition(
-                item.getProjectId(), item.getTypeCode(), item.getStatus(), toStatus);
-        String fromStatus = item.getStatus();
-        item.setStatus(toStatus);
-        workItemMapper.updateById(item);
-        List<FieldDefinition> definitions = fieldDefinitionService.listByProjectAndType(item.getProjectId(), item.getTypeCode());
-        PmWorkItem before = new PmWorkItem();
-        before.setId(item.getId());
-        before.setProjectId(item.getProjectId());
-        before.setTypeCode(item.getTypeCode());
-        before.setStatus(fromStatus);
-        activityService.recordChanges(before, item, definitions);
+                old.getProjectId(), old.getTypeCode(), fromStatus, transitionId);
+        TransitionVO transition = statusDefinitionService.findTransition(
+                old.getProjectId(), old.getTypeCode(), fromStatus, transitionId);
+        String toStatus = transition.getToStatus();
+        List<FieldDefinition> definitions = fieldDefinitionService.listByProjectAndType(
+                old.getProjectId(), old.getTypeCode());
+        if (fields != null && !fields.isEmpty()) {
+            for (Map.Entry<String, Object> entry : fields.entrySet()) {
+                if (entry.getKey() == null || "status".equals(entry.getKey())) {
+                    continue;
+                }
+                workItemFieldApplicator.apply(old, entry.getKey(), entry.getValue(), definitions);
+            }
+        }
+        transitionValidatorExecutor.validate(old, fromStatus, transitionId, definitions);
+        old.setStatus(toStatus);
+        workItemMapper.updateById(old);
+        transitionPostFunctionExecutor.execute(old, fromStatus, transitionId, definitions);
+        workItemMapper.updateById(old);
+        keyEnricher.enrich(old);
+        activityService.recordChanges(before, old, definitions);
     }
 
     public void delete(Long id) {
@@ -152,5 +177,25 @@ public class WorkItemService {
                 .senderId(currentUserId)
                 .senderName(currentUserAccessor.currentDisplayName())
                 .build());
+    }
+
+    private PmWorkItem snapshot(PmWorkItem item) {
+        PmWorkItem copy = new PmWorkItem();
+        copy.setId(item.getId());
+        copy.setProjectId(item.getProjectId());
+        copy.setTypeCode(item.getTypeCode());
+        copy.setTitle(item.getTitle());
+        copy.setDescription(item.getDescription());
+        copy.setStatus(item.getStatus());
+        copy.setPriority(item.getPriority());
+        copy.setAssigneeId(item.getAssigneeId());
+        copy.setReporterId(item.getReporterId());
+        copy.setModuleId(item.getModuleId());
+        copy.setParentId(item.getParentId());
+        copy.setSprintId(item.getSprintId());
+        if (item.getCustomFields() != null) {
+            copy.setCustomFields(new HashMap<>(item.getCustomFields()));
+        }
+        return copy;
     }
 }

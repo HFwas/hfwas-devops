@@ -47,7 +47,7 @@ public class PmWorkItemController {
     @OperLog(module = "pm", action = "transition", bizType = "work_item", summary = "工作项状态流转", bizId = "#id")
     @PostMapping("/{id}/transition")
     public BaseResult<Void> transition(@PathVariable Long id, @RequestBody WorkItemTransitionDto dto) {
-        workItemService.transition(id, dto.getToStatus());
+        workItemService.transition(id, dto.getTransitionId(), dto.getFields());
         return BaseResult.ok();
     }
 

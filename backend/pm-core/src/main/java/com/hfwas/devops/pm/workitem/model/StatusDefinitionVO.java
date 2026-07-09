@@ -12,5 +12,6 @@ public class StatusDefinitionVO {
     private Integer sortOrder;
     private Integer isInitial;
     private Integer isFinal;
-    private List<String> transitions;
+    /** 从本状态出发的流转（含 id / name / toStatus / validators / postFunctions） */
+    private List<TransitionVO> transitions;
 }

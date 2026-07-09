@@ -49,11 +49,13 @@ wait_for_backend() {
   local i=0
   while [ "$i" -lt "$max" ]; do
     local code
-    code=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
-    if [ "$code" != "000" ]; then
-      log "$name 已就绪 (HTTP $code)"
-      return 0
-    fi
+    code=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || true)
+    case "$code" in
+      200|204)
+        log "$name 已就绪 (HTTP $code)"
+        return 0
+        ;;
+    esac
     sleep 1
     i=$((i + 1))
   done

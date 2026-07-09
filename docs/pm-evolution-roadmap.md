@@ -70,7 +70,7 @@ flowchart LR
 |------|------|----------|------|
 | **1** | 工作流 Post-function 收口 + 设置页 UI 标准 | 半成品收口，立刻可配可跑 | [step-01](./evolution/step-01-workflow-post-functions.md) |
 | **2** | Phase B：流转 Validator（必填字段） | 关单前填 Resolution 类刚需 | [step-02](./evolution/step-02-transition-validators.md) |
-| **3** | Phase A：Transition 实体化（id/name） | 为条件/设计器铺路 | 待写 |
+| **3** | Phase A：Transition 实体化（id/name） | 为条件/设计器铺路 | [step-03](./evolution/step-03-transition-entity.md) |
 | **4** | P0：保存视图 UI | 后端已有，投入产出极高 | 待写 |
 | **5** | P0：详情页完整编辑（标题/描述） | 核心交互差距 | 待写 |
 | **6** | P0：看板拖拽 + 统一走 transition | Kanban 标志能力 | 待写 |
@@ -96,8 +96,9 @@ flowchart LR
 
 ### 3.3 Step 3 — Transition 实体化
 
-- 边从「目标 statusCode」升级为带 `id`、`name`、`from`、`to` 的 Transition。
-- API 兼容：短期仍接受 `toStatus`；UI 展示流转名称。
+- 边从「目标 statusCode」升级为带 `id`、`name`、`toStatus` 的 Transition（`from` 由所属状态行隐含）。
+- `allowed` / `transition` / `transition-meta` 以 `transitionId` 为主；UI 展示流转名称。
+- **状态：已完成**（见 [step-03](./evolution/step-03-transition-entity.md)）。
 
 ### 3.4 Step 4–7 — P0 体验与权限
 

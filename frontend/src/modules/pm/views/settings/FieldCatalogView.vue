@@ -69,7 +69,7 @@ const columns = computed(() => [
     width: 160,
     render: (row: FieldDefinition) => {
       if (row.systemFlag === 1) {
-        return h('span', { style: 'color:#999' }, '不可编辑')
+        return h('span', { style: 'color: var(--n-text-color-3)' }, '不可编辑')
       }
       const id = fieldId(row)
       return h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
@@ -140,20 +140,30 @@ watch(projectId, load, { immediate: true })
 <template>
   <n-space vertical size="large">
     <n-page-header
-      title="字段"
-      subtitle="管理项目级自定义字段，定义字段类型与适用事项（类似 Jira Custom Fields）"
-    />
-    <n-space justify="space-between">
-      <n-input v-model:value="keyword" placeholder="搜索字段名称或编码" clearable style="width: 280px" />
-      <n-button type="primary" @click="openCreate">新建字段</n-button>
-    </n-space>
-    <n-data-table
-      :key="tableKey"
-      :columns="columns"
-      :data="filteredFields"
-      :loading="loading"
-      :row-key="(r: FieldDefinition, index: number) => fieldId(r) || `row-${index}`"
-    />
+      title="自定义字段"
+      subtitle="管理项目级自定义字段，定义字段类型与适用事项"
+    >
+      <template #extra>
+        <n-button type="primary" @click="openCreate">新建字段</n-button>
+      </template>
+    </n-page-header>
+    <n-card size="small">
+      <n-space vertical>
+        <n-input
+          v-model:value="keyword"
+          placeholder="搜索字段名称或编码"
+          clearable
+          style="max-width: 320px"
+        />
+        <n-data-table
+          :key="tableKey"
+          :columns="columns"
+          :data="filteredFields"
+          :loading="loading"
+          :row-key="(r: FieldDefinition) => fieldId(r) || r.fieldKey"
+        />
+      </n-space>
+    </n-card>
     <PmFieldEditorDrawer
       :key="`${showDrawer}-${editingId ?? 'new'}`"
       v-model:show="showDrawer"

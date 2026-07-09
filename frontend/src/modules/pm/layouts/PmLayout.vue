@@ -9,6 +9,7 @@ const router = useRouter()
 const projectStore = useProjectStore()
 
 const projectId = computed(() => routeId(route.params.projectId))
+const projectName = computed(() => projectStore.currentProject?.name ?? '项目')
 
 onMounted(async () => {
   await projectStore.loadProjects()
@@ -25,7 +26,7 @@ const menuRouteMap = computed(() => {
     [`settings-types:${id}`]: `/pm/projects/${id}/settings/types`,
     [`settings-fields:${id}`]: `/pm/projects/${id}/settings/fields`,
     [`settings-modules:${id}`]: `/pm/projects/${id}/settings/modules`,
-    [`settings-workflow:${id}`]: `/pm/projects/${id}/settings/workflow/task`,
+    [`settings-workflow:${id}`]: `/pm/projects/${id}/settings/workflow/${currentTypeCode.value}`,
   } as Record<string, string>
 })
 
@@ -39,46 +40,33 @@ const menuOptions = computed(() => {
   }))
 
   return [
-    ...typeItems,
-    { type: 'divider' as const, key: 'divider-1' },
-    { label: '看板', key: `/pm/projects/${id}/board/${currentTypeCode.value}` },
     {
-      label: '项目配置',
-      key: 'project-settings',
-      children: [{ label: '功能模块', key: `settings-modules:${id}` }],
+      type: 'group' as const,
+      label: '事项',
+      key: 'group-items',
+      children: typeItems,
     },
     {
-      label: '字段配置',
-      key: 'field-settings',
+      type: 'group' as const,
+      label: '视图',
+      key: 'group-views',
       children: [
+        { label: '看板', key: `/pm/projects/${id}/board/${currentTypeCode.value}` },
+      ],
+    },
+    {
+      type: 'group' as const,
+      label: '设置',
+      key: 'group-settings',
+      children: [
+        { label: '功能模块', key: `settings-modules:${id}` },
         { label: '事项配置', key: `settings-types:${id}` },
         { label: '状态流转', key: `settings-workflow:${id}` },
-        { label: '字段', key: `settings-fields:${id}` },
+        { label: '自定义字段', key: `settings-fields:${id}` },
       ],
     },
   ]
 })
-
-const expandedKeys = ref<string[]>([])
-
-watch(
-  () => route.path,
-  (path) => {
-    const expanded = [...expandedKeys.value]
-    if (path.includes('/settings/') && !expanded.includes('field-settings')) {
-      expanded.push('field-settings')
-    }
-    if (path.includes('/settings/modules') && !expanded.includes('project-settings')) {
-      expanded.push('project-settings')
-    }
-    expandedKeys.value = expanded
-  },
-  { immediate: true },
-)
-
-function onExpandedKeysUpdate(keys: string[]) {
-  expandedKeys.value = keys
-}
 
 const activeMenuKey = computed(() => {
   const path = route.path
@@ -111,25 +99,71 @@ function onMenuSelect(key: string) {
 </script>
 
 <template>
-  <n-layout has-sider style="min-height: calc(100vh - 56px)">
-    <n-layout-sider bordered width="220">
-      <n-menu
-        :value="activeMenuKey"
-        :expanded-keys="expandedKeys"
-        :options="menuOptions"
-        @update:value="onMenuSelect"
-        @update:expanded-keys="onExpandedKeysUpdate"
-      />
-      <div style="padding: 12px">
-        <n-button text @click="router.push('/pm/projects')">← 返回项目列表</n-button>
+  <n-layout has-sider class="pm-layout">
+    <n-layout-sider bordered :width="232" class="pm-sider" content-style="display:flex;flex-direction:column;height:100%">
+      <div class="pm-sider-header">
+        <n-text strong class="pm-sider-title" :title="projectName">{{ projectName }}</n-text>
+        <n-button text size="tiny" type="primary" @click="router.push('/pm/projects')">切换项目</n-button>
+      </div>
+      <n-scrollbar class="pm-sider-menu">
+        <n-menu
+          :value="activeMenuKey"
+          :options="menuOptions"
+          :root-indent="16"
+          :indent="18"
+          @update:value="onMenuSelect"
+        />
+      </n-scrollbar>
+      <div class="pm-sider-footer">
+        <n-button block quaternary @click="router.push('/pm/projects')">返回项目列表</n-button>
       </div>
     </n-layout-sider>
-    <n-layout-content content-style="padding: 20px">
-      <n-page-header
-        v-if="projectStore.currentProject && !route.path.match(/\/items\/\d+/)"
-        :title="projectStore.currentProject.name"
-      />
+    <n-layout-content class="pm-content" content-style="padding: 20px 24px 28px">
       <RouterView :key="route.path" />
     </n-layout-content>
   </n-layout>
 </template>
+
+<style scoped>
+.pm-layout {
+  min-height: calc(100vh - 56px);
+  background: var(--n-color-embedded, transparent);
+}
+
+.pm-sider {
+  background: var(--n-color);
+}
+
+.pm-sider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--n-border-color);
+}
+
+.pm-sider-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+}
+
+.pm-sider-menu {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 0;
+}
+
+.pm-sider-footer {
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--n-border-color);
+}
+
+.pm-content {
+  background: transparent;
+}
+</style>

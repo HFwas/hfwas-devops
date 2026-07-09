@@ -223,7 +223,7 @@ POST /pm/work-items/{id}/transition { toStatus }
 | 流转后通知 | ✅ | ✅ | 已有（NOTIFY_ASSIGNEE / NOTIFY_USER） |
 | 流转后 Webhook | ✅ | 🟡 | 租户钉钉/飞书渠道；无独立 URL |
 | 可视化流程图编辑器 | ✅ | ❌ | 缺失 |
-| Transition 显示名 | ✅ | ❌ | 缺失 |
+| Transition 显示名 | ✅ | ✅ | 已有（Transition.name） |
 | 工作流版本 / 草稿发布 | ✅ (Cloud) | ❌ | 缺失 |
 | Post-function 插件 SPI | ✅ | ❌ | 缺失（Phase F） |
 
@@ -247,7 +247,7 @@ POST /pm/work-items/{id}/transition { toStatus }
 |------|------|--------|------|
 | **Phase C** | 基础 Post-function | Step 1 | ✅ 已收口 |
 | **Phase B** | 基础 Validator | Step 2 | ✅ 已完成 |
-| **Phase A** | Transition 实体化 | Step 3 | 待做 |
+| **Phase A** | Transition 实体化 | Step 3 | ✅ 已完成 |
 | **Phase D** | Condition | Step 8 | 待做 |
 | **Phase E** | 可视化设计器 | Step 10 | 待做 |
 | **Phase F** | 扩展 SPI | Step 12 | 待做 |

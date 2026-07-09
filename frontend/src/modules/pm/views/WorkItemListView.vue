@@ -124,30 +124,36 @@ onMounted(async () => {
 
 <template>
   <n-space vertical size="large">
-    <n-page-header :title="pageTitle" />
-    <n-space>
-      <n-button type="primary" @click="showCreate = true">新建{{ pageTitle }}</n-button>
-      <n-button @click="openExport">导出</n-button>
-      <n-button @click="openImport">导入</n-button>
-      <n-button @click="onSearch">查询</n-button>
-      <n-text v-if="checkedRowKeys.length" depth="3">已选 {{ checkedRowKeys.length }} 条</n-text>
-    </n-space>
-    <PmQueryBuilder v-model:model-value="querySpec" :field-defs="fieldDefs" />
-    <PmWorkItemTable
-      v-model:checked-row-keys="checkedRowKeys"
-      selectable
-      :field-defs="fieldDefs"
-      :query-spec="querySpec"
-      :data="items"
-      :loading="loading"
-      :comment-counts="commentCounts"
-      @refresh="search"
-      @row-click="openItem"
-      @open="openItem"
-      @delete="removeItem"
-    />
-    <AppPagination :pagination="pagination" :on-change="search" />
-    <n-modal v-model:show="showCreate" preset="card" :title="`新建${pageTitle}`" style="width: 640px">
+    <n-page-header :title="pageTitle" subtitle="筛选、新建与导入导出事项">
+      <template #extra>
+        <n-space>
+          <n-text v-if="checkedRowKeys.length" depth="3">已选 {{ checkedRowKeys.length }} 条</n-text>
+          <n-button @click="openExport">导出</n-button>
+          <n-button @click="openImport">导入</n-button>
+          <n-button type="primary" @click="showCreate = true">新建{{ pageTitle }}</n-button>
+        </n-space>
+      </template>
+    </n-page-header>
+    <PmQueryBuilder v-model:model-value="querySpec" :field-defs="fieldDefs" @search="onSearch" />
+    <n-card size="small" :bordered="true">
+      <PmWorkItemTable
+        v-model:checked-row-keys="checkedRowKeys"
+        selectable
+        :field-defs="fieldDefs"
+        :query-spec="querySpec"
+        :data="items"
+        :loading="loading"
+        :comment-counts="commentCounts"
+        @refresh="search"
+        @row-click="openItem"
+        @open="openItem"
+        @delete="removeItem"
+      />
+      <div style="margin-top: 12px">
+        <AppPagination :pagination="pagination" :on-change="search" />
+      </div>
+    </n-card>
+    <n-modal v-model:show="showCreate" preset="card" :title="`新建${pageTitle}`" style="width: 560px">
       <n-spin :show="!fieldDefs.length">
         <PmDynamicForm
           v-if="fieldDefs.length"

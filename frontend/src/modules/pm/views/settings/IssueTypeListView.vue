@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { pmMetaApi } from '@/modules/pm/api'
+import { useMessage } from 'naive-ui'
+import PmIssueTypeSchemeImportModal from '@/modules/pm/components/PmIssueTypeSchemeImportModal/index.vue'
+import { pmIssueTypeSchemeApi, pmMetaApi } from '@/modules/pm/api'
 import type { PmWorkItemType } from '@/modules/pm/types'
 import { TYPE_META } from '@/modules/pm/types'
 import { routeId } from '@/modules/pm/utils/id'
+import { downloadJsonFile, projectSchemeExportFilename } from '@/modules/pm/utils/jsonFile'
 
 const route = useRoute()
 const router = useRouter()
+const message = useMessage()
 const projectId = computed(() => routeId(route.params.projectId))
 const types = ref<PmWorkItemType[]>([])
 const loading = ref(false)
+const exporting = ref(false)
+const showImport = ref(false)
 
 async function load() {
   loading.value = true
@@ -23,6 +29,19 @@ function openType(typeCode: string) {
   router.push(`/pm/projects/${projectId.value}/settings/types/${typeCode}`)
 }
 
+async function exportProjectScheme() {
+  exporting.value = true
+  try {
+    const data = await pmIssueTypeSchemeApi.exportProject(projectId.value)
+    downloadJsonFile(data, projectSchemeExportFilename())
+    message.success('已导出项目事项类型方案（含字段与状态流转）')
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '导出失败')
+  } finally {
+    exporting.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -30,8 +49,16 @@ onMounted(load)
   <n-space vertical size="large">
     <n-page-header
       title="事项配置"
-      subtitle="管理各事项类型的字段展示方案与状态流转规则"
-    />
+      subtitle="按类型管理字段布局与状态流转；支持导入导出完整方案"
+    >
+      <template #extra>
+        <n-space>
+          <n-button :loading="exporting" @click="exportProjectScheme">导出方案</n-button>
+          <n-button type="primary" @click="showImport = true">导入方案</n-button>
+        </n-space>
+      </template>
+    </n-page-header>
+
     <n-spin :show="loading">
       <n-grid :cols="2" :x-gap="16" :y-gap="16">
         <n-gi v-for="t in types" :key="t.code">
@@ -57,5 +84,11 @@ onMounted(load)
         </n-gi>
       </n-grid>
     </n-spin>
+
+    <PmIssueTypeSchemeImportModal
+      v-model:show="showImport"
+      :project-id="projectId"
+      @imported="load"
+    />
   </n-space>
 </template>

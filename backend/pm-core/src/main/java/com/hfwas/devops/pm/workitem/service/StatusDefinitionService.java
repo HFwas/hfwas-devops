@@ -8,6 +8,12 @@ import com.hfwas.devops.pm.workitem.mapper.PmStatusDefinitionMapper;
 import com.hfwas.devops.pm.workitem.model.AllowedTransitionsVO;
 import com.hfwas.devops.pm.workitem.model.StatusDefinitionVO;
 import com.hfwas.devops.pm.workitem.model.StatusWorkflowVO;
+import com.hfwas.devops.pm.workitem.model.TransitionOptionVO;
+import com.hfwas.devops.pm.workitem.model.TransitionPostFunctionType;
+import com.hfwas.devops.pm.workitem.model.TransitionPostFunctionVO;
+import com.hfwas.devops.pm.workitem.model.TransitionVO;
+import com.hfwas.devops.pm.workitem.model.TransitionValidatorType;
+import com.hfwas.devops.pm.workitem.model.TransitionValidatorVO;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -17,10 +23,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -58,30 +66,27 @@ public class StatusDefinitionService {
 
     public AllowedTransitionsVO allowedTransitions(Long projectId, String typeCode, String fromStatus) {
         StatusWorkflowVO workflow = getWorkflow(projectId, typeCode);
-        List<StatusDefinitionVO> all = workflow.getStatuses().stream()
-                .filter(s -> !ANY_STATUS_CODE.equals(s.getStatusCode()))
-                .toList();
-        Map<String, StatusDefinitionVO> byCode = all.stream()
-                .collect(Collectors.toMap(StatusDefinitionVO::getStatusCode, s -> s, (a, b) -> a, LinkedHashMap::new));
-        Set<String> allowedCodes = new HashSet<>();
+        Map<String, String> labelByCode = workflow.getStatuses().stream()
+                .filter(s -> s.getStatusCode() != null && !ANY_STATUS_CODE.equals(s.getStatusCode()))
+                .collect(Collectors.toMap(
+                        StatusDefinitionVO::getStatusCode,
+                        StatusDefinitionVO::getStatusName,
+                        (a, b) -> a,
+                        LinkedHashMap::new));
+        Set<String> regularCodes = labelByCode.keySet();
+        List<TransitionOptionVO> options = new ArrayList<>();
+        Set<String> seenIds = new LinkedHashSet<>();
         if (StringUtils.isNotBlank(fromStatus)) {
-            allowedCodes.add(fromStatus);
-            StatusDefinitionVO from = findStatus(workflow.getStatuses(), fromStatus);
-            if (from != null && from.getTransitions() != null) {
-                allowedCodes.addAll(from.getTransitions());
+            appendTransitionOptions(options, seenIds,
+                    findStatus(workflow.getStatuses(), fromStatus), fromStatus, regularCodes, labelByCode);
+            if (!ANY_STATUS_CODE.equals(fromStatus)) {
+                appendTransitionOptions(options, seenIds,
+                        findStatus(workflow.getStatuses(), ANY_STATUS_CODE), fromStatus, regularCodes, labelByCode);
             }
-            StatusDefinitionVO any = findStatus(workflow.getStatuses(), ANY_STATUS_CODE);
-            if (any != null && any.getTransitions() != null) {
-                allowedCodes.addAll(any.getTransitions());
-            }
-        } else {
-            allowedCodes.addAll(byCode.keySet());
         }
         AllowedTransitionsVO vo = new AllowedTransitionsVO();
         vo.setFromStatus(fromStatus);
-        vo.setTargets(all.stream()
-                .filter(s -> allowedCodes.contains(s.getStatusCode()))
-                .toList());
+        vo.setTransitions(options);
         return vo;
     }
 
@@ -94,13 +99,55 @@ public class StatusDefinitionService {
                 .orElse("open");
     }
 
-    public void validateTransition(Long projectId, String typeCode, String fromStatus, String toStatus) {
-        if (StringUtils.isBlank(toStatus)) {
-            throw new IllegalArgumentException("目标状态不能为空");
+    public Map<String, String> statusLabelMap(Long projectId, String typeCode) {
+        Map<String, String> labels = new LinkedHashMap<>();
+        for (StatusDefinitionVO status : getWorkflow(projectId, typeCode).getStatuses()) {
+            if (status.getStatusCode() != null) {
+                labels.put(status.getStatusCode(), status.getStatusName());
+            }
         }
-        if (StringUtils.equals(fromStatus, toStatus)) {
-            return;
+        return labels;
+    }
+
+    public TransitionVO findTransition(Long projectId, String typeCode, String fromStatus, String transitionId) {
+        if (StringUtils.isBlank(transitionId)) {
+            throw new IllegalArgumentException("transitionId 不能为空");
         }
+        StatusWorkflowVO workflow = getWorkflow(projectId, typeCode);
+        TransitionVO found = findTransitionInStatus(findStatus(workflow.getStatuses(), fromStatus), transitionId);
+        if (found == null && !ANY_STATUS_CODE.equals(fromStatus)) {
+            found = findTransitionInStatus(findStatus(workflow.getStatuses(), ANY_STATUS_CODE), transitionId);
+        }
+        if (found == null) {
+            throw new IllegalArgumentException("流转不存在: " + transitionId);
+        }
+        return found;
+    }
+
+    public List<TransitionPostFunctionVO> resolvePostFunctions(Long projectId, String typeCode,
+                                                               String fromStatus, String transitionId) {
+        if (StringUtils.isBlank(transitionId)) {
+            return List.of();
+        }
+        TransitionVO transition = findTransition(projectId, typeCode, fromStatus, transitionId);
+        return transition.getPostFunctions() != null ? transition.getPostFunctions() : List.of();
+    }
+
+    public List<TransitionValidatorVO> resolveValidators(Long projectId, String typeCode,
+                                                         String fromStatus, String transitionId) {
+        if (StringUtils.isBlank(transitionId)) {
+            return List.of();
+        }
+        TransitionVO transition = findTransition(projectId, typeCode, fromStatus, transitionId);
+        return transition.getValidators() != null ? transition.getValidators() : List.of();
+    }
+
+    public void validateTransition(Long projectId, String typeCode, String fromStatus, String transitionId) {
+        TransitionVO transition = findTransition(projectId, typeCode, fromStatus, transitionId);
+        if (StringUtils.isBlank(transition.getToStatus())) {
+            throw new IllegalArgumentException("流转缺少目标状态: " + transitionId);
+        }
+        String toStatus = transition.getToStatus().trim();
         StatusWorkflowVO workflow = getWorkflow(projectId, typeCode);
         Set<String> regularCodes = workflow.getStatuses().stream()
                 .map(StatusDefinitionVO::getStatusCode)
@@ -109,16 +156,12 @@ public class StatusDefinitionService {
         if (!regularCodes.contains(toStatus)) {
             throw new IllegalArgumentException("目标状态不存在: " + toStatus);
         }
-        if (StringUtils.isBlank(fromStatus)) {
-            return;
+        if (StringUtils.isNotBlank(fromStatus) && Objects.equals(fromStatus, toStatus)) {
+            throw new IllegalArgumentException("状态不能流转到自身: " + toStatus);
         }
-        if (!regularCodes.contains(fromStatus)) {
+        if (StringUtils.isNotBlank(fromStatus) && !ANY_STATUS_CODE.equals(fromStatus)
+                && !regularCodes.contains(fromStatus)) {
             throw new IllegalArgumentException("当前状态不存在: " + fromStatus);
-        }
-        AllowedTransitionsVO allowed = allowedTransitions(projectId, typeCode, fromStatus);
-        boolean ok = allowed.getTargets().stream().anyMatch(t -> toStatus.equals(t.getStatusCode()));
-        if (!ok) {
-            throw new IllegalArgumentException("不允许从「" + labelOf(workflow, fromStatus) + "」流转到「" + labelOf(workflow, toStatus) + "」");
         }
     }
 
@@ -130,6 +173,7 @@ public class StatusDefinitionService {
         if (statuses == null || statuses.isEmpty()) {
             throw new IllegalArgumentException("至少需要一个状态");
         }
+        ensureTransitionIdsAndNames(statuses);
         validateWorkflowPayload(statuses);
         statusDefinitionMapper.delete(Wrappers.<PmStatusDefinition>lambdaQuery()
                 .eq(PmStatusDefinition::getProjectId, projectId)
@@ -144,7 +188,7 @@ public class StatusDefinitionService {
             row.setSortOrder(item.getSortOrder() != null ? item.getSortOrder() : order);
             row.setIsInitial(item.getIsInitial() != null ? item.getIsInitial() : 0);
             row.setIsFinal(item.getIsFinal() != null ? item.getIsFinal() : 0);
-            row.setTransitions(writeTransitions(normalizeTransitions(item.getTransitions())));
+            row.setTransitions(writeTransitions(item.getTransitions()));
             statusDefinitionMapper.insert(row);
             order++;
         }
@@ -155,6 +199,51 @@ public class StatusDefinitionService {
         statusDefinitionMapper.delete(Wrappers.<PmStatusDefinition>lambdaQuery()
                 .eq(PmStatusDefinition::getProjectId, projectId)
                 .eq(PmStatusDefinition::getTypeCode, typeCode));
+    }
+
+    public void ensureTransitionIdsAndNames(List<StatusDefinitionVO> statuses) {
+        if (statuses == null) {
+            return;
+        }
+        Map<String, String> labelByCode = statuses.stream()
+                .filter(s -> s != null && StringUtils.isNotBlank(s.getStatusCode()))
+                .collect(Collectors.toMap(
+                        s -> s.getStatusCode().trim(),
+                        s -> StringUtils.defaultIfBlank(s.getStatusName(), s.getStatusCode()).trim(),
+                        (a, b) -> a,
+                        LinkedHashMap::new));
+        for (StatusDefinitionVO status : statuses) {
+            if (status == null) {
+                continue;
+            }
+            if (status.getTransitions() == null) {
+                status.setTransitions(new ArrayList<>());
+                continue;
+            }
+            for (TransitionVO transition : status.getTransitions()) {
+                if (transition == null) {
+                    continue;
+                }
+                if (StringUtils.isBlank(transition.getId())) {
+                    transition.setId(UUID.randomUUID().toString());
+                } else {
+                    transition.setId(transition.getId().trim());
+                }
+                if (StringUtils.isBlank(transition.getName()) && StringUtils.isNotBlank(transition.getToStatus())) {
+                    String toCode = transition.getToStatus().trim();
+                    String toName = labelByCode.getOrDefault(toCode, toCode);
+                    transition.setName("→ " + toName);
+                } else if (transition.getName() != null) {
+                    transition.setName(transition.getName().trim());
+                }
+                if (transition.getValidators() == null) {
+                    transition.setValidators(new ArrayList<>());
+                }
+                if (transition.getPostFunctions() == null) {
+                    transition.setPostFunctions(new ArrayList<>());
+                }
+            }
+        }
     }
 
     private void validateWorkflowPayload(List<StatusDefinitionVO> statuses) {
@@ -182,17 +271,96 @@ public class StatusDefinitionService {
         if (initialCount != 1) {
             throw new IllegalArgumentException("必须且只能有一个初始状态");
         }
+        Set<String> allTransitionIds = new HashSet<>();
         for (StatusDefinitionVO item : statuses) {
             if (item.getTransitions() == null) {
+                item.setTransitions(new ArrayList<>());
                 continue;
             }
-            for (String target : item.getTransitions()) {
-                if (!regularCodes.contains(target)) {
-                    throw new IllegalArgumentException("流转目标不存在: " + target);
+            Set<String> toStatuses = new HashSet<>();
+            String fromCode = item.getStatusCode().trim();
+            for (TransitionVO transition : item.getTransitions()) {
+                if (transition == null) {
+                    throw new IllegalArgumentException("流转不能为空（源状态: " + fromCode + "）");
                 }
-                if (Objects.equals(item.getStatusCode(), target)) {
-                    throw new IllegalArgumentException("状态不能流转到自身: " + target);
+                if (StringUtils.isBlank(transition.getId())) {
+                    throw new IllegalArgumentException("流转 id 不能为空（源状态: " + fromCode + "）");
                 }
+                if (!allTransitionIds.add(transition.getId().trim())) {
+                    throw new IllegalArgumentException("流转 id 重复: " + transition.getId());
+                }
+                if (StringUtils.isBlank(transition.getToStatus())) {
+                    throw new IllegalArgumentException("流转缺少 toStatus（源状态: " + fromCode + "）");
+                }
+                String toStatus = transition.getToStatus().trim();
+                transition.setToStatus(toStatus);
+                if (!regularCodes.contains(toStatus)) {
+                    throw new IllegalArgumentException("流转目标不存在: " + toStatus);
+                }
+                if (Objects.equals(fromCode, toStatus)) {
+                    throw new IllegalArgumentException("状态不能流转到自身: " + toStatus);
+                }
+                if (!toStatuses.add(toStatus)) {
+                    throw new IllegalArgumentException(
+                            "同一源状态不能有多个指向「" + toStatus + "」的流转（" + fromCode + "）");
+                }
+                validateValidators(fromCode, transition);
+                validatePostFunctions(fromCode, transition);
+            }
+        }
+    }
+
+    private void validateValidators(String fromCode, TransitionVO transition) {
+        if (transition.getValidators() == null) {
+            return;
+        }
+        String edge = fromCode + " → " + transition.getToStatus();
+        for (int i = 0; i < transition.getValidators().size(); i++) {
+            TransitionValidatorVO validator = transition.getValidators().get(i);
+            if (validator == null || StringUtils.isBlank(validator.getType())) {
+                throw new IllegalArgumentException("流转校验 type 不能为空（" + edge + " #" + (i + 1) + "）");
+            }
+            String type = validator.getType().trim();
+            if (!TransitionValidatorType.isKnown(type)) {
+                throw new IllegalArgumentException("不支持的流转校验类型: " + type + "（" + edge + "）");
+            }
+            validator.setType(type);
+            if (TransitionValidatorType.REQUIRED_FIELDS.equals(type)) {
+                if (validator.getFieldKeys() == null || validator.getFieldKeys().isEmpty()) {
+                    throw new IllegalArgumentException("REQUIRED_FIELDS 缺少 fieldKeys（" + edge + "）");
+                }
+                for (String key : validator.getFieldKeys()) {
+                    if (StringUtils.isBlank(key)) {
+                        throw new IllegalArgumentException("REQUIRED_FIELDS 含空字段（" + edge + "）");
+                    }
+                    if ("status".equals(key.trim())) {
+                        throw new IllegalArgumentException("不能将 status 配置为流转必填字段（" + edge + "）");
+                    }
+                }
+            }
+        }
+    }
+
+    private void validatePostFunctions(String fromCode, TransitionVO transition) {
+        if (transition.getPostFunctions() == null) {
+            return;
+        }
+        String edge = fromCode + " → " + transition.getToStatus();
+        for (int i = 0; i < transition.getPostFunctions().size(); i++) {
+            TransitionPostFunctionVO fn = transition.getPostFunctions().get(i);
+            if (fn == null || StringUtils.isBlank(fn.getType())) {
+                throw new IllegalArgumentException("后置函数 type 不能为空（" + edge + " #" + (i + 1) + "）");
+            }
+            String type = fn.getType().trim();
+            if (!TransitionPostFunctionType.isKnown(type)) {
+                throw new IllegalArgumentException("不支持的后置函数类型: " + type + "（" + edge + "）");
+            }
+            fn.setType(type);
+            if (TransitionPostFunctionType.SET_FIELD.equals(type) && StringUtils.isBlank(fn.getFieldKey())) {
+                throw new IllegalArgumentException("SET_FIELD 缺少 fieldKey（" + edge + "）");
+            }
+            if (TransitionPostFunctionType.NOTIFY_USER.equals(type) && fn.getUserId() == null) {
+                throw new IllegalArgumentException("NOTIFY_USER 缺少 userId（" + edge + "）");
             }
         }
     }
@@ -210,16 +378,31 @@ public class StatusDefinitionService {
 
     private List<PmStatusDefinition> defaultStatuses(String typeCode) {
         List<PmStatusDefinition> list = new ArrayList<>();
-        list.add(row(null, typeCode, "open", "待处理", 1, 1, 0, List.of("in_progress", "closed")));
-        list.add(row(null, typeCode, "in_progress", "进行中", 2, 0, 0, List.of("done", "open")));
-        list.add(row(null, typeCode, "done", "已完成", 3, 0, 0, List.of("closed")));
+        list.add(row(null, typeCode, "open", "待处理", 1, 1, 0, List.of(
+                transition("开始处理", "in_progress"),
+                transition("关闭", "closed"))));
+        list.add(row(null, typeCode, "in_progress", "进行中", 2, 0, 0, List.of(
+                transition("完成", "done"),
+                transition("重新打开", "open"))));
+        list.add(row(null, typeCode, "done", "已完成", 3, 0, 0, List.of(
+                transition("关闭", "closed"))));
         list.add(row(null, typeCode, "closed", "已关闭", 4, 0, 1, List.of()));
         list.add(row(null, typeCode, ANY_STATUS_CODE, "任何状态", 99, 0, 0, List.of()));
         return list;
     }
 
+    private TransitionVO transition(String name, String toStatus) {
+        TransitionVO vo = new TransitionVO();
+        vo.setId(UUID.randomUUID().toString());
+        vo.setName(name);
+        vo.setToStatus(toStatus);
+        vo.setValidators(new ArrayList<>());
+        vo.setPostFunctions(new ArrayList<>());
+        return vo;
+    }
+
     private PmStatusDefinition row(Long projectId, String typeCode, String code, String name, int order,
-                                   int initial, int fin, List<String> transitions) {
+                                   int initial, int fin, List<TransitionVO> transitions) {
         PmStatusDefinition def = new PmStatusDefinition();
         def.setProjectId(projectId);
         def.setTypeCode(typeCode);
@@ -255,33 +438,64 @@ public class StatusDefinitionService {
             any.setTransitions(new ArrayList<>());
             list.add(any);
         }
+        ensureTransitionIdsAndNames(list);
         return list;
     }
 
+    private void appendTransitionOptions(List<TransitionOptionVO> options, Set<String> seenIds,
+                                         StatusDefinitionVO status, String fromStatus,
+                                         Set<String> regularCodes, Map<String, String> labelByCode) {
+        if (status == null || status.getTransitions() == null) {
+            return;
+        }
+        for (TransitionVO transition : status.getTransitions()) {
+            if (transition == null || StringUtils.isBlank(transition.getId())
+                    || StringUtils.isBlank(transition.getToStatus())) {
+                continue;
+            }
+            String toStatus = transition.getToStatus().trim();
+            if (!regularCodes.contains(toStatus)) {
+                continue;
+            }
+            if (Objects.equals(fromStatus, toStatus)) {
+                continue;
+            }
+            if (!seenIds.add(transition.getId())) {
+                continue;
+            }
+            TransitionOptionVO option = new TransitionOptionVO();
+            option.setId(transition.getId());
+            option.setName(StringUtils.defaultIfBlank(transition.getName(), "→ " + labelByCode.getOrDefault(toStatus, toStatus)));
+            option.setToStatus(toStatus);
+            option.setToStatusName(labelByCode.getOrDefault(toStatus, toStatus));
+            options.add(option);
+        }
+    }
+
+    private TransitionVO findTransitionInStatus(StatusDefinitionVO status, String transitionId) {
+        if (status == null || status.getTransitions() == null || StringUtils.isBlank(transitionId)) {
+            return null;
+        }
+        String id = transitionId.trim();
+        for (TransitionVO transition : status.getTransitions()) {
+            if (transition != null && id.equals(transition.getId())) {
+                return transition;
+            }
+        }
+        return null;
+    }
+
     private StatusDefinitionVO findStatus(List<StatusDefinitionVO> statuses, String code) {
+        if (statuses == null || StringUtils.isBlank(code)) {
+            return null;
+        }
         return statuses.stream()
                 .filter(s -> code.equals(s.getStatusCode()))
                 .findFirst()
                 .orElse(null);
     }
 
-    private String labelOf(StatusWorkflowVO workflow, String code) {
-        StatusDefinitionVO status = findStatus(workflow.getStatuses(), code);
-        return status != null ? status.getStatusName() : code;
-    }
-
-    private List<String> normalizeTransitions(List<String> transitions) {
-        if (transitions == null || transitions.isEmpty()) {
-            return new ArrayList<>();
-        }
-        return transitions.stream()
-                .filter(StringUtils::isNotBlank)
-                .map(String::trim)
-                .distinct()
-                .collect(Collectors.toCollection(ArrayList::new));
-    }
-
-    private List<String> parseTransitions(Object raw) {
+    private List<TransitionVO> parseTransitions(Object raw) {
         if (raw == null) {
             return new ArrayList<>();
         }
@@ -290,8 +504,9 @@ public class StatusDefinitionService {
                 return new ArrayList<>();
             }
             try {
-                return objectMapper.readValue(text, new TypeReference<List<String>>() {
+                List<TransitionVO> list = objectMapper.readValue(text, new TypeReference<List<TransitionVO>>() {
                 });
+                return list != null ? list : new ArrayList<>();
             } catch (Exception e) {
                 return new ArrayList<>();
             }
@@ -299,7 +514,7 @@ public class StatusDefinitionService {
         return new ArrayList<>();
     }
 
-    private String writeTransitions(List<String> transitions) {
+    private String writeTransitions(List<TransitionVO> transitions) {
         try {
             return objectMapper.writeValueAsString(transitions != null ? transitions : List.of());
         } catch (Exception e) {

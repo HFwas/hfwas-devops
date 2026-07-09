@@ -1,5 +1,6 @@
 package com.hfwas.devops.pm.scheme.model;
 
+import com.hfwas.devops.pm.workitem.model.TransitionVO;
 import lombok.Data;
 
 import java.util.List;
@@ -11,5 +12,5 @@ public class ExportedStatusDefinition {
     private Integer sortOrder;
     private Integer isInitial;
     private Integer isFinal;
-    private List<String> transitions;
+    private List<TransitionVO> transitions;
 }

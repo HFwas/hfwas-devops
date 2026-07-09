@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { h } from 'vue'
-import { NButton, NPopconfirm, useMessage, type TreeOption } from 'naive-ui'
+import { NButton, NPopconfirm, useMessage, type SelectOption, type TreeOption } from 'naive-ui'
 import { pmModuleApi } from '@/modules/pm/api'
 import { invalidateProjectModules } from '@/modules/pm/composables/useProjectModules'
 import type { PmProjectModule } from '@/modules/pm/types'
+import { routeId } from '@/modules/pm/utils/id'
 
 const route = useRoute()
 const message = useMessage()
 
-const projectId = computed(() => Number(route.params.projectId))
+const projectId = computed(() => routeId(route.params.projectId))
 const keyword = ref('')
 const treeData = ref<PmProjectModule[]>([])
 const loading = ref(false)
@@ -70,8 +71,8 @@ const treeOptions = computed<TreeOption[]>(() => [
   ...toTreeOptions(filteredTree.value),
 ])
 
-const parentOptions = computed(() => {
-  const options: Array<{ label: string; value: number | null }> = [{ label: '无（顶级模块）', value: null }]
+const parentOptions = computed<SelectOption[]>(() => {
+  const options: SelectOption[] = [{ label: '无（顶级模块）', value: null as unknown as number }]
   const walk = (nodes: PmProjectModule[], prefix = '') => {
     for (const node of nodes) {
       if (node.id == null) continue
@@ -155,32 +156,29 @@ onMounted(loadTree)
 </script>
 
 <template>
-  <n-card title="功能模块" :bordered="false">
-    <template #header-extra>
-      <n-button type="primary" @click="openCreate(null)">新建模块</n-button>
-    </template>
+  <n-space vertical size="large">
+    <n-page-header
+      title="功能模块"
+      subtitle="按业务域划分项目工作，事项可归属到单一模块以便筛选与统计"
+    >
+      <template #extra>
+        <n-button type="primary" @click="openCreate(null)">新建模块</n-button>
+      </template>
+    </n-page-header>
 
-    <n-alert type="info" :bordered="false" style="margin-bottom: 16px">
-      功能模块用于按业务域划分项目工作（类似 Jira Component）。需求、缺陷、任务可归属到单一模块，便于筛选与统计。
+    <n-alert type="info" :bordered="false">
+      功能模块用于按业务域划分工作。事项可归属到单一模块；建议按产品域划分，层级 2～3 层为宜。
     </n-alert>
 
-    <div style="display: flex; gap: 16px; min-height: 480px">
-      <n-card size="small" style="width: 320px; flex-shrink: 0" :bordered="true">
+    <div class="module-layout">
+      <n-card size="small" class="module-tree-card">
         <template #header>
-          <div style="display: flex; align-items: center; justify-content: space-between">
-            <span>模块</span>
-            <n-button quaternary circle size="small" @click="openCreate(null)">
-              <template #icon>
-                <span style="font-size: 18px; line-height: 1">+</span>
-              </template>
-            </n-button>
-          </div>
+          <n-space align="center" justify="space-between" style="width: 100%">
+            <span>模块树</span>
+            <n-button size="tiny" quaternary type="primary" @click="openCreate(null)">添加</n-button>
+          </n-space>
         </template>
-        <n-input v-model:value="keyword" placeholder="请输入..." clearable style="margin-bottom: 12px">
-          <template #prefix>
-            <span style="opacity: 0.45">⌕</span>
-          </template>
-        </n-input>
+        <n-input v-model:value="keyword" placeholder="搜索模块…" clearable style="margin-bottom: 12px" />
         <n-spin :show="loading">
           <n-tree
             v-model:expanded-keys="expandedKeys"
@@ -190,11 +188,11 @@ onMounted(loadTree)
             :render-suffix="renderSuffix"
             @update:selected-keys="(keys) => { if (keys[0] != null) selectedKey = keys[0] }"
           />
-          <n-empty v-if="!loading && !filteredTree.length" description="暂无模块，点击 + 创建" size="small" style="margin-top: 24px" />
+          <n-empty v-if="!loading && !filteredTree.length" description="暂无模块，点击「新建模块」创建" size="small" style="margin-top: 24px" />
         </n-spin>
       </n-card>
 
-      <n-card size="small" style="flex: 1" :bordered="true" title="说明">
+      <n-card size="small" title="说明" style="flex: 1">
         <n-ul>
           <n-li>每个项目独立维护模块树，名称在同级下唯一。</n-li>
           <n-li>事项仅归属一个模块；删除模块前需先调整或清空关联事项。</n-li>
@@ -223,5 +221,18 @@ onMounted(loadTree)
         </n-space>
       </template>
     </n-modal>
-  </n-card>
+  </n-space>
 </template>
+
+<style scoped>
+.module-layout {
+  display: flex;
+  gap: 16px;
+  min-height: 480px;
+}
+
+.module-tree-card {
+  width: 320px;
+  flex-shrink: 0;
+}
+</style>

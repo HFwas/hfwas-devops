@@ -1,7 +1,7 @@
 import { get, post, postBlob, postFormData } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
 import type { EntityId } from '@/modules/pm/utils/id'
-import type { AllowedTransitions, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, IssueTypeSchemeExport, IssueTypeSchemeImportPreview, IssueTypeSchemeImportResult, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemActivity, PmWorkItemComment, PmWorkItemType, ProjectAccessContext, ProjectFieldSchemeExport, ProjectIssueTypeSchemeExport, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, SchemeImportMode, StatusDefinition, StatusWorkflow, TypeFieldLayoutConfig, TypeFieldSchemeExport, WorkItemImportMode, WorkItemImportPreview, WorkItemImportResult } from '@/modules/pm/types'
+import type { AllowedTransitions, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, IssueTypeSchemeExport, IssueTypeSchemeImportPreview, IssueTypeSchemeImportResult, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemActivity, PmWorkItemComment, PmWorkItemType, ProjectAccessContext, ProjectFieldSchemeExport, ProjectIssueTypeSchemeExport, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, SchemeImportMode, StatusDefinition, StatusWorkflow, TransitionMeta, TransitionPostFunctionMeta, TypeFieldLayoutConfig, TypeFieldSchemeExport, WorkItemImportMode, WorkItemImportPreview, WorkItemImportResult } from '@/modules/pm/types'
 import { asId } from '@/modules/pm/utils/id'
 
 export const pmModuleApi = {
@@ -25,8 +25,8 @@ export const pmWorkItemApi = {
   save: (data: PmWorkItem) => post<number>('/pm/work-items/save', data),
   getById: (id: EntityId) => get<PmWorkItem>(`/pm/work-items/${asId(id)}`),
   delete: (id: EntityId) => post<void>(`/pm/work-items/delete?id=${asId(id)}`, {}),
-  transition: (id: EntityId, toStatus: string) =>
-    post<void>(`/pm/work-items/${asId(id)}/transition`, { toStatus }),
+  transition: (id: EntityId, payload: { transitionId: string; fields?: Record<string, unknown> }) =>
+    post<void>(`/pm/work-items/${asId(id)}/transition`, payload),
   addLink: (sourceId: EntityId, targetId: EntityId, linkType: string) =>
     post<number>('/pm/work-items/links/save', { sourceId, targetId, linkType }),
   listLinks: (id: EntityId) =>
@@ -163,6 +163,15 @@ export const pmStatusApi = {
     post<void>('/pm/status/workflow/save', { projectId, typeCode, statuses }),
   reset: (projectId: EntityId, typeCode: string) =>
     post<void>('/pm/status/workflow/reset', { projectId, typeCode }),
+  postFunctionMeta: (projectId: EntityId, typeCode: string) =>
+    post<TransitionPostFunctionMeta>('/pm/status/workflow/post-function-meta', { projectId, typeCode }),
+  transitionMeta: (projectId: EntityId, typeCode: string, transitionId: string, fromStatus?: string) =>
+    post<TransitionMeta>('/pm/status/workflow/transition-meta', {
+      projectId,
+      typeCode,
+      transitionId,
+      fromStatus,
+    }),
 }
 
 export const pmViewApi = {
@@ -174,6 +183,6 @@ export const pmViewApi = {
 
 export const pmMetaApi = {
   types: () => post<PmWorkItemType[]>('/pm/meta/types', {}),
-  board: (projectId: number, typeCode: string) =>
+  board: (projectId: EntityId, typeCode: string) =>
     post<Record<string, PmWorkItem[]>>('/pm/board', { projectId, typeCode }),
 }

@@ -5,6 +5,8 @@ import com.hfwas.devops.user.context.AnonymousUserAccessor;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
 import com.hfwas.devops.user.message.spi.NoOpSiteMessagePublisher;
 import com.hfwas.devops.user.message.spi.SiteMessagePublisher;
+import com.hfwas.devops.user.message.spi.NoOpExternalNotifyPublisher;
+import com.hfwas.devops.user.message.spi.ExternalNotifyPublisher;
 import com.hfwas.devops.user.operlog.spi.NoOpOperLogRecorder;
 import com.hfwas.devops.user.operlog.spi.OperLogRecorder;
 import com.hfwas.devops.user.security.DefaultTenantAccessValidator;
@@ -53,6 +55,12 @@ public class UserCoreAutoConfiguration {
     @ConditionalOnMissingBean(SiteMessagePublisher.class)
     public SiteMessagePublisher noOpSiteMessagePublisher() {
         return NoOpSiteMessagePublisher.INSTANCE;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ExternalNotifyPublisher.class)
+    public ExternalNotifyPublisher noOpExternalNotifyPublisher() {
+        return NoOpExternalNotifyPublisher.INSTANCE;
     }
 
     @Bean

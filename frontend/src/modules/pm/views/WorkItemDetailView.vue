@@ -3,7 +3,8 @@ import PmWorkItemActivity from '@/modules/pm/components/PmWorkItemActivity/index
 import PmWorkItemComments from '@/modules/pm/components/PmWorkItemComments/index.vue'
 import PmWorkItemFieldSidebar from '@/modules/pm/components/PmWorkItemFieldSidebar/index.vue'
 import PmMarkdownPreview from '@/modules/pm/components/PmMarkdownPreview/index.vue'
-import { pmWorkItemApi } from '@/modules/pm/api'
+import PmTransitionDialog from '@/modules/pm/components/PmTransitionDialog/index.vue'
+import { pmStatusApi, pmWorkItemApi } from '@/modules/pm/api'
 import { useFieldSchemaStore } from '@/modules/pm/stores'
 import type { PmWorkItem } from '@/modules/pm/types'
 import { TYPE_META } from '@/modules/pm/types'
@@ -37,11 +38,30 @@ const commentCount = ref(0)
 const activityRef = ref<InstanceType<typeof PmWorkItemActivity> | null>(null)
 const linkTargetId = ref<string | null>(null)
 const linkType = ref('relates_to')
+const persistedStatus = ref('')
+const statusLabelMap = ref<Record<string, string>>({})
+
+const transitionDialog = ref({
+  show: false,
+  transitionId: '',
+  transitionName: '',
+  fromStatus: '',
+  fromStatusName: '',
+  toStatusName: '',
+})
 
 const typeCode = computed(() => item.value?.typeCode ?? 'task')
 const typeLabel = computed(() => TYPE_META[typeCode.value]?.label ?? '事项')
 const fieldDefs = computed(() => fieldStore.getSchema(projectId.value, typeCode.value))
 const listPath = computed(() => `/pm/projects/${projectId.value}/items/${typeCode.value}`)
+
+async function loadStatusLabels() {
+  if (!item.value) return
+  const options = await pmStatusApi.options(projectId.value, item.value.typeCode)
+  const map: Record<string, string> = {}
+  for (const s of options) map[s.statusCode] = s.statusName
+  statusLabelMap.value = map
+}
 
 async function load() {
   loading.value = true
@@ -52,8 +72,15 @@ async function load() {
       throw new Error('事项不存在或已删除')
     }
     item.value = data
+    persistedStatus.value = data.status ?? ''
     await fieldStore.loadSchema(projectId.value, data.typeCode)
-    links.value = await pmWorkItemApi.listLinks(itemId.value)
+    await loadStatusLabels()
+    links.value = (await pmWorkItemApi.listLinks(itemId.value)).map((link) => ({
+      id: String(link.id),
+      sourceId: String(link.sourceId),
+      targetId: String(link.targetId),
+      linkType: link.linkType,
+    }))
     commentCount.value = await pmWorkItemApi.countComments(itemId.value)
   } catch (e) {
     item.value = null
@@ -69,6 +96,7 @@ async function persistItem() {
   saving.value = true
   try {
     await pmWorkItemApi.save(item.value)
+    persistedStatus.value = item.value.status ?? ''
     activityRef.value?.reload()
   } catch (e) {
     message.error(e instanceof Error ? e.message : '保存失败')
@@ -82,6 +110,54 @@ let saveTimer: ReturnType<typeof setTimeout> | undefined
 function scheduleSave() {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => void persistItem(), 400)
+}
+
+async function onSidebarChange() {
+  if (!item.value) return
+  const nextStatus = item.value.status ?? ''
+  const prevStatus = persistedStatus.value
+  if (nextStatus && prevStatus && nextStatus !== prevStatus) {
+    item.value = { ...item.value, status: prevStatus }
+    try {
+      const allowed = await pmStatusApi.allowed(projectId.value, item.value.typeCode, prevStatus)
+      const option = (allowed.transitions ?? []).find((t) => t.toStatus === nextStatus)
+      if (!option) {
+        message.warning('不允许流转到该状态')
+        await load()
+        return
+      }
+      const meta = await pmStatusApi.transitionMeta(
+        projectId.value,
+        item.value.typeCode,
+        option.id,
+        prevStatus,
+      )
+      const required = meta.requiredFields ?? []
+      if (required.length) {
+        transitionDialog.value = {
+          show: true,
+          transitionId: option.id,
+          transitionName: option.name || meta.name || '',
+          fromStatus: prevStatus,
+          fromStatusName: statusLabelMap.value[prevStatus] ?? prevStatus,
+          toStatusName: option.toStatusName || statusLabelMap.value[nextStatus] || nextStatus,
+        }
+        return
+      }
+      saving.value = true
+      await pmWorkItemApi.transition(item.value.id!, { transitionId: option.id })
+      message.success(`已执行「${option.name || option.toStatusName}」`)
+      await load()
+      activityRef.value?.reload()
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : '状态流转失败')
+      await load()
+    } finally {
+      saving.value = false
+    }
+    return
+  }
+  scheduleSave()
 }
 
 async function removeItem() {
@@ -205,11 +281,24 @@ watch(itemId, load, { immediate: true })
               v-if="item"
               v-model:model-value="item"
               :field-defs="fieldDefs"
-              @change="scheduleSave"
+              @change="onSidebarChange"
             />
           </n-card>
         </div>
       </div>
+
+      <PmTransitionDialog
+        v-model:show="transitionDialog.show"
+        :project-id="projectId"
+        :type-code="typeCode"
+        :item="item"
+        :transition-id="transitionDialog.transitionId"
+        :transition-name="transitionDialog.transitionName"
+        :from-status="transitionDialog.fromStatus"
+        :from-status-name="transitionDialog.fromStatusName"
+        :to-status-name="transitionDialog.toStatusName"
+        @success="() => { load(); activityRef?.reload() }"
+      />
     </template>
 
     <n-result

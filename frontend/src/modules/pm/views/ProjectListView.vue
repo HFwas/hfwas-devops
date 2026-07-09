@@ -79,13 +79,21 @@ watch(
 </script>
 
 <template>
-  <n-space vertical size="large">
-    <n-space justify="space-between">
-      <n-input v-model:value="keyword" placeholder="搜索项目" style="width: 260px" @keyup.enter="onSearch" />
-      <n-space>
-        <n-button @click="onSearch">查询</n-button>
+  <n-space vertical size="large" style="padding: 20px 24px 28px">
+    <n-page-header title="项目" subtitle="选择或创建项目管理事项与配置">
+      <template #extra>
         <n-button type="primary" @click="showModal = true">新建项目</n-button>
-      </n-space>
+      </template>
+    </n-page-header>
+    <n-space>
+      <n-input
+        v-model:value="keyword"
+        placeholder="搜索项目名称或编码"
+        clearable
+        style="width: 280px"
+        @keyup.enter="onSearch"
+      />
+      <n-button @click="onSearch">查询</n-button>
     </n-space>
     <n-spin :show="loading">
       <n-empty v-if="!loading && projects.length === 0" description="暂无项目" />

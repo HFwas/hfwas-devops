@@ -1,5 +1,5 @@
 import { pmStatusApi } from '@/modules/pm/api'
-import type { StatusDefinition } from '@/modules/pm/types'
+import type { StatusDefinition, TransitionOption } from '@/modules/pm/types'
 import { STATUS_OPTIONS } from '@/modules/pm/types'
 
 type SelectOption = { label: string; value: string }
@@ -17,16 +17,7 @@ export function useStatusOptions(
 ) {
   const loading = ref(false)
   const allStatuses = ref<StatusDefinition[]>([])
-  const allowedStatuses = ref<StatusDefinition[]>([])
-
-  const selectOptions = computed<SelectOption[]>(() => {
-    const from = unref(fromStatus)
-    const list = from ? allowedStatuses.value : allStatuses.value
-    if (list.length) {
-      return list.map((s) => ({ label: s.statusName, value: s.statusCode }))
-    }
-    return STATUS_OPTIONS
-  })
+  const transitionOptions = ref<TransitionOption[]>([])
 
   const labelMap = computed(() => {
     const map: Record<string, string> = {}
@@ -39,12 +30,36 @@ export function useStatusOptions(
     return map
   })
 
+  const selectOptions = computed<SelectOption[]>(() => {
+    const from = unref(fromStatus)
+    if (from) {
+      const options = transitionOptions.value.map((t) => ({
+        label: t.name || t.toStatusName,
+        value: t.toStatus,
+      }))
+      const hasCurrent = options.some((o) => o.value === from)
+      if (!hasCurrent) {
+        const currentLabel = labelMap.value[from] ?? from
+        options.unshift({ label: currentLabel, value: from })
+      }
+      return options
+    }
+    if (allStatuses.value.length) {
+      return allStatuses.value.map((s) => ({ label: s.statusName, value: s.statusCode }))
+    }
+    return STATUS_OPTIONS
+  })
+
+  function findTransitionByToStatus(toStatus: string): TransitionOption | undefined {
+    return transitionOptions.value.find((t) => t.toStatus === toStatus)
+  }
+
   async function load(force = false) {
     const pid = unref(projectId)
     const type = unref(typeCode)
     if (pid == null || !type) {
       allStatuses.value = []
-      allowedStatuses.value = []
+      transitionOptions.value = []
       return
     }
     const key = cacheKey(pid, type)
@@ -63,9 +78,9 @@ export function useStatusOptions(
       const from = unref(fromStatus)
       if (from) {
         const allowed = await pmStatusApi.allowed(pid, type, from)
-        allowedStatuses.value = allowed.targets
+        transitionOptions.value = allowed.transitions ?? []
       } else {
-        allowedStatuses.value = allStatuses.value
+        transitionOptions.value = []
       }
     } finally {
       loading.value = false
@@ -74,7 +89,15 @@ export function useStatusOptions(
 
   watch([() => unref(projectId), () => unref(typeCode), () => unref(fromStatus)], () => load(), { immediate: true })
 
-  return { loading, allStatuses, allowedStatuses, selectOptions, labelMap, load }
+  return {
+    loading,
+    allStatuses,
+    transitionOptions,
+    selectOptions,
+    labelMap,
+    findTransitionByToStatus,
+    load,
+  }
 }
 
 export function invalidateStatusOptionsCache(projectId?: number | string, typeCode?: string) {

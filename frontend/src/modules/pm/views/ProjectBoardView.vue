@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PmTransitionDialog from '@/modules/pm/components/PmTransitionDialog/index.vue'
 import { pmMetaApi, pmStatusApi, pmWorkItemApi } from '@/modules/pm/api'
 import { useStatusOptions } from '@/modules/pm/composables/useStatusOptions'
 import type { PmWorkItem, StatusDefinition } from '@/modules/pm/types'
@@ -14,6 +15,16 @@ const pageTitle = computed(() => `${TYPE_META[typeCode.value]?.label ?? ''}看�
 const board = ref<Record<string, PmWorkItem[]>>({})
 const allStatuses = ref<StatusDefinition[]>([])
 const moveOptionsMap = ref<Record<string, Array<{ label: string; key: string }>>>({})
+
+const transitionDialog = ref({
+  show: false,
+  item: null as PmWorkItem | null,
+  transitionId: '',
+  transitionName: '',
+  fromStatus: '',
+  fromStatusName: '',
+  toStatusName: '',
+})
 
 const columns = computed(() =>
   allStatuses.value.map((s) => ({
@@ -40,19 +51,44 @@ async function load() {
 
 async function prepareMoveOptions(item: PmWorkItem, fromStatus: string) {
   const result = await pmStatusApi.allowed(projectId.value, typeCode.value, fromStatus)
-  const options = result.targets
-    .filter((s) => s.statusCode !== fromStatus)
-    .map((s) => ({ label: `→ ${s.statusName}`, key: s.statusCode }))
+  const options = (result.transitions ?? [])
+    .filter((t) => t.toStatus !== fromStatus)
+    .map((t) => ({ label: t.name || `→ ${t.toStatusName}`, key: t.id }))
   if (item.id != null) {
     moveOptionsMap.value[String(item.id)] = options
   }
   return options
 }
 
-async function moveItem(item: PmWorkItem, status: string) {
+async function moveItem(item: PmWorkItem, transitionId: string, fromStatus: string) {
   try {
-    await pmWorkItemApi.transition(item.id!, status)
-    message.success(`已移动到「${statusLabelMap.value[status] ?? status}」`)
+    const allowed = await pmStatusApi.allowed(projectId.value, typeCode.value, fromStatus)
+    const option = (allowed.transitions ?? []).find((t) => t.id === transitionId)
+    if (!option) {
+      message.warning('该流转已不可用，请刷新后重试')
+      return
+    }
+    const meta = await pmStatusApi.transitionMeta(
+      projectId.value,
+      typeCode.value,
+      transitionId,
+      fromStatus,
+    )
+    const required = meta.requiredFields ?? []
+    if (required.length) {
+      transitionDialog.value = {
+        show: true,
+        item,
+        transitionId,
+        transitionName: option.name || meta.name || '',
+        fromStatus,
+        fromStatusName: statusLabelMap.value[fromStatus] ?? fromStatus,
+        toStatusName: option.toStatusName,
+      }
+      return
+    }
+    await pmWorkItemApi.transition(item.id!, { transitionId })
+    message.success(`已执行「${option.name || option.toStatusName}」`)
     await loadBoard()
   } catch (e) {
     message.error(e instanceof Error ? e.message : '状态流转失败')
@@ -65,7 +101,7 @@ onMounted(load)
 
 <template>
   <n-space vertical size="large">
-    <n-page-header :title="pageTitle" />
+    <n-page-header :title="pageTitle" subtitle="按状态分列查看与流转事项" />
     <n-scrollbar x-scrollable>
       <n-space align="start" :size="16" style="min-width: 900px">
         <n-card
@@ -87,7 +123,7 @@ onMounted(load)
                 <n-tag size="small" :bordered="false">{{ TYPE_META[item.typeCode]?.label }}</n-tag>
                 <n-dropdown
                   :options="item.id != null ? (moveOptionsMap[String(item.id)] ?? []) : []"
-                  @select="(key) => moveItem(item, key as string)"
+                  @select="(key) => moveItem(item, key as string, col.key)"
                 >
                   <n-button size="tiny" @click="prepareMoveOptions(item, col.key)">移动</n-button>
                 </n-dropdown>
@@ -97,5 +133,18 @@ onMounted(load)
         </n-card>
       </n-space>
     </n-scrollbar>
+
+    <PmTransitionDialog
+      v-model:show="transitionDialog.show"
+      :project-id="projectId"
+      :type-code="typeCode"
+      :item="transitionDialog.item"
+      :transition-id="transitionDialog.transitionId"
+      :transition-name="transitionDialog.transitionName"
+      :from-status="transitionDialog.fromStatus"
+      :from-status-name="transitionDialog.fromStatusName"
+      :to-status-name="transitionDialog.toStatusName"
+      @success="loadBoard"
+    />
   </n-space>
 </template>
