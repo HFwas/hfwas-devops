@@ -354,15 +354,18 @@ Base path: `/pm/work-items`
 
 ```json
 {
-  "toStatus": "in_progress"
+  "toStatus": "closed",
+  "fields": {
+    "priority": "high"
+  }
 }
 ```
 
-按项目 + 类型的工作流配置 **校验** 是否允许从当前状态流转到目标状态；通过后更新状态并记录活动日志。
+按项目 + 类型的工作流配置校验路径；若配置了 `REQUIRED_FIELDS` 校验器，则先校验（可附带 `fields` 一并写入）再更新状态、执行后置函数并记录活动日志。
 
 **响应 data：** `null`
 
-**常见错误码：** `21012` 流转不允许；`21013` 状态不存在
+**常见错误码：** `21012` 流转不允许；`21013` 状态不存在；业务异常文案如「流转前必须填写「优先级」」
 
 ---
 
@@ -814,7 +817,28 @@ Base path: `/pm/status/workflow`
 | sortOrder | 排序 |
 | isInitial | 是否初始状态（1/0） |
 | isFinal | 是否终态 |
-| transitions | 允许流转到的目标 statusCode 列表 |
+| transitions | 允许流转到的目标 statusCode 列表（与 transitionRules 同步） |
+| transitionRules | 流转规则：`toStatus` + `validators[]` + `postFunctions[]` |
+
+**TransitionValidator：**
+
+| 字段 | 说明 |
+|------|------|
+| type | 目前仅 `REQUIRED_FIELDS` |
+| fieldKeys | 必填字段 key 列表 |
+
+**TransitionPostFunction（后置函数）：**
+
+| 字段 | 说明 |
+|------|------|
+| type | `SET_FIELD` / `NOTIFY_ASSIGNEE` / `NOTIFY_USER` / `WEBHOOK` |
+| fieldKey / value | `SET_FIELD`：目标字段与值 |
+| userId | `NOTIFY_USER`：接收人 |
+| title / content | 通知标题与正文；支持 `{title}` `{itemKey}` `{fromStatus}` `{toStatus}` |
+
+`WEBHOOK` 推送到租户已启用的钉钉/飞书渠道，不接受独立 URL。
+
+事项 `transition` 或 `save` 导致 status 变更时，按源状态行与 `__any__` 行的规则顺序执行后置函数。
 
 ---
 
@@ -846,7 +870,47 @@ Base path: `/pm/status/workflow`
 
 ---
 
-### 9.4 保存工作流
+### 9.4 后置函数配置元数据
+
+**POST** `/pm/status/workflow/post-function-meta`
+
+**请求体：** `{ "projectId": "...", "typeCode": "task" }`
+
+**响应 data：** `TransitionPostFunctionMetaVO`
+
+| 字段 | 说明 |
+|------|------|
+| presets | 快捷预设（通知、群通知、优先级模板、字段模板） |
+| fields | 可被 `SET_FIELD` 写入的字段元数据（含 options） |
+| placeholders | 通知模板占位符列表 |
+
+---
+
+### 9.5 流转校验元数据
+
+**POST** `/pm/status/workflow/transition-meta`
+
+**请求体：**
+
+```json
+{
+  "projectId": "...",
+  "typeCode": "task",
+  "fromStatus": "done",
+  "toStatus": "closed"
+}
+```
+
+**响应 data：** `TransitionMetaVO`
+
+| 字段 | 说明 |
+|------|------|
+| validators | 合并后的校验器列表（含 `__any__`） |
+| requiredFields | 需在流转弹窗中填写的字段元数据 |
+
+---
+
+### 9.6 保存工作流
 
 **POST** `/pm/status/workflow/save`
 
@@ -856,13 +920,15 @@ Base path: `/pm/status/workflow`
 {
   "projectId": "2073615378310627330",
   "typeCode": "task",
-  "statuses": [ /* StatusDefinitionVO[] */ ]
+  "statuses": [ /* StatusDefinitionVO[]，含 transitionRules */ ]
 }
 ```
 
+保存时校验：状态编码唯一、恰有一个初始状态、流转目标存在且非自身；后置函数与校验器 type 合法；`REQUIRED_FIELDS` 需非空 `fieldKeys` 且不得包含 `status`。
+
 ---
 
-### 9.5 重置为默认工作流
+### 9.7 重置为默认工作流
 
 **POST** `/pm/status/workflow/reset`
 
@@ -1045,6 +1111,8 @@ Key 为 **工作流中的 statusCode**（按 `sortOrder` 排序），Value 为�
 | 工作流 | POST | `/pm/status/workflow/get` | 获取工作流 |
 | 工作流 | POST | `/pm/status/workflow/options` | 状态选项 |
 | 工作流 | POST | `/pm/status/workflow/allowed` | 允许流转 |
+| 工作流 | POST | `/pm/status/workflow/post-function-meta` | 后置函数元数据 |
+| 工作流 | POST | `/pm/status/workflow/transition-meta` | 流转校验元数据 |
 | 工作流 | POST | `/pm/status/workflow/save` | 保存工作流 |
 | 工作流 | POST | `/pm/status/workflow/reset` | 重置工作流 |
 | 方案 | POST | `/pm/issue-type-schemes/export` | 导出类型方案 |

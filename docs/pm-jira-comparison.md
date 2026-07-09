@@ -1,9 +1,10 @@
 # HFWAS DevOps PM 与 Jira 产品功能对比
 
-> 版本：1.1  
-> 更新日期：2026-07-07  
+> 版本：1.2  
+> 更新日期：2026-07-09  
 > 适用范围：hfwas-devops 项目管理（PM）子系统 vs Atlassian Jira Software  
-> 依据：当前代码实现（`pm-core`、前端 PM 模块、[pm-api.md](./pm-api.md)、[pm-design.md](./pm-design.md)）
+> 依据：当前代码实现（`pm-core`、前端 PM 模块、[pm-api.md](./pm-api.md)、[pm-design.md](./pm-design.md)）  
+> 演进实施顺序见 [pm-evolution-roadmap.md](./pm-evolution-roadmap.md)
 
 ---
 
@@ -86,11 +87,11 @@
 |------|------|--------------|----------|
 | 自定义字段 | 丰富类型 + 全局 / 项目级 | ✅ 14 种字段类型 + 项目级 | 类型数量少于 Jira，核心场景覆盖 |
 | 字段布局 | Screen / Issue Layout | ✅ list / search / create 布局 | 无独立「详情 Screen」配置 |
-| 工作流 | 可视化设计器、条件 / 校验 / 后置函数 | 🟡 状态矩阵 + **流转后置动作**（改字段 / 通知 / Webhook） | ❌ 无可视化设计器；无条件 / Validator |
+| 工作流 | 可视化设计器、条件 / 校验 / 后置函数 | 🟡 状态矩阵 + **后置函数** + **REQUIRED_FIELDS 校验** | ❌ 无可视化设计器；无条件；无 SPI |
 | 工作流 Scheme | 按类型 / 项目绑定 | 🟡 按项目 + 类型覆盖 | 无独立 Scheme 管理 UI |
 | 字段 Scheme | 按类型绑定字段 | ✅ 类型绑定 + 布局 | 基本对齐 |
 | 事项类型 Scheme | 可配置类型集合 | 🟡 固定 4 类型 | ❌ 不可增删类型 |
-| 配置导入导出 | 脚本 / Marketplace | 🟡 事项类型方案 JSON（**后端完整**） | ❌ Import 组件未挂载；无 Export UI |
+| 配置导入导出 | 脚本 / Marketplace | ✅ 事项类型方案 JSON + 设置页导入导出 UI | 含字段与状态流转（含规则） |
 | 远程字段选项 | 有限 | ✅ 远程 SELECT + SSRF 防护 + 预览 | **相对亮点** |
 | 通知 Scheme | 按事件配置邮件 / 站内 | 🟡 仅 **负责人变更** 站内信 | ❌ 无评论 / 状态 / @ 通知配置 |
 
@@ -108,8 +109,8 @@
 | **Transition（流转）** | 状态间有向边，可命名（如「开始处理」） | 🟡 仅「源状态 → 目标状态」布尔矩阵，**无流转名称 / ID** |
 | **Workflow 可视化设计器** | 拖拽节点与连线，编辑 Transition 属性 | ❌ 表格矩阵勾选（`StatusWorkflowView.vue`），非图编辑器 |
 | **Condition（条件）** | 决定 Transition **是否对用户可见/可点** | ❌ 未实现；所有已配置路径对有权用户均可见 |
-| **Validator（校验器）** | Transition **提交时**必须满足的约束 | 🟡 仅校验「路径是否在矩阵中允许」 |
-| **Post-function（后置函数）** | Transition **成功后**自动执行（改字段、发通知等） | ❌ 未实现；成功后仅写库 + 记录活动日志 |
+| **Validator（校验器）** | Transition **提交时**必须满足的约束 | ✅ 路径校验 + `REQUIRED_FIELDS`（关单必填等） |
+| **Post-function（后置函数）** | Transition **成功后**自动执行（改字段、发通知等） | ✅ 内置四类：`SET_FIELD` / `NOTIFY_ASSIGNEE` / `NOTIFY_USER` / `WEBHOOK`；存于 `transition_rules`；无插件 SPI |
 | **Workflow Scheme** | 将 Workflow 绑定到项目 / 事项类型 | 🟡 按 `projectId + typeCode` 覆盖，无独立 Scheme 实体 |
 
 #### 5.1.2 Jira 三类规则详解
@@ -132,13 +133,12 @@ HFWAS：**无**。`allowedTransitions` 只根据状态矩阵计算目标列表�
 - 流转到 In Review 前至少有一个附件
 - 自定义脚本校验业务规则
 
-HFWAS：**弱**。`StatusDefinitionService.validateTransition()` 仅检查：
+HFWAS：**已支持路径校验 + Transition 级必填字段**（见 [step-02](./evolution/step-02-transition-validators.md)）。
 
-```text
-fromStatus → toStatus 是否在 transitions[] 中（含 __any__ 全局行）
-```
+1. `validateTransition()`：`fromStatus → toStatus` 是否在矩阵中允许（含 `__any__`）
+2. `TransitionValidatorExecutor`：对配置的 `REQUIRED_FIELDS` 检查事项字段是否已填（`transition` 可附带 `fields` 一并写入）
 
-字段必填、格式等校验发生在 **创建/编辑** 时（`FieldValidator`），**不绑定到特定 Transition**。
+尚无附件必填、自定义脚本等其它 Validator 类型。创建/编辑时的 `FieldValidator` 仍独立于 Transition。
 
 **3. Post-function（后置函数）— 流转成功后的副作用**
 
@@ -149,12 +149,13 @@ fromStatus → toStatus 是否在 transitions[] 中（含 __any__ 全局行）
 - 写入自定义字段、触发 Webhook
 - 自动创建 Sub-task
 
-HFWAS：**无专用机制**。`WorkItemService.transition()` 成功后：
+HFWAS：**已支持内置后置函数**（见 [step-01](./evolution/step-01-workflow-post-functions.md)）。`WorkItemService.transition()` 与状态变更的 `save()` 成功后：
 
 1. 更新 `pm_work_item.status`
-2. 调用 `activityService.recordChanges()` 记录 FIELD_CHANGE
+2. 调用 `TransitionPostFunctionExecutor.execute()`（按 `fromStatus` 与 `__any__` 规则顺序执行）
+3. 再次写库（若 SET_FIELD 改动了字段）+ `activityService.recordChanges()`
 
-负责人变更通知等业务逻辑在 **字段更新** 路径，不在 Transition 钩子中。
+内置类型：`SET_FIELD`、`NOTIFY_ASSIGNEE`、`NOTIFY_USER`、`WEBHOOK`（租户钉钉/飞书渠道，非独立 URL）。尚无自定义脚本 / 插件 SPI。
 
 #### 5.1.3 配置 UI 对比
 
@@ -165,7 +166,7 @@ HFWAS：**无专用机制**。`WorkItemService.transition()` 成功后：
 | 配置流转 | 点击连线 → 编辑 Transition 面板 | 勾选矩阵单元格 |
 | 全局流转 | 需显式建模 | ✅ `__any__`（任何状态）行 |
 | Transition 名称 | 有（如「Resolve Issue」） | ❌ 无；前端/API 直接用目标 statusCode |
-| 规则配置入口 | Transition 面板 → Conditions / Validators / Post Functions | ❌ 无 |
+| 规则配置入口 | Transition 面板 → Conditions / Validators / Post Functions | 🟡 矩阵 +「流转规则」Tab → 后置动作 Drawer；无 Condition / Validator |
 | 项目覆盖 | Workflow Scheme 绑定 | ✅ 项目级 save / reset，回退系统默认 |
 | 导入导出 | XML / 部分 Cloud API | 🟡 含在事项类型方案 JSON 的 `statusWorkflow` 段（后端） |
 
@@ -189,7 +190,8 @@ Workflow
 pm_status_definition（每行一个状态）
   ├── statusCode, statusName
   ├── isInitial, isFinal, sortOrder
-  └── transitions: JSON string[]   ← 仅目标 statusCode 列表
+  ├── transitions: JSON string[]              ← 目标 statusCode（兼容）
+  └── transition_rules: TransitionRule[]      ← toStatus + postFunctions[]
 ```
 
 流转执行路径：
@@ -197,7 +199,11 @@ pm_status_definition（每行一个状态）
 ```text
 POST /pm/work-items/{id}/transition { toStatus }
   → StatusDefinitionService.validateTransition()
-  → UPDATE status + ActivityLog
+  → UPDATE status
+  → TransitionPostFunctionExecutor.execute()
+  → UPDATE（字段副作用）+ ActivityLog
+
+（详情侧栏改状态走 save 时：若 status 变更，同样执行后置函数）
 ```
 
 #### 5.1.5 能力矩阵（工作流专项）
@@ -211,14 +217,15 @@ POST /pm/work-items/{id}/transition { toStatus }
 | 流转路径校验 | ✅ | ✅ | 已有（矩阵级） |
 | 按用户/角色隐藏 Transition | ✅ | ❌ | 缺失 |
 | 按字段值隐藏 Transition | ✅ | ❌ | 缺失 |
-| Transition 级必填字段 | ✅ | ❌ | 缺失 |
+| Transition 级必填字段 | ✅ | ✅ | 已有（REQUIRED_FIELDS） |
 | 流转前自定义校验脚本 | ✅ | ❌ | 缺失 |
-| 流转后自动改字段 | ✅ | ❌ | 缺失 |
-| 流转后通知 | ✅ | ❌ | 缺失（仅字段变更通知） |
-| 流转后 Webhook | ✅ | ❌ | 缺失 |
+| 流转后自动改字段 | ✅ | ✅ | 已有（SET_FIELD） |
+| 流转后通知 | ✅ | ✅ | 已有（NOTIFY_ASSIGNEE / NOTIFY_USER） |
+| 流转后 Webhook | ✅ | 🟡 | 租户钉钉/飞书渠道；无独立 URL |
 | 可视化流程图编辑器 | ✅ | ❌ | 缺失 |
 | Transition 显示名 | ✅ | ❌ | 缺失 |
 | 工作流版本 / 草稿发布 | ✅ (Cloud) | ❌ | 缺失 |
+| Post-function 插件 SPI | ✅ | ❌ | 缺失（Phase F） |
 
 #### 5.1.6 与 HFWAS 已有能力的复用点
 
@@ -234,16 +241,18 @@ POST /pm/work-items/{id}/transition { toStatus }
 
 #### 5.1.7 演进建议（若要对标 Jira Workflow）
 
-| 阶段 | 目标 | 说明 |
-|------|------|------|
-| **Phase A** | Transition 实体化 | 从「状态 → 目标列表」升级为独立 `Transition`（id、name、from、to） |
-| **Phase B** | 基础 Validator | 绑定「流转到 X 时字段 Y 必填」，复用字段布局 |
-| **Phase C** | 基础 Post-function | 内置：通知、自动 Assign、写固定字段值 |
-| **Phase D** | Condition | 基于 QuerySpec 的可见性规则 |
-| **Phase E** | 可视化设计器 | 图编辑器（如 Vue Flow）替代矩阵；矩阵可作为「简易模式」保留 |
-| **Phase F** | 扩展 SPI | `TransitionValidator` / `TransitionPostFunction` 插件接口 |
+实施顺序与状态见 **[pm-evolution-roadmap.md](./pm-evolution-roadmap.md)**。摘要：
 
-**投入产出建议：** Phase A + B 即可覆盖多数团队「关单前要填 Resolution」类需求；可视化设计器（Phase E）偏体验，可晚于规则引擎。
+| 阶段 | 目标 | 路线图 | 状态 |
+|------|------|--------|------|
+| **Phase C** | 基础 Post-function | Step 1 | ✅ 已收口 |
+| **Phase B** | 基础 Validator | Step 2 | ✅ 已完成 |
+| **Phase A** | Transition 实体化 | Step 3 | 待做 |
+| **Phase D** | Condition | Step 8 | 待做 |
+| **Phase E** | 可视化设计器 | Step 10 | 待做 |
+| **Phase F** | 扩展 SPI | Step 12 | 待做 |
+
+**投入产出建议：** Phase C 收口后优先 Phase B（关单必填）；可视化设计器（Phase E）偏体验，可晚于规则引擎。
 
 ---
 
@@ -393,7 +402,7 @@ DevOps 集成        ████    ░░░░    空白
 |------|------|
 | **JQL 或高级查询语法** | Power user 需求 |
 | **自定义事项类型** | 超越固定 4 类型 |
-| **工作流条件 / 后置函数** | 对标 Jira Workflow 高级能力 |
+| **工作流条件 / 后置函数** | 对标 Jira Workflow 高级能力；后置与 Validator 已有，待 Condition / SPI |
 | **路线图 / 甘特** | Advanced Roadmaps 级别 |
 | **从 Jira 迁移工具** | 降低替换成本 |
 
@@ -459,6 +468,9 @@ DevOps 集成        ████    ░░░░    空白
 
 | 文档 | 说明 |
 |------|------|
+| [pm-evolution-roadmap.md](./pm-evolution-roadmap.md) | 分步演进路线图与设置页 UI 标准 |
+| [evolution/step-01-workflow-post-functions.md](./evolution/step-01-workflow-post-functions.md) | Step 1：后置函数收口 |
+| [evolution/step-02-transition-validators.md](./evolution/step-02-transition-validators.md) | Step 2：流转 Validator |
 | [pm-design.md](./pm-design.md) | PM 架构与领域设计 |
 | [pm-api.md](./pm-api.md) | PM REST API 接口文档 |
 | [error-code-design.md](./error-code-design.md) | 全局错误码规范 |
@@ -471,3 +483,5 @@ DevOps 集成        ████    ░░░░    空白
 |------|------|------|
 | 1.0 | 2026-07-07 | 初版：基于代码实现与 Jira Software 典型能力对比 |
 | 1.1 | 2026-07-07 | 新增 §5.1 工作流深度对比（可视化设计器 / 条件 / 校验 / 后置函数） |
+| 1.2 | 2026-07-09 | 修正 Post-function 为已实现；关联演进路线图；更新能力矩阵 |
+| 1.3 | 2026-07-09 | Step 2：Transition Validator（REQUIRED_FIELDS）已落地 |
