@@ -10,9 +10,12 @@ import {
   ANY_STATUS_CODE,
   TYPE_META,
   WORK_ITEM_TYPE_CODES,
+  emptyTransitionConditions,
+  isTransitionConditionsEmpty,
   statusTagColor,
   type StatusDefinition,
   type Transition,
+  type TransitionConditionSpec,
   type TransitionPostFunction,
   type TransitionValidator,
 } from '@/modules/pm/types'
@@ -40,6 +43,7 @@ const ruleDrawer = ref({
   fromName: '',
   toCode: '',
   toName: '',
+  conditions: emptyTransitionConditions() as TransitionConditionSpec,
   validators: [] as TransitionValidator[],
   postFunctions: [] as TransitionPostFunction[],
 })
@@ -77,6 +81,7 @@ const configuredTransitions = computed(() => {
     fromName: string
     toCode: string
     toName: string
+    conditions: TransitionConditionSpec
     validators: TransitionValidator[]
     actions: TransitionPostFunction[]
   }> = []
@@ -90,6 +95,7 @@ const configuredTransitions = computed(() => {
         fromName: row.statusName,
         toCode: t.toStatus,
         toName: to?.statusName ?? t.toStatus,
+        conditions: t.conditions ?? emptyTransitionConditions(),
         validators: [...(t.validators ?? [])],
         actions: [...(t.postFunctions ?? [])],
       })
@@ -103,6 +109,15 @@ function cloneTransition(t: Transition): Transition {
     id: t.id,
     name: t.name,
     toStatus: t.toStatus,
+    conditions: {
+      logic: t.conditions?.logic || 'AND',
+      conditions: (t.conditions?.conditions ?? []).map((c) => ({ ...c })),
+      groups: (t.conditions?.groups ?? []).map((g) => ({
+        ...g,
+        conditions: [...(g.conditions ?? [])],
+        groups: [...(g.groups ?? [])],
+      })),
+    },
     validators: (t.validators ?? []).map((v) => ({
       ...v,
       fieldKeys: [...(v.fieldKeys ?? [])],
@@ -122,6 +137,10 @@ function findTransition(status: StatusDefinition, toCode: string): Transition | 
   return status.transitions?.find((t) => t.toStatus === toCode)
 }
 
+function findTransitionById(status: StatusDefinition, id: string): Transition | undefined {
+  return status.transitions?.find((t) => t.id === id)
+}
+
 function ensureTransition(status: StatusDefinition, toCode: string, toName: string): Transition {
   if (!status.transitions) status.transitions = []
   let t = findTransition(status, toCode)
@@ -130,6 +149,7 @@ function ensureTransition(status: StatusDefinition, toCode: string, toName: stri
       id: crypto.randomUUID(),
       name: `→ ${toName}`,
       toStatus: toCode,
+      conditions: emptyTransitionConditions(),
       validators: [],
       postFunctions: [],
     }
@@ -138,28 +158,57 @@ function ensureTransition(status: StatusDefinition, toCode: string, toName: stri
   return t
 }
 
-function postFunctionCount(fromCode: string, toCode: string) {
+function addParallelTransition(fromCode: string, fromName: string, toCode: string, toName: string) {
   const from = findStatus(fromCode)
-  if (!from) return 0
-  return findTransition(from, toCode)?.postFunctions?.length ?? 0
+  if (!from) return
+  if (!from.transitions) from.transitions = []
+  const t: Transition = {
+    id: crypto.randomUUID(),
+    name: `→ ${toName}`,
+    toStatus: toCode,
+    conditions: emptyTransitionConditions(),
+    validators: [],
+    postFunctions: [],
+  }
+  from.transitions.push(t)
+  openRuleDrawerById(fromCode, fromName, toCode, toName, t.id)
+}
+
+function transitionsToTarget(fromCode: string, toCode: string): Transition[] {
+  const from = findStatus(fromCode)
+  return (from?.transitions ?? []).filter((t) => t.toStatus === toCode)
+}
+
+function postFunctionCount(fromCode: string, toCode: string) {
+  return transitionsToTarget(fromCode, toCode).reduce((n, t) => n + (t.postFunctions?.length ?? 0), 0)
 }
 
 function validatorFieldCount(fromCode: string, toCode: string) {
-  const from = findStatus(fromCode)
-  const t = from ? findTransition(from, toCode) : undefined
-  const required = (t?.validators ?? []).find((v) => v.type === 'REQUIRED_FIELDS')
-  return required?.fieldKeys?.length ?? 0
+  return transitionsToTarget(fromCode, toCode).reduce((n, t) => {
+    const required = (t.validators ?? []).find((v) => v.type === 'REQUIRED_FIELDS')
+    return n + (required?.fieldKeys?.length ?? 0)
+  }, 0)
+}
+
+function conditionCount(fromCode: string, toCode: string) {
+  return transitionsToTarget(fromCode, toCode).reduce((n, t) => {
+    if (isTransitionConditionsEmpty(t.conditions)) return n
+    return n + (t.conditions?.conditions?.length ?? 0) + (t.conditions?.groups?.length ?? 0)
+  }, 0)
 }
 
 function transitionCellLabel(fromCode: string, toCode: string, toName: string) {
-  const from = findStatus(fromCode)
-  const t = from ? findTransition(from, toCode) : undefined
-  if (!t) return '点击启用'
+  const edges = transitionsToTarget(fromCode, toCode)
+  if (!edges.length) return '点击启用'
+  if (edges.length > 1) return `${edges.length} 条流转`
+  const t = edges[0]
   const vCount = validatorFieldCount(fromCode, toCode)
   const aCount = postFunctionCount(fromCode, toCode)
+  const cCount = conditionCount(fromCode, toCode)
   if (t.name && t.name !== `→ ${toName}`) return t.name
-  if (vCount || aCount) {
+  if (vCount || aCount || cCount) {
     const parts: string[] = []
+    if (cCount) parts.push(`${cCount} 条件`)
     if (vCount) parts.push(`${vCount} 校验`)
     if (aCount) parts.push(`${aCount} 动作`)
     return parts.join(' · ')
@@ -174,6 +223,22 @@ function summarizeValidators(validators: TransitionValidator[]) {
   return keys.map((key) => `必填：${fieldLabelMap.value[key] ?? key}`)
 }
 
+function summarizeConditions(spec?: TransitionConditionSpec) {
+  if (isTransitionConditionsEmpty(spec)) return []
+  const labels: string[] = []
+  for (const c of spec?.conditions ?? []) {
+    const field = c.field?.replace(/^custom\./, '') ?? '?'
+    const fieldLabel = fieldLabelMap.value[field] ?? field
+    if (c.operator === 'IS_NULL') labels.push(`${fieldLabel} 为空`)
+    else if (c.operator === 'IS_NOT_NULL') labels.push(`${fieldLabel} 非空`)
+    else if (c.value === '__current_user__') labels.push(`${fieldLabel} = 当前用户`)
+    else labels.push(`${fieldLabel} ${c.operator} ${c.value ?? ''}`)
+  }
+  const groupCount = spec?.groups?.length ?? 0
+  if (groupCount) labels.push(`${groupCount} 组条件`)
+  return labels
+}
+
 function openRuleDrawer(fromCode: string, fromName: string, toCode: string, toName: string) {
   if (!isEnabled(fromCode, toCode)) {
     setTransition(fromCode, toCode, true, toName)
@@ -181,6 +246,20 @@ function openRuleDrawer(fromCode: string, fromName: string, toCode: string, toNa
   const from = findStatus(fromCode)
   if (!from) return
   const t = ensureTransition(from, toCode, toName)
+  openRuleDrawerById(fromCode, fromName, toCode, toName, t.id)
+}
+
+function openRuleDrawerById(
+  fromCode: string,
+  fromName: string,
+  toCode: string,
+  toName: string,
+  transitionId: string,
+) {
+  const from = findStatus(fromCode)
+  if (!from) return
+  const t = findTransitionById(from, transitionId)
+  if (!t) return
   ruleDrawer.value = {
     show: true,
     transitionId: t.id,
@@ -189,6 +268,15 @@ function openRuleDrawer(fromCode: string, fromName: string, toCode: string, toNa
     fromName,
     toCode,
     toName,
+    conditions: {
+      logic: t.conditions?.logic || 'AND',
+      conditions: (t.conditions?.conditions ?? []).map((c) => ({ ...c })),
+      groups: (t.conditions?.groups ?? []).map((g) => ({
+        ...g,
+        conditions: [...(g.conditions ?? [])],
+        groups: [...(g.groups ?? [])],
+      })),
+    },
     validators: (t.validators ?? []).map((v) => ({
       ...v,
       fieldKeys: [...(v.fieldKeys ?? [])],
@@ -199,13 +287,18 @@ function openRuleDrawer(fromCode: string, fromName: string, toCode: string, toNa
 
 function saveRuleDrawer(payload: {
   name: string
+  conditions: TransitionConditionSpec
   validators: TransitionValidator[]
   postFunctions: TransitionPostFunction[]
 }) {
   const from = findStatus(ruleDrawer.value.fromCode)
   if (!from) return
-  const t = ensureTransition(from, ruleDrawer.value.toCode, ruleDrawer.value.toName)
+  let t = findTransitionById(from, ruleDrawer.value.transitionId)
+  if (!t) {
+    t = ensureTransition(from, ruleDrawer.value.toCode, ruleDrawer.value.toName)
+  }
   t.name = payload.name
+  t.conditions = payload.conditions
   t.validators = payload.validators
   t.postFunctions = payload.postFunctions
 }
@@ -324,6 +417,17 @@ function serializeTransitions(list: Transition[] | undefined): Transition[] {
     id: t.id,
     name: t.name,
     toStatus: t.toStatus,
+    conditions: isTransitionConditionsEmpty(t.conditions)
+      ? emptyTransitionConditions()
+      : {
+          logic: t.conditions?.logic || 'AND',
+          conditions: (t.conditions?.conditions ?? []).map((c) => ({ ...c })),
+          groups: (t.conditions?.groups ?? []).map((g) => ({
+            ...g,
+            conditions: [...(g.conditions ?? [])],
+            groups: [...(g.groups ?? [])],
+          })),
+        },
     validators: (t.validators ?? []).map((v) => ({
       type: v.type,
       fieldKeys: [...(v.fieldKeys ?? [])],
@@ -449,7 +553,7 @@ onMounted(load)
         <n-tabs v-model:value="viewMode" type="line">
           <n-tab-pane name="path" tab="流转路径">
             <n-text depth="3" style="display: block; margin: 12px 0">
-              勾选启用流转；点击已启用单元格可配置名称与自动化动作。
+              勾选启用流转；点击已启用单元格可配置名称、可见条件与自动化动作。同一路径可配置多条流转（规则列表中添加）。
             </n-text>
             <div class="matrix-wrap">
               <table class="matrix-table">
@@ -528,16 +632,38 @@ onMounted(load)
                         <n-tag size="small" type="success">{{ item.toName }}</n-tag>
                       </n-space>
                     </n-space>
-                    <n-button
-                      size="small"
-                      type="primary"
-                      quaternary
-                      @click="openRuleDrawer(item.fromCode, item.fromName, item.toCode, item.toName)"
-                    >
-                      编辑规则
-                    </n-button>
+                    <n-space :size="6">
+                      <n-button
+                        size="small"
+                        quaternary
+                        @click="addParallelTransition(item.fromCode, item.fromName, item.toCode, item.toName)"
+                      >
+                        同路径再加一条
+                      </n-button>
+                      <n-button
+                        size="small"
+                        type="primary"
+                        quaternary
+                        @click="openRuleDrawerById(item.fromCode, item.fromName, item.toCode, item.toName, item.id)"
+                      >
+                        编辑规则
+                      </n-button>
+                    </n-space>
                   </n-space>
-                  <n-space v-if="item.validators.length || item.actions.length" :size="6" wrap>
+                  <n-space
+                    v-if="summarizeConditions(item.conditions).length || item.validators.length || item.actions.length"
+                    :size="6"
+                    wrap
+                  >
+                    <n-tag
+                      v-for="(label, idx) in summarizeConditions(item.conditions)"
+                      :key="`c-${idx}`"
+                      size="small"
+                      :bordered="false"
+                      type="success"
+                    >
+                      {{ label }}
+                    </n-tag>
                     <n-tag
                       v-for="(label, idx) in summarizeValidators(item.validators)"
                       :key="`v-${idx}`"
@@ -557,7 +683,7 @@ onMounted(load)
                       {{ summarizeTransitionAction(action, summaryCtx) }}
                     </n-tag>
                   </n-space>
-                  <n-text v-else depth="3">已启用流转，尚未配置校验或自动化动作</n-text>
+                  <n-text v-else depth="3">已启用流转，尚未配置条件、校验或自动化动作</n-text>
                 </n-space>
               </n-list-item>
             </n-list>
@@ -598,6 +724,7 @@ onMounted(load)
       :to-status-code="ruleDrawer.toCode"
       :to-status-name="ruleDrawer.toName"
       :transition-name="ruleDrawer.transitionName"
+      :conditions="ruleDrawer.conditions"
       :validators="ruleDrawer.validators"
       :post-functions="ruleDrawer.postFunctions"
       @save="saveRuleDrawer"

@@ -49,6 +49,7 @@ function updateCustom(key: string, val: unknown) {
           mode="edit"
           :project-id="modelValue.projectId"
           :type-code="modelValue.typeCode"
+          :work-item-id="modelValue.id"
           :restrict-status="field.fieldKey === 'status'"
           :model-value="field.systemFlag === 1 ? systemValue(field.fieldKey) : customValue(field.fieldKey)"
           @update:model-value="(v) => (field.systemFlag === 1 ? updateSystem(field.fieldKey, v) : updateCustom(field.fieldKey, v))"

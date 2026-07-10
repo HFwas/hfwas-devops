@@ -44,6 +44,7 @@ public class WorkItemService {
     private final WorkItemActivityService activityService;
     private final TransitionPostFunctionExecutor transitionPostFunctionExecutor;
     private final TransitionValidatorExecutor transitionValidatorExecutor;
+    private final TransitionConditionEvaluator transitionConditionEvaluator;
     private final WorkItemFieldApplicator workItemFieldApplicator;
 
     public IPage<PmWorkItem> page(QuerySpec spec) {
@@ -107,6 +108,7 @@ public class WorkItemService {
                 old.getProjectId(), old.getTypeCode(), fromStatus, transitionId);
         TransitionVO transition = statusDefinitionService.findTransition(
                 old.getProjectId(), old.getTypeCode(), fromStatus, transitionId);
+        transitionConditionEvaluator.assertMatches(old, transition.getConditions());
         String toStatus = transition.getToStatus();
         List<FieldDefinition> definitions = fieldDefinitionService.listByProjectAndType(
                 old.getProjectId(), old.getTypeCode());

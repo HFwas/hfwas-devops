@@ -50,7 +50,7 @@ async function load() {
 }
 
 async function prepareMoveOptions(item: PmWorkItem, fromStatus: string) {
-  const result = await pmStatusApi.allowed(projectId.value, typeCode.value, fromStatus)
+  const result = await pmStatusApi.allowed(projectId.value, typeCode.value, fromStatus, item.id)
   const options = (result.transitions ?? [])
     .filter((t) => t.toStatus !== fromStatus)
     .map((t) => ({ label: t.name || `→ ${t.toStatusName}`, key: t.id }))
@@ -62,7 +62,7 @@ async function prepareMoveOptions(item: PmWorkItem, fromStatus: string) {
 
 async function moveItem(item: PmWorkItem, transitionId: string, fromStatus: string) {
   try {
-    const allowed = await pmStatusApi.allowed(projectId.value, typeCode.value, fromStatus)
+    const allowed = await pmStatusApi.allowed(projectId.value, typeCode.value, fromStatus, item.id)
     const option = (allowed.transitions ?? []).find((t) => t.id === transitionId)
     if (!option) {
       message.warning('该流转已不可用，请刷新后重试')

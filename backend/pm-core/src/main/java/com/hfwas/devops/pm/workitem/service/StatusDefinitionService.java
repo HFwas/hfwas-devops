@@ -3,11 +3,17 @@ package com.hfwas.devops.pm.workitem.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.hfwas.devops.pm.query.model.QueryCondition;
+import com.hfwas.devops.pm.query.model.QueryConditionGroup;
+import com.hfwas.devops.pm.query.model.QueryOperator;
 import com.hfwas.devops.pm.workitem.entity.PmStatusDefinition;
+import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.mapper.PmStatusDefinitionMapper;
+import com.hfwas.devops.pm.workitem.mapper.PmWorkItemMapper;
 import com.hfwas.devops.pm.workitem.model.AllowedTransitionsVO;
 import com.hfwas.devops.pm.workitem.model.StatusDefinitionVO;
 import com.hfwas.devops.pm.workitem.model.StatusWorkflowVO;
+import com.hfwas.devops.pm.workitem.model.TransitionConditionSpec;
 import com.hfwas.devops.pm.workitem.model.TransitionOptionVO;
 import com.hfwas.devops.pm.workitem.model.TransitionPostFunctionType;
 import com.hfwas.devops.pm.workitem.model.TransitionPostFunctionVO;
@@ -37,7 +43,14 @@ public class StatusDefinitionService {
 
     public static final String ANY_STATUS_CODE = "__any__";
 
+    private static final Set<String> CONDITION_SYSTEM_FIELDS = Set.of(
+            "title", "description", "status", "type_code", "priority", "assignee_id", "reporter_id",
+            "parent_id", "project_id", "item_no", "create_time", "update_time", "sprint_id", "module_id"
+    );
+
     private final PmStatusDefinitionMapper statusDefinitionMapper;
+    private final PmWorkItemMapper workItemMapper;
+    private final TransitionConditionEvaluator transitionConditionEvaluator;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public StatusWorkflowVO getWorkflow(Long projectId, String typeCode) {
@@ -65,6 +78,11 @@ public class StatusDefinitionService {
     }
 
     public AllowedTransitionsVO allowedTransitions(Long projectId, String typeCode, String fromStatus) {
+        return allowedTransitions(projectId, typeCode, fromStatus, null);
+    }
+
+    public AllowedTransitionsVO allowedTransitions(Long projectId, String typeCode, String fromStatus,
+                                                   Long workItemId) {
         StatusWorkflowVO workflow = getWorkflow(projectId, typeCode);
         Map<String, String> labelByCode = workflow.getStatuses().stream()
                 .filter(s -> s.getStatusCode() != null && !ANY_STATUS_CODE.equals(s.getStatusCode()))
@@ -74,14 +92,31 @@ public class StatusDefinitionService {
                         (a, b) -> a,
                         LinkedHashMap::new));
         Set<String> regularCodes = labelByCode.keySet();
+        PmWorkItem workItem = null;
+        if (workItemId != null) {
+            workItem = workItemMapper.selectById(workItemId);
+            if (workItem == null) {
+                throw new IllegalArgumentException("Work item not found: " + workItemId);
+            }
+            if (projectId != null && !projectId.equals(workItem.getProjectId())) {
+                throw new IllegalArgumentException("事项不属于该项目");
+            }
+            if (StringUtils.isNotBlank(typeCode) && !typeCode.equals(workItem.getTypeCode())) {
+                throw new IllegalArgumentException("事项类型与请求不一致");
+            }
+            if (StringUtils.isBlank(fromStatus)) {
+                fromStatus = workItem.getStatus();
+            }
+        }
         List<TransitionOptionVO> options = new ArrayList<>();
         Set<String> seenIds = new LinkedHashSet<>();
         if (StringUtils.isNotBlank(fromStatus)) {
             appendTransitionOptions(options, seenIds,
-                    findStatus(workflow.getStatuses(), fromStatus), fromStatus, regularCodes, labelByCode);
+                    findStatus(workflow.getStatuses(), fromStatus), fromStatus, regularCodes, labelByCode, workItem);
             if (!ANY_STATUS_CODE.equals(fromStatus)) {
                 appendTransitionOptions(options, seenIds,
-                        findStatus(workflow.getStatuses(), ANY_STATUS_CODE), fromStatus, regularCodes, labelByCode);
+                        findStatus(workflow.getStatuses(), ANY_STATUS_CODE), fromStatus, regularCodes, labelByCode,
+                        workItem);
             }
         }
         AllowedTransitionsVO vo = new AllowedTransitionsVO();
@@ -242,6 +277,16 @@ public class StatusDefinitionService {
                 if (transition.getPostFunctions() == null) {
                     transition.setPostFunctions(new ArrayList<>());
                 }
+                if (transition.getConditions() == null) {
+                    transition.setConditions(new TransitionConditionSpec());
+                } else {
+                    if (transition.getConditions().getConditions() == null) {
+                        transition.getConditions().setConditions(new ArrayList<>());
+                    }
+                    if (transition.getConditions().getGroups() == null) {
+                        transition.getConditions().setGroups(new ArrayList<>());
+                    }
+                }
             }
         }
     }
@@ -277,7 +322,6 @@ public class StatusDefinitionService {
                 item.setTransitions(new ArrayList<>());
                 continue;
             }
-            Set<String> toStatuses = new HashSet<>();
             String fromCode = item.getStatusCode().trim();
             for (TransitionVO transition : item.getTransitions()) {
                 if (transition == null) {
@@ -300,13 +344,66 @@ public class StatusDefinitionService {
                 if (Objects.equals(fromCode, toStatus)) {
                     throw new IllegalArgumentException("状态不能流转到自身: " + toStatus);
                 }
-                if (!toStatuses.add(toStatus)) {
-                    throw new IllegalArgumentException(
-                            "同一源状态不能有多个指向「" + toStatus + "」的流转（" + fromCode + "）");
-                }
+                validateConditions(fromCode, transition);
                 validateValidators(fromCode, transition);
                 validatePostFunctions(fromCode, transition);
             }
+        }
+    }
+
+    private void validateConditions(String fromCode, TransitionVO transition) {
+        TransitionConditionSpec spec = transition.getConditions();
+        if (spec == null || spec.isEmpty()) {
+            return;
+        }
+        String edge = fromCode + " → " + transition.getToStatus();
+        if (spec.getConditions() != null) {
+            for (int i = 0; i < spec.getConditions().size(); i++) {
+                validateQueryCondition(spec.getConditions().get(i), edge + " condition#" + (i + 1));
+            }
+        }
+        if (spec.getGroups() != null) {
+            for (int i = 0; i < spec.getGroups().size(); i++) {
+                validateQueryGroup(spec.getGroups().get(i), edge + " group#" + (i + 1));
+            }
+        }
+    }
+
+    private void validateQueryGroup(QueryConditionGroup group, String path) {
+        if (group == null) {
+            throw new IllegalArgumentException("条件组不能为空（" + path + "）");
+        }
+        if (group.getConditions() != null) {
+            for (int i = 0; i < group.getConditions().size(); i++) {
+                validateQueryCondition(group.getConditions().get(i), path + ".condition#" + (i + 1));
+            }
+        }
+        if (group.getGroups() != null) {
+            for (int i = 0; i < group.getGroups().size(); i++) {
+                validateQueryGroup(group.getGroups().get(i), path + ".group#" + (i + 1));
+            }
+        }
+    }
+
+    private void validateQueryCondition(QueryCondition condition, String path) {
+        if (condition == null || StringUtils.isBlank(condition.getField())) {
+            throw new IllegalArgumentException("条件 field 不能为空（" + path + "）");
+        }
+        String field = condition.getField().trim();
+        condition.setField(field);
+        if (field.startsWith("custom.")) {
+            if (field.length() <= "custom.".length()) {
+                throw new IllegalArgumentException("自定义字段 key 不能为空（" + path + "）");
+            }
+        } else if (!CONDITION_SYSTEM_FIELDS.contains(field)) {
+            throw new IllegalArgumentException("不支持的条件字段: " + field + "（" + path + "）");
+        }
+        if (condition.getOperator() == null) {
+            throw new IllegalArgumentException("条件 operator 不能为空（" + path + "）");
+        }
+        QueryOperator op = condition.getOperator();
+        if (op != QueryOperator.IS_NULL && op != QueryOperator.IS_NOT_NULL && condition.getValue() == null) {
+            throw new IllegalArgumentException("条件缺少 value（" + path + "）");
         }
     }
 
@@ -398,6 +495,7 @@ public class StatusDefinitionService {
         vo.setToStatus(toStatus);
         vo.setValidators(new ArrayList<>());
         vo.setPostFunctions(new ArrayList<>());
+        vo.setConditions(new TransitionConditionSpec());
         return vo;
     }
 
@@ -444,7 +542,8 @@ public class StatusDefinitionService {
 
     private void appendTransitionOptions(List<TransitionOptionVO> options, Set<String> seenIds,
                                          StatusDefinitionVO status, String fromStatus,
-                                         Set<String> regularCodes, Map<String, String> labelByCode) {
+                                         Set<String> regularCodes, Map<String, String> labelByCode,
+                                         PmWorkItem workItem) {
         if (status == null || status.getTransitions() == null) {
             return;
         }
@@ -458,6 +557,15 @@ public class StatusDefinitionService {
                 continue;
             }
             if (Objects.equals(fromStatus, toStatus)) {
+                continue;
+            }
+            TransitionConditionSpec conditions = transition.getConditions();
+            boolean hasConditions = conditions != null && !conditions.isEmpty();
+            if (workItem == null) {
+                if (hasConditions) {
+                    continue;
+                }
+            } else if (!transitionConditionEvaluator.matches(workItem, conditions)) {
                 continue;
             }
             if (!seenIds.add(transition.getId())) {

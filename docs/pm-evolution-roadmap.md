@@ -43,7 +43,7 @@
 | **Post-function** | ✅ | `transition_rules` + Executor；内置四类；无 SPI |
 | Transition 名称 / ID | ❌ | 仍以 `toStatus` 标识边 |
 | Transition Validator | ✅ | Step 2：`REQUIRED_FIELDS` |
-| Condition | ❌ | `allowedTransitions` 不评估角色/字段 |
+| Condition | ✅ | Step 8：QuerySpec 可见性 + `__current_user__` |
 | 可视化设计器 | ❌ | 矩阵表格 |
 | 保存视图 UI | ❌ | 后端 API 已有 |
 | 项目 RBAC | ❌ | 表预留 |
@@ -75,7 +75,7 @@ flowchart LR
 | **5** | P0：详情页完整编辑（标题/描述） | 核心交互差距 | 待写 |
 | **6** | P0：看板拖拽 + 统一走 transition | Kanban 标志能力 | 待写 |
 | **7** | P0：项目成员与权限 | 安全协作底座（工作量大） | 待写 |
-| **8** | Phase D：Condition（QuerySpec 可见性） | 高级工作流 | 待写 |
+| **8** | Phase D：Condition（QuerySpec 可见性） | 高级工作流 | [step-08](./evolution/step-08-transition-conditions.md) |
 | **9** | P1：评论/状态通知、链接删除、层级 | 协作闭环 | 待写 |
 | **10** | Phase E：可视化设计器（矩阵保留简易模式） | 体验增强 | 待写 |
 | **11** | P1–P2：Sprint、附件、报表 | 企业扩展 | 待写 |
@@ -109,9 +109,16 @@ flowchart LR
 | 6 | 看板拖拽改状态；详情侧栏状态变更优先走 `transition` |
 | 7 | 落地 `pm_project_member` + Browse/Edit/Transition 等权限点 |
 
-### 3.5 Step 8–12 — 高级工作流与企业能力
+### 3.5 Step 8 — Condition（QuerySpec 可见性）
 
-Condition（复用 QuerySpec）→ 协作增强 → Vue Flow 设计器 → Sprint/附件/报表 → SPI/JQL/迁移。
+- **目标**：按字段表达式控制 Transition 是否对当前事项可见；支持同 from→to 多条边。
+- **后端**：`Transition.conditions`；内存匹配；`allowed(workItemId)` 过滤；`transition` 再校验。
+- **前端**：规则 Drawer 条件编辑器；看板/详情传 `workItemId`。
+- **状态：已完成**（见 [step-08](./evolution/step-08-transition-conditions.md)）。
+
+### 3.6 Step 9–12 — 协作与企业能力
+
+协作增强 → Vue Flow 设计器 → Sprint/附件/报表 → SPI/JQL/迁移。
 
 ---
 
@@ -171,3 +178,4 @@ Condition（复用 QuerySpec）→ 协作增强 → Vue Flow 设计器 → Sprin
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | 1.0 | 2026-07-09 | 初版：12 步路线图 + 设置页 UI 标准；启动 Step 1 |
+| 1.1 | 2026-07-09 | Step 8 Condition 落地；基线表更新 |

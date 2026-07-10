@@ -39,7 +39,7 @@ public class PmStatusWorkflowController {
     @PostMapping("/allowed")
     public BaseResult<AllowedTransitionsVO> allowed(@RequestBody AllowedTransitionsQueryDto dto) {
         return BaseResult.ok(statusDefinitionService.allowedTransitions(
-                dto.getProjectId(), dto.getTypeCode(), dto.getFromStatus()));
+                dto.getProjectId(), dto.getTypeCode(), dto.getFromStatus(), dto.getWorkItemId()));
     }
 
     @PostMapping("/post-function-meta")

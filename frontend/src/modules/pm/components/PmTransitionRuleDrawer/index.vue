@@ -1,13 +1,22 @@
 <script setup lang="ts">
 import { useMessage } from 'naive-ui'
+import PmConditionGroup from '@/modules/pm/components/PmConditionGroup/index.vue'
+import { useFieldSchemaStore } from '@/modules/pm/stores'
 import { useProjectModules } from '@/modules/pm/composables/useProjectModules'
 import { useTransitionPostFunctionMeta } from '@/modules/pm/composables/useTransitionPostFunctionMeta'
 import { useUserOptions } from '@/modules/pm/composables/useUserOptions'
 import type {
+  QueryConditionGroup,
+  TransitionConditionSpec,
   TransitionPostFunction,
   TransitionPostFunctionPreset,
   TransitionPostFunctionType,
   TransitionValidator,
+} from '@/modules/pm/types'
+import {
+  CURRENT_USER_TOKEN,
+  emptyTransitionConditions,
+  isTransitionConditionsEmpty,
 } from '@/modules/pm/types'
 import {
   actionTypeLabel,
@@ -25,16 +34,23 @@ const props = defineProps<{
   toStatusCode: string
   toStatusName: string
   transitionName: string
+  conditions?: TransitionConditionSpec
   validators: TransitionValidator[]
   postFunctions: TransitionPostFunction[]
 }>()
 
 const emit = defineEmits<{
   'update:show': [value: boolean]
-  save: [payload: { name: string; validators: TransitionValidator[]; postFunctions: TransitionPostFunction[] }]
+  save: [payload: {
+    name: string
+    conditions: TransitionConditionSpec
+    validators: TransitionValidator[]
+    postFunctions: TransitionPostFunction[]
+  }]
 }>()
 
 const message = useMessage()
+const fieldStore = useFieldSchemaStore()
 const projectIdRef = computed(() => props.projectId)
 const typeCodeRef = computed(() => props.typeCode)
 const { loading: metaLoading, meta, fieldMetaMap, fieldLabelMap, load: reloadMeta } =
@@ -45,8 +61,30 @@ const { labelMap: moduleLabelMap, selectOptions: moduleOptions, load: loadModule
 
 const localActions = ref<TransitionPostFunction[]>([])
 const localName = ref('')
+const localConditions = ref<TransitionConditionSpec>(emptyTransitionConditions())
 const requiredFieldKeys = ref<string[]>([])
 const expandedIndex = ref<number | null>(null)
+
+const fieldDefs = computed(() => fieldStore.getSchema(props.projectId, props.typeCode))
+const searchableFields = computed(() => fieldDefs.value.filter((f) => f.searchable))
+const conditionCount = computed(
+  () => (localConditions.value.conditions?.length ?? 0) + (localConditions.value.groups?.length ?? 0),
+)
+
+const conditionGroup = computed({
+  get: (): QueryConditionGroup => ({
+    logic: localConditions.value.logic || 'AND',
+    conditions: localConditions.value.conditions || [],
+    groups: localConditions.value.groups || [],
+  }),
+  set: (group: QueryConditionGroup) => {
+    localConditions.value = {
+      logic: group.logic || 'AND',
+      conditions: group.conditions || [],
+      groups: group.groups || [],
+    }
+  },
+})
 
 const fieldSelectOptions = computed(() =>
   (meta.value?.fields ?? []).map((f) => ({ label: f.fieldName, value: f.fieldKey })),
@@ -86,12 +124,49 @@ watch(
     if (!visible) return
     localName.value = props.transitionName ?? ''
     localActions.value = (props.postFunctions ?? []).map((item) => ({ ...item }))
+    localConditions.value = {
+      logic: props.conditions?.logic || 'AND',
+      conditions: (props.conditions?.conditions ?? []).map((c) => ({ ...c })),
+      groups: (props.conditions?.groups ?? []).map((g) => ({
+        ...g,
+        conditions: [...(g.conditions ?? [])],
+        groups: [...(g.groups ?? [])],
+      })),
+    }
     const required = (props.validators ?? []).find((v) => v.type === 'REQUIRED_FIELDS')
     requiredFieldKeys.value = [...(required?.fieldKeys ?? [])]
     expandedIndex.value = null
-    await Promise.all([reloadMeta(true), loadUsers(), loadModules()])
+    await Promise.all([
+      reloadMeta(true),
+      loadUsers(),
+      loadModules(),
+      fieldStore.loadSchema(props.projectId, props.typeCode),
+    ])
   },
 )
+
+function onConditionGroupUpdate(g: QueryConditionGroup) {
+  localConditions.value = {
+    logic: g.logic || 'AND',
+    conditions: g.conditions || [],
+    groups: g.groups || [],
+  }
+}
+
+function applyAssigneeOnly() {
+  localConditions.value = {
+    logic: 'AND',
+    conditions: [{ field: 'assignee_id', operator: 'EQ', value: CURRENT_USER_TOKEN }],
+    groups: [],
+  }
+  if (!localName.value.trim() || localName.value.startsWith('→')) {
+    localName.value = `仅负责人 · → ${props.toStatusName}`
+  }
+}
+
+function clearConditions() {
+  localConditions.value = emptyTransitionConditions()
+}
 
 function close() {
   emit('update:show', false)
@@ -174,8 +249,16 @@ function save() {
     }
   }
   const name = localName.value.trim() || `→ ${props.toStatusName}`
+  const conditions = isTransitionConditionsEmpty(localConditions.value)
+    ? emptyTransitionConditions()
+    : {
+        logic: localConditions.value.logic || 'AND',
+        conditions: [...(localConditions.value.conditions ?? [])],
+        groups: [...(localConditions.value.groups ?? [])],
+      }
   emit('save', {
     name,
+    conditions,
     validators: buildValidators(),
     postFunctions: localActions.value.map((item) => ({ ...item })),
   })
@@ -204,13 +287,38 @@ function insertPlaceholder(action: TransitionPostFunction, token: string) {
       <n-spin :show="metaLoading">
         <n-space vertical size="large">
           <n-alert type="info" :bordered="false">
-            可配置流转前必填字段，以及流转成功后的自动化动作。修改后需在工作流页点击「保存配置」才会持久化。
+            可配置可见条件、流转前必填字段与后置动作。修改后需在工作流页点击「保存配置」才会持久化。
           </n-alert>
 
           <section>
             <n-form-item label="流转名称" label-placement="top">
               <n-input v-model:value="localName" placeholder="如：开始处理" />
             </n-form-item>
+          </section>
+
+          <section>
+            <n-space align="center" justify="space-between" style="margin-bottom: 10px">
+              <n-text depth="3">可见条件{{ conditionCount ? ` · ${conditionCount} 条` : '' }}</n-text>
+              <n-space :size="6">
+                <n-button size="tiny" quaternary @click="applyAssigneeOnly">仅负责人</n-button>
+                <n-button size="tiny" quaternary :disabled="!conditionCount" @click="clearConditions">清空</n-button>
+              </n-space>
+            </n-space>
+            <n-text depth="3" style="display: block; font-size: 12px; margin-bottom: 10px">
+              不满足条件时，该流转不会出现在事项的可选列表中。空条件表示始终可见。
+            </n-text>
+            <n-empty
+              v-if="!searchableFields.length"
+              description="暂无可用搜索字段，请在事项配置中开启字段「搜索」"
+              size="small"
+            />
+            <PmConditionGroup
+              v-else
+              :field-defs="searchableFields"
+              :group="conditionGroup"
+              :project-id="projectId"
+              @update:group="onConditionGroupUpdate"
+            />
           </section>
 
           <section>

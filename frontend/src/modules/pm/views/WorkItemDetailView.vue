@@ -119,7 +119,7 @@ async function onSidebarChange() {
   if (nextStatus && prevStatus && nextStatus !== prevStatus) {
     item.value = { ...item.value, status: prevStatus }
     try {
-      const allowed = await pmStatusApi.allowed(projectId.value, item.value.typeCode, prevStatus)
+      const allowed = await pmStatusApi.allowed(projectId.value, item.value.typeCode, prevStatus, item.value.id)
       const option = (allowed.transitions ?? []).find((t) => t.toStatus === nextStatus)
       if (!option) {
         message.warning('不允许流转到该状态')

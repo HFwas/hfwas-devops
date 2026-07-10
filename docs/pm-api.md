@@ -817,7 +817,7 @@ Base path: `/pm/status/workflow`
 | sortOrder | 排序 |
 | isInitial | 是否初始状态（1/0） |
 | isFinal | 是否终态 |
-| transitions | `Transition[]`：`id`、`name`、`toStatus`、`validators[]`、`postFunctions[]` |
+| transitions | `Transition[]`：`id`、`name`、`toStatus`、`conditions`、`validators[]`、`postFunctions[]` |
 
 **Transition：**
 
@@ -826,8 +826,19 @@ Base path: `/pm/status/workflow`
 | id | 流转 UUID |
 | name | 显示名（如「开始处理」） |
 | toStatus | 目标状态编码 |
+| conditions | 可见条件（QuerySpec 条件同形；空 = 始终可见） |
 | validators | 校验器列表 |
 | postFunctions | 后置函数列表 |
+
+**TransitionConditionSpec：**
+
+| 字段 | 说明 |
+|------|------|
+| logic | `AND` / `OR`（默认 AND） |
+| conditions | `QueryCondition[]` |
+| groups | `QueryConditionGroup[]` |
+
+特殊值：`value = "__current_user__"` 在用户类字段上解析为当前登录用户 ID。
 
 **TransitionValidator：**
 
@@ -871,9 +882,12 @@ Base path: `/pm/status/workflow`
 {
   "projectId": "2073615378310627330",
   "typeCode": "task",
-  "fromStatus": "open"
+  "fromStatus": "open",
+  "workItemId": "123"
 }
 ```
+
+`workItemId` 可选。有值时按事项字段评估 Condition；无值时仅返回**无 Condition** 的流转。
 
 **响应 data：** `AllowedTransitionsVO`
 
@@ -941,7 +955,7 @@ Base path: `/pm/status/workflow`
 }
 ```
 
-保存时校验：状态编码唯一、恰有一个初始状态、流转目标存在且非自身；后置函数与校验器 type 合法；`REQUIRED_FIELDS` 需非空 `fieldKeys` 且不得包含 `status`。
+保存时校验：状态编码唯一、恰有一个初始状态、流转目标存在且非自身；允许同一 from→to 多条边；后置函数与校验器 type 合法；`REQUIRED_FIELDS` 需非空 `fieldKeys` 且不得包含 `status`；Condition 字段/运算符合法。
 
 ---
 

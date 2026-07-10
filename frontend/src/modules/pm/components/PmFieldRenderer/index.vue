@@ -16,6 +16,8 @@ const props = defineProps<{
   projectId?: number | string
   typeCode?: string
   restrictStatus?: boolean
+  /** 评估 Transition Condition 时传入当前事项 ID */
+  workItemId?: number | string
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [unknown] }>()
@@ -25,6 +27,7 @@ const resolvedProjectId = computed(() => props.projectId ?? (routeId(route.param
 const resolvedTypeCode = computed(() => props.typeCode ?? (typeof route.params.typeCode === 'string' ? route.params.typeCode : undefined))
 const isStatusField = computed(() => props.field.fieldKey === 'status' || props.field.fieldType === 'STATUS')
 const statusFrom = computed(() => (props.restrictStatus && props.modelValue ? String(props.modelValue) : undefined))
+const statusWorkItemId = computed(() => (props.restrictStatus ? props.workItemId : undefined))
 
 const { selectOptions: moduleOptions, labelMap, load: loadModules } = useProjectModules(resolvedProjectId)
 const { selectOptions: userOptions, labelMap: userLabelMap, load: loadUsers } = useUserOptions()
@@ -35,6 +38,7 @@ const { selectOptions: statusOptions, labelMap: statusLabelMap, loading: statusL
   resolvedProjectId,
   resolvedTypeCode,
   statusFrom,
+  statusWorkItemId,
 )
 
 watch(resolvedProjectId, () => loadModules(), { immediate: true })

@@ -226,12 +226,31 @@ export interface TransitionPostFunction {
   content?: string
 }
 
+/** Transition 可见条件（与 QuerySpec 条件部分同形，无分页） */
+export interface TransitionConditionSpec {
+  logic?: QueryLogic
+  conditions?: QueryCondition[]
+  groups?: QueryConditionGroup[]
+}
+
 export interface Transition {
   id: string
   name: string
   toStatus: string
+  conditions?: TransitionConditionSpec
   validators?: TransitionValidator[]
   postFunctions?: TransitionPostFunction[]
+}
+
+/** Condition 中表示当前登录用户的特殊值 */
+export const CURRENT_USER_TOKEN = '__current_user__'
+
+export function emptyTransitionConditions(): TransitionConditionSpec {
+  return { logic: 'AND', conditions: [], groups: [] }
+}
+
+export function isTransitionConditionsEmpty(spec?: TransitionConditionSpec | null): boolean {
+  return !(spec?.conditions?.length || spec?.groups?.length)
 }
 
 export interface TransitionOption {

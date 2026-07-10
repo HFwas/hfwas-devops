@@ -13,6 +13,8 @@ public class TransitionVO {
     private String name;
     /** 目标状态编码 */
     private String toStatus;
+    /** 可见条件（空 = 始终可见） */
+    private TransitionConditionSpec conditions;
     private List<TransitionValidatorVO> validators = new ArrayList<>();
     private List<TransitionPostFunctionVO> postFunctions = new ArrayList<>();
 }

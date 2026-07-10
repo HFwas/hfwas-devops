@@ -157,8 +157,18 @@ export const pmStatusApi = {
     post<StatusWorkflow>('/pm/status/workflow/get', { projectId, typeCode }),
   options: (projectId: EntityId, typeCode: string) =>
     post<StatusDefinition[]>('/pm/status/workflow/options', { projectId, typeCode }),
-  allowed: (projectId: EntityId, typeCode: string, fromStatus: string) =>
-    post<AllowedTransitions>('/pm/status/workflow/allowed', { projectId, typeCode, fromStatus }),
+  allowed: (
+    projectId: EntityId,
+    typeCode: string,
+    fromStatus: string,
+    workItemId?: EntityId,
+  ) =>
+    post<AllowedTransitions>('/pm/status/workflow/allowed', {
+      projectId,
+      typeCode,
+      fromStatus,
+      ...(workItemId != null ? { workItemId } : {}),
+    }),
   save: (projectId: EntityId, typeCode: string, statuses: StatusDefinition[]) =>
     post<void>('/pm/status/workflow/save', { projectId, typeCode, statuses }),
   reset: (projectId: EntityId, typeCode: string) =>

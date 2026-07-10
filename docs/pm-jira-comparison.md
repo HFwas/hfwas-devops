@@ -108,7 +108,7 @@
 | **Status（状态）** | 事项生命周期节点 | ✅ `pm_status_definition`：编码、名称、初始/终态 |
 | **Transition（流转）** | 状态间有向边，可命名（如「开始处理」） | 🟡 仅「源状态 → 目标状态」布尔矩阵，**无流转名称 / ID** |
 | **Workflow 可视化设计器** | 拖拽节点与连线，编辑 Transition 属性 | ❌ 表格矩阵勾选（`StatusWorkflowView.vue`），非图编辑器 |
-| **Condition（条件）** | 决定 Transition **是否对用户可见/可点** | ❌ 未实现；所有已配置路径对有权用户均可见 |
+| **Condition（条件）** | 决定 Transition **是否对用户可见/可点** | ✅ QuerySpec 条件 + `__current_user__`；`allowed` 需传 `workItemId` |
 | **Validator（校验器）** | Transition **提交时**必须满足的约束 | ✅ 路径校验 + `REQUIRED_FIELDS`（关单必填等） |
 | **Post-function（后置函数）** | Transition **成功后**自动执行（改字段、发通知等） | ✅ 内置四类：`SET_FIELD` / `NOTIFY_ASSIGNEE` / `NOTIFY_USER` / `WEBHOOK`；存于 `transition_rules`；无插件 SPI |
 | **Workflow Scheme** | 将 Workflow 绑定到项目 / 事项类型 | 🟡 按 `projectId + typeCode` 覆盖，无独立 Scheme 实体 |
@@ -123,7 +123,7 @@
 - 仅当优先级为 High 时可见「紧急处理」
 - 仅当关联的 Sub-task 全部 Done 时可见「完成 Epic」
 
-HFWAS：**无**。`allowedTransitions` 只根据状态矩阵计算目标列表，不评估用户角色、字段值或关联事项。
+HFWAS：**已支持**（见 [step-08](./evolution/step-08-transition-conditions.md)）。`Transition.conditions` 复用 QuerySpec 条件形状；`allowed` 传入 `workItemId` 时按事项字段过滤；`transition` 执行前再校验。支持 `__current_user__`（如仅负责人可见）。尚无项目角色 / 关联事项类条件。
 
 **2. Validator（校验器）— 控制「点了流转能不能成功」**
 
@@ -166,7 +166,7 @@ HFWAS：**已支持内置后置函数**（见 [step-01](./evolution/step-01-work
 | 配置流转 | 点击连线 → 编辑 Transition 面板 | 勾选矩阵单元格 |
 | 全局流转 | 需显式建模 | ✅ `__any__`（任何状态）行 |
 | Transition 名称 | 有（如「Resolve Issue」） | ❌ 无；前端/API 直接用目标 statusCode |
-| 规则配置入口 | Transition 面板 → Conditions / Validators / Post Functions | 🟡 矩阵 +「流转规则」Tab → 后置动作 Drawer；无 Condition / Validator |
+| 规则配置入口 | Transition 面板 → Conditions / Validators / Post Functions | 🟡 矩阵 +「流转规则」Tab → Drawer（条件 / 校验 / 后置）；无图编辑器 |
 | 项目覆盖 | Workflow Scheme 绑定 | ✅ 项目级 save / reset，回退系统默认 |
 | 导入导出 | XML / 部分 Cloud API | 🟡 含在事项类型方案 JSON 的 `statusWorkflow` 段（后端） |
 
@@ -190,20 +190,23 @@ Workflow
 pm_status_definition（每行一个状态）
   ├── statusCode, statusName
   ├── isInitial, isFinal, sortOrder
-  ├── transitions: JSON string[]              ← 目标 statusCode（兼容）
-  └── transition_rules: TransitionRule[]      ← toStatus + postFunctions[]
+  └── transitions: Transition[]
+        ├── id, name, toStatus
+        ├── conditions          ← QuerySpec 可见性
+        ├── validators[]
+        └── postFunctions[]
 ```
 
 流转执行路径：
 
 ```text
-POST /pm/work-items/{id}/transition { toStatus }
+POST /pm/work-items/{id}/transition { transitionId, fields? }
   → StatusDefinitionService.validateTransition()
+  → TransitionConditionEvaluator.assertMatches()
+  → apply fields + TransitionValidatorExecutor
   → UPDATE status
   → TransitionPostFunctionExecutor.execute()
   → UPDATE（字段副作用）+ ActivityLog
-
-（详情侧栏改状态走 save 时：若 status 变更，同样执行后置函数）
 ```
 
 #### 5.1.5 能力矩阵（工作流专项）
@@ -215,8 +218,8 @@ POST /pm/work-items/{id}/transition { toStatus }
 | 项目级工作流覆盖 | ✅ | ✅ | 已有 |
 | 恢复系统默认 | ✅ | ✅ | 已有 |
 | 流转路径校验 | ✅ | ✅ | 已有（矩阵级） |
-| 按用户/角色隐藏 Transition | ✅ | ❌ | 缺失 |
-| 按字段值隐藏 Transition | ✅ | ❌ | 缺失 |
+| 按用户/角色隐藏 Transition | ✅ | 🟡 | `__current_user__` 已有；角色待 Step 7 |
+| 按字段值隐藏 Transition | ✅ | ✅ | QuerySpec Condition |
 | Transition 级必填字段 | ✅ | ✅ | 已有（REQUIRED_FIELDS） |
 | 流转前自定义校验脚本 | ✅ | ❌ | 缺失 |
 | 流转后自动改字段 | ✅ | ✅ | 已有（SET_FIELD） |
@@ -248,7 +251,7 @@ POST /pm/work-items/{id}/transition { toStatus }
 | **Phase C** | 基础 Post-function | Step 1 | ✅ 已收口 |
 | **Phase B** | 基础 Validator | Step 2 | ✅ 已完成 |
 | **Phase A** | Transition 实体化 | Step 3 | ✅ 已完成 |
-| **Phase D** | Condition | Step 8 | 待做 |
+| **Phase D** | Condition | Step 8 | ✅ 已完成 |
 | **Phase E** | 可视化设计器 | Step 10 | 待做 |
 | **Phase F** | 扩展 SPI | Step 12 | 待做 |
 
@@ -402,7 +405,7 @@ DevOps 集成        ████    ░░░░    空白
 |------|------|
 | **JQL 或高级查询语法** | Power user 需求 |
 | **自定义事项类型** | 超越固定 4 类型 |
-| **工作流条件 / 后置函数** | 对标 Jira Workflow 高级能力；后置与 Validator 已有，待 Condition / SPI |
+| **工作流条件 / 后置函数** | 对标 Jira Workflow；Condition / Validator / Post-function 已有；待角色条件与 SPI |
 | **路线图 / 甘特** | Advanced Roadmaps 级别 |
 | **从 Jira 迁移工具** | 降低替换成本 |
 
@@ -470,7 +473,8 @@ DevOps 集成        ████    ░░░░    空白
 |------|------|
 | [pm-evolution-roadmap.md](./pm-evolution-roadmap.md) | 分步演进路线图与设置页 UI 标准 |
 | [evolution/step-01-workflow-post-functions.md](./evolution/step-01-workflow-post-functions.md) | Step 1：后置函数收口 |
-| [evolution/step-02-transition-validators.md](./evolution/step-02-transition-validators.md) | Step 2：流转 Validator |
+| [evolution/step-03-transition-entity.md](./evolution/step-03-transition-entity.md) | Step 3：Transition 实体化 |
+| [evolution/step-08-transition-conditions.md](./evolution/step-08-transition-conditions.md) | Step 8：Condition 可见性 |
 | [pm-design.md](./pm-design.md) | PM 架构与领域设计 |
 | [pm-api.md](./pm-api.md) | PM REST API 接口文档 |
 | [error-code-design.md](./error-code-design.md) | 全局错误码规范 |
@@ -485,3 +489,4 @@ DevOps 集成        ████    ░░░░    空白
 | 1.1 | 2026-07-07 | 新增 §5.1 工作流深度对比（可视化设计器 / 条件 / 校验 / 后置函数） |
 | 1.2 | 2026-07-09 | 修正 Post-function 为已实现；关联演进路线图；更新能力矩阵 |
 | 1.3 | 2026-07-09 | Step 2：Transition Validator（REQUIRED_FIELDS）已落地 |
+| 1.4 | 2026-07-09 | Step 8：Condition（QuerySpec 可见性）已落地 |

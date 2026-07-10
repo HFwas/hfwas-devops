@@ -14,6 +14,7 @@ export function useStatusOptions(
   projectId: MaybeRef<number | string | undefined>,
   typeCode: MaybeRef<string | undefined>,
   fromStatus?: MaybeRef<string | undefined>,
+  workItemId?: MaybeRef<number | string | undefined>,
 ) {
   const loading = ref(false)
   const allStatuses = ref<StatusDefinition[]>([])
@@ -77,7 +78,7 @@ export function useStatusOptions(
       }
       const from = unref(fromStatus)
       if (from) {
-        const allowed = await pmStatusApi.allowed(pid, type, from)
+        const allowed = await pmStatusApi.allowed(pid, type, from, unref(workItemId))
         transitionOptions.value = allowed.transitions ?? []
       } else {
         transitionOptions.value = []
@@ -87,7 +88,11 @@ export function useStatusOptions(
     }
   }
 
-  watch([() => unref(projectId), () => unref(typeCode), () => unref(fromStatus)], () => load(), { immediate: true })
+  watch(
+    [() => unref(projectId), () => unref(typeCode), () => unref(fromStatus), () => unref(workItemId)],
+    () => load(),
+    { immediate: true },
+  )
 
   return {
     loading,
