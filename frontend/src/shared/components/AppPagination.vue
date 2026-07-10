@@ -18,9 +18,10 @@ function handlePageSizeChange(size: number) {
 </script>
 
 <template>
-  <n-space v-if="pagination.total.value > 0" justify="space-between" align="center" style="width: 100%">
+  <n-space justify="space-between" align="center" style="width: 100%">
     <n-text depth="3">共 {{ pagination.total.value }} 条</n-text>
     <n-pagination
+      v-if="pagination.total.value > 0"
       :page="pagination.pageNo.value"
       :page-size="pagination.pageSize.value"
       :item-count="pagination.total.value"

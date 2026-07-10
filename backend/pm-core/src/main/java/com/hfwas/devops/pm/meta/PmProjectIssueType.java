@@ -6,14 +6,11 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 @Data
-@TableName("pm_work_item_type")
-public class PmWorkItemType {
-    @TableId(type = IdType.ASSIGN_ID)
+@TableName("pm_project_issue_type")
+public class PmProjectIssueType {
+    @TableId(type = IdType.AUTO)
     private Long id;
-    private String code;
-    private String name;
-    private String icon;
-    private String color;
+    private Long projectId;
+    private String typeCode;
     private Integer sortOrder;
-    private Integer enabled;
 }

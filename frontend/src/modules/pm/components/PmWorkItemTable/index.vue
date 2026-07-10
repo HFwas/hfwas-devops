@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { h } from 'vue'
+import { h, type VNodeChild } from 'vue'
 import { NButton, NPopconfirm } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import type { FieldDefinition, PmWorkItem, QuerySpec } from '@/modules/pm/types'
-import { TYPE_META, systemFieldProp } from '@/modules/pm/types'
+import { PRIORITY_OPTIONS, typeLabel, systemFieldProp } from '@/modules/pm/types'
+import { useProjectIssueTypes } from '@/modules/pm/composables/useIssueTypes'
 import { useProjectModules } from '@/modules/pm/composables/useProjectModules'
+import { useStatusOptions } from '@/modules/pm/composables/useStatusOptions'
 import { useUserOptions } from '@/modules/pm/composables/useUserOptions'
-import { formatDateTime } from '@/modules/pm/utils/comment'
 import { asId, routeId } from '@/modules/pm/utils/id'
 
 const props = defineProps<{
@@ -21,8 +22,11 @@ const props = defineProps<{
 
 const route = useRoute()
 const projectId = computed(() => props.querySpec.projectId ?? (routeId(route.params.projectId) || undefined))
+const typeCode = computed(() => props.querySpec.typeCode)
+const { types: projectTypes } = useProjectIssueTypes(projectId)
 const { labelMap: moduleLabelMap } = useProjectModules(projectId)
 const { labelMap: userLabelMap } = useUserOptions()
+const { labelMap: statusLabelMap } = useStatusOptions(projectId, typeCode)
 
 const emit = defineEmits<{
   rowClick: [PmWorkItem]
@@ -52,40 +56,31 @@ const columns = computed<DataTableColumns<PmWorkItem>>(() => {
   const cols: DataTableColumns<PmWorkItem> = listFields.value.map((f) => ({
     title: f.fieldName,
     key: f.systemFlag ? f.fieldKey : `custom.${f.fieldKey}`,
+    ellipsis: { tooltip: true },
     render: (row) => renderCell(row, f),
   }))
   const base: DataTableColumns<PmWorkItem> = [
-    { title: '编号', key: 'itemKey', width: 120, ellipsis: { tooltip: true },
+    {
+      title: '编号',
+      key: 'itemKey',
+      width: 120,
+      ellipsis: { tooltip: true },
       render: (row) => row.itemKey ?? (row.itemNo != null ? `#${row.itemNo}` : String(row.id ?? '')),
     },
     ...cols,
     {
-      title: '评论',
-      key: 'comments',
-      width: 70,
-      render: (row) => {
-        const count = row.id != null ? (props.commentCounts?.[asId(row.id)] ?? 0) : 0
-        return count > 0 ? String(count) : '-'
-      },
-    },
-    {
-      title: '更新时间',
-      key: 'updateTime',
-      width: 170,
-      render: (row) => formatDateTime(row.updateTime),
-    },
-    {
       title: '操作',
       key: 'actions',
-      width: 120,
+      width: 100,
       fixed: 'right',
       render: (row) =>
-        h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
+        h('div', { class: 'pm-row-actions' }, [
           h(
             NButton,
             {
               text: true,
               type: 'primary',
+              size: 'small',
               onClick: (e: Event) => {
                 e.stopPropagation()
                 emit('open', row)
@@ -95,9 +90,7 @@ const columns = computed<DataTableColumns<PmWorkItem>>(() => {
           ),
           h(
             NPopconfirm,
-            {
-              onPositiveClick: () => emit('delete', row),
-            },
+            { onPositiveClick: () => emit('delete', row) },
             {
               trigger: () =>
                 h(
@@ -105,6 +98,7 @@ const columns = computed<DataTableColumns<PmWorkItem>>(() => {
                   {
                     text: true,
                     type: 'error',
+                    size: 'small',
                     onClick: (e: Event) => e.stopPropagation(),
                   },
                   () => '删除',
@@ -116,37 +110,85 @@ const columns = computed<DataTableColumns<PmWorkItem>>(() => {
     },
   ]
   if (props.selectable) {
-    return [{ type: 'selection', fixed: 'left' }, ...base]
+    return [{ type: 'selection', fixed: 'left', width: 40 }, ...base]
   }
   return base
 })
 
-function renderCell(row: PmWorkItem, field: FieldDefinition) {
-  if (field.fieldKey === 'type_code') {
-    const meta = TYPE_META[row.typeCode]
-    return meta ? meta.label : row.typeCode
+function statusPillClass(code: string): string {
+  const c = code.toLowerCase()
+  if (['done', 'closed', 'resolved', 'cancelled', 'canceled'].includes(c)) {
+    return 'pm-pill pm-pill--status-done'
   }
-  if (field.fieldType === 'MODULE') {
-    const val = readValue(row, field)
-    if (val == null || val === '') return '-'
-    return moduleLabelMap.value[asId(val as string | number)] ?? String(val)
+  if (['in_progress', 'doing', 'active', 'testing'].includes(c) || c.includes('progress')) {
+    return 'pm-pill pm-pill--status-in_progress'
   }
-  if (field.fieldType === 'USER') {
-    const val = readValue(row, field)
-    if (val == null || val === '') return '-'
-    return userLabelMap.value[asId(val as string | number)] ?? String(val)
+  if (['open', 'todo', 'new', 'pending'].includes(c)) {
+    return 'pm-pill pm-pill--status-open'
   }
-  if (field.fieldType === 'MARKDOWN') {
-    const text = readValue(row, field)
-    return text ? `${String(text).slice(0, 40)}${String(text).length > 40 ? '…' : ''}` : ''
-  }
-  return readValue(row, field)
+  return 'pm-pill pm-pill--status-default'
 }
 
-function readValue(row: PmWorkItem, field: FieldDefinition) {
+function priorityPillClass(value: string): string {
+  const v = value.toLowerCase()
+  if (v === 'low') return 'pm-pill pm-pill--priority-low'
+  if (v === 'high' || v === 'critical') return 'pm-pill pm-pill--priority-high'
+  return 'pm-pill pm-pill--priority-medium'
+}
+
+function priorityLabel(value: string): string {
+  return PRIORITY_OPTIONS.find((o) => o.value === value)?.label ?? value
+}
+
+function userInitial(name: string): string {
+  const t = name.trim()
+  return t ? t.slice(0, 1) : '?'
+}
+
+function renderCell(row: PmWorkItem, field: FieldDefinition): VNodeChild {
+  if (field.fieldKey === 'type_code') {
+    return typeLabel(row.typeCode, projectTypes.value)
+  }
+
+  const raw = readValue(row, field)
+  if (raw == null || raw === '') return '-'
+
+  if (field.fieldKey === 'status' || field.fieldType === 'STATUS') {
+    const code = String(raw)
+    const label = statusLabelMap.value[code] ?? code
+    return h('span', { class: statusPillClass(code) }, label)
+  }
+
+  if (field.fieldKey === 'priority' || field.fieldType === 'PRIORITY') {
+    const code = String(raw)
+    return h('span', { class: priorityPillClass(code) }, priorityLabel(code))
+  }
+
+  if (field.fieldType === 'USER') {
+    const id = asId(raw as string | number)
+    const name = userLabelMap.value[id] ?? String(raw)
+    return h('span', { class: 'pm-user-cell' }, [
+      h('span', { class: 'pm-user-avatar' }, userInitial(name)),
+      h('span', name),
+    ])
+  }
+
+  if (field.fieldType === 'MODULE') {
+    return moduleLabelMap.value[asId(raw as string | number)] ?? String(raw)
+  }
+
+  if (field.fieldType === 'MARKDOWN') {
+    const text = String(raw)
+    return text.length > 40 ? `${text.slice(0, 40)}…` : text
+  }
+
+  return String(raw)
+}
+
+function readValue(row: PmWorkItem, field: FieldDefinition): unknown {
   if (field.systemFlag === 1) {
     const prop = systemFieldProp(field.fieldKey)
-    return (row as Record<string, unknown>)[prop]
+    return (row as unknown as Record<string, unknown>)[prop]
   }
   return row.customFields?.[field.fieldKey]
 }
@@ -154,6 +196,10 @@ function readValue(row: PmWorkItem, field: FieldDefinition) {
 
 <template>
   <n-data-table
+    class="pm-work-item-table"
+    size="small"
+    :bordered="false"
+    :single-line="false"
     :columns="columns"
     :data="data"
     :loading="loading"
@@ -164,3 +210,11 @@ function readValue(row: PmWorkItem, field: FieldDefinition) {
     @row-click="(_: unknown, row: PmWorkItem) => emit('rowClick', row)"
   />
 </template>
+
+<style scoped>
+.pm-work-item-table :deep(.pm-row-actions) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+</style>

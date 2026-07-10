@@ -32,9 +32,20 @@ CREATE TABLE IF NOT EXISTS pm_work_item_type (
     code        TEXT         NOT NULL UNIQUE,
     name        TEXT         NOT NULL,
     icon        TEXT,
+    color       TEXT,
     sort_order  INTEGER      DEFAULT 0,
     enabled     INTEGER      DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS pm_project_issue_type (
+    id          INTEGER      PRIMARY KEY AUTOINCREMENT,
+    project_id  INTEGER      NOT NULL,
+    type_code   TEXT         NOT NULL,
+    sort_order  INTEGER      DEFAULT 0,
+    UNIQUE(project_id, type_code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pm_project_issue_type ON pm_project_issue_type(project_id);
 
 CREATE TABLE IF NOT EXISTS pm_work_item (
     id              INTEGER      PRIMARY KEY AUTOINCREMENT,
@@ -158,6 +169,8 @@ CREATE TABLE IF NOT EXISTS pm_status_definition (
     sort_order  INTEGER      DEFAULT 0,
     is_initial  INTEGER      DEFAULT 0,
     is_final    INTEGER      DEFAULT 0,
+    layout_x    REAL,
+    layout_y    REAL,
     transitions TEXT
 );
 
@@ -184,11 +197,11 @@ CREATE TABLE IF NOT EXISTS pm_type_field_layout (
     UNIQUE(project_id, type_code)
 );
 
-INSERT OR IGNORE INTO pm_work_item_type (id, code, name, sort_order) VALUES
-(1, 'requirement', '需求', 1),
-(2, 'task', '任务', 2),
-(3, 'bug', '缺陷', 3),
-(4, 'test_case', '测试用例', 4);
+INSERT OR IGNORE INTO pm_work_item_type (id, code, name, color, sort_order) VALUES
+(1, 'requirement', '需求', '#2080f0', 1),
+(2, 'task', '任务', '#18a058', 2),
+(3, 'bug', '缺陷', '#d03050', 3),
+(4, 'test_case', '测试用例', '#f0a020', 4);
 
 INSERT OR IGNORE INTO pm_status_definition (id, project_id, type_code, status_code, status_name, sort_order, is_initial, is_final, transitions) VALUES
 (1, NULL, 'task', 'open', '待处理', 1, 1, 0, '[{"id":"task-open-in_progress","name":"开始处理","toStatus":"in_progress","validators":[],"postFunctions":[]},{"id":"task-open-closed","name":"关闭","toStatus":"closed","validators":[],"postFunctions":[]}]'),

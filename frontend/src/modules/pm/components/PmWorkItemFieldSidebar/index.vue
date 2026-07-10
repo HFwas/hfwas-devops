@@ -3,7 +3,7 @@ import PmFieldRenderer from '@/modules/pm/components/PmFieldRenderer/index.vue'
 import type { FieldDefinition, PmWorkItem } from '@/modules/pm/types'
 import { systemFieldProp } from '@/modules/pm/types'
 
-const SIDEBAR_EXCLUDED = new Set(['type_code', 'description'])
+const SIDEBAR_EXCLUDED = new Set(['type_code', 'title', 'description'])
 
 const props = defineProps<{
   fieldDefs: FieldDefinition[]

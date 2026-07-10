@@ -23,6 +23,10 @@ public class PmModuleMigration implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         ensureModuleTable();
         ensureModuleIdColumn();
+        ensureStatusLayoutColumns();
+        ensureWorkItemTypeColor();
+        ensureProjectIssueTypeTable();
+        seedWorkItemTypeColors();
     }
 
     private void ensureModuleTable() {
@@ -53,6 +57,52 @@ public class PmModuleMigration implements ApplicationRunner {
         jdbcTemplate.execute(
                 "CREATE INDEX IF NOT EXISTS idx_pm_work_item_module ON pm_work_item(module_id)"
         );
+    }
+
+    private void ensureStatusLayoutColumns() {
+        if (!hasColumn("pm_status_definition", "layout_x")) {
+            jdbcTemplate.execute("ALTER TABLE pm_status_definition ADD COLUMN layout_x REAL");
+            log.info("Added pm_status_definition.layout_x column");
+        }
+        if (!hasColumn("pm_status_definition", "layout_y")) {
+            jdbcTemplate.execute("ALTER TABLE pm_status_definition ADD COLUMN layout_y REAL");
+            log.info("Added pm_status_definition.layout_y column");
+        }
+    }
+
+    private void ensureWorkItemTypeColor() {
+        if (!hasColumn("pm_work_item_type", "color")) {
+            jdbcTemplate.execute("ALTER TABLE pm_work_item_type ADD COLUMN color TEXT");
+            log.info("Added pm_work_item_type.color column");
+        }
+    }
+
+    private void ensureProjectIssueTypeTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS pm_project_issue_type (
+                    id          INTEGER      PRIMARY KEY AUTOINCREMENT,
+                    project_id  INTEGER      NOT NULL,
+                    type_code   TEXT         NOT NULL,
+                    sort_order  INTEGER      DEFAULT 0,
+                    UNIQUE(project_id, type_code)
+                )
+                """);
+        jdbcTemplate.execute(
+                "CREATE INDEX IF NOT EXISTS idx_pm_project_issue_type ON pm_project_issue_type(project_id)"
+        );
+    }
+
+    private void seedWorkItemTypeColors() {
+        updateTypeColorIfBlank("requirement", "#2080f0");
+        updateTypeColorIfBlank("task", "#18a058");
+        updateTypeColorIfBlank("bug", "#d03050");
+        updateTypeColorIfBlank("test_case", "#f0a020");
+    }
+
+    private void updateTypeColorIfBlank(String code, String color) {
+        jdbcTemplate.update(
+                "UPDATE pm_work_item_type SET color = ? WHERE code = ? AND (color IS NULL OR color = '')",
+                color, code);
     }
 
     private boolean hasColumn(String table, String column) {

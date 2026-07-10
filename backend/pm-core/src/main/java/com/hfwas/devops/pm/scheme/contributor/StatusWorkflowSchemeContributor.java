@@ -91,6 +91,8 @@ public class StatusWorkflowSchemeContributor implements IssueTypeSchemeContribut
         exported.setSortOrder(vo.getSortOrder());
         exported.setIsInitial(vo.getIsInitial());
         exported.setIsFinal(vo.getIsFinal());
+        exported.setLayoutX(vo.getLayoutX());
+        exported.setLayoutY(vo.getLayoutY());
         exported.setTransitions(vo.getTransitions() != null ? new ArrayList<>(vo.getTransitions()) : null);
         return exported;
     }
@@ -102,6 +104,8 @@ public class StatusWorkflowSchemeContributor implements IssueTypeSchemeContribut
         vo.setSortOrder(exported.getSortOrder());
         vo.setIsInitial(exported.getIsInitial());
         vo.setIsFinal(exported.getIsFinal());
+        vo.setLayoutX(exported.getLayoutX());
+        vo.setLayoutY(exported.getLayoutY());
         vo.setTransitions(exported.getTransitions() != null ? new ArrayList<>(exported.getTransitions()) : null);
         return vo;
     }

@@ -3,7 +3,8 @@ import { useMessage } from 'naive-ui'
 import { pmFieldApi } from '@/modules/pm/api'
 import { invalidateFieldOptionsCache } from '@/modules/pm/composables/useFieldOptions'
 import type { FieldDefinition, FieldOption, FieldOptionSource, FieldRemoteOptionsConfig } from '@/modules/pm/types'
-import { FIELD_TYPE_OPTIONS, TYPE_META, WORK_ITEM_TYPE_CODES } from '@/modules/pm/types'
+import { FIELD_TYPE_OPTIONS } from '@/modules/pm/types'
+import { useGlobalIssueTypes } from '@/modules/pm/composables/useIssueTypes'
 
 type FieldOptionRow = FieldOption & { _uid: number }
 
@@ -44,10 +45,13 @@ const dragOverIndex = ref<number | null>(null)
 
 const isEdit = computed(() => !!props.fieldId)
 
-const typeOptions = WORK_ITEM_TYPE_CODES.map((code) => ({
-  label: TYPE_META[code].label,
-  value: code,
-}))
+const { types: globalTypes } = useGlobalIssueTypes(false)
+const typeOptions = computed(() =>
+  globalTypes.value.map((t) => ({
+    label: t.name,
+    value: t.code,
+  })),
+)
 
 const methodOptions = [
   { label: 'GET', value: 'GET' },

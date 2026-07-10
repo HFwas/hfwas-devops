@@ -17,6 +17,10 @@ public class PmStatusDefinition {
     private Integer sortOrder;
     private Integer isInitial;
     private Integer isFinal;
+    /** 可视化设计器节点 X 坐标 */
+    private Double layoutX;
+    /** 可视化设计器节点 Y 坐标 */
+    private Double layoutY;
     /** JSON array of TransitionVO */
     private String transitions;
 }

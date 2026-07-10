@@ -4,11 +4,16 @@ import type { FieldDefinition, QueryCondition, QueryOperator } from '@/modules/p
 import { OPERATORS } from '@/modules/pm/types'
 import type { EntityId } from '@/modules/pm/utils/id'
 
-const props = defineProps<{
-  fieldDefs: FieldDefinition[]
-  condition: QueryCondition
-  projectId?: EntityId
-}>()
+const props = withDefaults(
+  defineProps<{
+    fieldDefs: FieldDefinition[]
+    condition: QueryCondition
+    projectId?: EntityId
+    /** 行首「当」前缀，列表筛选默认开启 */
+    showWhen?: boolean
+  }>(),
+  { showWhen: true },
+)
 
 const emit = defineEmits<{ update: [QueryCondition] }>()
 
@@ -37,8 +42,13 @@ function onFieldChange(field: string) {
 function onOperatorChange(operator: QueryOperator) {
   if (operator === 'IS_NULL' || operator === 'IS_NOT_NULL') {
     patch({ operator, value: null })
+  } else if (operator === 'IN' || operator === 'NOT_IN') {
+    const cur = props.condition.value
+    const next = Array.isArray(cur) ? cur : cur == null || cur === '' ? [] : [cur]
+    patch({ operator, value: next })
   } else {
-    patch({ operator })
+    const cur = props.condition.value
+    patch({ operator, value: Array.isArray(cur) ? (cur[0] ?? null) : cur })
   }
 }
 
@@ -49,8 +59,10 @@ const hideValue = computed(() =>
 
 <template>
   <div class="condition-row">
+    <n-text v-if="showWhen" depth="3" class="when-prefix">当</n-text>
     <n-select
       class="field-select"
+      size="small"
       :value="condition.field"
       :options="fieldOptions"
       placeholder="字段"
@@ -59,6 +71,7 @@ const hideValue = computed(() =>
     />
     <n-select
       class="operator-select"
+      size="small"
       :value="condition.operator"
       :options="operatorOptions"
       placeholder="运算符"
@@ -69,6 +82,7 @@ const hideValue = computed(() =>
         :field="selectedField"
         :model-value="condition.value"
         :project-id="projectId"
+        :operator="condition.operator"
         mode="query"
         @update:model-value="(v) => patch({ value: v })"
       />
@@ -79,27 +93,46 @@ const hideValue = computed(() =>
 
 <style scoped>
 .condition-row {
-  display: grid;
-  grid-template-columns: minmax(140px, 1.1fr) minmax(110px, 0.8fr) minmax(160px, 1.4fr);
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 8px;
   width: 100%;
+  min-width: 0;
 }
 
-.field-select,
-.operator-select,
+.when-prefix {
+  flex-shrink: 0;
+  font-size: 13px;
+  line-height: 28px;
+}
+
+.field-select {
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.operator-select {
+  width: 120px;
+  flex-shrink: 0;
+}
+
 .value-slot {
-  min-width: 0;
-  width: 100%;
+  flex: 1;
+  min-width: 160px;
 }
 
 .value-hint {
   font-size: 12px;
+  line-height: 28px;
 }
 
 @media (max-width: 720px) {
-  .condition-row {
-    grid-template-columns: 1fr;
+  .field-select,
+  .operator-select,
+  .value-slot {
+    width: 100%;
+    min-width: 0;
   }
 }
 </style>

@@ -44,7 +44,7 @@
 | Transition 名称 / ID | ❌ | 仍以 `toStatus` 标识边 |
 | Transition Validator | ✅ | Step 2：`REQUIRED_FIELDS` |
 | Condition | ✅ | Step 8：QuerySpec 可见性 + `__current_user__` |
-| 可视化设计器 | ❌ | 矩阵表格 |
+| 可视化设计器 | ✅ | Step 10：Vue Flow 图编辑；矩阵保留简易模式 |
 | 保存视图 UI | ❌ | 后端 API 已有 |
 | 项目 RBAC | ❌ | 表预留 |
 | 方案 Import/Export UI | ✅ | Step 1 已挂载到事项配置页 |
@@ -72,14 +72,15 @@ flowchart LR
 | **2** | Phase B：流转 Validator（必填字段） | 关单前填 Resolution 类刚需 | [step-02](./evolution/step-02-transition-validators.md) |
 | **3** | Phase A：Transition 实体化（id/name） | 为条件/设计器铺路 | [step-03](./evolution/step-03-transition-entity.md) |
 | **4** | P0：保存视图 UI | 后端已有，投入产出极高 | 待写 |
-| **5** | P0：详情页完整编辑（标题/描述） | 核心交互差距 | 待写 |
+| **5** | P0：详情页完整编辑（标题/描述） | 核心交互差距 | [step-05](./evolution/step-05-detail-edit.md) |
 | **6** | P0：看板拖拽 + 统一走 transition | Kanban 标志能力 | 待写 |
 | **7** | P0：项目成员与权限 | 安全协作底座（工作量大） | 待写 |
 | **8** | Phase D：Condition（QuerySpec 可见性） | 高级工作流 | [step-08](./evolution/step-08-transition-conditions.md) |
 | **9** | P1：评论/状态通知、链接删除、层级 | 协作闭环 | 待写 |
-| **10** | Phase E：可视化设计器（矩阵保留简易模式） | 体验增强 | 待写 |
+| **10** | Phase E：可视化设计器（矩阵保留简易模式） | 体验增强 | [step-10](./evolution/step-10-workflow-designer.md) |
 | **11** | P1–P2：Sprint、附件、报表 | 企业扩展 | 待写 |
 | **12** | Phase F + P3：SPI、JQL、迁移工具 | 长期对标 | 待写 |
+| **13** | 事项类型 Scheme + 可增删类型 | 配置化底座 | [step-13](./evolution/step-13-issue-type-scheme.md) |
 
 ### 3.1 Step 1 — Post-function 收口（当前）
 
@@ -105,7 +106,7 @@ flowchart LR
 | Step | 要点 |
 |------|------|
 | 4 | 列表页挂载 `pmViewApi`：保存 / 切换 / 删除个人视图 |
-| 5 | 详情标题、描述可编辑；Markdown 编辑器复用 |
+| 5 | 详情标题、描述可编辑；Markdown 编辑器复用 — **已完成**（见 [step-05](./evolution/step-05-detail-edit.md)） |
 | 6 | 看板拖拽改状态；详情侧栏状态变更优先走 `transition` |
 | 7 | 落地 `pm_project_member` + Browse/Edit/Transition 等权限点 |
 
@@ -116,9 +117,20 @@ flowchart LR
 - **前端**：规则 Drawer 条件编辑器；看板/详情传 `workItemId`。
 - **状态：已完成**（见 [step-08](./evolution/step-08-transition-conditions.md)）。
 
-### 3.6 Step 9–12 — 协作与企业能力
+### 3.6 Step 10 — 可视化设计器
 
-协作增强 → Vue Flow 设计器 → Sprint/附件/报表 → SPI/JQL/迁移。
+- **目标**：Vue Flow 有向图编辑工作流；矩阵保留简易模式；节点坐标持久化。
+- **前端**：`PmWorkflowCanvas`；默认「图编辑」Tab；点边打开规则 Drawer。
+- **状态：已完成**（见 [step-10](./evolution/step-10-workflow-designer.md)）。
+
+### 3.7 Step 9 / 11–12 — 协作与企业能力
+
+协作增强 → Sprint/附件/报表 → SPI/JQL/迁移。
+
+### 3.8 Step 13 — 事项类型 Scheme
+
+- **目标**：全局类型 CRUD + 项目启用集合；导航 API 驱动。
+- **状态：已完成**（见 [step-13](./evolution/step-13-issue-type-scheme.md)）。
 
 ---
 
@@ -179,3 +191,6 @@ flowchart LR
 |------|------|------|
 | 1.0 | 2026-07-09 | 初版：12 步路线图 + 设置页 UI 标准；启动 Step 1 |
 | 1.1 | 2026-07-09 | Step 8 Condition 落地；基线表更新 |
+| 1.2 | 2026-07-10 | Step 10 可视化设计器落地 |
+| 1.3 | 2026-07-10 | Step 5 详情页标题/描述可编辑 |
+| 1.4 | 2026-07-10 | Step 13 事项类型 Scheme + 可增删类型 |

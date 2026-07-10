@@ -2,12 +2,14 @@
 import PmWorkItemActivity from '@/modules/pm/components/PmWorkItemActivity/index.vue'
 import PmWorkItemComments from '@/modules/pm/components/PmWorkItemComments/index.vue'
 import PmWorkItemFieldSidebar from '@/modules/pm/components/PmWorkItemFieldSidebar/index.vue'
+import PmMarkdownEditor from '@/modules/pm/components/PmMarkdownEditor/index.vue'
 import PmMarkdownPreview from '@/modules/pm/components/PmMarkdownPreview/index.vue'
 import PmTransitionDialog from '@/modules/pm/components/PmTransitionDialog/index.vue'
 import { pmStatusApi, pmWorkItemApi } from '@/modules/pm/api'
 import { useFieldSchemaStore } from '@/modules/pm/stores'
 import type { PmWorkItem } from '@/modules/pm/types'
-import { TYPE_META } from '@/modules/pm/types'
+import { typeLabel } from '@/modules/pm/types'
+import { useProjectIssueTypes } from '@/modules/pm/composables/useIssueTypes'
 import { formatDateTime } from '@/modules/pm/utils/comment'
 import { routeId } from '@/modules/pm/utils/id'
 import { useMessage } from 'naive-ui'
@@ -27,6 +29,7 @@ const fieldStore = useFieldSchemaStore()
 const projectId = computed(() => routeId(route.params.projectId))
 const itemId = computed(() => routeId(route.params.itemId))
 const activeTab = ref(String(route.query.tab ?? 'activity'))
+const { types: projectTypes } = useProjectIssueTypes(projectId)
 
 const item = ref<PmWorkItem | null>(null)
 const links = ref<WorkItemLink[]>([])
@@ -40,6 +43,7 @@ const linkTargetId = ref<string | null>(null)
 const linkType = ref('relates_to')
 const persistedStatus = ref('')
 const statusLabelMap = ref<Record<string, string>>({})
+const editingDescription = ref(false)
 
 const transitionDialog = ref({
   show: false,
@@ -51,9 +55,10 @@ const transitionDialog = ref({
 })
 
 const typeCode = computed(() => item.value?.typeCode ?? 'task')
-const typeLabel = computed(() => TYPE_META[typeCode.value]?.label ?? '事项')
+const typeLabelText = computed(() => typeLabel(typeCode.value, projectTypes.value))
 const fieldDefs = computed(() => fieldStore.getSchema(projectId.value, typeCode.value))
 const listPath = computed(() => `/pm/projects/${projectId.value}/items/${typeCode.value}`)
+const hasDescription = computed(() => !!item.value?.description?.trim())
 
 async function loadStatusLabels() {
   if (!item.value) return
@@ -66,6 +71,7 @@ async function loadStatusLabels() {
 async function load() {
   loading.value = true
   loadError.value = ''
+  editingDescription.value = false
   try {
     const data = await pmWorkItemApi.getById(itemId.value)
     if (!data) {
@@ -91,12 +97,31 @@ async function load() {
   }
 }
 
+async function refreshMeta() {
+  if (!item.value?.id) return
+  try {
+    const fresh = await pmWorkItemApi.getById(item.value.id)
+    if (fresh && item.value) {
+      item.value = { ...item.value, updateTime: fresh.updateTime, itemKey: fresh.itemKey }
+    }
+  } catch {
+    // ignore meta refresh errors
+  }
+}
+
 async function persistItem() {
   if (!item.value) return
+  const title = item.value.title?.trim() ?? ''
+  if (!title) {
+    message.warning('标题不能为空')
+    return
+  }
+  item.value.title = title
   saving.value = true
   try {
     await pmWorkItemApi.save(item.value)
     persistedStatus.value = item.value.status ?? ''
+    await refreshMeta()
     activityRef.value?.reload()
   } catch (e) {
     message.error(e instanceof Error ? e.message : '保存失败')
@@ -110,6 +135,27 @@ let saveTimer: ReturnType<typeof setTimeout> | undefined
 function scheduleSave() {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => void persistItem(), 400)
+}
+
+function onTitleUpdate(value: string) {
+  if (!item.value) return
+  item.value = { ...item.value, title: value }
+  scheduleSave()
+}
+
+function onDescriptionUpdate(value: string) {
+  if (!item.value) return
+  item.value = { ...item.value, description: value }
+  scheduleSave()
+}
+
+function startEditDescription() {
+  editingDescription.value = true
+}
+
+function finishEditDescription() {
+  editingDescription.value = false
+  scheduleSave()
 }
 
 async function onSidebarChange() {
@@ -212,23 +258,79 @@ watch(itemId, load, { immediate: true })
           <n-card class="detail-main" :bordered="true" size="small">
             <div class="item-header">
               <n-space align="center" justify="space-between" style="width: 100%">
-                <n-space align="center" :size="12">
+                <n-space align="center" :size="12" style="flex: 1; min-width: 0">
                   <n-button text @click="goBack">← 返回</n-button>
-                  <n-text depth="3">{{ item.itemKey ?? `#${item.itemNo ?? item.id}` }}</n-text>
-                  <n-text strong>{{ item.title }}</n-text>
-                  <n-text depth="3">{{ typeLabel }}</n-text>
+                  <n-text depth="3" style="flex-shrink: 0">
+                    {{ item.itemKey ?? `#${item.itemNo ?? item.id}` }}
+                  </n-text>
+                  <n-input
+                    class="title-input"
+                    :value="item.title"
+                    size="large"
+                    :bordered="false"
+                    placeholder="输入标题"
+                    @update:value="onTitleUpdate"
+                  />
+                </n-space>
+                <n-space align="center" :size="8" style="flex-shrink: 0">
+                  <n-text depth="3">{{ typeLabelText }}</n-text>
                   <n-text depth="3">更新于 {{ formatDateTime(item.updateTime) }}</n-text>
                   <n-text v-if="saving" depth="3">保存中...</n-text>
+                  <n-popconfirm @positive-click="removeItem">
+                    <template #trigger>
+                      <n-button type="error" secondary size="small" :loading="deleting">删除</n-button>
+                    </template>
+                    确定删除该事项吗？
+                  </n-popconfirm>
                 </n-space>
-                <n-popconfirm @positive-click="removeItem">
-                  <template #trigger>
-                    <n-button type="error" secondary size="small" :loading="deleting">删除</n-button>
-                  </template>
-                  确定删除该事项吗？
-                </n-popconfirm>
               </n-space>
             </div>
+
             <n-divider style="margin: 12px 0" />
+
+            <section class="description-block">
+              <n-space align="center" justify="space-between" style="margin-bottom: 8px">
+                <n-text strong>描述</n-text>
+                <n-button
+                  v-if="editingDescription"
+                  size="tiny"
+                  type="primary"
+                  quaternary
+                  @click="finishEditDescription"
+                >
+                  完成
+                </n-button>
+                <n-button
+                  v-else-if="hasDescription"
+                  size="tiny"
+                  quaternary
+                  @click="startEditDescription"
+                >
+                  编辑
+                </n-button>
+              </n-space>
+
+              <PmMarkdownEditor
+                v-if="editingDescription"
+                :model-value="item.description"
+                placeholder="使用 Markdown 编写描述"
+                @update:model-value="onDescriptionUpdate"
+              />
+              <button
+                v-else-if="!hasDescription"
+                type="button"
+                class="desc-placeholder"
+                @click="startEditDescription"
+              >
+                添加描述…
+              </button>
+              <div v-else class="desc-preview" @dblclick="startEditDescription">
+                <PmMarkdownPreview :content="item.description" />
+              </div>
+            </section>
+
+            <n-divider style="margin: 16px 0 8px" />
+
             <n-tabs v-model:value="activeTab" type="line" animated>
               <n-tab-pane name="activity" tab="动态">
                 <PmWorkItemActivity ref="activityRef" :work-item-id="itemId" />
@@ -240,37 +342,28 @@ watch(itemId, load, { immediate: true })
                   @update:count="onCommentCountUpdate"
                 />
               </n-tab-pane>
-              <n-tab-pane name="detail" tab="详情">
-                <n-space vertical :size="16">
-                  <div>
-                    <n-text strong>描述</n-text>
-                    <div style="margin-top: 8px">
-                      <PmMarkdownPreview :content="item.description" />
-                    </div>
-                  </div>
-                  <n-divider />
-                  <div>
-                    <n-text strong>事项关联</n-text>
-                    <n-list bordered style="margin-top: 8px">
-                      <n-list-item v-for="link in links" :key="link.id">
-                        {{ link.linkType }} → #{{ String(link.sourceId) === String(itemId) ? link.targetId : link.sourceId }}
-                      </n-list-item>
-                      <n-empty v-if="!links.length" description="暂无关联" size="small" />
-                    </n-list>
-                    <n-space style="margin-top: 12px">
-                      <n-input v-model:value="linkTargetId" placeholder="目标事项 ID" style="width: 200px" />
-                      <n-select
-                        v-model:value="linkType"
-                        :options="[
-                          { label: '关联', value: 'relates_to' },
-                          { label: '阻塞', value: 'blocks' },
-                          { label: '重复', value: 'duplicates' },
-                        ]"
-                        style="width: 120px"
-                      />
-                      <n-button @click="addLink">添加关联</n-button>
-                    </n-space>
-                  </div>
+              <n-tab-pane name="detail" tab="关联">
+                <n-space vertical :size="12">
+                  <n-text strong>事项关联</n-text>
+                  <n-list bordered>
+                    <n-list-item v-for="link in links" :key="link.id">
+                      {{ link.linkType }} → #{{ String(link.sourceId) === String(itemId) ? link.targetId : link.sourceId }}
+                    </n-list-item>
+                    <n-empty v-if="!links.length" description="暂无关联" size="small" />
+                  </n-list>
+                  <n-space>
+                    <n-input v-model:value="linkTargetId" placeholder="目标事项 ID" style="width: 200px" />
+                    <n-select
+                      v-model:value="linkType"
+                      :options="[
+                        { label: '关联', value: 'relates_to' },
+                        { label: '阻塞', value: 'blocks' },
+                        { label: '重复', value: 'duplicates' },
+                      ]"
+                      style="width: 120px"
+                    />
+                    <n-button @click="addLink">添加关联</n-button>
+                  </n-space>
                 </n-space>
               </n-tab-pane>
             </n-tabs>
@@ -323,6 +416,42 @@ watch(itemId, load, { immediate: true })
 
 .item-header {
   padding: 0 4px;
+}
+
+.title-input {
+  flex: 1;
+  min-width: 120px;
+  font-weight: 600;
+}
+
+.title-input :deep(.n-input__input-el) {
+  font-weight: 600;
+}
+
+.description-block {
+  padding: 0 4px;
+}
+
+.desc-placeholder {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  border: 1px dashed var(--n-border-color);
+  border-radius: var(--n-border-radius);
+  background: transparent;
+  color: var(--n-text-color-3);
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.desc-placeholder:hover {
+  border-color: var(--n-primary-color);
+  color: var(--n-primary-color);
+}
+
+.desc-preview {
+  cursor: text;
 }
 
 .detail-body {

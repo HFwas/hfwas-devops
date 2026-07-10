@@ -223,6 +223,8 @@ public class StatusDefinitionService {
             row.setSortOrder(item.getSortOrder() != null ? item.getSortOrder() : order);
             row.setIsInitial(item.getIsInitial() != null ? item.getIsInitial() : 0);
             row.setIsFinal(item.getIsFinal() != null ? item.getIsFinal() : 0);
+            row.setLayoutX(item.getLayoutX());
+            row.setLayoutY(item.getLayoutY());
             row.setTransitions(writeTransitions(item.getTransitions()));
             statusDefinitionMapper.insert(row);
             order++;
@@ -234,6 +236,55 @@ public class StatusDefinitionService {
         statusDefinitionMapper.delete(Wrappers.<PmStatusDefinition>lambdaQuery()
                 .eq(PmStatusDefinition::getProjectId, projectId)
                 .eq(PmStatusDefinition::getTypeCode, typeCode));
+    }
+
+    /**
+     * 将 fromType 的系统默认工作流（project_id IS NULL）复制为 toType；若 from 无数据则写入通用默认。
+     */
+    @Transactional
+    public void cloneSystemWorkflow(String fromTypeCode, String toTypeCode) {
+        if (StringUtils.isBlank(toTypeCode)) {
+            throw new IllegalArgumentException("toTypeCode 不能为空");
+        }
+        String toCode = toTypeCode.trim();
+        statusDefinitionMapper.delete(Wrappers.<PmStatusDefinition>lambdaQuery()
+                .isNull(PmStatusDefinition::getProjectId)
+                .eq(PmStatusDefinition::getTypeCode, toCode));
+        List<PmStatusDefinition> template = StringUtils.isNotBlank(fromTypeCode)
+                ? listByScope(null, fromTypeCode.trim())
+                : List.of();
+        if (template.isEmpty()) {
+            template = defaultStatuses(toCode);
+        }
+        for (PmStatusDefinition src : template) {
+            PmStatusDefinition row = new PmStatusDefinition();
+            row.setProjectId(null);
+            row.setTypeCode(toCode);
+            row.setStatusCode(src.getStatusCode());
+            row.setStatusName(src.getStatusName());
+            row.setSortOrder(src.getSortOrder());
+            row.setIsInitial(src.getIsInitial());
+            row.setIsFinal(src.getIsFinal());
+            row.setLayoutX(src.getLayoutX());
+            row.setLayoutY(src.getLayoutY());
+            List<TransitionVO> transitions = parseTransitions(src.getTransitions());
+            for (TransitionVO t : transitions) {
+                if (t != null) {
+                    t.setId(UUID.randomUUID().toString());
+                }
+            }
+            row.setTransitions(writeTransitions(transitions));
+            statusDefinitionMapper.insert(row);
+        }
+    }
+
+    @Transactional
+    public void deleteSystemWorkflow(String typeCode) {
+        if (StringUtils.isBlank(typeCode)) {
+            return;
+        }
+        statusDefinitionMapper.delete(Wrappers.<PmStatusDefinition>lambdaQuery()
+                .eq(PmStatusDefinition::getTypeCode, typeCode.trim()));
     }
 
     public void ensureTransitionIdsAndNames(List<StatusDefinitionVO> statuses) {
@@ -523,6 +574,8 @@ public class StatusDefinitionService {
             vo.setSortOrder(row.getSortOrder());
             vo.setIsInitial(row.getIsInitial());
             vo.setIsFinal(row.getIsFinal());
+            vo.setLayoutX(row.getLayoutX());
+            vo.setLayoutY(row.getLayoutY());
             vo.setTransitions(parseTransitions(row.getTransitions()));
             list.add(vo);
         }

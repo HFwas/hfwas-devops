@@ -4,13 +4,15 @@ import { NButton, NPopconfirm, NTag, useMessage } from 'naive-ui'
 import PmFieldEditorDrawer from '@/modules/pm/components/PmFieldEditorDrawer/index.vue'
 import { pmFieldApi } from '@/modules/pm/api'
 import type { FieldDefinition } from '@/modules/pm/types'
-import { FIELD_TYPE_LABELS, TYPE_META } from '@/modules/pm/types'
+import { FIELD_TYPE_LABELS, typeLabel } from '@/modules/pm/types'
+import { useGlobalIssueTypes } from '@/modules/pm/composables/useIssueTypes'
 
 import { routeId } from '@/modules/pm/utils/id'
 
 const route = useRoute()
 const projectId = computed(() => routeId(route.params.projectId))
 const message = useMessage()
+const { types: globalTypes } = useGlobalIssueTypes(false)
 
 const fields = ref<FieldDefinition[]>([])
 const loading = ref(false)
@@ -54,7 +56,7 @@ const columns = computed(() => [
       if (row.systemFlag === 1) return '全部'
       const types = row.applicableTypes ?? []
       if (!types.length) return '-'
-      return types.map((c) => TYPE_META[c]?.label ?? c).join('、')
+      return types.map((c) => typeLabel(c, globalTypes.value)).join('、')
     },
   },
   {

@@ -2,11 +2,18 @@
 import PmConditionRow from '@/modules/pm/components/PmConditionRow/index.vue'
 import type { FieldDefinition, QueryCondition, QueryConditionGroup } from '@/modules/pm/types'
 
-const props = defineProps<{
-  fieldDefs: FieldDefinition[]
-  group: QueryConditionGroup
-  projectId?: number | string
-}>()
+const props = withDefaults(
+  defineProps<{
+    fieldDefs: FieldDefinition[]
+    group: QueryConditionGroup
+    projectId?: number | string
+    /** 是否展示且/或逻辑切换 */
+    showLogic?: boolean
+    /** 条件行是否带「当」前缀 */
+    showWhen?: boolean
+  }>(),
+  { showLogic: true, showWhen: true },
+)
 
 const emit = defineEmits<{ 'update:group': [QueryConditionGroup] }>()
 
@@ -32,11 +39,13 @@ function removeCondition(index: number) {
   const conditions = props.group.conditions.filter((_, i) => i !== index)
   emit('update:group', { ...props.group, conditions })
 }
+
+defineExpose({ addCondition })
 </script>
 
 <template>
-  <n-space vertical :size="12" style="width: 100%">
-    <n-space align="center" justify="space-between">
+  <div class="condition-group">
+    <div v-if="showLogic && group.conditions.length > 1" class="logic-bar">
       <n-radio-group
         :value="group.logic"
         size="small"
@@ -45,33 +54,43 @@ function removeCondition(index: number) {
         <n-radio-button value="AND">满足全部（且）</n-radio-button>
         <n-radio-button value="OR">满足任一（或）</n-radio-button>
       </n-radio-group>
-      <n-button size="small" dashed :disabled="!canAdd" @click="addCondition">添加条件</n-button>
-    </n-space>
+    </div>
 
-    <n-empty
-      v-if="!group.conditions.length"
-      description="尚未添加筛选条件"
-      size="small"
-      style="padding: 8px 0 4px"
-    />
-
-    <div v-else class="condition-list">
+    <div v-if="group.conditions.length" class="condition-list">
       <div v-for="(cond, idx) in group.conditions" :key="idx" class="condition-item">
-        <div class="condition-index">
-          <n-text depth="3">{{ idx + 1 }}</n-text>
-        </div>
-        <div class="condition-body">
-          <PmConditionRow
-            :field-defs="fieldDefs"
-            :condition="cond"
-            :project-id="projectId"
-            @update="(c) => updateCondition(idx, c)"
-          />
-        </div>
-        <n-button quaternary type="error" size="small" @click="removeCondition(idx)">删除</n-button>
+        <n-button
+          class="remove-btn"
+          quaternary
+          circle
+          size="tiny"
+          type="error"
+          title="删除条件"
+          @click="removeCondition(idx)"
+        >
+          −
+        </n-button>
+        <PmConditionRow
+          class="condition-body"
+          :field-defs="fieldDefs"
+          :condition="cond"
+          :project-id="projectId"
+          :show-when="showWhen"
+          @update="(c) => updateCondition(idx, c)"
+        />
       </div>
     </div>
-  </n-space>
+
+    <n-button
+      class="add-btn"
+      text
+      type="primary"
+      size="small"
+      :disabled="!canAdd"
+      @click="addCondition"
+    >
+      + 添加条件
+    </n-button>
+  </div>
 </template>
 
 <script lang="ts">
@@ -79,31 +98,47 @@ export default { name: 'PmConditionGroup' }
 </script>
 
 <style scoped>
-.condition-list {
+.condition-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+}
+
+.logic-bar {
+  margin-bottom: 2px;
+}
+
+.condition-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .condition-item {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--n-border-color);
-  border-radius: var(--n-border-radius);
-  background: var(--n-color-embedded, var(--n-action-color));
+  gap: 4px;
+  min-width: 0;
 }
 
-.condition-index {
-  width: 20px;
-  padding-top: 6px;
-  text-align: center;
+.remove-btn {
   flex-shrink: 0;
+  margin-top: 2px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--pm-text-muted, #9ca3af) !important;
 }
 
 .condition-body {
   flex: 1;
   min-width: 0;
+}
+
+.add-btn {
+  align-self: flex-start;
+  padding-left: 2px;
+  color: var(--pm-accent, #64748b) !important;
 }
 </style>

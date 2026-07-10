@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { useMessage } from 'naive-ui'
 import PmIssueTypeSchemeImportModal from '@/modules/pm/components/PmIssueTypeSchemeImportModal/index.vue'
-import { pmIssueTypeSchemeApi, pmMetaApi } from '@/modules/pm/api'
+import { pmIssueTypeSchemeApi, pmMetaApi, pmProjectIssueTypeApi } from '@/modules/pm/api'
+import {
+  invalidateIssueTypeCaches,
+  useGlobalIssueTypes,
+  useProjectIssueTypes,
+} from '@/modules/pm/composables/useIssueTypes'
 import type { PmWorkItemType } from '@/modules/pm/types'
-import { TYPE_META } from '@/modules/pm/types'
+import { typeColor, typeLabel } from '@/modules/pm/types'
 import { routeId } from '@/modules/pm/utils/id'
 import { downloadJsonFile, projectSchemeExportFilename } from '@/modules/pm/utils/jsonFile'
 
@@ -11,18 +16,32 @@ const route = useRoute()
 const router = useRouter()
 const message = useMessage()
 const projectId = computed(() => routeId(route.params.projectId))
-const types = ref<PmWorkItemType[]>([])
-const loading = ref(false)
+const { types: projectTypes, loading, load: loadProjectTypes } = useProjectIssueTypes(projectId)
+const { types: globalTypes, load: loadGlobalTypes } = useGlobalIssueTypes(true)
+
 const exporting = ref(false)
 const showImport = ref(false)
+const showSchemeModal = ref(false)
+const showTypeModal = ref(false)
+const savingScheme = ref(false)
+const savingType = ref(false)
+const schemeCodes = ref<string[]>([])
+const editingType = ref<PmWorkItemType | null>(null)
+const typeForm = ref({
+  code: '',
+  name: '',
+  color: '#2080f0',
+  enabled: true,
+})
 
-async function load() {
-  loading.value = true
-  try {
-    types.value = await pmMetaApi.types()
-  } finally {
-    loading.value = false
-  }
+const enabledGlobalOptions = computed(() =>
+  globalTypes.value
+    .filter((t) => t.enabled !== 0)
+    .map((t) => ({ label: `${t.name} (${t.code})`, value: t.code })),
+)
+
+async function reload() {
+  await Promise.all([loadProjectTypes(true), loadGlobalTypes(true)])
 }
 
 function openType(typeCode: string) {
@@ -42,17 +61,111 @@ async function exportProjectScheme() {
   }
 }
 
-onMounted(load)
+function openSchemeModal() {
+  schemeCodes.value = projectTypes.value.map((t) => t.code)
+  if (!schemeCodes.value.length) {
+    schemeCodes.value = globalTypes.value.filter((t) => t.enabled !== 0).map((t) => t.code)
+  }
+  showSchemeModal.value = true
+}
+
+async function saveScheme() {
+  if (!schemeCodes.value.length) {
+    message.warning('至少启用一个事项类型')
+    return
+  }
+  savingScheme.value = true
+  try {
+    await pmProjectIssueTypeApi.save(projectId.value, schemeCodes.value)
+    invalidateIssueTypeCaches(projectId.value)
+    message.success('项目启用类型已保存')
+    showSchemeModal.value = false
+    await reload()
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '保存失败')
+  } finally {
+    savingScheme.value = false
+  }
+}
+
+function openCreateType() {
+  editingType.value = null
+  typeForm.value = { code: '', name: '', color: '#2080f0', enabled: true }
+  showTypeModal.value = true
+}
+
+function openEditType(t: PmWorkItemType) {
+  editingType.value = t
+  typeForm.value = {
+    code: t.code,
+    name: t.name,
+    color: t.color || typeColor(t.code),
+    enabled: t.enabled !== 0,
+  }
+  showTypeModal.value = true
+}
+
+async function saveTypeForm() {
+  const name = typeForm.value.name.trim()
+  const code = typeForm.value.code.trim().toLowerCase()
+  if (!name) {
+    message.warning('请填写名称')
+    return
+  }
+  if (!editingType.value && !code) {
+    message.warning('请填写编码')
+    return
+  }
+  savingType.value = true
+  try {
+    await pmMetaApi.saveType({
+      id: editingType.value?.id,
+      code: editingType.value?.code ?? code,
+      name,
+      color: typeForm.value.color,
+      enabled: typeForm.value.enabled ? 1 : 0,
+    })
+    invalidateIssueTypeCaches()
+    message.success(editingType.value ? '类型已更新' : '类型已创建（已复制默认工作流）')
+    showTypeModal.value = false
+    await reload()
+    if (!editingType.value) {
+      const next = [...new Set([...projectTypes.value.map((t) => t.code), code])]
+      await pmProjectIssueTypeApi.save(projectId.value, next)
+      invalidateIssueTypeCaches(projectId.value)
+      await reload()
+    }
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '保存失败')
+  } finally {
+    savingType.value = false
+  }
+}
+
+async function deleteType(t: PmWorkItemType) {
+  try {
+    await pmMetaApi.deleteType(t.code)
+    invalidateIssueTypeCaches()
+    message.success('类型已删除')
+    await reload()
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : '删除失败')
+  }
+}
+
+onMounted(reload)
 </script>
 
 <template>
   <n-space vertical size="large">
     <n-page-header
       title="事项配置"
-      subtitle="按类型管理字段布局与状态流转；支持导入导出完整方案"
+      subtitle="管理本项目启用的事项类型，以及各类型的字段布局与状态流转"
     >
       <template #extra>
         <n-space>
+          <n-button @click="openCreateType">新建类型</n-button>
+          <n-button @click="openSchemeModal">项目启用</n-button>
           <n-button :loading="exporting" @click="exportProjectScheme">导出方案</n-button>
           <n-button type="primary" @click="showImport = true">导入方案</n-button>
         </n-space>
@@ -60,18 +173,27 @@ onMounted(load)
     </n-page-header>
 
     <n-spin :show="loading">
-      <n-grid :cols="2" :x-gap="16" :y-gap="16">
-        <n-gi v-for="t in types" :key="t.code">
+      <n-empty v-if="!projectTypes.length" description="本项目尚未启用事项类型，请点击「项目启用」或「新建类型」" />
+      <n-grid v-else :cols="2" :x-gap="16" :y-gap="16">
+        <n-gi v-for="t in projectTypes" :key="t.code">
           <n-card hoverable @click="openType(t.code)">
             <n-space align="center" justify="space-between">
               <n-space align="center">
-                <n-tag :bordered="false" :color="{ color: TYPE_META[t.code]?.color, textColor: '#fff' }">
-                  {{ TYPE_META[t.code]?.label ?? t.name }}
+                <n-tag
+                  :bordered="false"
+                  :color="{ color: typeColor(t.code, projectTypes), textColor: '#fff' }"
+                >
+                  {{ typeLabel(t.code, projectTypes) }}
                 </n-tag>
                 <n-text depth="3">{{ t.code }}</n-text>
               </n-space>
               <n-space>
-                <n-button text type="primary" @click.stop="router.push(`/pm/projects/${projectId}/settings/workflow/${t.code}`)">
+                <n-button text type="primary" @click.stop="openEditType(t)">编辑</n-button>
+                <n-button
+                  text
+                  type="primary"
+                  @click.stop="router.push(`/pm/projects/${projectId}/settings/workflow/${t.code}`)"
+                >
                   状态流转
                 </n-button>
                 <n-button text type="primary" @click.stop="openType(t.code)">字段布局 →</n-button>
@@ -83,12 +205,87 @@ onMounted(load)
           </n-card>
         </n-gi>
       </n-grid>
+
+      <n-card v-if="globalTypes.some((t) => t.enabled === 0)" size="small" style="margin-top: 16px" title="已停用的全局类型">
+        <n-space>
+          <n-space
+            v-for="t in globalTypes.filter((x) => x.enabled === 0)"
+            :key="t.code"
+            align="center"
+            size="small"
+          >
+            <n-tag :bordered="false">{{ t.name }} ({{ t.code }})</n-tag>
+            <n-button text size="tiny" type="primary" @click="openEditType(t)">恢复</n-button>
+          </n-space>
+        </n-space>
+      </n-card>
     </n-spin>
 
     <PmIssueTypeSchemeImportModal
       v-model:show="showImport"
       :project-id="projectId"
-      @imported="load"
+      @imported="reload"
     />
+
+    <n-modal v-model:show="showSchemeModal" preset="card" title="项目启用的事项类型" style="width: 480px">
+      <n-form label-placement="top">
+        <n-form-item label="启用类型" required>
+          <n-select
+            v-model:value="schemeCodes"
+            multiple
+            filterable
+            :options="enabledGlobalOptions"
+            placeholder="选择本项目可用的事项类型"
+          />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="showSchemeModal = false">取消</n-button>
+          <n-button type="primary" :loading="savingScheme" @click="saveScheme">保存</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal
+      v-model:show="showTypeModal"
+      preset="card"
+      :title="editingType ? '编辑事项类型' : '新建事项类型'"
+      style="width: 440px"
+    >
+      <n-form label-placement="top">
+        <n-form-item label="编码" required>
+          <n-input
+            v-model:value="typeForm.code"
+            placeholder="如 story"
+            :disabled="!!editingType"
+          />
+        </n-form-item>
+        <n-form-item label="名称" required>
+          <n-input v-model:value="typeForm.name" placeholder="如 故事" />
+        </n-form-item>
+        <n-form-item label="颜色">
+          <n-color-picker v-model:value="typeForm.color" :show-alpha="false" />
+        </n-form-item>
+        <n-form-item v-if="editingType" label="启用">
+          <n-switch v-model:value="typeForm.enabled" />
+        </n-form-item>
+      </n-form>
+      <template #footer>
+        <n-space justify="space-between" style="width: 100%">
+          <n-popconfirm v-if="editingType" @positive-click="deleteType(editingType!)">
+            <template #trigger>
+              <n-button type="error" quaternary>删除</n-button>
+            </template>
+            确定删除该类型？有事项时将失败。
+          </n-popconfirm>
+          <n-space v-else />
+          <n-space>
+            <n-button @click="showTypeModal = false">取消</n-button>
+            <n-button type="primary" :loading="savingType" @click="saveTypeForm">保存</n-button>
+          </n-space>
+        </n-space>
+      </template>
+    </n-modal>
   </n-space>
 </template>

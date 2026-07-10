@@ -2,14 +2,13 @@
 import { useMessage } from 'naive-ui'
 import { pmStatusApi } from '@/modules/pm/api'
 import PmTransitionRuleDrawer from '@/modules/pm/components/PmTransitionRuleDrawer/index.vue'
+import PmWorkflowCanvas from '@/modules/pm/components/PmWorkflowCanvas/index.vue'
 import { useTransitionPostFunctionMeta } from '@/modules/pm/composables/useTransitionPostFunctionMeta'
 import { useUserOptions } from '@/modules/pm/composables/useUserOptions'
 import { useProjectModules } from '@/modules/pm/composables/useProjectModules'
 import { invalidateStatusOptionsCache } from '@/modules/pm/composables/useStatusOptions'
 import {
   ANY_STATUS_CODE,
-  TYPE_META,
-  WORK_ITEM_TYPE_CODES,
   emptyTransitionConditions,
   isTransitionConditionsEmpty,
   statusTagColor,
@@ -19,6 +18,7 @@ import {
   type TransitionPostFunction,
   type TransitionValidator,
 } from '@/modules/pm/types'
+import { useProjectIssueTypes } from '@/modules/pm/composables/useIssueTypes'
 import { routeId } from '@/modules/pm/utils/id'
 import { summarizeTransitionAction } from '@/modules/pm/utils/transitionActionSummary'
 
@@ -27,7 +27,7 @@ const router = useRouter()
 const message = useMessage()
 const projectId = computed(() => routeId(route.params.projectId))
 const typeCode = ref(String(route.params.typeCode || 'task'))
-const viewMode = ref<'path' | 'rules'>('path')
+const viewMode = ref<'graph' | 'path' | 'rules'>('graph')
 const loading = ref(false)
 const saving = ref(false)
 const customized = ref(false)
@@ -47,11 +47,10 @@ const ruleDrawer = ref({
   validators: [] as TransitionValidator[],
   postFunctions: [] as TransitionPostFunction[],
 })
-
-const typeTabs = WORK_ITEM_TYPE_CODES.map((code) => ({
-  label: TYPE_META[code].label,
-  value: code,
-}))
+const { types: projectTypes } = useProjectIssueTypes(projectId)
+const typeTabs = computed(() =>
+  projectTypes.value.map((t) => ({ label: t.name, value: t.code })),
+)
 
 const { fieldLabelMap, fieldMetaMap, load: loadMeta } = useTransitionPostFunctionMeta(projectId, typeCode)
 const { labelMap: userLabelMap } = useUserOptions()
@@ -129,6 +128,8 @@ function cloneTransition(t: Transition): Transition {
 function cloneStatuses(list: StatusDefinition[]) {
   return list.map((s) => ({
     ...s,
+    layoutX: s.layoutX ?? null,
+    layoutY: s.layoutY ?? null,
     transitions: (s.transitions ?? []).map(cloneTransition),
   }))
 }
@@ -343,6 +344,31 @@ function onCellClick(fromCode: string, fromName: string, toCode: string, toName:
   openRuleDrawer(fromCode, fromName, toCode, toName)
 }
 
+function onCanvasEditTransition(payload: { fromCode: string; transitionId: string }) {
+  const from = findStatus(payload.fromCode)
+  if (!from) return
+  const t = findTransitionById(from, payload.transitionId)
+  if (!t) return
+  const to = findStatus(t.toStatus)
+  openRuleDrawerById(
+    from.statusCode,
+    from.statusName,
+    t.toStatus,
+    to?.statusName ?? t.toStatus,
+    t.id,
+  )
+}
+
+function onCanvasEditStatus(statusCode: string) {
+  const status = findStatus(statusCode)
+  if (!status || status.statusCode === ANY_STATUS_CODE) return
+  openEditStatus(status)
+}
+
+function onStatusesFromCanvas(list: StatusDefinition[]) {
+  statuses.value = list
+}
+
 function openAddStatus() {
   editingStatus.value = null
   statusForm.value = { statusCode: '', statusName: '', isInitial: false, isFinal: false }
@@ -451,6 +477,8 @@ async function persist() {
       sortOrder: i + 1,
       isInitial: s.isInitial ?? 0,
       isFinal: s.isFinal ?? 0,
+      layoutX: s.layoutX ?? null,
+      layoutY: s.layoutY ?? null,
       transitions: serializeTransitions(s.transitions),
     }))
     if (any) {
@@ -460,6 +488,8 @@ async function persist() {
         sortOrder: 999,
         isInitial: 0,
         isFinal: 0,
+        layoutX: any.layoutX ?? null,
+        layoutY: any.layoutY ?? null,
         transitions: serializeTransitions(any.transitions),
       })
     }
@@ -500,7 +530,7 @@ onMounted(load)
 
 <template>
   <n-space vertical size="large">
-    <n-page-header title="状态流转" subtitle="配置允许的状态路径，并为每条流转设置自动化动作（需点击「保存配置」持久化）">
+    <n-page-header title="状态流转" subtitle="图编辑或矩阵配置状态路径与流转规则（需点击「保存配置」持久化）">
       <template #extra>
         <n-space>
           <n-button v-if="customized" :loading="saving" @click="resetToDefault">恢复默认</n-button>
@@ -551,7 +581,19 @@ onMounted(load)
 
       <n-card size="small" style="margin-top: 16px">
         <n-tabs v-model:value="viewMode" type="line">
-          <n-tab-pane name="path" tab="流转路径">
+          <n-tab-pane name="graph" tab="图编辑">
+            <n-text depth="3" style="display: block; margin: 12px 0">
+              从节点右侧手柄拖到目标节点以新增流转；点击连线配置规则；选中连线后按 Backspace 删除；双击节点编辑状态。修改需点「保存配置」才持久化。
+            </n-text>
+            <PmWorkflowCanvas
+              :statuses="statuses"
+              @update:statuses="onStatusesFromCanvas"
+              @edit-transition="onCanvasEditTransition"
+              @edit-status="onCanvasEditStatus"
+            />
+          </n-tab-pane>
+
+          <n-tab-pane name="path" tab="矩阵">
             <n-text depth="3" style="display: block; margin: 12px 0">
               勾选启用流转；点击已启用单元格可配置名称、可见条件与自动化动作。同一路径可配置多条流转（规则列表中添加）。
             </n-text>

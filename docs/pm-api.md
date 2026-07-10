@@ -817,6 +817,7 @@ Base path: `/pm/status/workflow`
 | sortOrder | 排序 |
 | isInitial | 是否初始状态（1/0） |
 | isFinal | 是否终态 |
+| layoutX / layoutY | 可视化设计器节点坐标（可选；无则前端网格兜底） |
 | transitions | `Transition[]`：`id`、`name`、`toStatus`、`conditions`、`validators[]`、`postFunctions[]` |
 
 **Transition：**
@@ -1058,20 +1059,59 @@ Base path: `/pm/views`
 
 Base path: `/pm`
 
-### 12.1 事项类型列表
+### 12.1 事项类型
 
 **POST** `/pm/meta/types`
 
-**请求体：** `{}`
+**请求体：**
 
-**响应 data：** `PmWorkItemType[]`
+```json
+{ "includeDisabled": false }
+```
 
-| code | name |
+| 字段 | 说明 |
 |------|------|
-| requirement | 需求 |
-| task | 任务 |
-| bug | 缺陷 |
-| test_case | 测试用例 |
+| includeDisabled | 可选；`true` 时含停用类型（管理页用） |
+
+**响应 data：** `PmWorkItemType[]`（含 `code` / `name` / `color` / `icon` / `sortOrder` / `enabled`）
+
+种子类型示例：`requirement` / `task` / `bug` / `test_case`（可增删）。
+
+---
+
+### 12.1.1 保存事项类型
+
+**POST** `/pm/meta/types/save`
+
+**请求体：** `code`（新建后不可改）、`name`、`color`、`icon`、`sortOrder`、`enabled`；更新时带 `id`。
+
+新建成功后自动复制 `task` 的系统默认工作流到该 `typeCode`。
+
+`code` 须匹配 `^[a-z][a-z0-9_]{1,31}$`，禁止 `__any__` 等保留字。
+
+---
+
+### 12.1.2 删除事项类型
+
+**POST** `/pm/meta/types/delete`
+
+**请求体：** `{ "code": "story" }`
+
+有事项引用时不可删；可先停用。删除时同步移除各项目 scheme 行与系统默认工作流。
+
+---
+
+### 12.1.3 项目启用类型（Scheme）
+
+**POST** `/pm/projects/issue-types/list`
+
+**请求体：** `{ "projectId": "..." }`
+
+**响应 data：** 项目启用的 `PmWorkItemType[]`（按 scheme `sortOrder`）。项目无任何 scheme 行时，返回全部全局 `enabled=1` 类型。
+
+**POST** `/pm/projects/issue-types/save`
+
+**请求体：** `{ "projectId": "...", "typeCodes": ["task", "bug"] }` — 全量替换项目 scheme。新建项目时自动写入当前全部启用类型。
 
 ---
 
@@ -1154,7 +1194,11 @@ Key 为 **工作流中的 statusCode**（按 `sortOrder` 排序），Value 为�
 | 视图 | POST | `/pm/views/save` | 保存视图 |
 | 视图 | POST | `/pm/views/list` | 视图列表 |
 | 视图 | POST | `/pm/views/delete` | 删除视图 |
-| 元数据 | POST | `/pm/meta/types` | 事项类型 |
+| 元数据 | POST | `/pm/meta/types` | 事项类型列表 |
+| 元数据 | POST | `/pm/meta/types/save` | 新建/更新事项类型 |
+| 元数据 | POST | `/pm/meta/types/delete` | 删除事项类型 |
+| 项目 | POST | `/pm/projects/issue-types/list` | 项目启用类型 |
+| 项目 | POST | `/pm/projects/issue-types/save` | 保存项目类型 Scheme |
 | 看板 | POST | `/pm/board` | 看板数据 |
 
 ---

@@ -192,7 +192,18 @@ export const pmViewApi = {
 }
 
 export const pmMetaApi = {
-  types: () => post<PmWorkItemType[]>('/pm/meta/types', {}),
+  types: (includeDisabled = false) =>
+    post<PmWorkItemType[]>('/pm/meta/types', { includeDisabled }),
+  saveType: (type: Partial<PmWorkItemType> & { code: string; name: string }) =>
+    post<number>('/pm/meta/types/save', type),
+  deleteType: (code: string) => post<void>('/pm/meta/types/delete', { code }),
   board: (projectId: EntityId, typeCode: string) =>
     post<Record<string, PmWorkItem[]>>('/pm/board', { projectId, typeCode }),
+}
+
+export const pmProjectIssueTypeApi = {
+  list: (projectId: EntityId) =>
+    post<PmWorkItemType[]>('/pm/projects/issue-types/list', { projectId }),
+  save: (projectId: EntityId, typeCodes: string[]) =>
+    post<void>('/pm/projects/issue-types/save', { projectId, typeCodes }),
 }

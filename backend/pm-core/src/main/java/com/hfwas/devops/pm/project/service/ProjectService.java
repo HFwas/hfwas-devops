@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hfwas.devops.pm.common.PmPageRequest;
+import com.hfwas.devops.pm.meta.ProjectIssueTypeService;
 import com.hfwas.devops.pm.project.entity.PmProject;
 import com.hfwas.devops.pm.project.mapper.PmProjectMapper;
 import com.hfwas.devops.pm.project.model.ProjectAccessContextVO;
@@ -21,6 +22,7 @@ public class ProjectService {
     private final PmProjectMapper projectMapper;
     private final CurrentUserAccessor currentUserAccessor;
     private final TenantAccessValidator tenantAccessValidator;
+    private final ProjectIssueTypeService projectIssueTypeService;
 
     /**
      * Resolves project tenant for deep links: does not require current tenant header to match.
@@ -70,6 +72,7 @@ public class ProjectService {
         if (project.getId() == null) {
             project.setTenantId(tenantId);
             projectMapper.insert(project);
+            projectIssueTypeService.seedDefaultScheme(project.getId());
         } else {
             assertProjectTenant(project.getId(), tenantId);
             project.setTenantId(tenantId);

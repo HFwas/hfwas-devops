@@ -1,0 +1,157 @@
+/* PM 列表主题：贴近参考图 — 单层白底、工具栏密度、低饱和色标 */
+
+.pm-theme {
+  --pm-bg: #f5f6f8;
+  --pm-surface: #ffffff;
+  --pm-surface-muted: #f7f8fa;
+  --pm-border: #e8eaed;
+  --pm-border-soft: #eef0f3;
+  --pm-text: #1f2329;
+  --pm-text-secondary: #646a73;
+  --pm-text-muted: #8f959e;
+  --pm-primary: #3370ff;
+  --pm-primary-hover: #245bdb;
+  --pm-primary-soft: #e8f0ff;
+  --pm-accent: #3370ff;
+  --pm-radius: 8px;
+  --pm-radius-sm: 6px;
+  --pm-shadow: 0 1px 2px rgba(31, 35, 41, 0.04);
+  --pm-shadow-soft: none;
+  color: var(--pm-text);
+  background: var(--pm-bg);
+}
+
+.pm-theme .pm-panel {
+  background: var(--pm-surface);
+  border: 1px solid var(--pm-border);
+  border-radius: var(--pm-radius);
+}
+
+.pm-theme .n-data-table {
+  --n-merged-th-color: #fafbfc !important;
+}
+
+.pm-theme .n-data-table .n-data-table-th {
+  background: #fafbfc !important;
+  color: var(--pm-text-secondary) !important;
+  font-weight: 500;
+  font-size: 13px;
+  border-bottom: 1px solid var(--pm-border) !important;
+}
+
+.pm-theme .n-data-table .n-data-table-td {
+  border-bottom-color: var(--pm-border-soft) !important;
+  color: var(--pm-text);
+  font-size: 13px;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+.pm-theme .n-data-table .n-data-table-tr:hover .n-data-table-td {
+  background: #f7f8fa !important;
+}
+
+.pm-theme .n-button {
+  border-radius: var(--pm-radius-sm) !important;
+  transition: none !important;
+}
+
+.pm-theme .n-tag {
+  border-radius: 4px !important;
+  font-weight: 400;
+}
+
+.pm-theme .n-input,
+.pm-theme .n-base-selection,
+.pm-theme .n-input-number,
+.pm-theme .n-date-picker {
+  border-radius: var(--pm-radius-sm) !important;
+}
+
+.pm-theme .n-menu .n-menu-item-content {
+  border-radius: var(--pm-radius-sm) !important;
+}
+
+.pm-theme .n-menu .n-menu-item-content--selected {
+  background: var(--pm-primary-soft) !important;
+  color: var(--pm-primary) !important;
+  font-weight: 500;
+}
+
+.pm-theme .n-badge .n-badge-sup {
+  background: var(--pm-primary) !important;
+  box-shadow: none !important;
+  font-size: 11px;
+  height: 16px;
+  line-height: 16px;
+  min-width: 16px;
+  padding: 0 4px;
+}
+
+/* 状态 / 优先级软色标 */
+.pm-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.pm-pill--status-open,
+.pm-pill--status-todo,
+.pm-pill--status-default {
+  background: #e8f3ff;
+  color: #245bdb;
+}
+
+.pm-pill--status-in_progress,
+.pm-pill--status-doing {
+  background: #e8f8f0;
+  color: #2a9b6a;
+}
+
+.pm-pill--status-done,
+.pm-pill--status-closed,
+.pm-pill--status-resolved {
+  background: #f0f1f2;
+  color: #646a73;
+}
+
+.pm-pill--priority-low {
+  background: #f0f1f2;
+  color: #646a73;
+}
+
+.pm-pill--priority-medium {
+  background: #fff3e0;
+  color: #c47d1a;
+}
+
+.pm-pill--priority-high,
+.pm-pill--priority-critical {
+  background: #fdeceb;
+  color: #c24b4b;
+}
+
+.pm-user-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pm-user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffe8cc;
+  color: #c47d1a;
+  font-size: 11px;
+  font-weight: 500;
+  flex-shrink: 0;
+}

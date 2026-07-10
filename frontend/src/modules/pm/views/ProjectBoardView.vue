@@ -3,7 +3,8 @@ import PmTransitionDialog from '@/modules/pm/components/PmTransitionDialog/index
 import { pmMetaApi, pmStatusApi, pmWorkItemApi } from '@/modules/pm/api'
 import { useStatusOptions } from '@/modules/pm/composables/useStatusOptions'
 import type { PmWorkItem, StatusDefinition } from '@/modules/pm/types'
-import { TYPE_META } from '@/modules/pm/types'
+import { typeLabel } from '@/modules/pm/types'
+import { useProjectIssueTypes } from '@/modules/pm/composables/useIssueTypes'
 import { routeId } from '@/modules/pm/utils/id'
 import { useMessage } from 'naive-ui'
 
@@ -11,7 +12,8 @@ const route = useRoute()
 const message = useMessage()
 const projectId = computed(() => routeId(route.params.projectId))
 const typeCode = computed(() => String(route.params.typeCode))
-const pageTitle = computed(() => `${TYPE_META[typeCode.value]?.label ?? ''}看板`)
+const { types: projectTypes } = useProjectIssueTypes(projectId)
+const pageTitle = computed(() => `${typeLabel(typeCode.value, projectTypes.value)}看板`)
 const board = ref<Record<string, PmWorkItem[]>>({})
 const allStatuses = ref<StatusDefinition[]>([])
 const moveOptionsMap = ref<Record<string, Array<{ label: string; key: string }>>>({})
@@ -120,7 +122,7 @@ onMounted(load)
             >
               <n-text strong>{{ item.title }}</n-text>
               <n-space size="small" style="margin-top: 8px">
-                <n-tag size="small" :bordered="false">{{ TYPE_META[item.typeCode]?.label }}</n-tag>
+                <n-tag size="small" :bordered="false">{{ typeLabel(item.typeCode, projectTypes) }}</n-tag>
                 <n-dropdown
                   :options="item.id != null ? (moveOptionsMap[String(item.id)] ?? []) : []"
                   @select="(key) => moveItem(item, key as string, col.key)"

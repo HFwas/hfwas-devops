@@ -18,9 +18,17 @@ const props = defineProps<{
   restrictStatus?: boolean
   /** 评估 Transition Condition 时传入当前事项 ID */
   workItemId?: number | string
+  size?: 'tiny' | 'small' | 'medium' | 'large'
+  /** query 模式下的运算符，IN/NOT_IN 时多选 */
+  operator?: string
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [unknown] }>()
+
+const controlSize = computed(() => props.size ?? (props.mode === 'query' ? 'small' : 'medium'))
+const queryMulti = computed(
+  () => props.mode === 'query' && (props.operator === 'IN' || props.operator === 'NOT_IN'),
+)
 
 const route = useRoute()
 const resolvedProjectId = computed(() => props.projectId ?? (routeId(route.params.projectId) || undefined))
@@ -95,9 +103,10 @@ const displayText = computed(() => {
   <n-input
     v-else-if="field.fieldType === 'TEXT' || field.fieldType === 'TEXTAREA'"
     v-model:value="value as string"
+    :size="controlSize"
     :type="field.fieldType === 'TEXTAREA' ? 'textarea' : 'text'"
     :placeholder="field.fieldName"
-    :autosize="field.fieldType === 'TEXTAREA' ? { minRows: 4 } : undefined"
+    :autosize="field.fieldType === 'TEXTAREA' ? { minRows: mode === 'query' ? 1 : 4 } : undefined"
   />
   <PmMarkdownEditor
     v-else-if="field.fieldType === 'MARKDOWN'"
@@ -107,13 +116,16 @@ const displayText = computed(() => {
   <n-input-number
     v-else-if="field.fieldType === 'NUMBER'"
     v-model:value="value as number"
+    :size="controlSize"
     style="width: 100%"
   />
   <n-space v-else-if="['SELECT', 'STATUS', 'PRIORITY', 'MODULE', 'USER'].includes(field.fieldType) && !isNullOp" vertical style="width: 100%">
     <n-select
       v-model:value="value"
+      :size="controlSize"
       :options="options"
       :loading="optionsLoading"
+      :multiple="queryMulti"
       clearable
       filterable
     />
@@ -122,6 +134,7 @@ const displayText = computed(() => {
   <n-space v-else-if="field.fieldType === 'MULTI_SELECT'" vertical style="width: 100%">
     <n-select
       v-model:value="value"
+      :size="controlSize"
       :options="options"
       :loading="optionsLoading"
       multiple
@@ -132,9 +145,10 @@ const displayText = computed(() => {
   <n-date-picker
     v-else-if="field.fieldType === 'DATE'"
     v-model:value="value as number"
+    :size="controlSize"
     type="date"
     style="width: 100%"
   />
-  <n-switch v-else-if="field.fieldType === 'BOOLEAN'" v-model:value="value as boolean" />
-  <n-input v-else v-model:value="value as string" :placeholder="field.fieldName" />
+  <n-switch v-else-if="field.fieldType === 'BOOLEAN'" v-model:value="value as boolean" size="small" />
+  <n-input v-else v-model:value="value as string" :size="controlSize" :placeholder="field.fieldName" />
 </template>

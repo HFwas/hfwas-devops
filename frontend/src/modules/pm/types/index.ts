@@ -212,6 +212,9 @@ export interface StatusDefinition {
   sortOrder?: number
   isInitial?: number
   isFinal?: number
+  /** 可视化设计器节点坐标 */
+  layoutX?: number | null
+  layoutY?: number | null
   transitions?: Transition[]
 }
 
@@ -439,10 +442,13 @@ export interface PmWorkItemTimelineItem {
 }
 
 export interface PmWorkItemType {
-  id: number
+  id?: number | string
   code: string
   name: string
   icon?: string
+  color?: string
+  sortOrder?: number
+  enabled?: number
 }
 
 export interface PmSavedView {
@@ -466,6 +472,7 @@ export const OPERATORS: { label: string; value: QueryOperator }[] = [
   { label: '小于', value: 'LT' },
 ]
 
+/** 内置类型展示兜底（API 优先） */
 export const TYPE_META: Record<string, { label: string; color: string }> = {
   requirement: { label: '需求', color: '#2080f0' },
   task: { label: '任务', color: '#18a058' },
@@ -473,7 +480,24 @@ export const TYPE_META: Record<string, { label: string; color: string }> = {
   test_case: { label: '测试用例', color: '#f0a020' },
 }
 
-export const WORK_ITEM_TYPE_CODES = Object.keys(TYPE_META) as Array<keyof typeof TYPE_META>
+export const TYPE_COLOR_FALLBACK = '#64748b'
+
+/** @deprecated 请使用项目/全局类型 API；仅作无数据时的兜底 */
+export const WORK_ITEM_TYPE_CODES = Object.keys(TYPE_META)
+
+export function typeLabel(code: string | undefined | null, types?: PmWorkItemType[] | null): string {
+  if (!code) return '事项'
+  const hit = types?.find((t) => t.code === code)
+  if (hit?.name) return hit.name
+  return TYPE_META[code]?.label ?? code
+}
+
+export function typeColor(code: string | undefined | null, types?: PmWorkItemType[] | null): string {
+  if (!code) return TYPE_COLOR_FALLBACK
+  const hit = types?.find((t) => t.code === code)
+  if (hit?.color) return hit.color
+  return TYPE_META[code]?.color ?? TYPE_COLOR_FALLBACK
+}
 
 export const FIELD_TYPE_LABELS: Record<string, string> = {
   TEXT: '单行文本',
@@ -509,7 +533,7 @@ export function systemFieldProp(fieldKey: string): string {
 }
 
 export function resolveWorkItemTypeCode(path: string, fallback = 'task'): string {
-  const match = path.match(/\/(?:items|board|settings\/types)\/(requirement|task|bug|test_case)/)
+  const match = path.match(/\/(?:items|board|settings\/types|settings\/workflow)\/([a-z][a-z0-9_]*)/)
   return match?.[1] ?? fallback
 }
 

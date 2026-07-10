@@ -12,5 +12,7 @@ public class ExportedStatusDefinition {
     private Integer sortOrder;
     private Integer isInitial;
     private Integer isFinal;
+    private Double layoutX;
+    private Double layoutY;
     private List<TransitionVO> transitions;
 }

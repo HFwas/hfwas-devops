@@ -4,7 +4,8 @@ import PmFieldEditorDrawer from '@/modules/pm/components/PmFieldEditorDrawer/ind
 import { pmFieldApi, pmFieldLayoutApi } from '@/modules/pm/api'
 import { useFieldSchemaStore } from '@/modules/pm/stores'
 import type { FieldDefinition, TypeFieldLayoutConfig } from '@/modules/pm/types'
-import { FIELD_TYPE_LABELS, TYPE_META } from '@/modules/pm/types'
+import { FIELD_TYPE_LABELS, typeLabel as resolveTypeLabel } from '@/modules/pm/types'
+import { useProjectIssueTypes } from '@/modules/pm/composables/useIssueTypes'
 import { routeId } from '@/modules/pm/utils/id'
 
 const route = useRoute()
@@ -14,7 +15,8 @@ const fieldStore = useFieldSchemaStore()
 
 const projectId = computed(() => routeId(route.params.projectId))
 const typeCode = computed(() => String(route.params.typeCode))
-const typeLabel = computed(() => TYPE_META[typeCode.value]?.label ?? typeCode.value)
+const { types: projectTypes } = useProjectIssueTypes(projectId)
+const typeLabel = computed(() => resolveTypeLabel(typeCode.value, projectTypes.value))
 
 const fields = ref<FieldDefinition[]>([])
 const layout = ref<TypeFieldLayoutConfig>({ listFields: [], searchFields: [], createFields: [] })

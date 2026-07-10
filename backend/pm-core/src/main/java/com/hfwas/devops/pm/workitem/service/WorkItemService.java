@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.hfwas.devops.pm.field.engine.FieldValidator;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.field.service.FieldDefinitionService;
+import com.hfwas.devops.pm.meta.PmMetaService;
 import com.hfwas.devops.pm.query.engine.QueryEngine;
 import com.hfwas.devops.pm.query.model.QuerySpec;
 import com.hfwas.devops.pm.spi.registry.WorkItemTypeRegistry;
@@ -46,6 +47,7 @@ public class WorkItemService {
     private final TransitionValidatorExecutor transitionValidatorExecutor;
     private final TransitionConditionEvaluator transitionConditionEvaluator;
     private final WorkItemFieldApplicator workItemFieldApplicator;
+    private final PmMetaService metaService;
 
     public IPage<PmWorkItem> page(QuerySpec spec) {
         IPage<PmWorkItem> page = queryEngine.execute(spec);
@@ -66,6 +68,7 @@ public class WorkItemService {
         item.setCustomFields(normalized);
 
         if (item.getId() == null) {
+            metaService.assertTypeUsableInProject(item.getProjectId(), item.getTypeCode());
             typeRegistry.get(item.getTypeCode()).ifPresent(p -> p.validateOnCreate(item));
             if (item.getStatus() == null || item.getStatus().isBlank()) {
                 item.setStatus(statusDefinitionService.initialStatus(item.getProjectId(), item.getTypeCode()));

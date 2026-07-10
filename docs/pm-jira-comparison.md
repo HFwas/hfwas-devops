@@ -36,10 +36,10 @@
 
 | 能力 | Jira | HFWAS DevOps | 差距说明 |
 |------|------|--------------|----------|
-| 多类型事项 | Story / Task / Bug / Epic / Sub-task 等可扩展 | ✅ 4 种固定类型（需求 / 任务 / 缺陷 / 测试用例） | ❌ 无 Epic、Sub-task；无自定义类型管理 |
+| 多类型事项 | Story / Task / Bug / Epic / Sub-task 等可扩展 | ✅ 可增删类型 + 项目 Scheme 启用集合 | 🟡 无 Epic/Sub-task 层级语义 |
 | 事项编号 | `PROJ-123` | ✅ `itemKey`（项目 code + 序号，如 `DEMO-1`） | 基本对齐 |
-| 标题 | 可编辑 | 🟡 列表/侧栏可改部分字段；详情页标题只读 | 弱于 Jira 详情体验 |
-| 描述 | 富文本 + @mention | 🟡 Markdown；详情页 **只读预览** | ❌ 详情内不可编辑；无 @mention |
+| 标题 | 可编辑 | ✅ 详情页头可编辑 + 防抖保存 | 基本对齐 |
+| 描述 | 富文本 + @mention | 🟡 Markdown 可编辑（预览/编辑切换） | ❌ 无 @mention |
 | 状态流转 | 工作流 + 校验 | ✅ 可配置工作流 + `transition` 校验 | 基本对齐 |
 | 优先级 | 内置 | ✅ `PRIORITY` 系统字段 | 基本对齐 |
 | 负责人 Assignee | 内置 | ✅ `assignee_id` + 用户选择 | 基本对齐 |
@@ -87,10 +87,10 @@
 |------|------|--------------|----------|
 | 自定义字段 | 丰富类型 + 全局 / 项目级 | ✅ 14 种字段类型 + 项目级 | 类型数量少于 Jira，核心场景覆盖 |
 | 字段布局 | Screen / Issue Layout | ✅ list / search / create 布局 | 无独立「详情 Screen」配置 |
-| 工作流 | 可视化设计器、条件 / 校验 / 后置函数 | 🟡 状态矩阵 + **后置函数** + **REQUIRED_FIELDS 校验** | ❌ 无可视化设计器；无条件；无 SPI |
+| 工作流 | 可视化设计器、条件 / 校验 / 后置函数 | ✅ Vue Flow 图编辑 + Condition / Validator / Post-function | 🟡 无草稿发布；无 SPI |
 | 工作流 Scheme | 按类型 / 项目绑定 | 🟡 按项目 + 类型覆盖 | 无独立 Scheme 管理 UI |
 | 字段 Scheme | 按类型绑定字段 | ✅ 类型绑定 + 布局 | 基本对齐 |
-| 事项类型 Scheme | 可配置类型集合 | 🟡 固定 4 类型 | ❌ 不可增删类型 |
+| 事项类型 Scheme | 可配置类型集合 | ✅ 项目启用集合 + 全局类型 CRUD | 基本对齐 |
 | 配置导入导出 | 脚本 / Marketplace | ✅ 事项类型方案 JSON + 设置页导入导出 UI | 含字段与状态流转（含规则） |
 | 远程字段选项 | 有限 | ✅ 远程 SELECT + SSRF 防护 + 预览 | **相对亮点** |
 | 通知 Scheme | 按事件配置邮件 / 站内 | 🟡 仅 **负责人变更** 站内信 | ❌ 无评论 / 状态 / @ 通知配置 |
@@ -107,7 +107,7 @@
 |-----------|------|------------|
 | **Status（状态）** | 事项生命周期节点 | ✅ `pm_status_definition`：编码、名称、初始/终态 |
 | **Transition（流转）** | 状态间有向边，可命名（如「开始处理」） | 🟡 仅「源状态 → 目标状态」布尔矩阵，**无流转名称 / ID** |
-| **Workflow 可视化设计器** | 拖拽节点与连线，编辑 Transition 属性 | ❌ 表格矩阵勾选（`StatusWorkflowView.vue`），非图编辑器 |
+| **Workflow 可视化设计器** | 拖拽节点与连线，编辑 Transition 属性 | ✅ Vue Flow 图编辑（默认）+ 矩阵简易模式；点边打开规则 Drawer |
 | **Condition（条件）** | 决定 Transition **是否对用户可见/可点** | ✅ QuerySpec 条件 + `__current_user__`；`allowed` 需传 `workItemId` |
 | **Validator（校验器）** | Transition **提交时**必须满足的约束 | ✅ 路径校验 + `REQUIRED_FIELDS`（关单必填等） |
 | **Post-function（后置函数）** | Transition **成功后**自动执行（改字段、发通知等） | ✅ 内置四类：`SET_FIELD` / `NOTIFY_ASSIGNEE` / `NOTIFY_USER` / `WEBHOOK`；存于 `transition_rules`；无插件 SPI |
@@ -161,12 +161,12 @@ HFWAS：**已支持内置后置函数**（见 [step-01](./evolution/step-01-work
 
 | 维度 | Jira Workflow Designer | HFWAS `StatusWorkflowView` |
 |------|------------------------|----------------------------|
-| 呈现形式 | 有向图（节点 + 连线） | 二维矩阵表格 + 状态列表 |
-| 添加状态 | 画布上添加节点 | 弹窗表单（编码、名称、初始/终态） |
-| 配置流转 | 点击连线 → 编辑 Transition 面板 | 勾选矩阵单元格 |
-| 全局流转 | 需显式建模 | ✅ `__any__`（任何状态）行 |
-| Transition 名称 | 有（如「Resolve Issue」） | ❌ 无；前端/API 直接用目标 statusCode |
-| 规则配置入口 | Transition 面板 → Conditions / Validators / Post Functions | 🟡 矩阵 +「流转规则」Tab → Drawer（条件 / 校验 / 后置）；无图编辑器 |
+| 呈现形式 | 有向图（节点 + 连线） | ✅ Vue Flow 图编辑 + 矩阵简易模式 + 状态列表 |
+| 添加状态 | 画布上添加节点 | 🟡 弹窗表单（图编辑工具栏复用）；非拖入画布 |
+| 配置流转 | 点击连线 → 编辑 Transition 面板 | ✅ 拖拽连线 / 点边打开 Drawer；矩阵仍可勾选 |
+| 全局流转 | 需显式建模 | ✅ `__any__`（任何状态）节点 |
+| Transition 名称 | 有（如「Resolve Issue」） | ✅ `Transition.name`（边标签） |
+| 规则配置入口 | Transition 面板 → Conditions / Validators / Post Functions | ✅ 图编辑点边 / 矩阵 / 规则列表 → Drawer |
 | 项目覆盖 | Workflow Scheme 绑定 | ✅ 项目级 save / reset，回退系统默认 |
 | 导入导出 | XML / 部分 Cloud API | 🟡 含在事项类型方案 JSON 的 `statusWorkflow` 段（后端） |
 
@@ -225,7 +225,7 @@ POST /pm/work-items/{id}/transition { transitionId, fields? }
 | 流转后自动改字段 | ✅ | ✅ | 已有（SET_FIELD） |
 | 流转后通知 | ✅ | ✅ | 已有（NOTIFY_ASSIGNEE / NOTIFY_USER） |
 | 流转后 Webhook | ✅ | 🟡 | 租户钉钉/飞书渠道；无独立 URL |
-| 可视化流程图编辑器 | ✅ | ❌ | 缺失 |
+| 可视化流程图编辑器 | ✅ | ✅ | Step 10：Vue Flow + 矩阵简易模式 |
 | Transition 显示名 | ✅ | ✅ | 已有（Transition.name） |
 | 工作流版本 / 草稿发布 | ✅ (Cloud) | ❌ | 缺失 |
 | Post-function 插件 SPI | ✅ | ❌ | 缺失（Phase F） |
@@ -252,7 +252,7 @@ POST /pm/work-items/{id}/transition { transitionId, fields? }
 | **Phase B** | 基础 Validator | Step 2 | ✅ 已完成 |
 | **Phase A** | Transition 实体化 | Step 3 | ✅ 已完成 |
 | **Phase D** | Condition | Step 8 | ✅ 已完成 |
-| **Phase E** | 可视化设计器 | Step 10 | 待做 |
+| **Phase E** | 可视化设计器 | Step 10 | ✅ 已完成 |
 | **Phase F** | 扩展 SPI | Step 12 | 待做 |
 
 **投入产出建议：** Phase C 收口后优先 Phase B（关单必填）；可视化设计器（Phase E）偏体验，可晚于规则引擎。
@@ -377,7 +377,7 @@ DevOps 集成        ████    ░░░░    空白
 | 功能 | 理由 | 现状线索 |
 |------|------|----------|
 | **项目成员与权限** | 多团队无法安全协作 | `pm_project_member` 表已预留 |
-| **详情页完整编辑** | Jira 核心交互 | 描述只读；标题详情不可改 |
+| **详情页完整编辑** | Jira 核心交互 | ✅ 标题/描述可编辑（Step 5） |
 | **看板拖拽 + 进入详情** | Kanban 标志能力 | 看板仅有列 + 下拉改状态 |
 | **保存视图 / 筛选器 UI** | 后端已有，投入产出高 | `PmSavedViewController` + `pmViewApi` 无 UI |
 
@@ -404,7 +404,6 @@ DevOps 集成        ████    ░░░░    空白
 | 功能 | 理由 |
 |------|------|
 | **JQL 或高级查询语法** | Power user 需求 |
-| **自定义事项类型** | 超越固定 4 类型 |
 | **工作流条件 / 后置函数** | 对标 Jira Workflow；Condition / Validator / Post-function 已有；待角色条件与 SPI |
 | **路线图 / 甘特** | Advanced Roadmaps 级别 |
 | **从 Jira 迁移工具** | 降低替换成本 |
@@ -474,7 +473,10 @@ DevOps 集成        ████    ░░░░    空白
 | [pm-evolution-roadmap.md](./pm-evolution-roadmap.md) | 分步演进路线图与设置页 UI 标准 |
 | [evolution/step-01-workflow-post-functions.md](./evolution/step-01-workflow-post-functions.md) | Step 1：后置函数收口 |
 | [evolution/step-03-transition-entity.md](./evolution/step-03-transition-entity.md) | Step 3：Transition 实体化 |
+| [evolution/step-05-detail-edit.md](./evolution/step-05-detail-edit.md) | Step 5：详情页标题/描述编辑 |
 | [evolution/step-08-transition-conditions.md](./evolution/step-08-transition-conditions.md) | Step 8：Condition 可见性 |
+| [evolution/step-10-workflow-designer.md](./evolution/step-10-workflow-designer.md) | Step 10：可视化设计器 |
+| [evolution/step-13-issue-type-scheme.md](./evolution/step-13-issue-type-scheme.md) | Step 13：事项类型 Scheme |
 | [pm-design.md](./pm-design.md) | PM 架构与领域设计 |
 | [pm-api.md](./pm-api.md) | PM REST API 接口文档 |
 | [error-code-design.md](./error-code-design.md) | 全局错误码规范 |
@@ -490,3 +492,6 @@ DevOps 集成        ████    ░░░░    空白
 | 1.2 | 2026-07-09 | 修正 Post-function 为已实现；关联演进路线图；更新能力矩阵 |
 | 1.3 | 2026-07-09 | Step 2：Transition Validator（REQUIRED_FIELDS）已落地 |
 | 1.4 | 2026-07-09 | Step 8：Condition（QuerySpec 可见性）已落地 |
+| 1.5 | 2026-07-10 | Step 10：可视化工作流设计器已落地 |
+| 1.6 | 2026-07-10 | Step 5：详情页标题/描述可编辑 |
+| 1.7 | 2026-07-10 | Step 13：事项类型 Scheme + 可增删类型 |
