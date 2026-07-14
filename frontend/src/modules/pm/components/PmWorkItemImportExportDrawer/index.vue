@@ -6,8 +6,7 @@ import type { EntityId } from '@/modules/pm/utils/id'
 import { asId } from '@/modules/pm/utils/id'
 import {
   buildIoColumns,
-  defaultExportFieldKeys,
-  defaultImportFieldKeys,
+  resolveDefaultFieldKeys,
 } from '@/modules/pm/utils/workItemIoColumns'
 
 const props = defineProps<{
@@ -19,6 +18,10 @@ const props = defineProps<{
   fieldDefs: FieldDefinition[]
   querySpec: QuerySpec
   selectedIds: string[]
+  /** 类型功能配置的默认导出字段；空则回退 showInList */
+  defaultExportFieldKeys?: string[]
+  /** 类型功能配置的默认导入字段；空则回退现有逻辑 */
+  defaultImportFieldKeys?: string[]
 }>()
 
 const emit = defineEmits<{ 'update:show': [boolean]; done: [] }>()
@@ -63,9 +66,17 @@ const importModeOptions = [
 function initColumns() {
   columns.value = buildIoColumns(props.fieldDefs)
   if (isExport.value) {
-    selectedFieldKeys.value = defaultExportFieldKeys(columns.value)
+    selectedFieldKeys.value = resolveDefaultFieldKeys(
+      props.defaultExportFieldKeys,
+      columns.value,
+      'export',
+    )
   } else {
-    selectedFieldKeys.value = defaultImportFieldKeys(columns.value)
+    selectedFieldKeys.value = resolveDefaultFieldKeys(
+      props.defaultImportFieldKeys,
+      columns.value,
+      'import',
+    )
     if (importMode.value === 'UPSERT' && !selectedFieldKeys.value.includes('itemKey')) {
       selectedFieldKeys.value = ['itemKey', ...selectedFieldKeys.value]
     }
@@ -212,7 +223,7 @@ watch(
 )
 
 watch(
-  () => [props.mode, props.fieldDefs] as const,
+  () => [props.mode, props.fieldDefs, props.defaultExportFieldKeys, props.defaultImportFieldKeys] as const,
   () => {
     if (props.show) initColumns()
   },

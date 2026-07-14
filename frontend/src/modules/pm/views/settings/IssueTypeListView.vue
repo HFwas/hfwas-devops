@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { useMessage } from 'naive-ui'
+import { h } from 'vue'
+import type { DataTableColumns } from 'naive-ui'
+import { NButton, NTag, useMessage } from 'naive-ui'
 import PmIssueTypeSchemeImportModal from '@/modules/pm/components/PmIssueTypeSchemeImportModal/index.vue'
 import { pmIssueTypeSchemeApi, pmMetaApi, pmProjectIssueTypeApi } from '@/modules/pm/api'
 import {
@@ -8,7 +10,7 @@ import {
   useProjectIssueTypes,
 } from '@/modules/pm/composables/useIssueTypes'
 import type { PmWorkItemType } from '@/modules/pm/types'
-import { typeColor, typeLabel } from '@/modules/pm/types'
+import { typeColor } from '@/modules/pm/types'
 import { routeId } from '@/modules/pm/utils/id'
 import { downloadJsonFile, projectSchemeExportFilename } from '@/modules/pm/utils/jsonFile'
 
@@ -19,6 +21,7 @@ const projectId = computed(() => routeId(route.params.projectId))
 const { types: projectTypes, loading, load: loadProjectTypes } = useProjectIssueTypes(projectId)
 const { types: globalTypes, load: loadGlobalTypes } = useGlobalIssueTypes(true)
 
+const keyword = ref('')
 const exporting = ref(false)
 const showImport = ref(false)
 const showSchemeModal = ref(false)
@@ -39,6 +42,82 @@ const enabledGlobalOptions = computed(() =>
     .filter((t) => t.enabled !== 0)
     .map((t) => ({ label: `${t.name} (${t.code})`, value: t.code })),
 )
+
+const filteredTypes = computed(() => {
+  const kw = keyword.value.trim().toLowerCase()
+  if (!kw) return projectTypes.value
+  return projectTypes.value.filter(
+    (t) => t.name.toLowerCase().includes(kw) || t.code.toLowerCase().includes(kw),
+  )
+})
+
+const columns = computed<DataTableColumns<PmWorkItemType>>(() => [
+  {
+    title: '事项类型',
+    key: 'name',
+    render: (row) =>
+      h('div', { class: 'type-name-cell' }, [
+        h(
+          NTag,
+          {
+            bordered: false,
+            size: 'small',
+            color: { color: typeColor(row.code, projectTypes.value), textColor: '#fff' },
+          },
+          () => row.name,
+        ),
+        row.enabled === 0
+          ? h(NTag, { size: 'small', bordered: false, style: 'margin-left: 6px' }, () => '已停用')
+          : null,
+      ]),
+  },
+  {
+    title: '编码',
+    key: 'code',
+    width: 160,
+    render: (row) => h('span', { class: 'type-code' }, row.code),
+  },
+  {
+    title: '排序',
+    key: 'sortOrder',
+    width: 80,
+    render: (row) => row.sortOrder ?? '—',
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 160,
+    render: (row) =>
+      h('div', { class: 'row-actions' }, [
+        h(
+          NButton,
+          {
+            text: true,
+            type: 'primary',
+            size: 'small',
+            onClick: (e: Event) => {
+              e.stopPropagation()
+              openType(row.code)
+            },
+          },
+          () => '配置',
+        ),
+        h(
+          NButton,
+          {
+            text: true,
+            type: 'primary',
+            size: 'small',
+            onClick: (e: Event) => {
+              e.stopPropagation()
+              openEditType(row)
+            },
+          },
+          () => '编辑',
+        ),
+      ]),
+  },
+])
 
 async function reload() {
   await Promise.all([loadProjectTypes(true), loadGlobalTypes(true)])
@@ -134,6 +213,7 @@ async function saveTypeForm() {
       await pmProjectIssueTypeApi.save(projectId.value, next)
       invalidateIssueTypeCaches(projectId.value)
       await reload()
+      openType(code)
     }
   } catch (e) {
     message.error(e instanceof Error ? e.message : '保存失败')
@@ -157,69 +237,60 @@ onMounted(reload)
 </script>
 
 <template>
-  <n-space vertical size="large">
-    <n-page-header
-      title="事项配置"
-      subtitle="管理本项目启用的事项类型，以及各类型的字段布局与状态流转"
-    >
-      <template #extra>
-        <n-space>
-          <n-button @click="openCreateType">新建类型</n-button>
-          <n-button @click="openSchemeModal">项目启用</n-button>
-          <n-button :loading="exporting" @click="exportProjectScheme">导出方案</n-button>
-          <n-button type="primary" @click="showImport = true">导入方案</n-button>
-        </n-space>
-      </template>
-    </n-page-header>
+  <div class="type-list-page">
+    <div class="toolbar">
+      <n-space align="center" :size="8">
+        <n-button type="primary" size="small" @click="openCreateType">新增</n-button>
+        <n-button size="small" @click="openSchemeModal">项目启用</n-button>
+        <n-button size="small" :loading="exporting" @click="exportProjectScheme">导出方案</n-button>
+        <n-button size="small" @click="showImport = true">导入方案</n-button>
+      </n-space>
+      <n-input
+        v-model:value="keyword"
+        size="small"
+        clearable
+        placeholder="搜索名称或编码"
+        style="width: 220px"
+      />
+    </div>
 
     <n-spin :show="loading">
-      <n-empty v-if="!projectTypes.length" description="本项目尚未启用事项类型，请点击「项目启用」或「新建类型」" />
-      <n-grid v-else :cols="2" :x-gap="16" :y-gap="16">
-        <n-gi v-for="t in projectTypes" :key="t.code">
-          <n-card hoverable @click="openType(t.code)">
-            <n-space align="center" justify="space-between">
-              <n-space align="center">
-                <n-tag
-                  :bordered="false"
-                  :color="{ color: typeColor(t.code, projectTypes), textColor: '#fff' }"
-                >
-                  {{ typeLabel(t.code, projectTypes) }}
-                </n-tag>
-                <n-text depth="3">{{ t.code }}</n-text>
-              </n-space>
-              <n-space>
-                <n-button text type="primary" @click.stop="openEditType(t)">编辑</n-button>
-                <n-button
-                  text
-                  type="primary"
-                  @click.stop="router.push(`/pm/projects/${projectId}/settings/workflow/${t.code}`)"
-                >
-                  状态流转
-                </n-button>
-                <n-button text type="primary" @click.stop="openType(t.code)">字段布局 →</n-button>
-              </n-space>
-            </n-space>
-            <n-text depth="3" style="display: block; margin-top: 12px">
-              配置该事项的字段展示方案与状态流转规则
-            </n-text>
-          </n-card>
-        </n-gi>
-      </n-grid>
-
-      <n-card v-if="globalTypes.some((t) => t.enabled === 0)" size="small" style="margin-top: 16px" title="已停用的全局类型">
-        <n-space>
-          <n-space
-            v-for="t in globalTypes.filter((x) => x.enabled === 0)"
-            :key="t.code"
-            align="center"
-            size="small"
-          >
-            <n-tag :bordered="false">{{ t.name }} ({{ t.code }})</n-tag>
-            <n-button text size="tiny" type="primary" @click="openEditType(t)">恢复</n-button>
-          </n-space>
-        </n-space>
-      </n-card>
+      <n-data-table
+        size="small"
+        :bordered="false"
+        :columns="columns"
+        :data="filteredTypes"
+        :row-key="(row: PmWorkItemType) => row.code"
+        :row-props="(row: PmWorkItemType) => ({
+          style: 'cursor: pointer',
+          onClick: () => openType(row.code),
+        })"
+      />
+      <n-empty
+        v-if="!loading && !filteredTypes.length"
+        description="本项目尚未启用事项类型，请点击「项目启用」或「新增」"
+        style="padding: 32px 0"
+      />
     </n-spin>
+
+    <n-card
+      v-if="globalTypes.some((t) => t.enabled === 0)"
+      size="small"
+      style="margin-top: 12px"
+      title="已停用的全局类型"
+    >
+      <n-space>
+        <n-space
+          v-for="t in globalTypes.filter((x) => x.enabled === 0)"
+          :key="t.code"
+          align="center"
+          size="small"
+        >
+          <n-tag :bordered="false">{{ t.name }} ({{ t.code }})</n-tag>
+          <n-button text size="tiny" type="primary" @click="openEditType(t)">恢复</n-button>
+        </n-space>
+      </n-space>
+    </n-card>
 
     <PmIssueTypeSchemeImportModal
       v-model:show="showImport"
@@ -287,5 +358,38 @@ onMounted(reload)
         </n-space>
       </template>
     </n-modal>
-  </n-space>
+  </div>
 </template>
+
+<style scoped>
+.type-list-page {
+  background: var(--pm-surface, #fff);
+  border: 1px solid var(--pm-border, #e8eaed);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.type-name-cell {
+  display: flex;
+  align-items: center;
+}
+
+.type-code {
+  color: var(--pm-text-secondary, #646a73);
+  font-size: 13px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+}
+</style>

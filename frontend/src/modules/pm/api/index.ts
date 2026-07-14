@@ -1,7 +1,7 @@
 import { get, post, postBlob, postFormData } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
 import type { EntityId } from '@/modules/pm/utils/id'
-import type { AllowedTransitions, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, IssueTypeSchemeExport, IssueTypeSchemeImportPreview, IssueTypeSchemeImportResult, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemActivity, PmWorkItemComment, PmWorkItemType, ProjectAccessContext, ProjectFieldSchemeExport, ProjectIssueTypeSchemeExport, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, SchemeImportMode, StatusDefinition, StatusWorkflow, TransitionMeta, TransitionPostFunctionMeta, TypeFieldLayoutConfig, TypeFieldSchemeExport, WorkItemImportMode, WorkItemImportPreview, WorkItemImportResult } from '@/modules/pm/types'
+import type { AllowedTransitions, DetailTabDefinition, FeatureDefinition, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, IssueTypeSchemeExport, IssueTypeSchemeImportPreview, IssueTypeSchemeImportResult, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemActivity, PmWorkItemComment, PmWorkItemType, ProjectAccessContext, ProjectFieldSchemeExport, ProjectIssueTypeSchemeExport, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, SchemeImportMode, StatusDefinition, StatusWorkflow, TransitionMeta, TransitionPostFunctionMeta, TypeFieldLayoutConfig, TypeFieldSchemeExport, WorkItemImportMode, WorkItemImportPreview, WorkItemImportResult } from '@/modules/pm/types'
 import { asId } from '@/modules/pm/utils/id'
 
 export const pmModuleApi = {
@@ -197,6 +197,8 @@ export const pmMetaApi = {
   saveType: (type: Partial<PmWorkItemType> & { code: string; name: string }) =>
     post<number>('/pm/meta/types/save', type),
   deleteType: (code: string) => post<void>('/pm/meta/types/delete', { code }),
+  detailTabs: () => post<DetailTabDefinition[]>('/pm/meta/detail-tabs', {}),
+  features: () => post<FeatureDefinition[]>('/pm/meta/features', {}),
   board: (projectId: EntityId, typeCode: string) =>
     post<Record<string, PmWorkItem[]>>('/pm/board', { projectId, typeCode }),
 }

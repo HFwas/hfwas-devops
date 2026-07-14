@@ -36,3 +36,19 @@ export function defaultExportFieldKeys(columns: WorkItemIoColumn[]): string[] {
 export function defaultImportFieldKeys(columns: WorkItemIoColumn[]): string[] {
   return columns.filter((c) => c.importable !== false && c.fieldKey !== 'itemKey').map((c) => c.fieldKey)
 }
+
+/** 类型配置的默认字段；空则回退 showInList / 内置默认 */
+export function resolveDefaultFieldKeys(
+  configured: string[] | undefined | null,
+  columns: WorkItemIoColumn[],
+  mode: 'export' | 'import',
+): string[] {
+  const allowed = new Set(
+    columns
+      .filter((c) => (mode === 'export' ? c.exportable !== false : c.importable !== false))
+      .map((c) => c.fieldKey),
+  )
+  const fromConfig = (configured ?? []).filter((k) => allowed.has(k))
+  if (fromConfig.length) return fromConfig
+  return mode === 'export' ? defaultExportFieldKeys(columns) : defaultImportFieldKeys(columns)
+}

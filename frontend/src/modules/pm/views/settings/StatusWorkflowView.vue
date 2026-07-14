@@ -22,11 +22,29 @@ import { useProjectIssueTypes } from '@/modules/pm/composables/useIssueTypes'
 import { routeId } from '@/modules/pm/utils/id'
 import { summarizeTransitionAction } from '@/modules/pm/utils/transitionActionSummary'
 
+const props = withDefaults(
+  defineProps<{
+    /** 嵌入事项类型详情时隐藏页头与类型切换 */
+    embedded?: boolean
+    fixedTypeCode?: string
+    /** status=仅状态列表；transitions=仅流转；all=两者（独立页） */
+    section?: 'status' | 'transitions' | 'all'
+  }>(),
+  { embedded: false, section: 'all' },
+)
+
+const showStatusSection = computed(
+  () => props.section === 'status' || props.section === 'all',
+)
+const showTransitionSection = computed(
+  () => props.section === 'transitions' || props.section === 'all',
+)
+
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
 const projectId = computed(() => routeId(route.params.projectId))
-const typeCode = ref(String(route.params.typeCode || 'task'))
+const typeCode = ref(props.fixedTypeCode || String(route.params.typeCode || 'task'))
 const viewMode = ref<'graph' | 'path' | 'rules'>('graph')
 const loading = ref(false)
 const saving = ref(false)
@@ -516,13 +534,21 @@ async function resetToDefault() {
   }
 }
 
+watch(
+  () => props.fixedTypeCode,
+  (code) => {
+    if (code && code !== typeCode.value) typeCode.value = code
+  },
+)
+
 watch(typeCode, (code) => {
-  if (route.params.typeCode !== code) {
+  if (!props.embedded && route.params.typeCode !== code) {
     router.replace(`/pm/projects/${projectId.value}/settings/workflow/${code}`)
   }
   load()
 })
 watch(() => route.params.typeCode, (v) => {
+  if (props.embedded) return
   if (typeof v === 'string' && v !== typeCode.value) typeCode.value = v
 })
 onMounted(load)
@@ -530,16 +556,41 @@ onMounted(load)
 
 <template>
   <n-space vertical size="large">
-    <n-page-header title="状态流转" subtitle="图编辑或矩阵配置状态路径与流转规则（需点击「保存配置」持久化）">
+    <n-page-header
+      v-if="!embedded"
+      title="状态流转"
+      subtitle="图编辑或矩阵配置状态路径与流转规则（需点击「保存配置」持久化）"
+    >
       <template #extra>
         <n-space>
+          <n-button v-if="showStatusSection" type="primary" @click="openAddStatus">添加状态</n-button>
           <n-button v-if="customized" :loading="saving" @click="resetToDefault">恢复默认</n-button>
           <n-button type="primary" :loading="saving" @click="persist">保存配置</n-button>
         </n-space>
       </template>
     </n-page-header>
 
-    <n-tabs v-model:value="typeCode" type="segment">
+    <n-space v-else justify="space-between" align="center">
+      <n-text depth="3" style="font-size: 13px">
+        <template v-if="section === 'status'">配置本类型的状态；修改后需点击「保存配置」持久化</template>
+        <template v-else-if="section === 'transitions'">配置本类型的流转规则；修改后需点击「保存配置」持久化</template>
+        <template v-else>配置本类型的状态与流转规则；修改后需点击「保存配置」持久化</template>
+      </n-text>
+      <n-space>
+        <n-button
+          v-if="showStatusSection"
+          size="small"
+          type="primary"
+          @click="openAddStatus"
+        >
+          添加状态
+        </n-button>
+        <n-button v-if="customized" size="small" :loading="saving" @click="resetToDefault">恢复默认</n-button>
+        <n-button size="small" type="primary" :loading="saving" @click="persist">保存配置</n-button>
+      </n-space>
+    </n-space>
+
+    <n-tabs v-if="!embedded" v-model:value="typeCode" type="segment">
       <n-tab-pane v-for="tab in typeTabs" :key="tab.value" :name="tab.value" :tab="tab.label" />
     </n-tabs>
 
@@ -548,10 +599,7 @@ onMounted(load)
     </n-alert>
 
     <n-spin :show="loading">
-      <n-card title="状态列表" size="small">
-        <template #header-extra>
-          <n-button size="small" type="primary" @click="openAddStatus">添加状态</n-button>
-        </template>
+      <n-card v-if="showStatusSection" size="small" :bordered="section !== 'status'">
         <n-space vertical>
           <div
             v-for="(status, index) in regularStatuses"
@@ -579,7 +627,7 @@ onMounted(load)
         </n-space>
       </n-card>
 
-      <n-card size="small" style="margin-top: 16px">
+      <n-card v-if="showTransitionSection" size="small" :style="showStatusSection ? 'margin-top: 16px' : undefined">
         <n-tabs v-model:value="viewMode" type="line">
           <n-tab-pane name="graph" tab="图编辑">
             <n-text depth="3" style="display: block; margin: 12px 0">

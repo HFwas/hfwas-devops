@@ -2,6 +2,8 @@ package com.hfwas.devops.pm.field.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.hfwas.devops.pm.common.IdUtils;
+import com.hfwas.devops.pm.field.DetailTabCatalog;
+import com.hfwas.devops.pm.field.FeatureCatalog;
 import com.hfwas.devops.pm.field.mapper.FieldDefinitionMapper;
 import com.hfwas.devops.pm.field.model.*;
 import com.hfwas.devops.pm.meta.PmWorkItemType;
@@ -271,6 +273,12 @@ public class FieldSchemeService {
         sanitized.setListFields(filterLayoutKeys(sanitized.getListFields(), customKeys));
         sanitized.setSearchFields(filterLayoutKeys(sanitized.getSearchFields(), customKeys));
         sanitized.setCreateFields(filterLayoutKeys(sanitized.getCreateFields(), customKeys));
+        sanitized.setDetailTabs(DetailTabCatalog.sanitize(sanitized.getDetailTabs()));
+        LinkedHashSet<String> featureAllowed = new LinkedHashSet<>();
+        featureAllowed.addAll(SYSTEM_FIELD_KEYS);
+        featureAllowed.add("itemKey");
+        featureAllowed.addAll(customKeys);
+        sanitized.setFeatures(FeatureCatalog.sanitize(sanitized.getFeatures(), featureAllowed));
         return sanitized;
     }
 
@@ -293,6 +301,8 @@ public class FieldSchemeService {
         copy.setListFields(source.getListFields() != null ? new ArrayList<>(source.getListFields()) : new ArrayList<>());
         copy.setSearchFields(source.getSearchFields() != null ? new ArrayList<>(source.getSearchFields()) : new ArrayList<>());
         copy.setCreateFields(source.getCreateFields() != null ? new ArrayList<>(source.getCreateFields()) : new ArrayList<>());
+        copy.setDetailTabs(DetailTabCatalog.sanitize(source.getDetailTabs()));
+        copy.setFeatures(FeatureCatalog.sanitize(source.getFeatures()));
         return copy;
     }
 

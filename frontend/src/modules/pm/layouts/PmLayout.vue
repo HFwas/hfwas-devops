@@ -87,7 +87,6 @@ const menuRouteMap = computed(() => {
     [`settings-types:${id}`]: `/pm/projects/${id}/settings/types`,
     [`settings-fields:${id}`]: `/pm/projects/${id}/settings/fields`,
     [`settings-modules:${id}`]: `/pm/projects/${id}/settings/modules`,
-    [`settings-workflow:${id}`]: `/pm/projects/${id}/settings/workflow/${currentTypeCode.value}`,
   } as Record<string, string>
 })
 
@@ -115,8 +114,7 @@ const menuOptions = computed(() => {
       key: 'group-settings',
       children: [
         { label: '功能模块', key: `settings-modules:${id}` },
-        { label: '事项配置', key: `settings-types:${id}` },
-        { label: '状态流转', key: `settings-workflow:${id}` },
+        { label: '事项类型', key: `settings-types:${id}` },
         { label: '自定义字段', key: `settings-fields:${id}` },
       ],
     },
@@ -131,9 +129,10 @@ const activeMenuKey = computed(() => {
     const type = typeof route.query.type === 'string' ? route.query.type : currentTypeCode.value
     return `/pm/projects/${id}/items/${type}`
   }
-  if (path.includes('/settings/types')) return `settings-types:${id}`
+  if (path.includes('/settings/types') || path.includes('/settings/workflow')) {
+    return `settings-types:${id}`
+  }
   if (path.endsWith('/settings/fields')) return `settings-fields:${id}`
-  if (path.includes('/settings/workflow')) return `settings-workflow:${id}`
   if (path.endsWith('/settings/modules')) return `settings-modules:${id}`
   return null
 })

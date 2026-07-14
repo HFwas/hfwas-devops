@@ -64,6 +64,37 @@ export interface TypeFieldLayoutConfig {
   listFields: string[]
   searchFields: string[]
   createFields: string[]
+  /** 详情页 Tab id 有序列表 */
+  detailTabs?: string[]
+  /** 事项类型功能（如导入导出） */
+  features?: TypeFeaturesConfig
+}
+
+export interface DetailTabDefinition {
+  id: string
+  name: string
+  implemented: boolean
+  defaultEnabled: boolean
+  sortOrder: number
+}
+
+export interface FeatureDefinition {
+  id: string
+  name: string
+  implemented: boolean
+  defaultEnabled: boolean
+  sortOrder: number
+  surfaces?: string[]
+}
+
+export interface WorkItemIoFeatureConfig {
+  enabled?: boolean
+  exportFieldKeys?: string[]
+  importFieldKeys?: string[]
+}
+
+export interface TypeFeaturesConfig {
+  work_item_io?: WorkItemIoFeatureConfig
 }
 
 export interface ExportedFieldOption {

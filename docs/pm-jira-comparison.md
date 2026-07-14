@@ -86,7 +86,8 @@
 | 能力 | Jira | HFWAS DevOps | 差距说明 |
 |------|------|--------------|----------|
 | 自定义字段 | 丰富类型 + 全局 / 项目级 | ✅ 14 种字段类型 + 项目级 | 类型数量少于 Jira，核心场景覆盖 |
-| 字段布局 | Screen / Issue Layout | ✅ list / search / create 布局 | 无独立「详情 Screen」配置 |
+| 字段布局 | Screen / Issue Layout | ✅ list / search / create + **详情 Tab 启用/排序** | 🟡 无侧栏字段 Screen 拖拽 |
+| 事项类型功能 | 无同构原生（偏 App / 项目级） | ✅ Type Features：`work_item_io` 开关 + 默认导入导出字段 | **产品增强**；非 Jira 对照项 |
 | 工作流 | 可视化设计器、条件 / 校验 / 后置函数 | ✅ Vue Flow 图编辑 + Condition / Validator / Post-function | 🟡 无草稿发布；无 SPI |
 | 工作流 Scheme | 按类型 / 项目绑定 | 🟡 按项目 + 类型覆盖 | 无独立 Scheme 管理 UI |
 | 字段 Scheme | 按类型绑定字段 | ✅ 类型绑定 + 布局 | 基本对齐 |
@@ -330,8 +331,8 @@ POST /pm/work-items/{id}/transition { transitionId, fields? }
 
 | 能力 | Jira | HFWAS DevOps | 差距说明 |
 |------|------|--------------|----------|
-| CSV / Excel 导入 | 有 | ✅ Excel 导入（CREATE / UPSERT by itemKey） | 基本对齐 |
-| CSV / Excel 导出 | 有 | ✅ 可选字段、选中 / 全量导出 | 基本对齐 |
+| CSV / Excel 导入 | 有 | ✅ Excel 导入（CREATE / UPSERT by itemKey）；**可按类型关闭 / 默认字段** | 基本对齐 + 类型级增强 |
+| CSV / Excel 导出 | 有 | ✅ 可选字段、选中 / 全量导出；**可按类型关闭 / 默认字段** | 基本对齐 + 类型级增强 |
 | 配置迁移 | 部分 XML / JSON | 🟡 事项类型方案 JSON（后端） | UI 未接通 |
 | 导入模板 | 有 | ✅ 带字段映射 meta sheet | 基本对齐 |
 
@@ -477,6 +478,8 @@ DevOps 集成        ████    ░░░░    空白
 | [evolution/step-08-transition-conditions.md](./evolution/step-08-transition-conditions.md) | Step 8：Condition 可见性 |
 | [evolution/step-10-workflow-designer.md](./evolution/step-10-workflow-designer.md) | Step 10：可视化设计器 |
 | [evolution/step-13-issue-type-scheme.md](./evolution/step-13-issue-type-scheme.md) | Step 13：事项类型 Scheme |
+| [evolution/step-14-detail-tabs.md](./evolution/step-14-detail-tabs.md) | Step 14：详情 Tab 可配置 |
+| [evolution/step-15-type-features.md](./evolution/step-15-type-features.md) | Step 15：事项类型功能（导入导出） |
 | [pm-design.md](./pm-design.md) | PM 架构与领域设计 |
 | [pm-api.md](./pm-api.md) | PM REST API 接口文档 |
 | [error-code-design.md](./error-code-design.md) | 全局错误码规范 |
@@ -495,3 +498,5 @@ DevOps 集成        ████    ░░░░    空白
 | 1.5 | 2026-07-10 | Step 10：可视化工作流设计器已落地 |
 | 1.6 | 2026-07-10 | Step 5：详情页标题/描述可编辑 |
 | 1.7 | 2026-07-10 | Step 13：事项类型 Scheme + 可增删类型 |
+| 1.8 | 2026-07-10 | Step 14：详情 Tab 可配置 |
+| 1.9 | 2026-07-11 | Step 15：事项类型功能（Type Features / 导入导出）；标明 Jira 无同构原生能力 |

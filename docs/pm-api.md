@@ -763,9 +763,26 @@ Base path: `/pm/fields/layout`
 {
   "listFields": ["title", "status", "priority", "assignee_id"],
   "searchFields": ["title", "status", "priority"],
-  "createFields": ["title", "description"]
+  "createFields": ["title", "description"],
+  "detailTabs": ["description", "activity", "comments", "links"],
+  "features": {
+    "work_item_io": {
+      "enabled": true,
+      "exportFieldKeys": [],
+      "importFieldKeys": []
+    }
+  }
 }
 ```
+
+`detailTabs`：详情页 Tab id 有序列表。缺省或空时服务端回填默认（详情 / 操作记录 / 评论 / 关联）。非法或未实现 id 会被忽略。
+
+`features`：事项类型功能配置。缺省时服务端回填默认（`work_item_io.enabled=true`，字段列表为空表示前端回退现有默认勾选逻辑）。
+
+目录查询：
+
+- **POST** `/pm/meta/detail-tabs` → `DetailTabDefinition[]`（仅已实现项）
+- **POST** `/pm/meta/features` → `FeatureDefinition[]`（仅已实现项）
 
 ---
 
@@ -782,7 +799,15 @@ Base path: `/pm/fields/layout`
   "layout": {
     "listFields": ["title", "status"],
     "searchFields": ["title"],
-    "createFields": ["title"]
+    "createFields": ["title"],
+    "detailTabs": ["description", "comments", "activity"],
+    "features": {
+      "work_item_io": {
+        "enabled": true,
+        "exportFieldKeys": ["title", "status", "priority"],
+        "importFieldKeys": ["title", "status"]
+      }
+    }
   }
 }
 ```
@@ -1197,6 +1222,8 @@ Key 为 **工作流中的 statusCode**（按 `sortOrder` 排序），Value 为�
 | 元数据 | POST | `/pm/meta/types` | 事项类型列表 |
 | 元数据 | POST | `/pm/meta/types/save` | 新建/更新事项类型 |
 | 元数据 | POST | `/pm/meta/types/delete` | 删除事项类型 |
+| 元数据 | POST | `/pm/meta/detail-tabs` | 详情 Tab 目录 |
+| 元数据 | POST | `/pm/meta/features` | 事项类型功能目录 |
 | 项目 | POST | `/pm/projects/issue-types/list` | 项目启用类型 |
 | 项目 | POST | `/pm/projects/issue-types/save` | 保存项目类型 Scheme |
 | 看板 | POST | `/pm/board` | 看板数据 |

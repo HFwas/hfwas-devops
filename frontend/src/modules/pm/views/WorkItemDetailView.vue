@@ -5,9 +5,9 @@ import PmWorkItemFieldSidebar from '@/modules/pm/components/PmWorkItemFieldSideb
 import PmMarkdownEditor from '@/modules/pm/components/PmMarkdownEditor/index.vue'
 import PmMarkdownPreview from '@/modules/pm/components/PmMarkdownPreview/index.vue'
 import PmTransitionDialog from '@/modules/pm/components/PmTransitionDialog/index.vue'
-import { pmStatusApi, pmWorkItemApi } from '@/modules/pm/api'
+import { pmFieldLayoutApi, pmMetaApi, pmStatusApi, pmWorkItemApi } from '@/modules/pm/api'
 import { useFieldSchemaStore } from '@/modules/pm/stores'
-import type { PmWorkItem } from '@/modules/pm/types'
+import type { DetailTabDefinition, PmWorkItem } from '@/modules/pm/types'
 import { typeLabel } from '@/modules/pm/types'
 import { useProjectIssueTypes } from '@/modules/pm/composables/useIssueTypes'
 import { formatDateTime } from '@/modules/pm/utils/comment'
@@ -21,6 +21,13 @@ interface WorkItemLink {
   linkType: string
 }
 
+const TAB_LABEL_FALLBACK: Record<string, string> = {
+  description: '详情',
+  activity: '操作记录',
+  comments: '评论',
+  links: '关联',
+}
+
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
@@ -28,7 +35,7 @@ const fieldStore = useFieldSchemaStore()
 
 const projectId = computed(() => routeId(route.params.projectId))
 const itemId = computed(() => routeId(route.params.itemId))
-const activeTab = ref(String(route.query.tab ?? 'activity'))
+const activeTab = ref('')
 const { types: projectTypes } = useProjectIssueTypes(projectId)
 
 const item = ref<PmWorkItem | null>(null)
@@ -44,6 +51,8 @@ const linkType = ref('relates_to')
 const persistedStatus = ref('')
 const statusLabelMap = ref<Record<string, string>>({})
 const editingDescription = ref(false)
+const detailTabIds = ref<string[]>(['description', 'activity', 'comments', 'links'])
+const tabCatalog = ref<DetailTabDefinition[]>([])
 
 const transitionDialog = ref({
   show: false,
@@ -59,6 +68,45 @@ const typeLabelText = computed(() => typeLabel(typeCode.value, projectTypes.valu
 const fieldDefs = computed(() => fieldStore.getSchema(projectId.value, typeCode.value))
 const listPath = computed(() => `/pm/projects/${projectId.value}/items/${typeCode.value}`)
 const hasDescription = computed(() => !!item.value?.description?.trim())
+
+const visibleTabs = computed(() => {
+  const byId = new Map(tabCatalog.value.map((t) => [t.id, t]))
+  return detailTabIds.value
+    .filter((id) => ['description', 'activity', 'comments', 'links'].includes(id))
+    .map((id) => ({
+      id,
+      name: byId.get(id)?.name ?? TAB_LABEL_FALLBACK[id] ?? id,
+    }))
+})
+
+function tabLabel(id: string): string {
+  if (id === 'comments') return `评论 (${commentCount.value})`
+  return visibleTabs.value.find((t) => t.id === id)?.name ?? TAB_LABEL_FALLBACK[id] ?? id
+}
+
+function resolveActiveTab(preferred?: string) {
+  const ids = visibleTabs.value.map((t) => t.id)
+  if (!ids.length) {
+    activeTab.value = ''
+    return
+  }
+  const fromQuery = typeof preferred === 'string' ? preferred : activeTab.value
+  // legacy query name
+  const normalized = fromQuery === 'detail' ? 'links' : fromQuery
+  activeTab.value = ids.includes(normalized) ? normalized : ids[0]
+}
+
+async function loadDetailTabs(type: string) {
+  const [layout, catalog] = await Promise.all([
+    pmFieldLayoutApi.get(projectId.value, type),
+    pmMetaApi.detailTabs(),
+  ])
+  tabCatalog.value = catalog ?? []
+  detailTabIds.value = layout.detailTabs?.length
+    ? layout.detailTabs
+    : (catalog ?? []).filter((t) => t.defaultEnabled).map((t) => t.id)
+  resolveActiveTab(typeof route.query.tab === 'string' ? route.query.tab : undefined)
+}
 
 async function loadStatusLabels() {
   if (!item.value) return
@@ -80,6 +128,7 @@ async function load() {
     item.value = data
     persistedStatus.value = data.status ?? ''
     await fieldStore.loadSchema(projectId.value, data.typeCode)
+    await loadDetailTabs(data.typeCode)
     await loadStatusLabels()
     links.value = (await pmWorkItemApi.listLinks(itemId.value)).map((link) => ({
       id: String(link.id),
@@ -237,13 +286,14 @@ function onCommentCountUpdate(count: number) {
 }
 
 watch(activeTab, (tab) => {
+  if (!tab) return
   router.replace({ query: { ...route.query, tab } })
 })
 
 watch(
   () => route.query.tab,
   (tab) => {
-    if (typeof tab === 'string' && tab !== activeTab.value) activeTab.value = tab
+    if (typeof tab === 'string') resolveActiveTab(tab)
   },
 )
 
@@ -286,64 +336,68 @@ watch(itemId, load, { immediate: true })
               </n-space>
             </div>
 
-            <n-divider style="margin: 12px 0" />
+            <n-divider style="margin: 12px 0 8px" />
 
-            <section class="description-block">
-              <n-space align="center" justify="space-between" style="margin-bottom: 8px">
-                <n-text strong>描述</n-text>
-                <n-button
-                  v-if="editingDescription"
-                  size="tiny"
-                  type="primary"
-                  quaternary
-                  @click="finishEditDescription"
-                >
-                  完成
-                </n-button>
-                <n-button
-                  v-else-if="hasDescription"
-                  size="tiny"
-                  quaternary
-                  @click="startEditDescription"
-                >
-                  编辑
-                </n-button>
-              </n-space>
-
-              <PmMarkdownEditor
-                v-if="editingDescription"
-                :model-value="item.description"
-                placeholder="使用 Markdown 编写描述"
-                @update:model-value="onDescriptionUpdate"
-              />
-              <button
-                v-else-if="!hasDescription"
-                type="button"
-                class="desc-placeholder"
-                @click="startEditDescription"
+            <n-tabs v-if="visibleTabs.length" v-model:value="activeTab" type="line">
+              <n-tab-pane
+                v-for="tab in visibleTabs"
+                :key="tab.id"
+                :name="tab.id"
+                :tab="tabLabel(tab.id)"
               >
-                添加描述…
-              </button>
-              <div v-else class="desc-preview" @dblclick="startEditDescription">
-                <PmMarkdownPreview :content="item.description" />
-              </div>
-            </section>
+                <template v-if="tab.id === 'description'">
+                  <section class="description-block">
+                    <n-space align="center" justify="space-between" style="margin-bottom: 8px">
+                      <n-text strong>描述</n-text>
+                      <n-button
+                        v-if="editingDescription"
+                        size="tiny"
+                        type="primary"
+                        quaternary
+                        @click="finishEditDescription"
+                      >
+                        完成
+                      </n-button>
+                      <n-button
+                        v-else-if="hasDescription"
+                        size="tiny"
+                        quaternary
+                        @click="startEditDescription"
+                      >
+                        编辑
+                      </n-button>
+                    </n-space>
 
-            <n-divider style="margin: 16px 0 8px" />
+                    <PmMarkdownEditor
+                      v-if="editingDescription"
+                      :model-value="item.description"
+                      placeholder="使用 Markdown 编写描述"
+                      @update:model-value="onDescriptionUpdate"
+                    />
+                    <button
+                      v-else-if="!hasDescription"
+                      type="button"
+                      class="desc-placeholder"
+                      @click="startEditDescription"
+                    >
+                      添加描述…
+                    </button>
+                    <div v-else class="desc-preview" @dblclick="startEditDescription">
+                      <PmMarkdownPreview :content="item.description" />
+                    </div>
+                  </section>
+                </template>
 
-            <n-tabs v-model:value="activeTab" type="line" animated>
-              <n-tab-pane name="activity" tab="动态">
-                <PmWorkItemActivity ref="activityRef" :work-item-id="itemId" />
-              </n-tab-pane>
-              <n-tab-pane name="comments" :tab="`评论 (${commentCount})`">
+                <PmWorkItemActivity v-else-if="tab.id === 'activity'" ref="activityRef" :work-item-id="itemId" />
+
                 <PmWorkItemComments
+                  v-else-if="tab.id === 'comments'"
                   embedded
                   :work-item-id="itemId"
                   @update:count="onCommentCountUpdate"
                 />
-              </n-tab-pane>
-              <n-tab-pane name="detail" tab="关联">
-                <n-space vertical :size="12">
+
+                <n-space v-else-if="tab.id === 'links'" vertical :size="12">
                   <n-text strong>事项关联</n-text>
                   <n-list bordered>
                     <n-list-item v-for="link in links" :key="link.id">
@@ -367,6 +421,7 @@ watch(itemId, load, { immediate: true })
                 </n-space>
               </n-tab-pane>
             </n-tabs>
+            <n-empty v-else description="未配置详情 Tab，请在事项类型字段方案中启用" />
           </n-card>
 
           <n-card class="detail-sidebar" title="基础字段" size="small">
@@ -429,7 +484,7 @@ watch(itemId, load, { immediate: true })
 }
 
 .description-block {
-  padding: 0 4px;
+  padding: 4px 0;
 }
 
 .desc-placeholder {
@@ -462,7 +517,7 @@ watch(itemId, load, { immediate: true })
 }
 
 .detail-main {
-  min-height: 520px;
+  min-height: 420px;
 }
 
 .detail-sidebar {

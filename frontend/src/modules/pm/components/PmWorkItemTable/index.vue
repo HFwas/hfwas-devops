@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { h, type VNodeChild } from 'vue'
-import { NButton, NPopconfirm } from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
+import { NButton, NDropdown } from 'naive-ui'
+import type { DataTableColumns, DropdownOption } from 'naive-ui'
 import type { FieldDefinition, PmWorkItem, QuerySpec } from '@/modules/pm/types'
 import { PRIORITY_OPTIONS, typeLabel, systemFieldProp } from '@/modules/pm/types'
 import { useProjectIssueTypes } from '@/modules/pm/composables/useIssueTypes'
@@ -29,12 +29,19 @@ const { labelMap: userLabelMap } = useUserOptions()
 const { labelMap: statusLabelMap } = useStatusOptions(projectId, typeCode)
 
 const emit = defineEmits<{
-  rowClick: [PmWorkItem]
   open: [PmWorkItem]
+  edit: [PmWorkItem]
+  copy: [PmWorkItem]
   delete: [PmWorkItem]
   refresh: []
   'update:checkedRowKeys': [string[]]
 }>()
+
+const actionOptions: DropdownOption[] = [
+  { label: '复制', key: 'copy' },
+  { label: '编辑', key: 'edit' },
+  { label: '删除', key: 'delete' },
+]
 
 const internalCheckedKeys = ref<string[]>([])
 
@@ -57,7 +64,13 @@ const columns = computed<DataTableColumns<PmWorkItem>>(() => {
     title: f.fieldName,
     key: f.systemFlag ? f.fieldKey : `custom.${f.fieldKey}`,
     ellipsis: { tooltip: true },
-    render: (row) => renderCell(row, f),
+    minWidth: f.fieldKey === 'title' ? 200 : 100,
+    render: (row) => {
+      if (f.fieldKey === 'title') {
+        return renderLinkCell(row, String(readValue(row, f) ?? '') || '-')
+      }
+      return renderCell(row, f)
+    },
   }))
   const base: DataTableColumns<PmWorkItem> = [
     {
@@ -65,48 +78,40 @@ const columns = computed<DataTableColumns<PmWorkItem>>(() => {
       key: 'itemKey',
       width: 120,
       ellipsis: { tooltip: true },
-      render: (row) => row.itemKey ?? (row.itemNo != null ? `#${row.itemNo}` : String(row.id ?? '')),
+      render: (row) => {
+        const text = row.itemKey ?? (row.itemNo != null ? `#${row.itemNo}` : String(row.id ?? ''))
+        return renderLinkCell(row, text)
+      },
     },
     ...cols,
     {
       title: '操作',
       key: 'actions',
-      width: 100,
+      width: 56,
       fixed: 'right',
       render: (row) =>
-        h('div', { class: 'pm-row-actions' }, [
-          h(
-            NButton,
-            {
-              text: true,
-              type: 'primary',
-              size: 'small',
-              onClick: (e: Event) => {
-                e.stopPropagation()
-                emit('open', row)
-              },
-            },
-            () => '打开',
-          ),
-          h(
-            NPopconfirm,
-            { onPositiveClick: () => emit('delete', row) },
-            {
-              trigger: () =>
-                h(
-                  NButton,
-                  {
-                    text: true,
-                    type: 'error',
-                    size: 'small',
-                    onClick: (e: Event) => e.stopPropagation(),
-                  },
-                  () => '删除',
-                ),
-              default: () => '确定删除该事项吗？',
-            },
-          ),
-        ]),
+        h(
+          NDropdown,
+          {
+            trigger: 'click',
+            placement: 'bottom-end',
+            options: actionOptions,
+            onSelect: (key: string | number) => onActionSelect(String(key), row),
+          },
+          {
+            default: () =>
+              h(
+                NButton,
+                {
+                  text: true,
+                  size: 'small',
+                  class: 'pm-more-btn',
+                  onClick: (e: Event) => e.stopPropagation(),
+                },
+                () => '⋯',
+              ),
+          },
+        ),
     },
   ]
   if (props.selectable) {
@@ -114,6 +119,28 @@ const columns = computed<DataTableColumns<PmWorkItem>>(() => {
   }
   return base
 })
+
+function onActionSelect(key: string, row: PmWorkItem) {
+  if (key === 'copy') emit('copy', row)
+  else if (key === 'edit') emit('edit', row)
+  else if (key === 'delete') emit('delete', row)
+}
+
+function renderLinkCell(row: PmWorkItem, text: string): VNodeChild {
+  return h(
+    'a',
+    {
+      class: 'pm-cell-link',
+      href: 'javascript:;',
+      onClick: (e: Event) => {
+        e.preventDefault()
+        e.stopPropagation()
+        emit('open', row)
+      },
+    },
+    text,
+  )
+}
 
 function statusPillClass(code: string): string {
   const c = code.toLowerCase()
@@ -203,18 +230,29 @@ function readValue(row: PmWorkItem, field: FieldDefinition): unknown {
     :columns="columns"
     :data="data"
     :loading="loading"
-    :scroll-x="1200"
+    :scroll-x="1100"
     :row-key="(row: PmWorkItem) => asId(row.id)"
     :checked-row-keys="selectable ? checkedKeys : undefined"
     @update:checked-row-keys="selectable ? (keys: string[]) => { checkedKeys = keys } : undefined"
-    @row-click="(_: unknown, row: PmWorkItem) => emit('rowClick', row)"
   />
 </template>
 
 <style scoped>
-.pm-work-item-table :deep(.pm-row-actions) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.pm-work-item-table :deep(.pm-cell-link) {
+  color: var(--pm-primary, #3370ff);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pm-work-item-table :deep(.pm-cell-link:hover) {
+  text-decoration: underline;
+}
+
+.pm-work-item-table :deep(.pm-more-btn) {
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: 1px;
+  color: var(--pm-text-secondary, #646a73);
+  padding: 0 4px;
 }
 </style>

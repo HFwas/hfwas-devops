@@ -4,6 +4,10 @@ import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.pm.api.dto.BoardQueryDto;
 import com.hfwas.devops.pm.api.dto.MetaTypesQueryDto;
 import com.hfwas.devops.pm.api.dto.WorkItemTypeDeleteDto;
+import com.hfwas.devops.pm.field.DetailTabCatalog;
+import com.hfwas.devops.pm.field.FeatureCatalog;
+import com.hfwas.devops.pm.field.model.DetailTabDefinition;
+import com.hfwas.devops.pm.field.model.FeatureDefinition;
 import com.hfwas.devops.pm.meta.PmMetaService;
 import com.hfwas.devops.pm.meta.PmWorkItemType;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
@@ -44,6 +48,16 @@ public class PmMetaController {
     public BaseResult<Void> deleteType(@RequestBody WorkItemTypeDeleteDto dto) {
         metaService.deleteType(dto != null ? dto.getCode() : null);
         return BaseResult.ok(null);
+    }
+
+    @PostMapping("/meta/detail-tabs")
+    public BaseResult<List<DetailTabDefinition>> detailTabs() {
+        return BaseResult.ok(DetailTabCatalog.implemented());
+    }
+
+    @PostMapping("/meta/features")
+    public BaseResult<List<FeatureDefinition>> features() {
+        return BaseResult.ok(FeatureCatalog.implemented());
     }
 
     @PostMapping("/board")

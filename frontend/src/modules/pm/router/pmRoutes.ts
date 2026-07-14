@@ -59,12 +59,12 @@ export const pmRoutes: RouteRecordRaw[] = [
       },
       {
         path: 'settings/workflow',
-        redirect: (to) => `/pm/projects/${to.params.projectId}/settings/workflow/task`,
+        redirect: (to) => `/pm/projects/${to.params.projectId}/settings/types`,
       },
       {
         path: 'settings/workflow/:typeCode',
-        name: 'pm-status-workflow',
-        component: () => import('@/modules/pm/views/settings/StatusWorkflowView.vue'),
+        redirect: (to) =>
+          `/pm/projects/${to.params.projectId}/settings/types/${to.params.typeCode}?tab=workflow`,
       },
       {
         path: 'fields',

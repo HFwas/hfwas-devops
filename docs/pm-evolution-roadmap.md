@@ -81,6 +81,8 @@ flowchart LR
 | **11** | P1–P2：Sprint、附件、报表 | 企业扩展 | 待写 |
 | **12** | Phase F + P3：SPI、JQL、迁移工具 | 长期对标 | 待写 |
 | **13** | 事项类型 Scheme + 可增删类型 | 配置化底座 | [step-13](./evolution/step-13-issue-type-scheme.md) |
+| **14** | 详情 Tab 可配置 | Issue Layout 面板开关 | [step-14](./evolution/step-14-detail-tabs.md) |
+| **15** | 事项类型功能（导入导出） | 按类型开关列表能力 + 默认字段 | [step-15](./evolution/step-15-type-features.md) |
 
 ### 3.1 Step 1 — Post-function 收口（当前）
 
@@ -131,6 +133,17 @@ flowchart LR
 
 - **目标**：全局类型 CRUD + 项目启用集合；导航 API 驱动。
 - **状态：已完成**（见 [step-13](./evolution/step-13-issue-type-scheme.md)）。
+
+### 3.9 Step 14 — 详情 Tab 可配置
+
+- **目标**：按类型启用/排序详情面板；目录代码定义。
+- **状态：已完成**（见 [step-14](./evolution/step-14-detail-tabs.md)）。
+
+### 3.10 Step 15 — 事项类型功能
+
+- **目标**：与 detailTabs 同构的 Type Features；首期 `work_item_io` 开关与默认导入导出字段。
+- **说明**：Jira 无同构原生能力，本步为产品增强（见 [step-15](./evolution/step-15-type-features.md)）。
+- **状态：已完成**。
 
 ---
 
@@ -194,3 +207,5 @@ flowchart LR
 | 1.2 | 2026-07-10 | Step 10 可视化设计器落地 |
 | 1.3 | 2026-07-10 | Step 5 详情页标题/描述可编辑 |
 | 1.4 | 2026-07-10 | Step 13 事项类型 Scheme + 可增删类型 |
+| 1.5 | 2026-07-10 | Step 14 详情 Tab 可配置 |
+| 1.6 | 2026-07-11 | Step 15 事项类型功能（导入导出） |
