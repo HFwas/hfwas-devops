@@ -4,13 +4,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.hfwas.devops.common.http.OutboundHttpUrlValidator;
 import com.hfwas.devops.pm.field.model.FieldRemoteOptionsConfig;
 import com.hfwas.devops.pm.field.model.RemoteOptionFetchResult;
 import com.hfwas.devops.pm.field.model.ResolvedFieldOption;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
-import java.net.InetAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -31,7 +31,7 @@ public class FieldOptionRemoteService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
-            .followRedirects(HttpClient.Redirect.NORMAL)
+            .followRedirects(HttpClient.Redirect.NEVER)
             .build();
     private final Cache<String, CachedEntry> cache = CacheBuilder.newBuilder()
             .maximumSize(200)
@@ -69,7 +69,6 @@ public class FieldOptionRemoteService {
             }
         }
         try {
-            validateUrl(config.getUrl().trim());
             String body = executeRequest(config);
             List<ResolvedFieldOption> options = parseOptions(body, config);
             if (cacheKey != null && !options.isEmpty()) {
@@ -95,8 +94,9 @@ public class FieldOptionRemoteService {
         if (!"GET".equals(method) && !"POST".equals(method)) {
             throw new IllegalArgumentException("仅支持 GET 或 POST 请求");
         }
+        URI uri = OutboundHttpUrlValidator.toUri(config.getUrl());
         HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(config.getUrl().trim()))
+                .uri(uri)
                 .timeout(Duration.ofSeconds(15));
         Map<String, String> headers = config.getHeaders();
         if (headers != null) {
@@ -187,73 +187,6 @@ public class FieldOptionRemoteService {
             return item.asText();
         }
         return null;
-    }
-
-    void validateUrl(String url) throws Exception {
-        URI uri = URI.create(url);
-        String scheme = uri.getScheme();
-        if (scheme == null || (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme))) {
-            throw new IllegalArgumentException("仅支持 http 或 https 协议");
-        }
-        String host = uri.getHost();
-        if (StringUtils.isBlank(host)) {
-            throw new IllegalArgumentException("无效的 URL");
-        }
-        if (isBlockedHost(host)) {
-            throw new IllegalArgumentException("不允许访问内网或本地地址");
-        }
-        InetAddress[] addresses = InetAddress.getAllByName(host);
-        for (InetAddress address : addresses) {
-            if (isBlockedAddress(address)) {
-                throw new IllegalArgumentException("不允许访问内网或本地地址");
-            }
-        }
-    }
-
-    private static boolean isBlockedHost(String host) {
-        String h = host.toLowerCase();
-        return "localhost".equals(h)
-                || h.endsWith(".local")
-                || h.endsWith(".internal");
-    }
-
-    private static boolean isBlockedAddress(InetAddress address) {
-        if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isLinkLocalAddress()) {
-            return true;
-        }
-        if (address.isSiteLocalAddress()) {
-            return true;
-        }
-        byte[] bytes = address.getAddress();
-        if (bytes.length == 4) {
-            int b0 = bytes[0] & 0xFF;
-            int b1 = bytes[1] & 0xFF;
-            // 169.254.x.x link-local
-            if (b0 == 169 && b1 == 254) {
-                return true;
-            }
-            // 127.x.x.x
-            if (b0 == 127) {
-                return true;
-            }
-            // 10.x.x.x
-            if (b0 == 10) {
-                return true;
-            }
-            // 172.16-31.x.x
-            if (b0 == 172 && b1 >= 16 && b1 <= 31) {
-                return true;
-            }
-            // 192.168.x.x
-            if (b0 == 192 && b1 == 168) {
-                return true;
-            }
-            // 0.x.x.x
-            if (b0 == 0) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static String rootMessage(Throwable e) {

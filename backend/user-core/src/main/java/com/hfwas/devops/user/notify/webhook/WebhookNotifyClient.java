@@ -1,6 +1,7 @@
 package com.hfwas.devops.user.notify.webhook;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hfwas.devops.common.http.OutboundHttpUrlValidator;
 import com.hfwas.devops.user.model.NotifyTestResult;
 import com.hfwas.devops.user.model.WebhookChannelConfig;
 import com.hfwas.devops.user.notify.NotifyChannels;
@@ -28,6 +29,7 @@ public class WebhookNotifyClient {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
+            .followRedirects(HttpClient.Redirect.NEVER)
             .build();
 
     public NotifyTestResult test(String channel, WebhookChannelConfig config) {
@@ -41,8 +43,9 @@ public class WebhookNotifyClient {
         try {
             String body = buildBody(channel, title, content);
             String url = signedUrl(channel, config);
+            URI uri = OutboundHttpUrlValidator.toUri(url);
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
+                    .uri(uri)
                     .timeout(Duration.ofSeconds(10))
                     .header("Content-Type", "application/json; charset=utf-8")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
