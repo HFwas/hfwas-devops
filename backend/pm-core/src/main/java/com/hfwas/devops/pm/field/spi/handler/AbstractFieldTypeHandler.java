@@ -1,7 +1,6 @@
 package com.hfwas.devops.pm.field.spi.handler;
 
 import com.hfwas.devops.pm.field.model.FieldDefinition;
-import com.hfwas.devops.pm.field.model.FieldType;
 import com.hfwas.devops.pm.field.spi.FieldTypeHandler;
 import com.hfwas.devops.pm.query.engine.JsonSqlDialect;
 import com.hfwas.devops.pm.query.model.QueryCondition;

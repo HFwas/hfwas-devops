@@ -2,7 +2,6 @@ package com.hfwas.devops.user.message;
 
 import com.hfwas.devops.user.context.UserContext;
 import com.hfwas.devops.user.context.UserContextHolder;
-import com.hfwas.devops.user.message.MessageCategories;
 import com.hfwas.devops.user.message.model.SiteMessageCommand;
 import com.hfwas.devops.user.message.spi.SiteMessagePublisher;
 import lombok.RequiredArgsConstructor;
