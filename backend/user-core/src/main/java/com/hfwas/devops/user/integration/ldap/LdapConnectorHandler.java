@@ -1,5 +1,6 @@
 package com.hfwas.devops.user.integration.ldap;
 
+import com.hfwas.devops.common.ldap.LdapConfigValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hfwas.devops.user.integration.model.ConnectorTestResult;
 import com.hfwas.devops.user.integration.model.ExternalUserSnapshot;
@@ -35,13 +36,11 @@ public class LdapConnectorHandler implements IdentityConnectorHandler {
     @Override
     public void validateConfig(String configJson) {
         LdapConnectorConfig config = parseConfig(configJson);
-        require(config.getUrl(), "LDAP 地址不能为空");
-        require(config.getBaseDn(), "Base DN 不能为空");
+        LdapConfigValidator.toProviderUrl(config.getUrl());
+        LdapConfigValidator.validateBaseDn(config.getBaseDn());
         require(config.getBindDn(), "Bind DN 不能为空");
         require(config.getBindPassword(), "Bind 密码不能为空");
-        if (StringUtils.isBlank(config.getUserFilter())) {
-            throw new IllegalArgumentException("用户过滤条件不能为空");
-        }
+        LdapConfigValidator.validateUserFilter(config.getUserFilter());
     }
 
     @Override
@@ -87,7 +86,9 @@ public class LdapConnectorHandler implements IdentityConnectorHandler {
                     config.getExternalIdAttribute(),
                     "uid", "cn", "mail"
             });
-            NamingEnumeration<SearchResult> results = context.search(config.getBaseDn(), config.getUserFilter(), controls);
+            String baseDn = LdapConfigValidator.validateBaseDn(config.getBaseDn());
+            String userFilter = LdapConfigValidator.validateUserFilter(config.getUserFilter());
+            NamingEnumeration<SearchResult> results = context.search(baseDn, userFilter, controls);
             List<ExternalUserSnapshot> users = new ArrayList<>();
             while (results.hasMore()) {
                 SearchResult result = results.next();
@@ -121,7 +122,8 @@ public class LdapConnectorHandler implements IdentityConnectorHandler {
     private DirContext openContext(LdapConnectorConfig config) throws Exception {
         Hashtable<String, String> env = new Hashtable<>();
         env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
-        env.put(Context.PROVIDER_URL, config.getUrl().trim());
+        env.put(Context.PROVIDER_URL, LdapConfigValidator.toProviderUrl(config.getUrl()));
+        env.put(Context.REFERRAL, "ignore");
         env.put(Context.SECURITY_AUTHENTICATION, "simple");
         env.put(Context.SECURITY_PRINCIPAL, config.getBindDn().trim());
         env.put(Context.SECURITY_CREDENTIALS, config.getBindPassword());
