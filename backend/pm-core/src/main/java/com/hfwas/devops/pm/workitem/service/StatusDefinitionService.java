@@ -10,6 +10,8 @@ import com.hfwas.devops.pm.workitem.entity.PmStatusDefinition;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.mapper.PmStatusDefinitionMapper;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemMapper;
+import com.hfwas.devops.pm.meta.PmWorkItemType;
+import com.hfwas.devops.pm.meta.PmWorkItemTypeMapper;
 import com.hfwas.devops.pm.workitem.model.AllowedTransitionsVO;
 import com.hfwas.devops.pm.workitem.model.StatusDefinitionVO;
 import com.hfwas.devops.pm.workitem.model.StatusWorkflowVO;
@@ -50,6 +52,7 @@ public class StatusDefinitionService {
 
     private final PmStatusDefinitionMapper statusDefinitionMapper;
     private final PmWorkItemMapper workItemMapper;
+    private final PmWorkItemTypeMapper workItemTypeMapper;
     private final TransitionConditionEvaluator transitionConditionEvaluator;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -276,15 +279,6 @@ public class StatusDefinitionService {
             row.setTransitions(writeTransitions(transitions));
             statusDefinitionMapper.insert(row);
         }
-    }
-
-    @Transactional
-    public void deleteSystemWorkflow(String typeCode) {
-        if (StringUtils.isBlank(typeCode)) {
-            return;
-        }
-        statusDefinitionMapper.delete(Wrappers.<PmStatusDefinition>lambdaQuery()
-                .eq(PmStatusDefinition::getTypeCode, typeCode.trim()));
     }
 
     public void ensureTransitionIdsAndNames(List<StatusDefinitionVO> statuses) {
@@ -654,6 +648,77 @@ public class StatusDefinitionService {
                 .filter(s -> code.equals(s.getStatusCode()))
                 .findFirst()
                 .orElse(null);
+    }
+
+    @Transactional
+    public void seedDefaultWorkflow(Long projectId) {
+        if (projectId == null) {
+            return;
+        }
+
+        // Check if there are already any project-specific status definitions
+        Long existing = statusDefinitionMapper.selectCount(
+                Wrappers.<PmStatusDefinition>lambdaQuery()
+                        .eq(PmStatusDefinition::getProjectId, projectId));
+
+        if (existing != null && existing > 0) {
+            return; // Don't seed if project already has custom status workflows
+        }
+
+        // Get all work item types that are enabled in the system to create default workflows for them
+        List<PmWorkItemType> enabledWorkItemTypes = workItemTypeMapper.selectList(
+                Wrappers.<PmWorkItemType>lambdaQuery()
+                        .eq(PmWorkItemType::getEnabled, 1));
+
+        List<String> typeCodes = enabledWorkItemTypes.stream()
+                .map(PmWorkItemType::getCode)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        if (typeCodes.isEmpty()) {
+            // Fallback to common types if no enabled work item types are found
+            typeCodes = List.of("task", "bug", "story", "epic", "feature", "issue");
+        }
+
+        for (String typeCode : typeCodes) {
+            // Check if project already has specific workflow for this type
+            Long existingForType = statusDefinitionMapper.selectCount(
+                    Wrappers.<PmStatusDefinition>lambdaQuery()
+                            .eq(PmStatusDefinition::getProjectId, projectId)
+                            .eq(PmStatusDefinition::getTypeCode, typeCode));
+
+            if (existingForType != null && existingForType > 0) {
+                continue; // Skip if this specific type already has a workflow
+            }
+
+            // Get system-level workflow for this type
+            List<PmStatusDefinition> systemStatuses = statusDefinitionMapper.selectList(
+                    Wrappers.<PmStatusDefinition>lambdaQuery()
+                            .isNull(PmStatusDefinition::getProjectId)
+                            .eq(PmStatusDefinition::getTypeCode, typeCode));
+
+            // Use system workflow if exists, otherwise use default
+            List<PmStatusDefinition> workflowToUse = systemStatuses.isEmpty() ? defaultStatuses(typeCode) : systemStatuses;
+
+            int order = 1;
+            for (PmStatusDefinition statusDef : workflowToUse) {
+                if (ANY_STATUS_CODE.equals(statusDef.getStatusCode())) {
+                    continue; // Skip special any-status, it will be added automatically when retrieving
+                }
+                PmStatusDefinition row = new PmStatusDefinition();
+                row.setProjectId(projectId);
+                row.setTypeCode(typeCode);
+                row.setStatusCode(statusDef.getStatusCode());
+                row.setStatusName(statusDef.getStatusName());
+                row.setSortOrder(statusDef.getSortOrder() != null ? statusDef.getSortOrder() : order);
+                row.setIsInitial(statusDef.getIsInitial());
+                row.setIsFinal(statusDef.getIsFinal());
+                row.setTransitions(statusDef.getTransitions());
+                statusDefinitionMapper.insert(row);
+                order++;
+            }
+        }
     }
 
     private List<TransitionVO> parseTransitions(Object raw) {

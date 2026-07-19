@@ -1,5 +1,6 @@
 package com.hfwas.devops.pm.workitem.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hfwas.devops.pm.query.model.QueryCondition;
 import com.hfwas.devops.pm.query.model.QueryConditionGroup;
 import com.hfwas.devops.pm.query.model.QueryLogic;
@@ -18,6 +19,7 @@ public class TransitionConditionSpec {
     private List<QueryCondition> conditions = new ArrayList<>();
     private List<QueryConditionGroup> groups = new ArrayList<>();
 
+    @JsonIgnore
     public boolean isEmpty() {
         return (conditions == null || conditions.isEmpty())
                 && (groups == null || groups.isEmpty());
