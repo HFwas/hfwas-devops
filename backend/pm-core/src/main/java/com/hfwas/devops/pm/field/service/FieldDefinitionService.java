@@ -267,20 +267,6 @@ public class FieldDefinitionService {
         return available;
     }
 
-    private FieldDefinition requireProjectField(Long projectId, Long fieldId) {
-        FieldDefinition def = fieldDefinitionMapper.selectById(fieldId);
-        if (def == null) {
-            throw new IllegalArgumentException("字段不存在或已删除");
-        }
-        if (def.getSystemFlag() != null && def.getSystemFlag() == 1) {
-            throw new IllegalArgumentException("系统字段不可修改绑定");
-        }
-        if (def.getProjectId() != null && !IdUtils.sameId(def.getProjectId(), projectId)) {
-            throw new IllegalArgumentException("字段不属于当前项目");
-        }
-        return def;
-    }
-
     private List<FieldDefinition> systemFieldDefinitions() {
         List<FieldDefinition> list = new ArrayList<>();
         list.add(system("title", "标题", "TEXT", 1));

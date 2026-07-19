@@ -87,7 +87,6 @@ public class FieldResolver {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private Collection<?> toCollection(Object value) {
         if (value instanceof Collection<?> collection) {
             return collection;

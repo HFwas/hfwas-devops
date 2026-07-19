@@ -120,7 +120,7 @@ public class TransitionPostFunctionExecutor {
         }
         return template
                 .replace("{title}", displayTitle(item))
-                .replace("{itemKey}", StringUtils.defaultString(item.getItemKey(), "#" + item.getId()))
+                .replace("{itemKey}", StringUtils.defaultIfBlank(item.getItemKey(), "#" + item.getId()))
                 .replace("{fromStatus}", fromLabel)
                 .replace("{toStatus}", toLabel);
     }

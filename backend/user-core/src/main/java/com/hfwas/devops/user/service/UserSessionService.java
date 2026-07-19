@@ -152,7 +152,7 @@ public class UserSessionService {
         }
 
         Set<Long> userIds = active.stream().map(SysUserSession::getUserId).collect(Collectors.toSet());
-        Map<Long, SysUser> userMap = userMapper.selectBatchIds(userIds).stream()
+        Map<Long, SysUser> userMap = userMapper.selectByIds(userIds).stream()
                 .collect(Collectors.toMap(SysUser::getId, u -> u, (a, b) -> a));
 
         List<SysUserSession> filtered = active.stream()

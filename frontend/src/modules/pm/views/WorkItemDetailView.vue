@@ -43,9 +43,22 @@ const links = ref<WorkItemLink[]>([])
 const loading = ref(true)
 const loadError = ref('')
 const deleting = ref(false)
-const saving = ref(false)
 const commentCount = ref(0)
 const activityRef = ref<InstanceType<typeof PmWorkItemActivity> | null>(null)
+
+function bindActivityRef(el: InstanceType<typeof PmWorkItemActivity> | null) {
+  activityRef.value = el
+}
+
+function reloadActivity() {
+  activityRef.value?.reload?.()
+}
+
+let activityReloadTimer: ReturnType<typeof setTimeout> | undefined
+function scheduleActivityReload() {
+  clearTimeout(activityReloadTimer)
+  activityReloadTimer = setTimeout(() => reloadActivity(), 300)
+}
 const linkTargetId = ref<string | null>(null)
 const linkType = ref('relates_to')
 const persistedStatus = ref('')
@@ -146,18 +159,6 @@ async function load() {
   }
 }
 
-async function refreshMeta() {
-  if (!item.value?.id) return
-  try {
-    const fresh = await pmWorkItemApi.getById(item.value.id)
-    if (fresh && item.value) {
-      item.value = { ...item.value, updateTime: fresh.updateTime, itemKey: fresh.itemKey }
-    }
-  } catch {
-    // ignore meta refresh errors
-  }
-}
-
 async function persistItem() {
   if (!item.value) return
   const title = item.value.title?.trim() ?? ''
@@ -166,17 +167,14 @@ async function persistItem() {
     return
   }
   item.value.title = title
-  saving.value = true
   try {
     await pmWorkItemApi.save(item.value)
     persistedStatus.value = item.value.status ?? ''
-    await refreshMeta()
-    activityRef.value?.reload()
+    item.value.updateTime = new Date().toISOString()
+    scheduleActivityReload()
   } catch (e) {
     message.error(e instanceof Error ? e.message : '保存失败')
     await load()
-  } finally {
-    saving.value = false
   }
 }
 
@@ -239,16 +237,13 @@ async function onSidebarChange() {
         }
         return
       }
-      saving.value = true
       await pmWorkItemApi.transition(item.value.id!, { transitionId: option.id })
       message.success(`已执行「${option.name || option.toStatusName}」`)
       await load()
-      activityRef.value?.reload()
+      scheduleActivityReload()
     } catch (e) {
       message.error(e instanceof Error ? e.message : '状态流转失败')
       await load()
-    } finally {
-      saving.value = false
     }
     return
   }
@@ -282,7 +277,7 @@ function goBack() {
 
 function onCommentCountUpdate(count: number) {
   commentCount.value = count
-  activityRef.value?.reload()
+  scheduleActivityReload()
 }
 
 watch(activeTab, (tab) => {
@@ -325,7 +320,6 @@ watch(itemId, load, { immediate: true })
                 <n-space align="center" :size="8" style="flex-shrink: 0">
                   <n-text depth="3">{{ typeLabelText }}</n-text>
                   <n-text depth="3">更新于 {{ formatDateTime(item.updateTime) }}</n-text>
-                  <n-text v-if="saving" depth="3">保存中...</n-text>
                   <n-popconfirm @positive-click="removeItem">
                     <template #trigger>
                       <n-button type="error" secondary size="small" :loading="deleting">删除</n-button>
@@ -388,7 +382,7 @@ watch(itemId, load, { immediate: true })
                   </section>
                 </template>
 
-                <PmWorkItemActivity v-else-if="tab.id === 'activity'" ref="activityRef" :work-item-id="itemId" />
+                <PmWorkItemActivity v-else-if="tab.id === 'activity'" :ref="bindActivityRef" :work-item-id="itemId" />
 
                 <PmWorkItemComments
                   v-else-if="tab.id === 'comments'"
@@ -445,7 +439,7 @@ watch(itemId, load, { immediate: true })
         :from-status="transitionDialog.fromStatus"
         :from-status-name="transitionDialog.fromStatusName"
         :to-status-name="transitionDialog.toStatusName"
-        @success="() => { load(); activityRef?.reload() }"
+        @success="() => { load(); reloadActivity() }"
       />
     </template>
 

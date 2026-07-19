@@ -125,8 +125,8 @@ function displayValue(label?: string | null, fallback?: string | null) {
   return '空'
 }
 
-async function load() {
-  loading.value = true
+async function load(silent = false) {
+  if (!silent) loading.value = true
   try {
     const [actList, commentList] = await Promise.all([
       pmWorkItemApi.listActivities(props.workItemId),
@@ -135,11 +135,11 @@ async function load() {
     activities.value = actList ?? []
     comments.value = commentList ?? []
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
-defineExpose({ reload: load })
+defineExpose({ reload: () => load(true) })
 
 watch(() => props.workItemId, load, { immediate: true })
 </script>

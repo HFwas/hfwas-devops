@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 public class ProjectIssueTypeService {
 
     private final PmProjectIssueTypeMapper projectIssueTypeMapper;
-    private final PmWorkItemTypeMapper workItemTypeMapper;
     private final PmMetaService metaService;
 
     public List<PmWorkItemType> listForProject(Long projectId) {

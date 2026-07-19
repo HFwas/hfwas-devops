@@ -269,6 +269,17 @@ public class StatusDefinitionService {
         }
     }
 
+    /** 删除系统级默认工作流（project_id IS NULL）。 */
+    @Transactional
+    public void deleteSystemWorkflow(String typeCode) {
+        if (StringUtils.isBlank(typeCode)) {
+            throw new IllegalArgumentException("typeCode 不能为空");
+        }
+        statusDefinitionMapper.delete(Wrappers.<PmStatusDefinition>lambdaQuery()
+                .isNull(PmStatusDefinition::getProjectId)
+                .eq(PmStatusDefinition::getTypeCode, typeCode.trim()));
+    }
+
     public void ensureTransitionIdsAndNames(List<StatusDefinitionVO> statuses) {
         if (statuses == null) {
             return;
