@@ -8,7 +8,6 @@ import { useUserOptions } from '@/modules/pm/composables/useUserOptions'
 import { useProjectModules } from '@/modules/pm/composables/useProjectModules'
 import { invalidateStatusOptionsCache } from '@/modules/pm/composables/useStatusOptions'
 import {
-  ANY_STATUS_CODE,
   emptyTransitionConditions,
   isTransitionConditionsEmpty,
   statusTagColor,
@@ -21,6 +20,8 @@ import {
 import { useProjectIssueTypes } from '@/modules/pm/composables/useIssueTypes'
 import { routeId } from '@/modules/pm/utils/id'
 import { summarizeTransitionAction } from '@/modules/pm/utils/transitionActionSummary'
+
+const RESERVED_STATUS_CODE = '__any__'
 
 const props = withDefaults(
   defineProps<{
@@ -81,15 +82,6 @@ const summaryCtx = computed(() => ({
   moduleLabelMap: moduleLabelMap.value,
 }))
 
-const regularStatuses = computed(() =>
-  statuses.value.filter((s) => s.statusCode !== ANY_STATUS_CODE),
-)
-
-const matrixRows = computed(() => {
-  const any = statuses.value.find((s) => s.statusCode === ANY_STATUS_CODE)
-  return any ? [...regularStatuses.value, any] : regularStatuses.value
-})
-
 const configuredTransitions = computed(() => {
   const items: Array<{
     id: string
@@ -102,7 +94,7 @@ const configuredTransitions = computed(() => {
     validators: TransitionValidator[]
     actions: TransitionPostFunction[]
   }> = []
-  for (const row of matrixRows.value) {
+  for (const row of statuses.value) {
     for (const t of row.transitions ?? []) {
       const to = findStatus(t.toStatus)
       items.push({
@@ -198,41 +190,10 @@ function transitionsToTarget(fromCode: string, toCode: string): Transition[] {
   return (from?.transitions ?? []).filter((t) => t.toStatus === toCode)
 }
 
-function postFunctionCount(fromCode: string, toCode: string) {
-  return transitionsToTarget(fromCode, toCode).reduce((n, t) => n + (t.postFunctions?.length ?? 0), 0)
-}
-
-function validatorFieldCount(fromCode: string, toCode: string) {
-  return transitionsToTarget(fromCode, toCode).reduce((n, t) => {
-    const required = (t.validators ?? []).find((v) => v.type === 'REQUIRED_FIELDS')
-    return n + (required?.fieldKeys?.length ?? 0)
-  }, 0)
-}
-
-function conditionCount(fromCode: string, toCode: string) {
-  return transitionsToTarget(fromCode, toCode).reduce((n, t) => {
-    if (isTransitionConditionsEmpty(t.conditions)) return n
-    return n + (t.conditions?.conditions?.length ?? 0) + (t.conditions?.groups?.length ?? 0)
-  }, 0)
-}
-
-function transitionCellLabel(fromCode: string, toCode: string, toName: string) {
-  const edges = transitionsToTarget(fromCode, toCode)
-  if (!edges.length) return '点击启用'
-  if (edges.length > 1) return `${edges.length} 条流转`
-  const t = edges[0]
-  const vCount = validatorFieldCount(fromCode, toCode)
-  const aCount = postFunctionCount(fromCode, toCode)
-  const cCount = conditionCount(fromCode, toCode)
-  if (t.name && t.name !== `→ ${toName}`) return t.name
-  if (vCount || aCount || cCount) {
-    const parts: string[] = []
-    if (cCount) parts.push(`${cCount} 条件`)
-    if (vCount) parts.push(`${vCount} 校验`)
-    if (aCount) parts.push(`${aCount} 动作`)
-    return parts.join(' · ')
-  }
-  return t.name || '配置规则'
+function matrixCellHint(fromCode: string, toCode: string) {
+  const count = transitionsToTarget(fromCode, toCode).length
+  if (!count) return ''
+  return count > 1 ? `${count} 条` : '已启用'
 }
 
 function summarizeValidators(validators: TransitionValidator[]) {
@@ -256,16 +217,6 @@ function summarizeConditions(spec?: TransitionConditionSpec) {
   const groupCount = spec?.groups?.length ?? 0
   if (groupCount) labels.push(`${groupCount} 组条件`)
   return labels
-}
-
-function openRuleDrawer(fromCode: string, fromName: string, toCode: string, toName: string) {
-  if (!isEnabled(fromCode, toCode)) {
-    setTransition(fromCode, toCode, true, toName)
-  }
-  const from = findStatus(fromCode)
-  if (!from) return
-  const t = ensureTransition(from, toCode, toName)
-  openRuleDrawerById(fromCode, fromName, toCode, toName, t.id)
 }
 
 function openRuleDrawerById(
@@ -328,7 +279,9 @@ async function load() {
   try {
     const data = await pmStatusApi.get(projectId.value, typeCode.value)
     customized.value = !!data.customized
-    statuses.value = cloneStatuses(data.statuses ?? [])
+    statuses.value = cloneStatuses(data.statuses ?? []).filter(
+      (s) => s.statusCode !== RESERVED_STATUS_CODE,
+    )
     await loadMeta(true)
   } finally {
     loading.value = false
@@ -357,11 +310,6 @@ function setTransition(fromCode: string, toCode: string, enabled: boolean, toNam
   }
 }
 
-function onCellClick(fromCode: string, fromName: string, toCode: string, toName: string) {
-  if (fromCode === toCode) return
-  openRuleDrawer(fromCode, fromName, toCode, toName)
-}
-
 function onCanvasEditTransition(payload: { fromCode: string; transitionId: string }) {
   const from = findStatus(payload.fromCode)
   if (!from) return
@@ -379,12 +327,12 @@ function onCanvasEditTransition(payload: { fromCode: string; transitionId: strin
 
 function onCanvasEditStatus(statusCode: string) {
   const status = findStatus(statusCode)
-  if (!status || status.statusCode === ANY_STATUS_CODE) return
+  if (!status) return
   openEditStatus(status)
 }
 
 function onStatusesFromCanvas(list: StatusDefinition[]) {
-  statuses.value = list
+  statuses.value = list.filter((s) => s.statusCode !== RESERVED_STATUS_CODE)
 }
 
 function openAddStatus() {
@@ -411,7 +359,7 @@ function saveStatusForm() {
     message.warning('请填写状态编码和名称')
     return
   }
-  if (code === ANY_STATUS_CODE) {
+  if (code === RESERVED_STATUS_CODE) {
     message.warning('不能使用保留编码')
     return
   }
@@ -432,17 +380,15 @@ function saveStatusForm() {
     const row: StatusDefinition = {
       statusCode: code,
       statusName: name,
-      sortOrder: regularStatuses.value.length + 1,
+      sortOrder: statuses.value.length + 1,
       isInitial: statusForm.value.isInitial ? 1 : 0,
       isFinal: statusForm.value.isFinal ? 1 : 0,
       transitions: [],
     }
-    const anyIndex = statuses.value.findIndex((s) => s.statusCode === ANY_STATUS_CODE)
-    if (anyIndex >= 0) statuses.value.splice(anyIndex, 0, row)
-    else statuses.value.push(row)
+    statuses.value.push(row)
   }
   if (statusForm.value.isInitial) {
-    for (const s of regularStatuses.value) {
+    for (const s of statuses.value) {
       if (s.statusCode !== code) s.isInitial = 0
     }
   }
@@ -487,9 +433,7 @@ async function persist() {
   }
   saving.value = true
   try {
-    const regular = statuses.value.filter((s) => s.statusCode !== ANY_STATUS_CODE)
-    const any = statuses.value.find((s) => s.statusCode === ANY_STATUS_CODE)
-    const payload: StatusDefinition[] = regular.map((s, i) => ({
+    const payload: StatusDefinition[] = statuses.value.map((s, i) => ({
       statusCode: s.statusCode,
       statusName: s.statusName,
       sortOrder: i + 1,
@@ -499,18 +443,6 @@ async function persist() {
       layoutY: s.layoutY ?? null,
       transitions: serializeTransitions(s.transitions),
     }))
-    if (any) {
-      payload.push({
-        statusCode: ANY_STATUS_CODE,
-        statusName: any.statusName,
-        sortOrder: 999,
-        isInitial: 0,
-        isFinal: 0,
-        layoutX: any.layoutX ?? null,
-        layoutY: any.layoutY ?? null,
-        transitions: serializeTransitions(any.transitions),
-      })
-    }
     await pmStatusApi.save(projectId.value, typeCode.value, payload)
     invalidateStatusOptionsCache(projectId.value, typeCode.value)
     message.success('状态流转已保存')
@@ -602,7 +534,7 @@ onMounted(load)
       <n-card v-if="showStatusSection" size="small" :bordered="section !== 'status'">
         <n-space vertical>
           <div
-            v-for="(status, index) in regularStatuses"
+            v-for="(status, index) in statuses"
             :key="status.statusCode"
             class="status-item"
           >
@@ -643,7 +575,7 @@ onMounted(load)
 
           <n-tab-pane name="path" tab="矩阵">
             <n-text depth="3" style="display: block; margin: 12px 0">
-              勾选启用流转；点击已启用单元格可配置名称、可见条件与自动化动作。同一路径可配置多条流转（规则列表中添加）。
+              勾选启用流转路径；名称、可见条件与自动化动作请在「流转规则」中配置。
             </n-text>
             <div class="matrix-wrap">
               <table class="matrix-table">
@@ -653,7 +585,7 @@ onMounted(load)
                       <span class="corner-from">开始</span>
                       <span class="corner-to">目标</span>
                     </th>
-                    <th v-for="(col, colIndex) in regularStatuses" :key="col.statusCode" class="matrix-head">
+                    <th v-for="(col, colIndex) in statuses" :key="col.statusCode" class="matrix-head">
                       <n-tag
                         size="small"
                         :bordered="false"
@@ -665,22 +597,20 @@ onMounted(load)
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(row, rowIndex) in matrixRows" :key="row.statusCode">
+                  <tr v-for="(row, rowIndex) in statuses" :key="row.statusCode">
                     <th class="matrix-row-head">
                       <n-space align="center" :size="6">
                         <n-tag
-                          v-if="row.statusCode !== ANY_STATUS_CODE"
                           size="small"
                           :bordered="false"
                           :color="{ color: statusTagColor(row, rowIndex), textColor: '#fff' }"
                         >
                           {{ row.statusName }}
                         </n-tag>
-                        <n-tag v-else size="small" :bordered="false">{{ row.statusName }}</n-tag>
                       </n-space>
                     </th>
                     <td
-                      v-for="col in regularStatuses"
+                      v-for="col in statuses"
                       :key="`${row.statusCode}-${col.statusCode}`"
                       class="matrix-cell"
                       :class="{ enabled: isEnabled(row.statusCode, col.statusCode), same: row.statusCode === col.statusCode }"
@@ -690,16 +620,14 @@ onMounted(load)
                         <n-checkbox
                           :checked="isEnabled(row.statusCode, col.statusCode)"
                           @update:checked="(checked) => setTransition(row.statusCode, col.statusCode, checked, col.statusName)"
-                          @click.stop
                         />
-                        <button
-                          type="button"
-                          class="cell-config"
-                          :class="{ active: isEnabled(row.statusCode, col.statusCode) }"
-                          @click="onCellClick(row.statusCode, row.statusName, col.statusCode, col.statusName)"
+                        <n-text
+                          v-if="matrixCellHint(row.statusCode, col.statusCode)"
+                          depth="3"
+                          class="cell-hint"
                         >
-                          {{ transitionCellLabel(row.statusCode, col.statusCode, col.statusName) }}
-                        </button>
+                          {{ matrixCellHint(row.statusCode, col.statusCode) }}
+                        </n-text>
                       </div>
                     </td>
                   </tr>
@@ -709,7 +637,10 @@ onMounted(load)
           </n-tab-pane>
 
           <n-tab-pane name="rules" :tab="`流转规则 (${configuredTransitions.length})`">
-            <n-empty v-if="!configuredTransitions.length" description="暂无已启用的流转，请先在「流转路径」中勾选" />
+            <n-text depth="3" style="display: block; margin: 12px 0">
+              在此配置流转名称、可见条件、校验与自动化动作；同一路径可添加多条规则。
+            </n-text>
+            <n-empty v-if="!configuredTransitions.length" description="暂无已启用的流转，请先在「矩阵」中勾选路径" />
             <n-list v-else bordered style="margin-top: 12px">
               <n-list-item v-for="item in configuredTransitions" :key="item.id">
                 <n-space vertical style="width: 100%" :size="8">
@@ -894,22 +825,8 @@ onMounted(load)
   gap: 6px;
 }
 
-.cell-config {
-  border: none;
-  background: transparent;
-  color: var(--n-text-color-3);
+.cell-hint {
   font-size: 12px;
-  cursor: pointer;
-  padding: 0;
-}
-
-.cell-config.active {
-  color: var(--n-primary-color);
-  font-weight: 500;
-}
-
-.cell-config:hover {
-  text-decoration: underline;
 }
 
 .matrix-dash {

@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class StatusDefinitionService {
 
-    public static final String ANY_STATUS_CODE = "__any__";
+    private static final String LEGACY_ANY_STATUS_CODE = "__any__";
 
     private static final Set<String> CONDITION_SYSTEM_FIELDS = Set.of(
             "title", "description", "status", "type_code", "priority", "assignee_id", "reporter_id",
@@ -75,9 +75,7 @@ public class StatusDefinitionService {
     }
 
     public List<StatusDefinitionVO> listStatusOptions(Long projectId, String typeCode) {
-        return getWorkflow(projectId, typeCode).getStatuses().stream()
-                .filter(s -> !ANY_STATUS_CODE.equals(s.getStatusCode()))
-                .toList();
+        return getWorkflow(projectId, typeCode).getStatuses();
     }
 
     public AllowedTransitionsVO allowedTransitions(Long projectId, String typeCode, String fromStatus) {
@@ -88,7 +86,7 @@ public class StatusDefinitionService {
                                                    Long workItemId) {
         StatusWorkflowVO workflow = getWorkflow(projectId, typeCode);
         Map<String, String> labelByCode = workflow.getStatuses().stream()
-                .filter(s -> s.getStatusCode() != null && !ANY_STATUS_CODE.equals(s.getStatusCode()))
+                .filter(s -> s.getStatusCode() != null)
                 .collect(Collectors.toMap(
                         StatusDefinitionVO::getStatusCode,
                         StatusDefinitionVO::getStatusName,
@@ -116,11 +114,6 @@ public class StatusDefinitionService {
         if (StringUtils.isNotBlank(fromStatus)) {
             appendTransitionOptions(options, seenIds,
                     findStatus(workflow.getStatuses(), fromStatus), fromStatus, regularCodes, labelByCode, workItem);
-            if (!ANY_STATUS_CODE.equals(fromStatus)) {
-                appendTransitionOptions(options, seenIds,
-                        findStatus(workflow.getStatuses(), ANY_STATUS_CODE), fromStatus, regularCodes, labelByCode,
-                        workItem);
-            }
         }
         AllowedTransitionsVO vo = new AllowedTransitionsVO();
         vo.setFromStatus(fromStatus);
@@ -130,7 +123,6 @@ public class StatusDefinitionService {
 
     public String initialStatus(Long projectId, String typeCode) {
         return getWorkflow(projectId, typeCode).getStatuses().stream()
-                .filter(s -> !ANY_STATUS_CODE.equals(s.getStatusCode()))
                 .filter(s -> s.getIsInitial() != null && s.getIsInitial() == 1)
                 .map(StatusDefinitionVO::getStatusCode)
                 .findFirst()
@@ -153,9 +145,6 @@ public class StatusDefinitionService {
         }
         StatusWorkflowVO workflow = getWorkflow(projectId, typeCode);
         TransitionVO found = findTransitionInStatus(findStatus(workflow.getStatuses(), fromStatus), transitionId);
-        if (found == null && !ANY_STATUS_CODE.equals(fromStatus)) {
-            found = findTransitionInStatus(findStatus(workflow.getStatuses(), ANY_STATUS_CODE), transitionId);
-        }
         if (found == null) {
             throw new IllegalArgumentException("流转不存在: " + transitionId);
         }
@@ -189,7 +178,7 @@ public class StatusDefinitionService {
         StatusWorkflowVO workflow = getWorkflow(projectId, typeCode);
         Set<String> regularCodes = workflow.getStatuses().stream()
                 .map(StatusDefinitionVO::getStatusCode)
-                .filter(code -> !ANY_STATUS_CODE.equals(code))
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         if (!regularCodes.contains(toStatus)) {
             throw new IllegalArgumentException("目标状态不存在: " + toStatus);
@@ -197,8 +186,7 @@ public class StatusDefinitionService {
         if (StringUtils.isNotBlank(fromStatus) && Objects.equals(fromStatus, toStatus)) {
             throw new IllegalArgumentException("状态不能流转到自身: " + toStatus);
         }
-        if (StringUtils.isNotBlank(fromStatus) && !ANY_STATUS_CODE.equals(fromStatus)
-                && !regularCodes.contains(fromStatus)) {
+        if (StringUtils.isNotBlank(fromStatus) && !regularCodes.contains(fromStatus)) {
             throw new IllegalArgumentException("当前状态不存在: " + fromStatus);
         }
     }
@@ -345,14 +333,15 @@ public class StatusDefinitionService {
                 throw new IllegalArgumentException("状态编码与名称不能为空");
             }
             String code = item.getStatusCode().trim();
+            if (LEGACY_ANY_STATUS_CODE.equals(code)) {
+                throw new IllegalArgumentException("不支持的状态编码: " + code);
+            }
             if (!codes.add(code)) {
                 throw new IllegalArgumentException("状态编码重复: " + code);
             }
-            if (!ANY_STATUS_CODE.equals(code)) {
-                regularCodes.add(code);
-                if (item.getIsInitial() != null && item.getIsInitial() == 1) {
-                    initialCount++;
-                }
+            regularCodes.add(code);
+            if (item.getIsInitial() != null && item.getIsInitial() == 1) {
+                initialCount++;
             }
         }
         if (regularCodes.isEmpty()) {
@@ -512,6 +501,7 @@ public class StatusDefinitionService {
                         .eq(projectId != null, PmStatusDefinition::getProjectId, projectId)
                         .isNull(projectId == null, PmStatusDefinition::getProjectId)
                         .eq(PmStatusDefinition::getTypeCode, typeCode)
+                        .ne(PmStatusDefinition::getStatusCode, LEGACY_ANY_STATUS_CODE)
                         .orderByAsc(PmStatusDefinition::getSortOrder))
                 .stream()
                 .sorted(Comparator.comparingInt(s -> s.getSortOrder() == null ? 0 : s.getSortOrder()))
@@ -529,7 +519,6 @@ public class StatusDefinitionService {
         list.add(row(null, typeCode, "done", "已完成", 3, 0, 0, List.of(
                 transition("关闭", "closed"))));
         list.add(row(null, typeCode, "closed", "已关闭", 4, 0, 1, List.of()));
-        list.add(row(null, typeCode, ANY_STATUS_CODE, "任何状态", 99, 0, 0, List.of()));
         return list;
     }
 
@@ -572,16 +561,6 @@ public class StatusDefinitionService {
             vo.setLayoutY(row.getLayoutY());
             vo.setTransitions(parseTransitions(row.getTransitions()));
             list.add(vo);
-        }
-        if (list.stream().noneMatch(s -> ANY_STATUS_CODE.equals(s.getStatusCode()))) {
-            StatusDefinitionVO any = new StatusDefinitionVO();
-            any.setStatusCode(ANY_STATUS_CODE);
-            any.setStatusName("任何状态");
-            any.setSortOrder(999);
-            any.setIsInitial(0);
-            any.setIsFinal(0);
-            any.setTransitions(new ArrayList<>());
-            list.add(any);
         }
         ensureTransitionIdsAndNames(list);
         return list;
@@ -696,16 +675,14 @@ public class StatusDefinitionService {
             List<PmStatusDefinition> systemStatuses = statusDefinitionMapper.selectList(
                     Wrappers.<PmStatusDefinition>lambdaQuery()
                             .isNull(PmStatusDefinition::getProjectId)
-                            .eq(PmStatusDefinition::getTypeCode, typeCode));
+                            .eq(PmStatusDefinition::getTypeCode, typeCode)
+                            .ne(PmStatusDefinition::getStatusCode, LEGACY_ANY_STATUS_CODE));
 
             // Use system workflow if exists, otherwise use default
             List<PmStatusDefinition> workflowToUse = systemStatuses.isEmpty() ? defaultStatuses(typeCode) : systemStatuses;
 
             int order = 1;
             for (PmStatusDefinition statusDef : workflowToUse) {
-                if (ANY_STATUS_CODE.equals(statusDef.getStatusCode())) {
-                    continue; // Skip special any-status, it will be added automatically when retrieving
-                }
                 PmStatusDefinition row = new PmStatusDefinition();
                 row.setProjectId(projectId);
                 row.setTypeCode(typeCode);

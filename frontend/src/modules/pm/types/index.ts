@@ -352,8 +352,6 @@ export interface AllowedTransitions {
   transitions: TransitionOption[]
 }
 
-export const ANY_STATUS_CODE = '__any__'
-
 export interface PmProject {
   id?: number
   tenantId?: number | string

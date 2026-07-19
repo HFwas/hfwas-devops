@@ -126,6 +126,7 @@ const displayText = computed(() => {
       :options="options"
       :loading="optionsLoading"
       :multiple="queryMulti"
+      placeholder=""
       clearable
       filterable
     />
@@ -138,6 +139,7 @@ const displayText = computed(() => {
       :options="options"
       :loading="optionsLoading"
       multiple
+      placeholder=""
       clearable
     />
     <n-text v-if="optionsError" type="error" depth="3">{{ optionsError }}</n-text>

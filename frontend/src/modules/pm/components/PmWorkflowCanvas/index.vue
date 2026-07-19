@@ -18,7 +18,6 @@ import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
 import {
-  ANY_STATUS_CODE,
   emptyTransitionConditions,
   isTransitionConditionsEmpty,
   statusTagColor,
@@ -42,12 +41,9 @@ type StatusNodeData = {
   index: number
 }
 
-function defaultPosition(status: StatusDefinition, index: number, regularCount: number): { x: number; y: number } {
+function defaultPosition(status: StatusDefinition, index: number): { x: number; y: number } {
   if (status.layoutX != null && status.layoutY != null) {
     return { x: Number(status.layoutX), y: Number(status.layoutY) }
-  }
-  if (status.statusCode === ANY_STATUS_CODE) {
-    return { x: 80, y: 120 + Math.max(regularCount, 1) * 120 }
   }
   return {
     x: 80 + (index % 4) * 220,
@@ -63,22 +59,17 @@ function edgeMeta(t: Transition) {
 }
 
 function buildNodes(list: StatusDefinition[]): Node<StatusNodeData>[] {
-  const regular = list.filter((s) => s.statusCode !== ANY_STATUS_CODE)
-  return list.map((status) => {
-    const regularIndex = regular.findIndex((s) => s.statusCode === status.statusCode)
-    const index = regularIndex >= 0 ? regularIndex : regular.length
-    return {
-      id: status.statusCode,
-      type: 'status',
-      position: defaultPosition(status, index, regular.length),
-      data: {
-        status,
-        color: status.statusCode === ANY_STATUS_CODE ? '#94a3b8' : statusTagColor(status, index),
-        index,
-      },
-      draggable: true,
-    }
-  })
+  return list.map((status, index) => ({
+    id: status.statusCode,
+    type: 'status',
+    position: defaultPosition(status, index),
+    data: {
+      status,
+      color: statusTagColor(status, index),
+      index,
+    },
+    draggable: true,
+  }))
 }
 
 function buildEdges(list: StatusDefinition[]): Edge[] {
@@ -158,7 +149,7 @@ function onConnect(connection: Connection) {
   const target = connection.target
   if (!source || !target || source === target) return
   const to = props.statuses.find((s) => s.statusCode === target)
-  if (!to || target === ANY_STATUS_CODE) return
+  if (!to) return
   patchStatuses((list) => {
     const from = list.find((s) => s.statusCode === source)
     if (!from) return
@@ -204,7 +195,6 @@ function onEdgeClick(event: EdgeMouseEvent) {
 }
 
 function onNodeDoubleClick(event: NodeMouseEvent) {
-  if (event.node.id === ANY_STATUS_CODE) return
   emit('edit-status', event.node.id)
 }
 </script>
@@ -233,7 +223,6 @@ function onNodeDoubleClick(event: NodeMouseEvent) {
         <div
           class="status-node"
           :class="{
-            any: data.status.statusCode === ANY_STATUS_CODE,
             initial: data.status.isInitial === 1,
             final: data.status.isFinal === 1,
           }"
@@ -279,11 +268,6 @@ function onNodeDoubleClick(event: NodeMouseEvent) {
   border: 2px solid;
   background: var(--n-color);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--n-text-color) 8%, transparent);
-}
-
-.status-node.any {
-  border-style: dashed;
-  opacity: 0.95;
 }
 
 .status-node-body {

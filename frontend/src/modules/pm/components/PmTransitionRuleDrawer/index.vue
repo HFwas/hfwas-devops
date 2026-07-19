@@ -350,30 +350,36 @@ function insertPlaceholder(action: TransitionPostFunction, token: string) {
               </n-dropdown>
             </n-space>
             <div class="preset-grid">
-              <button
+              <div
                 v-for="preset in quickPresets"
                 :key="preset.id"
-                type="button"
+                role="button"
+                tabindex="0"
                 class="preset-btn"
                 @click="applyPreset(preset)"
+                @keydown.enter.prevent="applyPreset(preset)"
+                @keydown.space.prevent="applyPreset(preset)"
               >
-                <n-tag size="tiny" :bordered="false" type="info">{{ actionTypeLabel(preset.type) }}</n-tag>
+                <span class="preset-type">{{ actionTypeLabel(preset.type) }}</span>
                 <span class="preset-label">{{ preset.label }}</span>
-              </button>
+              </div>
             </div>
             <n-collapse v-if="morePresets.length" style="margin-top: 10px">
               <n-collapse-item title="更多字段模板" name="more">
                 <div class="preset-grid">
-                  <button
+                  <div
                     v-for="preset in morePresets"
                     :key="preset.id"
-                    type="button"
+                    role="button"
+                    tabindex="0"
                     class="preset-btn"
                     @click="applyPreset(preset)"
+                    @keydown.enter.prevent="applyPreset(preset)"
+                    @keydown.space.prevent="applyPreset(preset)"
                   >
-                    <n-tag size="tiny" :bordered="false" type="info">{{ actionTypeLabel(preset.type) }}</n-tag>
+                    <span class="preset-type">{{ actionTypeLabel(preset.type) }}</span>
                     <span class="preset-label">{{ preset.label }}</span>
-                  </button>
+                  </div>
                 </div>
               </n-collapse-item>
             </n-collapse>
@@ -515,22 +521,44 @@ function insertPlaceholder(action: TransitionPostFunction, token: string) {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px dashed var(--n-border-color);
-  border-radius: var(--n-border-radius);
-  background: var(--n-color);
+  border: 1px dashed #d0d3d6;
+  border-radius: 6px;
+  background: #fff;
   cursor: pointer;
   text-align: left;
   transition: border-color 0.15s, background 0.15s;
+  outline: none;
+  min-height: 40px;
+}
+
+.preset-btn:focus-visible {
+  border-color: #3370ff;
+  box-shadow: 0 0 0 2px rgba(51, 112, 255, 0.16);
 }
 
 .preset-btn:hover {
-  border-color: var(--n-primary-color);
-  background: color-mix(in srgb, var(--n-primary-color) 6%, transparent);
+  border-color: #3370ff;
+  background: #f5f8ff;
+}
+
+.preset-type {
+  flex-shrink: 0;
+  font-size: 11px;
+  line-height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: #e8f3ff;
+  color: #245bdb;
+  white-space: nowrap;
 }
 
 .preset-label {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
-  color: var(--n-text-color);
+  line-height: 1.4;
+  color: #1f2329;
+  word-break: break-word;
 }
 
 .action-card {
