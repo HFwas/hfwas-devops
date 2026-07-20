@@ -25,8 +25,8 @@
         <lombok.version>1.18.34</lombok.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <gson.version>2.11.0</gson.version>
-        <jackson-databind.version>2.17.2</jackson-databind.version>
-        <spring-boot.version>3.4.1</spring-boot.version>
+        <jackson-databind.version>2.18.9</jackson-databind.version>
+        <spring-boot.version>3.4.5</spring-boot.version>
         <redisson.version>3.41.0</redisson.version>
         <mybatis.version>3.5.17</mybatis.version>
         <mybatis-plus.version>3.5.10.1</mybatis-plus.version>
@@ -52,7 +52,7 @@
         <logback-classic.version>1.5.16</logback-classic.version>
         <knife4j.version>4.4.0</knife4j.version>
         <spring-security.version>6.4.10</spring-security.version>
-        <netty-handler.version>4.1.118.Final</netty-handler.version>
+        <netty-handler.version>4.1.135.Final</netty-handler.version>
         <poi-ooxml.version>5.4.0</poi-ooxml.version>
         <aspectjrt.version>1.9.6</aspectjrt.version>
         <spring-context.version>6.1.19</spring-context.version>
