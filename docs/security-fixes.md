@@ -3,7 +3,7 @@
 > 项目：`hfwas-devops`  
 > 扫描工具：GitHub CodeQL（Code scanning）、Dependabot（Dependency alerts）  
 > 涉及分支：`dev`  
-> 修复提交：`c0e1f99`、`403552d`、`7be055f`
+> 修复提交：`c0e1f99`、`403552d`、`7be055f`、`9e239d9`
 
 ---
 
@@ -12,7 +12,7 @@
 | 类别 | 修复前 Open 数（约） | 本次处理 | 状态 |
 |------|---------------------|----------|------|
 | CodeQL 代码扫描 | 6 | 6 | 已修复，待 push 后 CodeQL 复扫确认 |
-| Dependabot 依赖告警 | 79+ | Tomcat 18 条 + Spring Security 1 条 | 部分修复，见下文遗留项 |
+| Dependabot 依赖告警 | 79+ | Tomcat ~18 条、Spring Security 1 条、Jackson 4 条、Netty 3 条、Spring Boot 1 条 | 大部分已修复，#163 仍 Open |
 
 ---
 
@@ -101,7 +101,7 @@ HttpRequest.newBuilder().uri(uri)...
 
 | 项目 | 修复前 | 修复后 |
 |------|--------|--------|
-| `tomcat-embed-core` | 10.1.42（经 `spring-boot-starter-web 3.4.1` 传递） | **10.1.55** |
+| `tomcat-embed-core` | 10.1.42（经 `spring-boot-starter-web 3.4.x` 传递） | **10.1.55** |
 
 **涉及 CVE 示例**（Dependabot 归类）：
 
@@ -139,6 +139,69 @@ HttpRequest.newBuilder().uri(uri)...
 
 ---
 
+### 3.3 Jackson Databind（4 条告警）
+
+| 编号 | 问题摘要 |
+|------|----------|
+| #133, #134 | `PolymorphicTypeValidator` 绕过，可任意实例化类 |
+| #141, #142 | `BasicPolymorphicTypeValidator` 数组子类型 allowlist 绕过 |
+
+| 项目 | 修复前 | 修复后 |
+|------|--------|--------|
+| `jackson-databind` / `jackson-core` / `jackson-annotations` | 2.17.2 | **2.18.9** |
+
+**配置变更**（根 `pom.xml`）：
+
+```xml
+<jackson-databind.version>2.18.9</jackson-databind.version>
+```
+
+**提交**：`9e239d9`
+
+---
+
+### 3.4 Netty Handler（3 条告警）
+
+| 编号 | 问题摘要 |
+|------|----------|
+| #130 | IPv6 子网过滤器比较器掩码错误，可绕过规则 |
+| #131 | SNI handler 预分配最多 16 MiB 内存（DoS） |
+| #132 | 包装 plain trust manager 静默禁用 hostname 验证 |
+
+| 项目 | 修复前 | 修复后 |
+|------|--------|--------|
+| `netty-handler` | 4.1.118.Final | **4.1.135.Final** |
+
+**配置变更**（根 `pom.xml`）：
+
+```xml
+<netty-handler.version>4.1.135.Final</netty-handler.version>
+```
+
+**提交**：`9e239d9`
+
+---
+
+### 3.5 Spring Boot（1 条告警）
+
+| 编号 | 问题摘要 |
+|------|----------|
+| — | `EndpointRequest.to()` 在 actuator 端点未暴露时创建错误 matcher |
+
+| 项目 | 修复前 | 修复后 |
+|------|--------|--------|
+| `spring-boot`（及 BOM 管理的 starter） | 3.4.1 | **3.4.5** |
+
+**配置变更**（根 `pom.xml`）：
+
+```xml
+<spring-boot.version>3.4.5</spring-boot.version>
+```
+
+**提交**：`9e239d9`
+
+---
+
 ## 4. 新增 / 变更文件清单
 
 | 文件 | 说明 |
@@ -150,7 +213,7 @@ HttpRequest.newBuilder().uri(uri)...
 | `backend/user-core/.../WebhookNotifyClient.java` | Webhook SSRF 修复 |
 | `backend/user-core/.../LdapConnectorHandler.java` | LDAP / JNDI 修复 |
 | `backend/server/.../SecurityConfig.java` | CSRF 配置调整 |
-| `pom.xml` | Tomcat、Spring Security 版本升级 |
+| `pom.xml` | Tomcat、Spring Security、Jackson、Netty、Spring Boot 版本升级 |
 
 ---
 
@@ -161,6 +224,7 @@ HttpRequest.newBuilder().uri(uri)...
 | 编号 | 问题 | 原因 | 建议 |
 |------|------|------|------|
 | #163 | CVE-2026-22732：HTTP 安全响应头可能未写入 | Spring Security **6.4.x 无开源补丁** | 升级至 Spring Boot 3.5+ / Spring Security **6.5.9+**，或设置 `HeaderWriterFilter.shouldWriteHeadersEagerly=true` 作为缓解 |
+| Tomcat 系列（#55 等） | 各类 Tomcat CVE | `dev` 上已升至 10.1.55，但告警 manifest 路径可能仍为历史快照 `devops-dependencies/pom.xml` | 等待 Dependabot 复扫；或 Dismiss → Vulnerability is patched |
 | 其余 Dependabot | 其他传递依赖 CVE | 未在本次范围 | 可在 GitHub 按严重级别分批处理，或启用 Dependabot security updates 自动 PR |
 
 ### 5.2 复扫与验证
@@ -172,19 +236,37 @@ HttpRequest.newBuilder().uri(uri)...
 
 ```bash
 export JAVA_HOME=/path/to/jdk-21
-mvn -pl backend -am package -DskipTests
+mvn -pl backend/server -am package -DskipTests
 ```
 
 5. 本地查看依赖版本：
 
 ```bash
 mvn -pl backend/server dependency:tree \
-  -Dincludes=org.apache.tomcat.embed:tomcat-embed-core,org.springframework.security:spring-security-core
+  -Dincludes=org.apache.tomcat.embed:tomcat-embed-core,org.springframework.security:spring-security-core,com.fasterxml.jackson.core:jackson-databind,org.springframework.boot:spring-boot
 ```
 
-预期输出包含 `tomcat-embed-core:10.1.55`、`spring-security-core:6.4.10`。
+预期输出包含 `tomcat-embed-core:10.1.55`、`spring-security-core:6.4.10`、`jackson-databind:2.18.9`、`spring-boot:3.4.5`。
 
-### 5.3 在 IDE 中查看告警
+### 5.3 告警仍 Open 的常见原因（非分支扫错）
+
+CodeQL Actions 日志可确认 checkout 的是 **`origin/dev`**（如 `9e239d9… -> origin/dev`），`git init` 提示 `Using 'master' as the name for the initial branch` 只是 Git 默认提示，**不代表**实际 checkout 了 master。
+
+| 现象 | 实际原因 |
+|------|----------|
+| Dependabot 路径显示 `devops-dependencies/pom.xml` | 告警创建时的 **manifest 快照**；`dev` 上该目录已不存在，路径不会自动更新 |
+| 依赖已升级但告警仍 Open | Dependabot **复扫有延迟**（push 后数小时～1 天）；或 `master` 分支仍保留旧 manifest，Security 页汇总所有 Open 告警 |
+| CodeQL 已跑完但告警未关 | 需等 analyze 步骤上传 SARIF 后 GitHub 才标记 fixed；或修复未完全覆盖规则 |
+| #163 始终 Open | Spring Security 6.4.x 无 OSS 补丁，升级 6.4.10 无法关闭 |
+
+**建议操作：**
+
+1. Security → Dependabot：按 **Manifest path** 筛选，区分 `pom.xml`（当前 dev）与 `devops-dependencies/pom.xml`（历史/master）
+2. 对已升级依赖的告警：**Dismiss → Vulnerability is patched**
+3. 可选：合并或删除 **`master`** 旧分支，减少历史 manifest 产生的重复告警
+4. CodeQL：在 Actions 对应 run 的 **Perform CodeQL Analysis** 步骤确认 SARIF 上传成功
+
+### 5.4 在 IDE 中查看告警
 
 - 安装 **SARIF Viewer** + **GitHub Pull Requests and Issues**
 - 设置 `"sarif-viewer.connectToGithubCodeScanning": "on"`
@@ -199,6 +281,8 @@ mvn -pl backend/server dependency:tree \
 | `c0e1f99` | fix: 出站 HTTP URL 校验，修复 CodeQL SSRF 告警 |
 | `403552d` | fix: 修复 CodeQL LDAP/JNDI 注入与 CSRF 告警 |
 | `7be055f` | chore(deps): 升级 Tomcat 与 Spring Security 修复 Dependabot 告警 |
+| `8535beb` | docs: 添加 CodeQL 与 Dependabot 漏洞修复记录 |
+| `9e239d9` | chore(deps): 升级 Jackson、Netty、Spring Boot 修复 Dependabot 告警 |
 
 ---
 
