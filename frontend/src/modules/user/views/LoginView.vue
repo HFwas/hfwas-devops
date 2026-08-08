@@ -20,7 +20,7 @@ async function submit() {
   try {
     await auth.login(username.value.trim(), password.value)
     message.success('登录成功')
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/pm/projects'
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/workbench'
     router.replace(redirect)
   } catch (e) {
     message.error(e instanceof Error ? e.message : '登录失败')

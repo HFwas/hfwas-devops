@@ -13,6 +13,11 @@ export const userRoutes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
+    path: '/user/settings',
+    name: 'user-account-settings',
+    component: () => import('@/modules/user/views/AccountSettingsView.vue'),
+  },
+  {
     path: '/user',
     component: () => import('@/modules/user/layouts/UserLayout.vue'),
     meta: { admin: true },

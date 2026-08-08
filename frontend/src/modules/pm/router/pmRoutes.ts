@@ -2,6 +2,15 @@ import type { RouteRecordRaw } from 'vue-router'
 
 export const pmRoutes: RouteRecordRaw[] = [
   {
+    path: '/pm',
+    redirect: '/pm/projects',
+  },
+  {
+    path: '/pm/monitor',
+    name: 'pm-monitor',
+    component: () => import('@/modules/pm/views/ProjectMonitorView.vue'),
+  },
+  {
     path: '/pm/projects',
     name: 'pm-projects',
     component: () => import('@/modules/pm/views/ProjectListView.vue'),

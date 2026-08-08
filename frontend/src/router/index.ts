@@ -7,7 +7,12 @@ import { resolveRouteProjectId } from '@/modules/pm/utils/projectRoute'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/pm/projects' },
+    { path: '/', redirect: '/workbench' },
+    {
+      path: '/workbench',
+      name: 'workbench',
+      component: () => import('@/modules/pm/views/WorkbenchView.vue'),
+    },
     ...userRoutes,
     ...pmRoutes,
   ],
@@ -34,7 +39,7 @@ router.beforeEach(async (to) => {
     }
   }
   if (to.meta.admin && !auth.isAdmin) {
-    return { path: '/pm/projects' }
+    return { path: '/workbench' }
   }
   return true
 })

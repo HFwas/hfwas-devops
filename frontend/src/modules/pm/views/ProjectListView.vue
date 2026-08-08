@@ -8,11 +8,13 @@ import { usePagination } from '@/shared/composables/usePagination'
 import { useDialog, useMessage } from 'naive-ui'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const message = useMessage()
 const dialog = useDialog()
 const loading = ref(false)
-const keyword = ref('')
+// 顶栏全局搜索通过 ?keyword= 带入
+const keyword = ref(typeof route.query.keyword === 'string' ? route.query.keyword : '')
 const pagination = usePagination({ pageSize: 9, pageSizes: [9, 18, 36] })
 const projects = ref<PmProject[]>([])
 const showModal = ref(false)
@@ -68,6 +70,15 @@ async function remove(id: number | string) {
 }
 
 onMounted(load)
+
+watch(
+  () => route.query.keyword,
+  (value) => {
+    keyword.value = typeof value === 'string' ? value : ''
+    pagination.resetPage()
+    void load()
+  },
+)
 
 watch(
   () => [auth.activeTenantId, auth.tenantVersion] as const,

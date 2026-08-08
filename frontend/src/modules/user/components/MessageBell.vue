@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Bell } from '@lucide/vue'
 import { messageApi } from '@/modules/user/api'
 import type { UserMessage } from '@/modules/user/types'
 import { AUTH_TOKEN_KEY } from '@/modules/user/types'
@@ -50,7 +51,9 @@ defineExpose({ refresh })
   <n-popover v-model:show="showPopover" trigger="click" placement="bottom-end" :width="360">
     <template #trigger>
       <n-badge :value="unreadCount > 0 ? unreadCount : undefined" :max="99">
-        <n-button text title="消息" @click="refresh">🔔</n-button>
+        <n-button quaternary circle size="small" title="消息" @click="refresh">
+          <template #icon><Bell :size="16" /></template>
+        </n-button>
       </n-badge>
     </template>
     <n-space vertical size="small" style="width: 100%">
