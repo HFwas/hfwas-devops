@@ -328,7 +328,7 @@ watch(() => route.query.tab, syncTabFromRoute, { immediate: true })
 </script>
 
 <template>
-  <n-space vertical size="large">
+  <n-space vertical size="large" style="padding: 20px 24px 28px">
     <n-page-header :title="typeLabel" @back="goBack">
       <template #subtitle>
         配置该事项类型的属性、详情面板、功能、状态与流转

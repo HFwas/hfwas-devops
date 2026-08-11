@@ -187,12 +187,12 @@ function onMenuSelect(key: string) {
 <style scoped>
 .pm-layout {
   min-height: calc(100vh - 56px);
-  background: var(--pm-bg);
+  background: var(--pm-bg, var(--wb-page-bg, #f5f7fb));
 }
 
 .pm-sider {
-  background: var(--pm-surface);
-  border-right: 1px solid var(--pm-border);
+  background: var(--pm-surface, var(--wb-card-bg, #ffffff));
+  border-right: 1px solid var(--pm-border, var(--wb-border, #e5e7eb));
 }
 
 .pm-sider-header {
@@ -201,7 +201,7 @@ function onMenuSelect(key: string) {
   justify-content: space-between;
   gap: 8px;
   padding: 14px 14px 12px;
-  border-bottom: 1px solid var(--pm-border-soft);
+  border-bottom: 1px solid var(--pm-border-soft, var(--wb-border, #e5e7eb));
 }
 
 .pm-sider-title {
@@ -211,7 +211,7 @@ function onMenuSelect(key: string) {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 14px;
-  color: var(--pm-text);
+  color: var(--pm-text, #1f2329);
 }
 
 .pm-sider-menu {
@@ -222,7 +222,7 @@ function onMenuSelect(key: string) {
 
 .pm-sider-footer {
   padding: 10px 12px 14px;
-  border-top: 1px solid var(--pm-border-soft);
+  border-top: 1px solid var(--pm-border-soft, var(--wb-border, #e5e7eb));
 }
 
 .pm-content {

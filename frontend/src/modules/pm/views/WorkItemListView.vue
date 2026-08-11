@@ -289,6 +289,8 @@ onMounted(async () => {
 .work-item-list {
   display: flex;
   flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .list-toolbar {
@@ -297,8 +299,8 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--pm-border-soft, #eef0f3);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--pm-border-soft, var(--wb-border, #e5e7eb));
 }
 
 .toolbar-left,
@@ -310,10 +312,10 @@ onMounted(async () => {
 }
 
 .list-name {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--pm-text, #1f2329);
-  margin-right: 2px;
+  margin-right: 4px;
 }
 
 .selected-hint {
@@ -334,7 +336,7 @@ onMounted(async () => {
 }
 
 .list-footer {
-  padding: 6px 12px 8px;
-  border-top: 1px solid var(--pm-border-soft, #eef0f3);
+  padding: 8px 14px 10px;
+  border-top: 1px solid var(--pm-border-soft, var(--wb-border, #e5e7eb));
 }
 </style>

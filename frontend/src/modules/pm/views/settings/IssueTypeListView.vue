@@ -238,21 +238,23 @@ onMounted(reload)
 
 <template>
   <div class="type-list-page">
-    <div class="toolbar">
-      <n-space align="center" :size="8">
-        <n-button type="primary" size="small" @click="openCreateType">新增</n-button>
-        <n-button size="small" @click="openSchemeModal">项目启用</n-button>
-        <n-button size="small" :loading="exporting" @click="exportProjectScheme">导出方案</n-button>
-        <n-button size="small" @click="showImport = true">导入方案</n-button>
-      </n-space>
-      <n-input
-        v-model:value="keyword"
-        size="small"
-        clearable
-        placeholder="搜索名称或编码"
-        style="width: 220px"
-      />
-    </div>
+    <n-page-header title="事项类型" subtitle="管理项目启用的事项类型，自定义类型属性与配色">
+      <template #extra>
+        <n-space align="center" :size="8">
+          <n-button type="primary" size="small" @click="openCreateType">新增</n-button>
+          <n-button size="small" @click="openSchemeModal">项目启用</n-button>
+          <n-button size="small" :loading="exporting" @click="exportProjectScheme">导出方案</n-button>
+          <n-button size="small" @click="showImport = true">导入方案</n-button>
+        </n-space>
+      </template>
+    </n-page-header>
+    <n-input
+      v-model:value="keyword"
+      size="small"
+      clearable
+      placeholder="搜索名称或编码"
+      style="width: 220px; margin-bottom: 12px"
+    />
 
     <n-spin :show="loading">
       <n-data-table
@@ -363,10 +365,7 @@ onMounted(reload)
 
 <style scoped>
 .type-list-page {
-  background: var(--pm-surface, #fff);
-  border: 1px solid var(--pm-border, #e8eaed);
-  border-radius: 8px;
-  padding: 12px;
+  padding: 20px 24px 28px;
 }
 
 .toolbar {

@@ -156,7 +156,7 @@ onMounted(loadTree)
 </script>
 
 <template>
-  <n-space vertical size="large">
+  <n-space vertical size="large" style="padding: 20px 24px 28px">
     <n-page-header
       title="功能模块"
       subtitle="按业务域划分项目工作，事项可归属到单一模块以便筛选与统计"

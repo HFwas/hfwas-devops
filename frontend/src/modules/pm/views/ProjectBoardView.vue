@@ -102,7 +102,7 @@ onMounted(load)
 </script>
 
 <template>
-  <n-space vertical size="large">
+  <n-space vertical size="large" style="padding: 20px 24px 28px">
     <n-page-header :title="pageTitle" subtitle="按状态分列查看与流转事项" />
     <n-scrollbar x-scrollable>
       <n-space align="start" :size="16" style="min-width: 900px">

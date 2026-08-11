@@ -461,6 +461,7 @@ watch(itemId, load, { immediate: true })
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 20px 24px 28px;
 }
 
 .item-header {

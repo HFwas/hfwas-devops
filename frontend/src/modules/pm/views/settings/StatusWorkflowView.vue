@@ -487,7 +487,7 @@ onMounted(load)
 </script>
 
 <template>
-  <n-space vertical size="large">
+  <n-space vertical size="large" style="padding: 20px 24px 28px">
     <n-page-header
       v-if="!embedded"
       title="状态流转"

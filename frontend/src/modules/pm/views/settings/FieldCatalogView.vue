@@ -140,7 +140,7 @@ watch(projectId, load, { immediate: true })
 </script>
 
 <template>
-  <n-space vertical size="large">
+  <n-space vertical size="large" style="padding: 20px 24px 28px">
     <n-page-header
       title="自定义字段"
       subtitle="管理项目级自定义字段，定义字段类型与适用事项"

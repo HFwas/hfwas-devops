@@ -1,14 +1,15 @@
-/* PM 列表主题：贴近参考图 — 单层白底、工具栏密度、低饱和色标 */
+/* PM 模块主题 — 全局 --wb-* 变量对齐，暗色跟随 */
+/* 背景色、边框色、文字色复用控制台体系，品牌色独立定义 */
 
 .pm-theme {
-  --pm-bg: #f5f6f8;
-  --pm-surface: #ffffff;
-  --pm-surface-muted: #f7f8fa;
-  --pm-border: #e8eaed;
-  --pm-border-soft: #eef0f3;
+  --pm-bg: var(--wb-page-bg, #f5f7fb);
+  --pm-surface: var(--wb-card-bg, #ffffff);
+  --pm-surface-muted: var(--wb-chip-bg, #f8fafc);
+  --pm-border: var(--wb-border, #e5e7eb);
+  --pm-border-soft: var(--wb-border, #e5e7eb);
   --pm-text: #1f2329;
-  --pm-text-secondary: #646a73;
-  --pm-text-muted: #8f959e;
+  --pm-text-secondary: var(--wb-muted, #6b7280);
+  --pm-text-muted: var(--wb-muted, #6b7280);
   --pm-primary: #3370ff;
   --pm-primary-hover: #245bdb;
   --pm-primary-soft: #e8f0ff;
@@ -19,6 +20,13 @@
   --pm-shadow-soft: none;
   color: var(--pm-text);
   background: var(--pm-bg);
+}
+
+/* 暗色主题覆盖 */
+html.dark .pm-theme {
+  --pm-text: #e4e7ed;
+  --pm-primary-soft: #1a2744;
+  --pm-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .pm-theme .pm-panel {

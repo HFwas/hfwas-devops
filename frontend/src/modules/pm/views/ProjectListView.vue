@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { FolderKanban } from '@lucide/vue'
 import { pmProjectApi } from '@/modules/pm/api'
 import type { PmProject } from '@/modules/pm/types'
 import { asId } from '@/modules/pm/utils/id'
@@ -110,18 +111,25 @@ watch(
       <n-empty v-if="!loading && projects.length === 0" description="暂无项目" />
       <n-grid v-else :cols="3" :x-gap="16" :y-gap="16">
         <n-gi v-for="p in projects" :key="p.id">
-          <n-card hoverable class="project-card">
-            <template #header>
-              <n-space align="center" justify="space-between" style="width: 100%">
-                <n-text strong style="cursor: pointer" @click="openProject(p.id!)">{{ p.name }}</n-text>
-                <n-button size="small" quaternary type="error" @click.stop="confirmDelete(p)">删除</n-button>
-              </n-space>
-            </template>
-            <n-space vertical @click="openProject(p.id!)">
-              <n-text depth="3">{{ p.code }}</n-text>
-              <n-text depth="3">{{ p.description || '暂无描述' }}</n-text>
-            </n-space>
-          </n-card>
+          <div class="project-tile" @click="openProject(p.id!)">
+            <div class="project-tile-top">
+              <span class="project-tile-icon">
+                <FolderKanban :size="18" />
+              </span>
+              <n-button
+                size="small"
+                quaternary
+                type="error"
+                class="project-tile-delete"
+                @click.stop="confirmDelete(p)"
+              >删除</n-button>
+            </div>
+            <div class="project-tile-body">
+              <div class="project-tile-name">{{ p.name }}</div>
+              <div class="project-tile-code">{{ p.code }}</div>
+              <div class="project-tile-desc">{{ p.description || '暂无描述' }}</div>
+            </div>
+          </div>
         </n-gi>
       </n-grid>
     </n-spin>
@@ -138,10 +146,85 @@ watch(
 </template>
 
 <style scoped>
-.project-card :deep(.n-card-header) {
-  padding-bottom: 8px;
-}
-.project-card :deep(.n-card__content) {
+.project-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border: 1px solid var(--wb-border, #e5e7eb);
+  border-radius: 10px;
+  background: var(--wb-card-bg, #fff);
   cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.project-tile:hover {
+  transform: translateY(-2px);
+  border-color: #4098fc;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.project-tile-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-tile-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.project-tile-delete {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.project-tile:hover .project-tile-delete {
+  opacity: 1;
+}
+
+.project-tile-body {
+  margin-top: 12px;
+  min-width: 0;
+}
+
+.project-tile-name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--pm-text, #1f2329);
+}
+
+.project-tile-code {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--wb-muted, #6b7280);
+  font-variant-numeric: tabular-nums;
+}
+
+.project-tile-desc {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--wb-muted, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .project-tile {
+    padding: 14px;
+  }
 }
 </style>
