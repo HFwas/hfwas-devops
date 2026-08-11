@@ -1,5 +1,4 @@
 import type { Component } from 'vue'
-import { Activity, FolderKanban } from '@lucide/vue'
 
 /**
  * 顶部二级 Tab 配置（当前产品下的一级功能分区）
@@ -19,22 +18,7 @@ export interface ConsoleTab {
   matchPrefixes?: string[]
 }
 
-export const CONSOLE_TABS: ConsoleTab[] = [
-  {
-    key: 'projects',
-    label: '项目',
-    icon: FolderKanban,
-    path: '/pm/projects',
-    // 进入某个项目后由 PmLayout 的左侧导航铺满整片区域，不再叠加二级 Tab
-    exact: true,
-  },
-  {
-    key: 'monitor',
-    label: '项目监控',
-    icon: Activity,
-    path: '/pm/monitor',
-  },
-]
+export const CONSOLE_TABS: ConsoleTab[] = []
 
 export const DEFAULT_TAB_KEY = 'projects'
 

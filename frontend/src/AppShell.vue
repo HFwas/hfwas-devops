@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BookOpen, Moon, Search, Settings, Sun, Users, UserRound } from '@lucide/vue'
+import { BookOpen, LayoutDashboard, Moon, Search, Settings, Sun, Users, UserRound } from '@lucide/vue'
 import { useAuthStore } from '@/modules/user/stores/auth'
 import MessageBell from '@/modules/user/components/MessageBell.vue'
 import ProductSwitcher from '@/shared/console/ProductSwitcher.vue'
@@ -34,6 +34,8 @@ onMounted(() => {
 const showTabs = computed(
   () => auth.isLoggedIn && !route.meta.public && resolveActiveTab(route.path) !== null,
 )
+
+const isConsoleActive = computed(() => route.path === '/workbench')
 
 const showTenantSwitcher = computed(() => auth.myTenants.length > 1)
 
@@ -90,12 +92,23 @@ function logout() {
 <template>
   <n-layout style="min-height: 100vh">
     <n-layout-header bordered class="top-bar">
-      <!-- 左区：Logo + 产品目录下拉 -->
+      <!-- 左区：Logo + 控制台 + 产品目录下拉 -->
       <div class="top-left">
         <router-link to="/workbench" class="brand">
           <span class="brand-logo">H</span>
           <span class="brand-name">HFWAS DevOps</span>
         </router-link>
+        <n-button
+          v-if="auth.isLoggedIn"
+          :class="{ 'console-active': isConsoleActive }"
+          quaternary
+          size="small"
+          class="console-btn"
+          @click="router.push('/workbench')"
+        >
+          <template #icon><LayoutDashboard :size="15" /></template>
+          控制台
+        </n-button>
         <ProductSwitcher v-if="auth.isLoggedIn" />
       </div>
 
@@ -236,6 +249,20 @@ function logout() {
 .brand-name {
   font-size: 15px;
   font-weight: 600;
+}
+
+.console-btn {
+  font-size: 13px;
+  color: var(--wb-muted, #6b7280);
+}
+
+.console-btn:hover {
+  color: #2d80e6;
+}
+
+.console-btn.console-active {
+  color: #2d80e6;
+  font-weight: 500;
 }
 
 .top-center {

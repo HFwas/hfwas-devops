@@ -14,7 +14,6 @@ const show = ref(false)
 const groups = groupProducts(CONSOLE_PRODUCTS)
 
 const current = computed(() => resolveActiveProduct(route.path))
-const triggerLabel = computed(() => current.value?.name ?? '选择产品')
 
 function select(product: ConsoleProduct) {
   if (product.comingSoon) return
@@ -28,8 +27,8 @@ function select(product: ConsoleProduct) {
     <template #trigger>
       <button type="button" class="ps-trigger">
         <LayoutGrid :size="15" />
-        <span class="ps-trigger-name">{{ triggerLabel }}</span>
-        <ChevronDown :size="14" class="ps-trigger-caret" />
+        <span v-if="current" class="ps-trigger-name">{{ current.name }}</span>
+        <ChevronDown v-if="current" :size="14" class="ps-trigger-caret" />
       </button>
     </template>
 
