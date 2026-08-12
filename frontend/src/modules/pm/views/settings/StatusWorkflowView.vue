@@ -192,8 +192,8 @@ function transitionsToTarget(fromCode: string, toCode: string): Transition[] {
 
 function matrixCellHint(fromCode: string, toCode: string) {
   const count = transitionsToTarget(fromCode, toCode).length
-  if (!count) return ''
-  return count > 1 ? `${count} 条` : '已启用'
+  if (count <= 1) return ''
+  return `${count} 条`
 }
 
 function summarizeValidators(validators: TransitionValidator[]) {

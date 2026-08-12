@@ -9,7 +9,6 @@ import type {
   QueryConditionGroup,
   TransitionConditionSpec,
   TransitionPostFunction,
-  TransitionPostFunctionPreset,
   TransitionPostFunctionType,
   TransitionValidator,
 } from '@/modules/pm/types'
@@ -21,7 +20,6 @@ import {
 import {
   actionTypeLabel,
   blankAction,
-  presetToAction,
   summarizeTransitionAction,
 } from '@/modules/pm/utils/transitionActionSummary'
 
@@ -104,20 +102,6 @@ const summaryCtx = computed(() => ({
   moduleLabelMap: moduleLabelMap.value,
 }))
 
-const quickPresets = computed(() => {
-  const all = meta.value?.presets ?? []
-  const primary = all.filter((p) =>
-    ['notify_assignee', 'notify_user', 'webhook'].includes(p.id)
-    || p.id.startsWith('priority_'),
-  )
-  return primary.length ? primary : all.slice(0, 6)
-})
-
-const morePresets = computed(() => {
-  const ids = new Set(quickPresets.value.map((p) => p.id))
-  return (meta.value?.presets ?? []).filter((p) => !ids.has(p.id))
-})
-
 watch(
   () => props.show,
   async (visible) => {
@@ -170,22 +154,6 @@ function clearConditions() {
 
 function close() {
   emit('update:show', false)
-}
-
-function applyPreset(preset: TransitionPostFunctionPreset) {
-  const action = presetToAction(preset)
-  if (preset.kind === 'template' && !preset.value && preset.fieldKey) {
-    const field = fieldMetaMap.value[preset.fieldKey]
-    if (field?.options?.length) {
-      action.value = field.options[0].value
-    } else if (field?.fieldType === 'USER') {
-      action.value = undefined
-    } else {
-      action.value = ''
-    }
-  }
-  localActions.value.push(action)
-  expandedIndex.value = localActions.value.length - 1
 }
 
 function addBlankAction(type: TransitionPostFunctionType) {
@@ -340,7 +308,7 @@ function insertPlaceholder(action: TransitionPostFunction, token: string) {
 
           <section>
             <n-space align="center" justify="space-between" style="margin-bottom: 10px">
-              <n-text depth="3">流转后动作 · 快捷添加</n-text>
+              <n-text depth="3">流转后动作</n-text>
               <n-dropdown
                 trigger="click"
                 :options="addTypeOptions.map((o) => ({ label: o.label, key: o.value }))"
@@ -349,40 +317,6 @@ function insertPlaceholder(action: TransitionPostFunction, token: string) {
                 <n-button size="small" quaternary type="primary">添加动作</n-button>
               </n-dropdown>
             </n-space>
-            <div class="preset-grid">
-              <div
-                v-for="preset in quickPresets"
-                :key="preset.id"
-                role="button"
-                tabindex="0"
-                class="preset-btn"
-                @click="applyPreset(preset)"
-                @keydown.enter.prevent="applyPreset(preset)"
-                @keydown.space.prevent="applyPreset(preset)"
-              >
-                <span class="preset-type">{{ actionTypeLabel(preset.type) }}</span>
-                <span class="preset-label">{{ preset.label }}</span>
-              </div>
-            </div>
-            <n-collapse v-if="morePresets.length" style="margin-top: 10px">
-              <n-collapse-item title="更多字段模板" name="more">
-                <div class="preset-grid">
-                  <div
-                    v-for="preset in morePresets"
-                    :key="preset.id"
-                    role="button"
-                    tabindex="0"
-                    class="preset-btn"
-                    @click="applyPreset(preset)"
-                    @keydown.enter.prevent="applyPreset(preset)"
-                    @keydown.space.prevent="applyPreset(preset)"
-                  >
-                    <span class="preset-type">{{ actionTypeLabel(preset.type) }}</span>
-                    <span class="preset-label">{{ preset.label }}</span>
-                  </div>
-                </div>
-              </n-collapse-item>
-            </n-collapse>
           </section>
 
           <section>
@@ -390,7 +324,7 @@ function insertPlaceholder(action: TransitionPostFunction, token: string) {
               执行顺序（{{ localActions.length }}）
             </n-text>
 
-            <n-empty v-if="!localActions.length" description="暂未添加动作，可从上方快捷添加或「添加动作」" />
+            <n-empty v-if="!localActions.length" description="暂未添加动作，可通过「添加动作」添加" />
 
             <n-timeline v-else size="large">
               <n-timeline-item v-for="(action, index) in localActions" :key="index" type="info">
@@ -510,57 +444,6 @@ function insertPlaceholder(action: TransitionPostFunction, token: string) {
 </template>
 
 <style scoped>
-.preset-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.preset-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px dashed #d0d3d6;
-  border-radius: 6px;
-  background: #fff;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.15s, background 0.15s;
-  outline: none;
-  min-height: 40px;
-}
-
-.preset-btn:focus-visible {
-  border-color: #3370ff;
-  box-shadow: 0 0 0 2px rgba(51, 112, 255, 0.16);
-}
-
-.preset-btn:hover {
-  border-color: #3370ff;
-  background: #f5f8ff;
-}
-
-.preset-type {
-  flex-shrink: 0;
-  font-size: 11px;
-  line-height: 18px;
-  padding: 0 6px;
-  border-radius: 4px;
-  background: #e8f3ff;
-  color: #245bdb;
-  white-space: nowrap;
-}
-
-.preset-label {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  line-height: 1.4;
-  color: #1f2329;
-  word-break: break-word;
-}
-
 .action-card {
   border: 1px solid var(--n-border-color);
   border-radius: var(--n-border-radius);
