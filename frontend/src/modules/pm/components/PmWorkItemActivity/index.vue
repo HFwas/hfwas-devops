@@ -303,7 +303,7 @@ watch(() => props.workItemId, load, { immediate: true })
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #d0d0d0;
+  background: var(--wb-muted, #d0d0d0);
   margin-top: 6px;
   flex-shrink: 0;
 }
@@ -311,7 +311,7 @@ watch(() => props.workItemId, load, { immediate: true })
 .timeline-line {
   flex: 1;
   width: 0;
-  border-left: 1px dashed #e0e0e6;
+  border-left: 1px dashed var(--wb-border, #e0e0e6);
   margin-top: 4px;
   min-height: 24px;
 }

@@ -226,8 +226,8 @@ watch(
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border-bottom: 1px solid var(--pm-border-soft, #eef0f3);
-  background: #fafbfc;
+  border-bottom: 1px solid var(--pm-border-soft, var(--wb-border, #e5e7eb));
+  background: var(--pm-surface-muted, var(--wb-chip-bg, #f8fafc));
 }
 
 .pm-chip {
@@ -237,9 +237,9 @@ watch(
   max-width: 100%;
   padding: 2px 4px 2px 8px;
   border-radius: 4px;
-  background: #fff;
-  border: 1px solid var(--pm-border, #e8eaed);
-  color: var(--pm-text-secondary, #646a73);
+  background: var(--pm-surface, var(--wb-card-bg, #ffffff));
+  border: 1px solid var(--pm-border, var(--wb-border, #e5e7eb));
+  color: var(--pm-text-secondary, var(--wb-muted, #6b7280));
   font-size: 12px;
   line-height: 1.5;
 }
@@ -253,7 +253,7 @@ watch(
 .pm-chip-x {
   border: none;
   background: transparent;
-  color: var(--pm-text-muted, #8f959e);
+  color: var(--pm-text-muted, var(--wb-muted, #6b7280));
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -275,8 +275,8 @@ watch(
 
 .pm-query-panel {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--pm-border-soft, #eef0f3);
-  background: #fafbfc;
+  border-bottom: 1px solid var(--pm-border-soft, var(--wb-border, #e5e7eb));
+  background: var(--pm-surface-muted, var(--wb-chip-bg, #f8fafc));
 }
 
 .pm-query-panel-body {
@@ -288,6 +288,6 @@ watch(
   justify-content: flex-end;
   gap: 8px;
   padding-top: 10px;
-  border-top: 1px solid var(--pm-border-soft, #eef0f3);
+  border-top: 1px solid var(--pm-border-soft, var(--wb-border, #e5e7eb));
 }
 </style>

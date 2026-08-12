@@ -252,7 +252,7 @@ function readValue(row: PmWorkItem, field: FieldDefinition): unknown {
   font-size: 18px;
   line-height: 1;
   letter-spacing: 1px;
-  color: var(--pm-text-secondary, #646a73);
+  color: var(--pm-text-secondary, var(--wb-muted, #6b7280));
   padding: 0 4px;
 }
 </style>
