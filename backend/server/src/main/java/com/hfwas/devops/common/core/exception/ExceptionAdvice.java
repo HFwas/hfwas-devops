@@ -1,5 +1,6 @@
 package com.hfwas.devops.common.core.exception;
 
+import com.hfwas.devops.apitest.common.exception.ApiTestException;
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ResultCode;
@@ -23,6 +24,13 @@ public class ExceptionAdvice {
     @ResponseStatus(HttpStatus.OK)
     public BaseResult<Void> handleBizException(BizException e) {
         log.warn("[{}] {}", e.getCode(), e.getMessage());
+        return BaseResult.failed(e.getCode(), e.getMessage());
+    }
+
+    @ExceptionHandler(ApiTestException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public BaseResult<Void> handleApiTestException(ApiTestException e) {
+        log.warn("[ApiTest] {}", e.getMessage());
         return BaseResult.failed(e.getCode(), e.getMessage());
     }
 

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { pmRoutes } from '@/modules/pm/router/pmRoutes'
 import { userRoutes } from '@/modules/user/router/userRoutes'
+import { apiTestRoutes } from '@/modules/api-test/define/router/apiTestRoutes'
 import { useAuthStore } from '@/modules/user/stores/auth'
 import { resolveRouteProjectId } from '@/modules/pm/utils/projectRoute'
 
@@ -15,6 +16,7 @@ const router = createRouter({
     },
     ...userRoutes,
     ...pmRoutes,
+    ...apiTestRoutes,
   ],
 })
 
