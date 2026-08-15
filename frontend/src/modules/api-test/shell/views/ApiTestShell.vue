@@ -240,7 +240,7 @@ onUnmounted(() => stopSidebarResize?.())
 </script>
 
 <template>
-  <div class="api-test-shell">
+  <div class="api-test-shell" data-density="compact">
     <aside class="api-test-shell__sidebar" :style="{ width: `${sidebarWidth}px` }">
       <CollectionsSidebar
         @run="onCollectionRun"
@@ -299,6 +299,17 @@ onUnmounted(() => stopSidebarResize?.())
   --api-test-accent: #4098fc;
   --api-test-accent-strong: #2d80e6;
   --api-test-accent-soft: rgba(64, 152, 252, 0.12);
+  --api-density-pad-y: 5px;
+  --api-density-pad-x: 10px;
+  --api-row-height: 28px;
+  --api-font-sm: 12px;
+  --api-font: 13px;
+  --api-method-get: #10b981;
+  --api-method-post: #f59e0b;
+  --api-method-put: #3b82f6;
+  --api-method-patch: #8b5cf6;
+  --api-method-delete: #ef4444;
+  --api-method-default: #64748b;
   display: flex;
   height: calc(100vh - 56px);
   overflow: hidden;
@@ -310,6 +321,12 @@ html.dark .api-test-shell {
   --api-test-accent: #5eb0ff;
   --api-test-accent-strong: #82c4ff;
   --api-test-accent-soft: rgba(94, 176, 255, 0.2);
+  --api-method-get: #34d399;
+  --api-method-post: #fbbf24;
+  --api-method-put: #60a5fa;
+  --api-method-patch: #a78bfa;
+  --api-method-delete: #f87171;
+  --api-method-default: #94a3b8;
 }
 
 .api-test-shell__sidebar {
@@ -350,7 +367,7 @@ html.dark .api-test-shell {
   flex-shrink: 0;
   align-items: center;
   justify-content: flex-end;
-  padding: 8px 12px;
+  padding: var(--api-density-pad-y) var(--api-density-pad-x);
   border-bottom: 1px solid var(--wb-border, #e5e7eb);
   background: var(--wb-card-bg, #fff);
 }

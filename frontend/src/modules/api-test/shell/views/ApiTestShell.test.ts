@@ -123,6 +123,11 @@ describe('ApiTestShell environment header', () => {
     })
   }
 
+  it('exposes compact density CSS variables on shell root', () => {
+    const wrapper = mountShell()
+    expect(wrapper.get('.api-test-shell').attributes('data-density')).toBe('compact')
+  })
+
   it('does not render module rail', () => {
     const wrapper = mountShell()
     expect(wrapper.find('[data-testid="module-rail"]').exists()).toBe(false)
