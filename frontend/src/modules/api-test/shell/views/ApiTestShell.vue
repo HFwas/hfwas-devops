@@ -13,6 +13,11 @@ import { useEnvironmentStore } from '@/modules/api-test/environment/stores/envir
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import type { ShellModule } from '@/modules/api-test/shell/types/workspace'
 import { loadDefinitionIntoTab } from '@/modules/api-test/shell/utils/loadDefinitionDraft'
+import {
+  clampSidebarWidth,
+  persistLayout,
+  readStoredLayout,
+} from '@/modules/api-test/shell/utils/layoutPersist'
 
 const SHELL_MODULES: readonly ShellModule[] = [
   'apis',
@@ -23,14 +28,11 @@ const SHELL_MODULES: readonly ShellModule[] = [
   'mocks',
 ]
 
-const SIDEBAR_MIN = 180
-const SIDEBAR_MAX = 480
-
 const route = useRoute()
 const message = useMessage()
 const workspace = useWorkspaceStore()
 const envStore = useEnvironmentStore()
-const { sidebarWidth, tabs } = storeToRefs(workspace)
+const { sidebarWidth, responseHeight, tabs } = storeToRefs(workspace)
 const { selectedEnvironmentId } = storeToRefs(envStore)
 
 const treeLoaded = ref(false)
@@ -134,6 +136,10 @@ function onEnvironmentChange(id: number | null) {
 }
 
 onMounted(() => {
+  const stored = readStoredLayout()
+  if (stored.sidebarWidth != null || stored.responseHeight != null) {
+    workspace.setLayout(stored)
+  }
   applyQueryModule()
   applyCollectionQuery()
   void envStore.loadAll(1)
@@ -145,24 +151,29 @@ watch(() => route.query, () => {
 watch(() => route.query.def, () => {
   void openDefFromQuery()
 })
+watch([sidebarWidth, responseHeight], ([width, height]) => {
+  persistLayout({ sidebarWidth: width, responseHeight: height })
+})
 
 let stopSidebarResize: (() => void) | null = null
 
-function onSidebarResizeStart(event: MouseEvent) {
+function onSidebarResizeStart(event: PointerEvent) {
+  if (event.button !== 0) return
   event.preventDefault()
   stopSidebarResize?.()
 
   const startX = event.clientX
   const startWidth = sidebarWidth.value
 
-  function onMove(moveEvent: MouseEvent) {
-    const next = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, startWidth + moveEvent.clientX - startX))
-    workspace.setLayout({ sidebarWidth: next })
+  function onMove(moveEvent: PointerEvent) {
+    workspace.setLayout({
+      sidebarWidth: clampSidebarWidth(startWidth + moveEvent.clientX - startX),
+    })
   }
 
   function onUp() {
-    window.removeEventListener('mousemove', onMove)
-    window.removeEventListener('mouseup', onUp)
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
     document.body.style.removeProperty('user-select')
     document.body.style.removeProperty('cursor')
     stopSidebarResize = null
@@ -170,8 +181,8 @@ function onSidebarResizeStart(event: MouseEvent) {
 
   document.body.style.userSelect = 'none'
   document.body.style.cursor = 'col-resize'
-  window.addEventListener('mousemove', onMove)
-  window.addEventListener('mouseup', onUp)
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
   stopSidebarResize = onUp
 }
 
@@ -191,8 +202,9 @@ onUnmounted(() => stopSidebarResize?.())
     </aside>
     <div
       class="api-test-shell__resizer"
+      data-testid="sidebar-resizer"
       title="拖拽调整侧栏宽度"
-      @mousedown="onSidebarResizeStart"
+      @pointerdown="onSidebarResizeStart"
     />
 
     <div class="api-test-shell__main">
@@ -221,10 +233,20 @@ onUnmounted(() => stopSidebarResize?.())
 
 <style scoped>
 .api-test-shell {
+  --api-test-accent: #4098fc;
+  --api-test-accent-strong: #2d80e6;
+  --api-test-accent-soft: rgba(64, 152, 252, 0.12);
   display: flex;
   height: calc(100vh - 56px);
   overflow: hidden;
+  color: inherit;
   background: var(--wb-card-bg, #fff);
+}
+
+html.dark .api-test-shell {
+  --api-test-accent: #5eb0ff;
+  --api-test-accent-strong: #82c4ff;
+  --api-test-accent-soft: rgba(94, 176, 255, 0.2);
 }
 
 .api-test-shell__sidebar {
@@ -233,6 +255,7 @@ onUnmounted(() => stopSidebarResize?.())
   flex-direction: column;
   min-width: 0;
   height: 100%;
+  color: inherit;
   background: var(--wb-card-bg, #fff);
 }
 
@@ -242,10 +265,11 @@ onUnmounted(() => stopSidebarResize?.())
   height: 100%;
   background: var(--wb-border, #e5e7eb);
   cursor: col-resize;
+  touch-action: none;
 }
 
 .api-test-shell__resizer:hover {
-  background: #4098fc;
+  background: var(--api-test-accent, #4098fc);
 }
 
 .api-test-shell__main {
@@ -254,6 +278,8 @@ onUnmounted(() => stopSidebarResize?.())
   flex-direction: column;
   min-width: 0;
   height: 100%;
+  color: inherit;
+  background: var(--wb-page-bg, #f5f7fb);
 }
 
 .api-test-shell__header {
@@ -263,6 +289,7 @@ onUnmounted(() => stopSidebarResize?.())
   justify-content: flex-end;
   padding: 8px 12px;
   border-bottom: 1px solid var(--wb-border, #e5e7eb);
+  background: var(--wb-card-bg, #fff);
 }
 
 .api-test-shell__workspace {
@@ -272,6 +299,8 @@ onUnmounted(() => stopSidebarResize?.())
   justify-content: center;
   min-height: 0;
   overflow: hidden;
+  color: inherit;
+  background: var(--wb-card-bg, #fff);
 }
 
 .api-test-shell__workspace > .request-workspace {

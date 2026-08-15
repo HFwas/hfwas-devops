@@ -141,6 +141,8 @@ function onHistory() {
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  color: inherit;
+  background: var(--wb-card-bg, #fff);
 }
 
 .collection-panel__toolbar {

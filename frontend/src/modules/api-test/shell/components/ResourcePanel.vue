@@ -56,6 +56,8 @@ const fillPanel = computed(() =>
   min-height: 0;
   overflow: auto;
   padding: 16px 12px;
+  color: inherit;
+  background: var(--wb-card-bg, #fff);
 }
 
 .resource-panel--fill {

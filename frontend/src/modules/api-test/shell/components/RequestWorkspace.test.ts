@@ -270,4 +270,15 @@ describe('RequestWorkspace', () => {
       expect(text).toContain(label)
     }
   })
+
+  it('clamps response pane drag to 120–60vh', async () => {
+    const workspace = useWorkspaceStore()
+    workspace.openScratchTab()
+    const wrapper = mount(RequestWorkspace)
+    const start = workspace.responseHeight
+    await wrapper.get('[data-testid="response-resizer"]').trigger('pointerdown', { button: 0, clientY: 400 })
+    window.dispatchEvent(new PointerEvent('pointermove', { clientY: 400 + start }))
+    window.dispatchEvent(new PointerEvent('pointerup'))
+    expect(workspace.responseHeight).toBe(120)
+  })
 })

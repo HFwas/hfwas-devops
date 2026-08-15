@@ -21,6 +21,7 @@ defineProps<{
   gap: 8px;
   height: 100%;
   padding: 24px 16px;
+  color: var(--wb-muted, #6b7280);
 }
 
 .coming-soon__title {

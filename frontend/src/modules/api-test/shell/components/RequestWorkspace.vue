@@ -18,10 +18,9 @@ import { useDebugStore } from '@/modules/api-test/debug/stores/debug'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import type { RequestDraft } from '@/modules/api-test/shell/types/workspace'
+import { clampResponseHeight } from '@/modules/api-test/shell/utils/layoutPersist'
 
 const PROJECT_ID = 1
-const RESPONSE_MIN = 160
-const RESPONSE_MAX = 560
 
 const message = useMessage()
 const authStore = useAuthStore()
@@ -209,20 +208,22 @@ async function confirmScratchSave() {
 
 let stopResponseResize: (() => void) | null = null
 
-function onResponseResizeStart(event: MouseEvent) {
+function onResponseResizeStart(event: PointerEvent) {
+  if (event.button !== 0) return
   event.preventDefault()
   stopResponseResize?.()
   const startY = event.clientY
   const startHeight = responseHeight.value
 
-  function onMove(moveEvent: MouseEvent) {
-    const next = Math.min(RESPONSE_MAX, Math.max(RESPONSE_MIN, startHeight - (moveEvent.clientY - startY)))
-    workspace.setLayout({ responseHeight: next })
+  function onMove(moveEvent: PointerEvent) {
+    workspace.setLayout({
+      responseHeight: clampResponseHeight(startHeight - (moveEvent.clientY - startY)),
+    })
   }
 
   function onUp() {
-    window.removeEventListener('mousemove', onMove)
-    window.removeEventListener('mouseup', onUp)
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
     document.body.style.removeProperty('user-select')
     document.body.style.removeProperty('cursor')
     stopResponseResize = null
@@ -230,8 +231,8 @@ function onResponseResizeStart(event: MouseEvent) {
 
   document.body.style.userSelect = 'none'
   document.body.style.cursor = 'row-resize'
-  window.addEventListener('mousemove', onMove)
-  window.addEventListener('mouseup', onUp)
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
   stopResponseResize = onUp
 }
 
@@ -359,8 +360,9 @@ onUnmounted(() => stopResponseResize?.())
 
     <div
       class="request-workspace__resizer"
+      data-testid="response-resizer"
       title="拖拽调整响应区高度"
-      @mousedown="onResponseResizeStart"
+      @pointerdown="onResponseResizeStart"
     />
 
     <div class="request-workspace__response" :style="{ height: `${responseHeight}px` }">
@@ -413,6 +415,8 @@ onUnmounted(() => stopResponseResize?.())
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  color: inherit;
+  background: var(--wb-card-bg, #fff);
 }
 
 .request-workspace__url-bar {
@@ -442,7 +446,7 @@ onUnmounted(() => stopResponseResize?.())
   margin-bottom: 4px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--wb-muted, #666);
+  color: var(--wb-muted, #6b7280);
 }
 
 .request-workspace__resizer {
@@ -450,10 +454,11 @@ onUnmounted(() => stopResponseResize?.())
   height: 4px;
   cursor: row-resize;
   background: var(--wb-border, #e5e7eb);
+  touch-action: none;
 }
 
 .request-workspace__resizer:hover {
-  background: #4098fc;
+  background: var(--api-test-accent, #4098fc);
 }
 
 .request-workspace__response {

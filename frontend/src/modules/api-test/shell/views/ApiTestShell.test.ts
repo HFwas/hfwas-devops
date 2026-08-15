@@ -42,6 +42,7 @@ import ApiTestShell from './ApiTestShell.vue'
 describe('ApiTestShell environment header', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    sessionStorage.clear()
     listAllMock.mockReset()
     listAllMock.mockResolvedValue([])
     routeQuery.module = undefined
@@ -138,5 +139,42 @@ describe('ApiTestShell environment header', () => {
     await flushPromises()
     expect(useWorkspaceStore().activeModule).toBe('collections')
     expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:history:0')
+  })
+
+  it('restores sidebarWidth and responseHeight from sessionStorage via setLayout', async () => {
+    sessionStorage.setItem('api-test.sidebarWidth', '360')
+    sessionStorage.setItem('api-test.responseHeight', '240')
+    mountShell()
+    await flushPromises()
+    const store = useWorkspaceStore()
+    expect(store.sidebarWidth).toBe(360)
+    expect(store.responseHeight).toBe(240)
+  })
+
+  it('clamps restored sidebar width to 200–480', async () => {
+    sessionStorage.setItem('api-test.sidebarWidth', '80')
+    mountShell()
+    await flushPromises()
+    expect(useWorkspaceStore().sidebarWidth).toBe(200)
+  })
+
+  it('persists layout sizes when setLayout changes values', async () => {
+    mountShell()
+    await flushPromises()
+    useWorkspaceStore().setLayout({ sidebarWidth: 320, responseHeight: 280 })
+    await flushPromises()
+    expect(sessionStorage.getItem('api-test.sidebarWidth')).toBe('320')
+    expect(sessionStorage.getItem('api-test.responseHeight')).toBe('280')
+  })
+
+  it('clamps sidebar drag to 200–480 and persists the result', async () => {
+    const wrapper = mountShell()
+    await flushPromises()
+    await wrapper.get('[data-testid="sidebar-resizer"]').trigger('pointerdown', { button: 0, clientX: 280 })
+    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 280 + 400 }))
+    window.dispatchEvent(new PointerEvent('pointerup'))
+    await flushPromises()
+    expect(useWorkspaceStore().sidebarWidth).toBe(480)
+    expect(sessionStorage.getItem('api-test.sidebarWidth')).toBe('480')
   })
 })

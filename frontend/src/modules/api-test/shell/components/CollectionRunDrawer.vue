@@ -203,8 +203,13 @@ function runRowClass(run: CollectionRunVO) {
 }
 
 .run-drawer__history-item.is-active {
-  border-color: #4098fc;
-  background: rgba(64, 152, 252, 0.12);
+  border-color: var(--api-test-accent, #4098fc);
+  background: var(--api-test-accent-soft, rgba(64, 152, 252, 0.12));
+}
+
+html.dark .run-drawer__history-item.is-active {
+  border-color: var(--api-test-accent, #5eb0ff);
+  background: var(--api-test-accent-soft, rgba(94, 176, 255, 0.2));
 }
 
 .run-drawer__history-name {

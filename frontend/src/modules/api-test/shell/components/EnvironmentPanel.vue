@@ -149,6 +149,8 @@ async function onSaved() {
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  color: inherit;
+  background: var(--wb-card-bg, #fff);
 }
 
 .environment-panel__toolbar {
@@ -190,9 +192,14 @@ async function onSaved() {
 }
 
 .environment-panel__item.is-active {
-  background: rgba(64, 152, 252, 0.12);
-  color: #2d80e6;
+  background: var(--api-test-accent-soft, rgba(64, 152, 252, 0.12));
+  color: var(--api-test-accent-strong, #2d80e6);
   font-weight: 600;
+}
+
+html.dark .environment-panel__item.is-active {
+  background: var(--api-test-accent-soft, rgba(94, 176, 255, 0.2));
+  color: var(--api-test-accent-strong, #82c4ff);
 }
 
 .environment-panel__vars {

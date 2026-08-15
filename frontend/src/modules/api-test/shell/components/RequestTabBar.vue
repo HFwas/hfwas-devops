@@ -80,6 +80,7 @@ function onClose(event: MouseEvent, tab: RequestTab) {
   min-height: 36px;
   overflow-x: auto;
   border-bottom: 1px solid var(--wb-border, #e5e7eb);
+  color: inherit;
   background: var(--wb-card-bg, #fff);
 }
 
@@ -101,7 +102,7 @@ function onClose(event: MouseEvent, tab: RequestTab) {
 .request-tab-bar__tab.is-active {
   background: var(--wb-chip-bg, #f8fafc);
   color: inherit;
-  box-shadow: inset 0 -2px 0 #4098fc;
+  box-shadow: inset 0 -2px 0 var(--api-test-accent, #4098fc);
 }
 
 .request-tab-bar__method {
@@ -118,7 +119,7 @@ function onClose(event: MouseEvent, tab: RequestTab) {
 
 .request-tab-bar__dirty {
   flex-shrink: 0;
-  color: #4098fc;
+  color: var(--api-test-accent, #4098fc);
   font-size: 10px;
   line-height: 1;
 }
@@ -151,6 +152,10 @@ function onClose(event: MouseEvent, tab: RequestTab) {
 }
 
 .request-tab-bar__add:hover {
-  color: #2d80e6;
+  color: var(--api-test-accent-strong, #2d80e6);
+}
+
+html.dark .request-tab-bar__add:hover {
+  color: var(--api-test-accent-strong, #82c4ff);
 }
 </style>

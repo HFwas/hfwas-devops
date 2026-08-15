@@ -230,6 +230,8 @@ function handleDeleteGroup(group: ApiGroupVO) {
   min-height: 0;
   height: 100%;
   overflow: hidden;
+  color: inherit;
+  background: var(--wb-card-bg, #fff);
 }
 
 .api-tree-panel :deep(.workspace-sidebar) {

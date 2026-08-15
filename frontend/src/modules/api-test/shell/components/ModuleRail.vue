@@ -46,6 +46,7 @@ const { activeModule } = storeToRefs(workspace)
   width: 48px;
   padding: 8px 0;
   border-right: 1px solid var(--wb-border, #e5e7eb);
+  color: inherit;
   background: var(--wb-card-bg, #fff);
 }
 
@@ -64,11 +65,20 @@ const { activeModule } = storeToRefs(workspace)
 
 .module-rail__btn:hover {
   background: var(--wb-chip-bg, #f8fafc);
-  color: #2d80e6;
+  color: var(--api-test-accent-strong, #2d80e6);
 }
 
 .module-rail__btn.is-active {
-  background: rgba(64, 152, 252, 0.12);
-  color: #2d80e6;
+  background: var(--api-test-accent-soft, rgba(64, 152, 252, 0.12));
+  color: var(--api-test-accent-strong, #2d80e6);
+}
+
+html.dark .module-rail__btn:hover,
+html.dark .module-rail__btn.is-active {
+  color: var(--api-test-accent-strong, #82c4ff);
+}
+
+html.dark .module-rail__btn.is-active {
+  background: var(--api-test-accent-soft, rgba(94, 176, 255, 0.2));
 }
 </style>
