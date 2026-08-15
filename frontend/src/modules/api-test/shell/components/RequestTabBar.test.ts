@@ -49,6 +49,13 @@ describe('RequestTabBar', () => {
     expect(wrapper.text()).toContain('●')
   })
 
+  it('hides method chip when method is empty', () => {
+    useWorkspaceStore().openOrFocusCollectionOverview(1, 'Demo')
+    const wrapper = mount(RequestTabBar)
+    expect(wrapper.find('.request-tab-bar__method').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Demo')
+  })
+
   it('plus button opens a scratch tab', async () => {
     const workspace = useWorkspaceStore()
     const wrapper = mount(RequestTabBar)

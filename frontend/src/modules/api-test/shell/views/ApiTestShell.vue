@@ -3,15 +3,14 @@ import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
-import ModuleRail from '@/modules/api-test/shell/components/ModuleRail.vue'
-import ResourcePanel from '@/modules/api-test/shell/components/ResourcePanel.vue'
+import CollectionsSidebar from '@/modules/api-test/shell/components/CollectionsSidebar.vue'
+import CollectionOverviewTab from '@/modules/api-test/shell/components/CollectionOverviewTab.vue'
 import RequestTabBar from '@/modules/api-test/shell/components/RequestTabBar.vue'
 import RequestWorkspace from '@/modules/api-test/shell/components/RequestWorkspace.vue'
 import CollectionRunDrawer from '@/modules/api-test/shell/components/CollectionRunDrawer.vue'
 import EnvironmentSelector from '@/modules/api-test/debug/components/EnvironmentSelector.vue'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
-import type { ShellModule } from '@/modules/api-test/shell/types/workspace'
 import { loadDefinitionIntoTab } from '@/modules/api-test/shell/utils/loadDefinitionDraft'
 import {
   clampSidebarWidth,
@@ -19,41 +18,19 @@ import {
   readStoredLayout,
 } from '@/modules/api-test/shell/utils/layoutPersist'
 
-const SHELL_MODULES: readonly ShellModule[] = [
-  'apis',
-  'collections',
-  'environments',
-  'docs',
-  'specs',
-  'mocks',
-]
-
 const route = useRoute()
 const message = useMessage()
 const workspace = useWorkspaceStore()
 const envStore = useEnvironmentStore()
-const { sidebarWidth, responseHeight, tabs } = storeToRefs(workspace)
+const { sidebarWidth, responseHeight, activeTab } = storeToRefs(workspace)
 const { selectedEnvironmentId } = storeToRefs(envStore)
 
-const treeLoaded = ref(false)
 const runDrawerShow = ref(false)
 const runCollectionId = ref<number | null>(null)
 const runDrawerMode = ref<'run' | 'history'>('history')
 const runNonce = ref(0)
 let openedDefKey: string | null = null
 let openedRunsKey: string | null = null
-
-function isShellModule(value: unknown): value is ShellModule {
-  return typeof value === 'string' && (SHELL_MODULES as readonly string[]).includes(value)
-}
-
-function applyQueryModule() {
-  const raw = route.query.module
-  const value = Array.isArray(raw) ? raw[0] : raw
-  if (isShellModule(value)) {
-    workspace.setModule(value)
-  }
-}
 
 function parseDefQuery(): number | null {
   const raw = route.query.def
@@ -107,7 +84,6 @@ function onCollectionHistory(id: number) {
 }
 
 async function openDefFromQuery() {
-  if (!treeLoaded.value) return
   const id = parseDefQuery()
   if (id == null) return
   const key = String(id)
@@ -129,11 +105,6 @@ async function openDefFromQuery() {
   }
 }
 
-function onTreeLoaded() {
-  treeLoaded.value = true
-  void openDefFromQuery()
-}
-
 function onEnvironmentChange(id: number | null) {
   envStore.selectEnvironment(id)
 }
@@ -143,12 +114,11 @@ onMounted(() => {
   if (stored.sidebarWidth != null || stored.responseHeight != null) {
     workspace.setLayout(stored)
   }
-  applyQueryModule()
   applyCollectionQuery()
   void envStore.loadAll(1)
+  void openDefFromQuery()
 })
 watch(() => route.query, () => {
-  applyQueryModule()
   applyCollectionQuery()
 }, { deep: true })
 watch(() => route.query.def, () => {
@@ -194,11 +164,8 @@ onUnmounted(() => stopSidebarResize?.())
 
 <template>
   <div class="api-test-shell">
-    <ModuleRail />
-
     <aside class="api-test-shell__sidebar" :style="{ width: `${sidebarWidth}px` }">
-      <ResourcePanel
-        @loaded="onTreeLoaded"
+      <CollectionsSidebar
         @run="onCollectionRun"
         @history="onCollectionHistory"
       />
@@ -220,8 +187,16 @@ onUnmounted(() => stopSidebarResize?.())
       </div>
       <RequestTabBar />
       <div class="api-test-shell__workspace">
-        <RequestWorkspace v-if="tabs.length" />
-        <n-empty v-else description="从左侧打开接口" />
+        <CollectionOverviewTab
+          v-if="activeTab?.source === 'collectionOverview' && activeTab.refId"
+          :collection-id="activeTab.refId"
+          @run="onCollectionRun"
+          @history="onCollectionHistory"
+        />
+        <RequestWorkspace
+          v-else-if="activeTab && activeTab.source !== 'collectionOverview'"
+        />
+        <n-empty v-else description="选择集合或新建接口" />
       </div>
     </div>
 
@@ -306,7 +281,8 @@ html.dark .api-test-shell {
   background: var(--wb-card-bg, #fff);
 }
 
-.api-test-shell__workspace > .request-workspace {
+.api-test-shell__workspace > .request-workspace,
+.api-test-shell__workspace > .collection-overview {
   align-self: stretch;
   width: 100%;
 }

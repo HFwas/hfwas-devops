@@ -46,7 +46,11 @@ function onClose(event: MouseEvent, tab: RequestTab) {
       :title="tab.title"
       @click="workspace.setActiveTab(tab.id)"
     >
-      <span class="request-tab-bar__method" :style="{ color: methodColor(tab.method) }">
+      <span
+        v-if="tab.method"
+        class="request-tab-bar__method"
+        :style="{ color: methodColor(tab.method) }"
+      >
         {{ tab.method }}
       </span>
       <span class="request-tab-bar__title">{{ tab.title }}</span>

@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
@@ -55,19 +56,23 @@ describe('ApiTestShell environment header', () => {
     return mount(ApiTestShell, {
       global: {
         stubs: {
-          ModuleRail: true,
-          ResourcePanel: {
-            name: 'ResourcePanel',
-            emits: ['loaded', 'run', 'history'],
+          CollectionsSidebar: {
+            name: 'CollectionsSidebar',
+            emits: ['run', 'history'],
             template:
-              '<div data-testid="resource-panel">'
+              '<div data-testid="collections-sidebar">'
               + '<button data-testid="emit-run" type="button" @click="$emit(\'run\', 9)" />'
               + '<button data-testid="emit-history" type="button" @click="$emit(\'history\', 9)" />'
               + '</div>',
           },
+          CollectionOverviewTab: {
+            name: 'CollectionOverviewTab',
+            props: ['collectionId'],
+            emits: ['run', 'history'],
+            template: '<div data-testid="collection-overview">{{ collectionId }}</div>',
+          },
           RequestTabBar: true,
           RequestWorkspace: true,
-          NEmpty: true,
           CollectionRunDrawer: {
             name: 'CollectionRunDrawer',
             props: ['show', 'collectionId', 'mode', 'runNonce'],
@@ -87,6 +92,26 @@ describe('ApiTestShell environment header', () => {
     })
   }
 
+  it('does not render module rail', () => {
+    const wrapper = mountShell()
+    expect(wrapper.find('[data-testid="module-rail"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="collections-sidebar"]').exists()).toBe(true)
+  })
+
+  it('shows overview when active tab is collectionOverview', async () => {
+    const wrapper = mountShell()
+    useWorkspaceStore().openOrFocusCollectionOverview(1, 'Demo')
+    await nextTick()
+    expect(wrapper.find('[data-testid="collection-overview"]').exists()).toBe(true)
+  })
+
+  it('shows empty state when no active tab', async () => {
+    const wrapper = mountShell()
+    await flushPromises()
+    expect(wrapper.find('.n-empty').exists()).toBe(true)
+    expect(wrapper.text()).toContain('选择集合或新建接口')
+  })
+
   it('loads environments for project 1 and places selector above the tab bar', async () => {
     const wrapper = mountShell()
     await flushPromises()
@@ -103,14 +128,14 @@ describe('ApiTestShell environment header', () => {
     expect(useEnvironmentStore().selectedEnvironmentId).toBe(5)
   })
 
-  it('activates environments module from ?module=environments on mount', async () => {
+  it('ignores ?module= query on mount', async () => {
     routeQuery.module = 'environments'
     mountShell()
     await flushPromises()
-    expect(useWorkspaceStore().activeModule).toBe('environments')
+    expect(useWorkspaceStore().activeModule).toBe('apis')
   })
 
-  it('opens the run drawer from ResourcePanel run/history without changing route', async () => {
+  it('opens the run drawer from CollectionsSidebar run/history without changing route', async () => {
     const wrapper = mountShell()
     await flushPromises()
     expect(wrapper.find('[data-testid="run-drawer"]').exists()).toBe(false)
@@ -132,12 +157,10 @@ describe('ApiTestShell environment header', () => {
   })
 
   it('opens history drawer from ?collectionId= and ?runs=1', async () => {
-    routeQuery.module = 'collections'
     routeQuery.collectionId = '9'
     routeQuery.runs = '1'
     const wrapper = mountShell()
     await flushPromises()
-    expect(useWorkspaceStore().activeModule).toBe('collections')
     expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:history:0')
   })
 
