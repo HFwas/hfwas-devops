@@ -68,6 +68,7 @@ async function onSelectItem(item: CollectionItemVO) {
       source: 'collection',
       refId: item.id,
       definitionId: item.definitionId,
+      collectionId: item.collectionId,
       title: item.name || detail.name,
       method: item.method || detail.method,
       draft,

@@ -16,9 +16,11 @@ public interface ApiGroupConvert {
 
     ApiGroupEntity toEntity(ApiGroupCreateDTO dto);
 
+    @Mapping(target = "createdBy", source = "createBy")
     ApiGroupVO toVO(ApiGroupEntity entity);
 
     @Mapping(target = "children", ignore = true)
     @Mapping(target = "apiCount", ignore = true)
+    @Mapping(target = "createdBy", source = "createBy")
     ApiGroupVO toTreeVO(ApiGroupEntity entity);
 }

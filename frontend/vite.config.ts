@@ -26,7 +26,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': {
+      // Trailing slash so SPA route `/api-test` is NOT proxied (prefix `/api` would match it).
+      '/api/': {
         target: 'http://localhost:8089',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, ''),

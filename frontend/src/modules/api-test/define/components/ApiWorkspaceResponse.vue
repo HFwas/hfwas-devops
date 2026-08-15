@@ -56,15 +56,13 @@
       <n-tabs type="line" default-value="body" size="small" class="workspace-response__tabs">
         <!-- 响应体 -->
         <n-tab-pane name="body" tab="响应体">
-          <n-input
-            v-if="result.responseBody"
-            :value="formatBody(result.responseBody)"
-            type="textarea"
-            :rows="12"
-            readonly
-            class="workspace-response__body-input"
+          <response-body-renderer
+            v-if="result"
+            :content-type="result.responseContentType"
+            :body="result.responseBody"
+            :response-status-code="result.responseStatusCode"
           />
-          <n-empty v-else-if="!result.responseBody && result.responseStatusCode" description="响应体为空" />
+          <n-empty v-else description="暂无响应数据" />
         </n-tab-pane>
 
         <!-- 响应头 -->
@@ -110,6 +108,7 @@
 import { computed, h } from 'vue'
 import { NTag } from 'naive-ui'
 import type { ApiDebugResultVO } from '@/modules/api-test/debug/types/debug'
+import ResponseBodyRenderer from '@/modules/api-test/shared/components/ResponseBodyRenderer.vue'
 
 const props = defineProps<{
   result: ApiDebugResultVO | null
@@ -168,13 +167,6 @@ function formatSize(bytes: number | undefined | null): string {
   return `${(bytes / 1024 / 1024).toFixed(1)}MB`
 }
 
-function formatBody(body: string): string {
-  try {
-    return JSON.stringify(JSON.parse(body), null, 2)
-  } catch {
-    return body
-  }
-}
 </script>
 
 <style scoped>
@@ -202,11 +194,6 @@ function formatBody(body: string): string {
   padding: var(--api-density-pad-y, 6px) 0;
   background: var(--wb-card-bg, #fff);
   border-bottom: 1px solid var(--wb-border, #e5e7eb);
-}
-
-.workspace-response__body-input :deep(textarea) {
-  font-family: monospace;
-  font-size: var(--api-font-sm, 12px);
 }
 
 .workspace-response__meta {

@@ -25,15 +25,17 @@ public interface ApiDefinitionConvert {
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "projectId", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "createBy", ignore = true)
     @Mapping(target = "createTime", ignore = true)
     void updateEntity(ApiDefinitionUpdateDTO dto, @MappingTarget ApiDefinitionEntity entity);
 
     @Mapping(target = "groupName", ignore = true)
+    @Mapping(target = "createdBy", source = "createBy")
     ApiDefinitionVO toVO(ApiDefinitionEntity entity);
 
     @Mapping(target = "groupName", ignore = true)
     @Mapping(target = "params", ignore = true)
     @Mapping(target = "responses", ignore = true)
+    @Mapping(target = "createdBy", source = "createBy")
     ApiDefinitionDetailVO toDetailVO(ApiDefinitionEntity entity);
 }

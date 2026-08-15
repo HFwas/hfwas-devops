@@ -11,8 +11,8 @@ import com.hfwas.devops.apitest.apidefine.entity.ApiGroupEntity;
 import com.hfwas.devops.apitest.apidefine.mapper.ApiGroupMapper;
 import com.hfwas.devops.apitest.apidefine.vo.ApiGroupVO;
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,11 +29,16 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ApiGroupService extends ServiceImpl<ApiGroupMapper, ApiGroupEntity> {
 
     private final ApiGroupConvert apiGroupConvert;
     private final ApiDefinitionService apiDefinitionService;
+
+    public ApiGroupService(ApiGroupConvert apiGroupConvert,
+                           @Lazy ApiDefinitionService apiDefinitionService) {
+        this.apiGroupConvert = apiGroupConvert;
+        this.apiDefinitionService = apiDefinitionService;
+    }
 
     /**
      * 创建分组

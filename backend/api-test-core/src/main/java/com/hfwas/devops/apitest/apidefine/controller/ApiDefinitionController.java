@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @Tag(name = "接口定义管理")
 @RestController
-@RequestMapping("/api/apitest/definitions")
+@RequestMapping("/apitest/definitions")
 @RequiredArgsConstructor
 public class ApiDefinitionController {
 

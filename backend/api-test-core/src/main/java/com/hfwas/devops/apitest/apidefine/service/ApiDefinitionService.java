@@ -89,6 +89,19 @@ public class ApiDefinitionService extends ServiceImpl<ApiDefinitionMapper, ApiDe
         wrapper.orderByDesc(ApiDefinitionEntity::getUpdateTime);
 
         IPage<ApiDefinitionEntity> entityPage = page(page, wrapper);
+        // MyBatis-Plus 3.5.10+ 移除了 PaginationInnerInterceptor，需手动分页
+        if (entityPage.getTotal() == 0 && !entityPage.getRecords().isEmpty()) {
+            entityPage.setTotal(baseMapper.selectCount(wrapper));
+        }
+        // 无 PaginationInnerInterceptor 时 LIMIT 不生效，手动截取
+        long pageSize = page.getSize();
+        if (pageSize > 0 && entityPage.getRecords().size() > pageSize) {
+            List<ApiDefinitionEntity> records = entityPage.getRecords().stream()
+                    .skip((page.getCurrent() - 1) * pageSize)
+                    .limit(pageSize)
+                    .collect(Collectors.toList());
+            entityPage.setRecords(records);
+        }
 
         // 转换为 VO
         return entityPage.convert(entity -> {

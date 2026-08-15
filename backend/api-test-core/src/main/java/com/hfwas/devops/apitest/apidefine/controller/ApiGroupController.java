@@ -29,7 +29,7 @@ import java.util.List;
  */
 @Tag(name = "接口分组管理")
 @RestController
-@RequestMapping("/api/apitest/groups")
+@RequestMapping("/apitest/groups")
 @RequiredArgsConstructor
 public class ApiGroupController {
 

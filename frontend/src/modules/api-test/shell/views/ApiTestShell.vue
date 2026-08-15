@@ -10,6 +10,8 @@ import RequestWorkspace from '@/modules/api-test/shell/components/RequestWorkspa
 import CollectionRunDrawer from '@/modules/api-test/shell/components/CollectionRunDrawer.vue'
 import EnvironmentEditDrawer from '@/modules/api-test/shell/components/EnvironmentEditDrawer.vue'
 import EnvironmentSelector from '@/modules/api-test/debug/components/EnvironmentSelector.vue'
+import CurlImportDialog from '@/modules/api-test/debug/components/CurlImportDialog.vue'
+import type { CurlParseResultVO } from '@/modules/api-test/debug/types/curl'
 import { useCollectionStore } from '@/modules/api-test/collection/stores/collection'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
@@ -36,6 +38,7 @@ const runDrawerMode = ref<'run' | 'history'>('history')
 const runNonce = ref(0)
 const envDrawerShow = ref(false)
 const envDrawerId = ref<number | null>(null)
+const curlImportShow = ref(false)
 let openedDefKey: string | null = null
 let openedOverviewKey: string | null = null
 let openedRunsKey: string | null = null
@@ -176,6 +179,50 @@ function onEnvEdit(id: number) {
   envDrawerShow.value = true
 }
 
+function onImportCurl() {
+  curlImportShow.value = true
+}
+
+function applyCurlResultToTab(tabId: string, result: CurlParseResultVO, options?: { setTitle?: boolean }) {
+  const method = result.method || 'GET'
+  workspace.patchDraft(tabId, {
+    url: result.url || '',
+    method,
+    headers: result.headers || {},
+    body: result.body || '',
+    contentType: result.contentType || 'application/json',
+  })
+  const meta: { method: string; title?: string } = { method }
+  if (options?.setTitle) {
+    const url = result.url || ''
+    meta.title = `${method} ${url.length > 48 ? `${url.slice(0, 45)}...` : url || 'Untitled'}`
+  }
+  workspace.setTabMeta(tabId, meta)
+  workspace.markClean(tabId)
+}
+
+function onCurlImported(results: CurlParseResultVO[]) {
+  if (!results.length) return
+
+  if (results.length === 1) {
+    const result = results[0]
+    let tab = workspace.activeTab
+    const openedScratch = !tab || tab.source === 'collectionOverview'
+    if (openedScratch) {
+      tab = workspace.openScratchTab()
+    }
+    applyCurlResultToTab(tab!.id, result, { setTitle: openedScratch })
+    message.success('cURL 导入成功')
+    return
+  }
+
+  for (const result of results) {
+    const tab = workspace.openScratchTab()
+    applyCurlResultToTab(tab.id, result, { setTitle: true })
+  }
+  message.success(`已导入 ${results.length} 条请求为草稿 Tab（需保存后才会出现在左侧集合）`)
+}
+
 async function onEnvSaved() {
   envDrawerShow.value = false
   await envStore.loadAll(PROJECT_ID)
@@ -245,6 +292,7 @@ onUnmounted(() => stopSidebarResize?.())
       <CollectionsSidebar
         @run="onCollectionRun"
         @history="onCollectionHistory"
+        @import-curl="onImportCurl"
       />
     </aside>
     <div
@@ -290,6 +338,11 @@ onUnmounted(() => stopSidebarResize?.())
       :environment-id="envDrawerId"
       :project-id="PROJECT_ID"
       @saved="onEnvSaved"
+    />
+
+    <CurlImportDialog
+      v-model:show="curlImportShow"
+      @imported="onCurlImported"
     />
   </div>
 </template>

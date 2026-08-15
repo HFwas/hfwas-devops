@@ -81,11 +81,12 @@ describe('ApiTestShell environment header', () => {
         stubs: {
           CollectionsSidebar: {
             name: 'CollectionsSidebar',
-            emits: ['run', 'history'],
+            emits: ['run', 'history', 'import-curl'],
             template:
               '<div data-testid="collections-sidebar">'
               + '<button data-testid="emit-run" type="button" @click="$emit(\'run\', 9)" />'
               + '<button data-testid="emit-history" type="button" @click="$emit(\'history\', 9)" />'
+              + '<button data-testid="emit-import-curl" type="button" @click="$emit(\'import-curl\')" />'
               + '</div>',
           },
           CollectionOverviewTab: {
@@ -117,6 +118,19 @@ describe('ApiTestShell environment header', () => {
             emits: ['update:show', 'saved'],
             template:
               '<div v-if="show" data-testid="env-edit-drawer">{{ environmentId }}</div>',
+          },
+          CurlImportDialog: {
+            name: 'CurlImportDialog',
+            props: ['show'],
+            emits: ['update:show', 'imported'],
+            template:
+              '<div v-if="show" data-testid="curl-import-dialog">'
+              + '<button data-testid="emit-curl-imported" type="button" '
+              + '@click="$emit(\'imported\', ['
+              + '{ url: \'/a\', method: \'GET\', headers: {}, body: \'\', contentType: \'application/json\', followRedirects: false, timeoutMs: 0, warnings: [] },'
+              + '{ url: \'/b\', method: \'POST\', headers: {}, body: \'{}\', contentType: \'application/json\', followRedirects: false, timeoutMs: 0, warnings: [] }'
+              + '])" />'
+              + '</div>',
           },
         },
       },
@@ -255,6 +269,27 @@ describe('ApiTestShell environment header', () => {
     expect(wrapper.find('[data-testid="env-edit-drawer"]').exists()).toBe(false)
     await wrapper.get('[data-testid="header-env-edit"]').trigger('click')
     expect(wrapper.get('[data-testid="env-edit-drawer"]').text()).toBe('5')
+  })
+
+  it('opens curl import dialog from sidebar import-curl', async () => {
+    const wrapper = mountShell()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="curl-import-dialog"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="emit-import-curl"]').trigger('click')
+    expect(wrapper.find('[data-testid="curl-import-dialog"]').exists()).toBe(true)
+  })
+
+  it('imports multiple curl results as separate scratch tabs', async () => {
+    const wrapper = mountShell()
+    await flushPromises()
+    await wrapper.get('[data-testid="emit-import-curl"]').trigger('click')
+    await wrapper.get('[data-testid="emit-curl-imported"]').trigger('click')
+    await flushPromises()
+    const ws = useWorkspaceStore()
+    const scratches = ws.tabs.filter((t) => t.source === 'scratch')
+    expect(scratches.length).toBeGreaterThanOrEqual(2)
+    expect(scratches.some((t) => t.draft.url === '/a')).toBe(true)
+    expect(scratches.some((t) => t.draft.url === '/b' && t.draft.method === 'POST')).toBe(true)
   })
 
   it('restores sidebarWidth and responseHeight from sessionStorage via setLayout', async () => {
