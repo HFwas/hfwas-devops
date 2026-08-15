@@ -8,6 +8,7 @@ import CollectionOverviewTab from '@/modules/api-test/shell/components/Collectio
 import RequestTabBar from '@/modules/api-test/shell/components/RequestTabBar.vue'
 import RequestWorkspace from '@/modules/api-test/shell/components/RequestWorkspace.vue'
 import CollectionRunDrawer from '@/modules/api-test/shell/components/CollectionRunDrawer.vue'
+import EnvironmentEditDrawer from '@/modules/api-test/shell/components/EnvironmentEditDrawer.vue'
 import EnvironmentSelector from '@/modules/api-test/debug/components/EnvironmentSelector.vue'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
@@ -17,6 +18,8 @@ import {
   persistLayout,
   readStoredLayout,
 } from '@/modules/api-test/shell/utils/layoutPersist'
+
+const PROJECT_ID = 1
 
 const route = useRoute()
 const message = useMessage()
@@ -29,8 +32,11 @@ const runDrawerShow = ref(false)
 const runCollectionId = ref<number | null>(null)
 const runDrawerMode = ref<'run' | 'history'>('history')
 const runNonce = ref(0)
+const envDrawerShow = ref(false)
+const envDrawerId = ref<number | null>(null)
 let openedDefKey: string | null = null
 let openedRunsKey: string | null = null
+let openedEnvEditKey: string | null = null
 
 function parseDefQuery(): number | null {
   const raw = route.query.def
@@ -54,6 +60,29 @@ function hasRunsQuery(): boolean {
   const raw = route.query.runs
   const value = Array.isArray(raw) ? raw[0] : raw
   return value === '1'
+}
+
+/** Deep-link: ?envEdit=<id> opens EnvironmentEditDrawer after env list load */
+function parseEnvEditQuery(): number | null {
+  const raw = route.query.envEdit
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (typeof value !== 'string' || value === '') return null
+  const id = Number(value)
+  if (!Number.isInteger(id) || id <= 0) return null
+  return id
+}
+
+function applyEnvEditQuery() {
+  const id = parseEnvEditQuery()
+  if (id == null) {
+    openedEnvEditKey = null
+    return
+  }
+  const key = String(id)
+  if (openedEnvEditKey === key) return
+  openedEnvEditKey = key
+  envDrawerId.value = id
+  envDrawerShow.value = true
 }
 
 function applyCollectionQuery() {
@@ -109,17 +138,31 @@ function onEnvironmentChange(id: number | null) {
   envStore.selectEnvironment(id)
 }
 
+function onEnvEdit(id: number) {
+  envDrawerId.value = id
+  envDrawerShow.value = true
+}
+
+async function onEnvSaved() {
+  envDrawerShow.value = false
+  await envStore.loadAll(PROJECT_ID)
+}
+
 onMounted(() => {
   const stored = readStoredLayout()
   if (stored.sidebarWidth != null || stored.responseHeight != null) {
     workspace.setLayout(stored)
   }
   applyCollectionQuery()
-  void envStore.loadAll(1)
+  void (async () => {
+    await envStore.loadAll(PROJECT_ID)
+    applyEnvEditQuery()
+  })()
   void openDefFromQuery()
 })
 watch(() => route.query, () => {
   applyCollectionQuery()
+  applyEnvEditQuery()
 }, { deep: true })
 watch(() => route.query.def, () => {
   void openDefFromQuery()
@@ -180,9 +223,10 @@ onUnmounted(() => stopSidebarResize?.())
     <div class="api-test-shell__main">
       <div class="api-test-shell__header" data-testid="shell-env-header">
         <EnvironmentSelector
-          :project-id="1"
+          :project-id="PROJECT_ID"
           :environment-id="selectedEnvironmentId"
           @update:environment-id="onEnvironmentChange"
+          @edit="onEnvEdit"
         />
       </div>
       <RequestTabBar />
@@ -205,6 +249,13 @@ onUnmounted(() => stopSidebarResize?.())
       :collection-id="runCollectionId"
       :mode="runDrawerMode"
       :run-nonce="runNonce"
+    />
+
+    <EnvironmentEditDrawer
+      v-model:show="envDrawerShow"
+      :environment-id="envDrawerId"
+      :project-id="PROJECT_ID"
+      @saved="onEnvSaved"
     />
   </div>
 </template>

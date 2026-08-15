@@ -50,6 +50,7 @@ describe('ApiTestShell environment header', () => {
     routeQuery.def = undefined
     routeQuery.collectionId = undefined
     routeQuery.runs = undefined
+    routeQuery.envEdit = undefined
   })
 
   function mountShell() {
@@ -83,9 +84,17 @@ describe('ApiTestShell environment header', () => {
           EnvironmentSelector: {
             name: 'EnvironmentSelector',
             props: ['projectId', 'environmentId'],
-            emits: ['update:environmentId'],
+            emits: ['update:environmentId', 'create', 'edit'],
             template:
-              '<button data-testid="header-env-select" @click="$emit(\'update:environmentId\', 5)">{{ environmentId }}</button>',
+              '<button data-testid="header-env-select" @click="$emit(\'update:environmentId\', 5)">{{ environmentId }}</button>'
+              + '<button data-testid="header-env-edit" type="button" @click="$emit(\'edit\', 5)" />',
+          },
+          EnvironmentEditDrawer: {
+            name: 'EnvironmentEditDrawer',
+            props: ['show', 'environmentId', 'projectId'],
+            emits: ['update:show', 'saved'],
+            template:
+              '<div v-if="show" data-testid="env-edit-drawer">{{ environmentId }}</div>',
           },
         },
       },
@@ -162,6 +171,22 @@ describe('ApiTestShell environment header', () => {
     const wrapper = mountShell()
     await flushPromises()
     expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:history:0')
+  })
+
+  it('opens environment edit drawer from ?envEdit= after loadAll', async () => {
+    routeQuery.envEdit = '5'
+    const wrapper = mountShell()
+    await flushPromises()
+    expect(listAllMock).toHaveBeenCalledWith(1)
+    expect(wrapper.get('[data-testid="env-edit-drawer"]').text()).toBe('5')
+  })
+
+  it('opens environment edit drawer when selector emits edit', async () => {
+    const wrapper = mountShell()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="env-edit-drawer"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="header-env-edit"]').trigger('click')
+    expect(wrapper.get('[data-testid="env-edit-drawer"]').text()).toBe('5')
   })
 
   it('restores sidebarWidth and responseHeight from sessionStorage via setLayout', async () => {
