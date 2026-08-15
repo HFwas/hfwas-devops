@@ -5,6 +5,7 @@
       :default-expand-all="false"
       :render-label="renderLabel"
       :render-prefix="renderPrefix"
+      :selected-keys="selectedKeys"
       block-line
       expand-trigger="click"
       @update:selected-keys="onSelect"
@@ -34,6 +35,10 @@ const emit = defineEmits<{
   'selectItem': [item: CollectionItemVO]
   'selectFolder': [folder: CollectionFolderVO]
 }>()
+
+const selectedKeys = computed<Array<string | number>>(() =>
+  props.selectedId != null ? [`item-${props.selectedId}`] : [],
+)
 
 const treeData = computed<MyTreeOption[]>(() => {
   const result: MyTreeOption[] = []
@@ -88,7 +93,8 @@ function renderPrefix({ option }: { option: TreeOption }) {
   const myOption = option as MyTreeOption
   if (myOption.isItem && myOption.raw) {
     const item = myOption.raw as CollectionItemVO
-    return h('span', { class: ['method-tag', `method-tag--${item.method}`] }, item.method)
+    const method = (item.method || '').toUpperCase()
+    return h('span', { class: ['method-tag', `method-tag--${method}`] }, method)
   }
   return h('span', { class: 'folder-glyph' }, '▸')
 }
@@ -138,6 +144,9 @@ function findOption(options: MyTreeOption[], key: string | number): MyTreeOption
 
 .method-tag {
   display: inline-block;
+  min-width: 3.2em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
   font-size: var(--api-font-sm, 10px);
   font-weight: 700;
   padding: 1px 4px;
@@ -207,5 +216,9 @@ function findOption(options: MyTreeOption[], key: string | number): MyTreeOption
 .folder-label {
   font-weight: 500;
   font-size: var(--api-font, 13px);
+}
+
+:deep(.n-tree-node-content) {
+  min-height: var(--api-row-height, 28px);
 }
 </style>

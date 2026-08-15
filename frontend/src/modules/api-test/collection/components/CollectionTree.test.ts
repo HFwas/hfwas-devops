@@ -34,4 +34,28 @@ describe('CollectionTree', () => {
     expect(wrapper.html()).toContain('已禁用')
     expect(wrapper.html()).not.toContain('📁')
   })
+
+  it('uppercases method and marks selected item', () => {
+    const wrapper = mount(CollectionTree, {
+      props: {
+        folders: [],
+        items: [{
+          id: 5,
+          collectionId: 1,
+          folderId: null,
+          definitionId: 9,
+          name: 'X',
+          description: '',
+          enabled: true,
+          sortOrder: 0,
+          method: 'post',
+          path: '/x',
+        }],
+        selectedId: 5,
+      },
+    })
+    expect(wrapper.html()).toContain('method-tag--POST')
+    expect(wrapper.text()).toMatch(/POST/)
+    expect(wrapper.find('.n-tree-node--selected').exists()).toBe(true)
+  })
 })
