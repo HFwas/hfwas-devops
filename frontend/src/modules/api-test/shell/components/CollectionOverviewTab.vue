@@ -109,7 +109,7 @@ function onHistory() {
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  padding: 12px 16px;
+  padding: var(--api-density-pad-y, 5px) var(--api-density-pad-x, 10px);
   background: var(--wb-card-bg, #fff);
   color: inherit;
 }
@@ -119,7 +119,7 @@ function onHistory() {
 }
 
 .collection-overview__body {
-  padding: 12px 0;
+  padding: var(--api-density-pad-y, 5px) 0;
 }
 
 .collection-overview__name {
