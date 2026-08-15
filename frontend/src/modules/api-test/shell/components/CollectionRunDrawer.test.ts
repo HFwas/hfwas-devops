@@ -7,6 +7,7 @@ import type { CollectionRunDetailVO, CollectionRunVO } from '@/modules/api-test/
 
 const routeQuery: Record<string, string | undefined> = {}
 const routerPush = vi.fn()
+const routerReplace = vi.fn()
 
 const { runMock, runHistoryMock, runDetailMock, messageError } = vi.hoisted(() => ({
   runMock: vi.fn(),
@@ -17,7 +18,7 @@ const { runMock, runHistoryMock, runDetailMock, messageError } = vi.hoisted(() =
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: routeQuery }),
-  useRouter: () => ({ push: routerPush }),
+  useRouter: () => ({ push: routerPush, replace: routerReplace }),
 }))
 
 vi.mock('naive-ui', async () => {
@@ -79,6 +80,7 @@ describe('CollectionRunDrawer', () => {
     runDetailMock.mockReset()
     messageError.mockReset()
     routerPush.mockReset()
+    routerReplace.mockReset()
     routeQuery.collectionId = undefined
     routeQuery.runs = undefined
     runMock.mockResolvedValue(RUN_VO)
@@ -174,6 +176,35 @@ describe('CollectionRunDrawer', () => {
     expect(runHistoryMock).toHaveBeenCalledWith(9, expect.anything())
     expect(runMock).not.toHaveBeenCalled()
     expect(routerPush).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('loads history only once when show and ?runs=1 both open the drawer', async () => {
+    routeQuery.collectionId = '9'
+    routeQuery.runs = '1'
+    const wrapper = mountDrawer({ show: true, collectionId: 9, mode: 'history' })
+    await flushPromises()
+
+    expect(runHistoryMock).toHaveBeenCalledTimes(1)
+    expect(runHistoryMock).toHaveBeenCalledWith(9, expect.anything())
+    expect(runMock).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('clears ?runs=1 when the drawer closes', async () => {
+    routeQuery.module = 'collections'
+    routeQuery.collectionId = '9'
+    routeQuery.runs = '1'
+    const wrapper = mountDrawer({ show: true, collectionId: 9, mode: 'history' })
+    await flushPromises()
+
+    await wrapper.setProps({ show: false })
+    await flushPromises()
+
+    expect(routerReplace).toHaveBeenCalled()
+    const loc = routerReplace.mock.calls[0][0] as { query: Record<string, string | undefined> }
+    expect(loc.query.runs).toBeUndefined()
+    expect(loc.query.collectionId).toBe('9')
     wrapper.unmount()
   })
 })

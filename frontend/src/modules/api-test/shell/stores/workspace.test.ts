@@ -165,6 +165,35 @@ describe('useWorkspaceStore', () => {
     expect(store.responseHeight).toBe(320)
   })
 
+  it('setLayout clamps sidebar width to 200–480 and response height to 120–60vh', () => {
+    const store = useWorkspaceStore()
+    store.setLayout({ sidebarWidth: 80, responseHeight: 10 })
+    expect(store.sidebarWidth).toBe(200)
+    expect(store.responseHeight).toBe(120)
+    store.setLayout({ sidebarWidth: 999, responseHeight: 10_000 })
+    expect(store.sidebarWidth).toBe(480)
+    expect(store.responseHeight).toBeLessThanOrEqual(window.innerHeight * 0.6)
+  })
+
+  it('setTabMeta updates source, refId, definitionId, title, and method', () => {
+    const store = useWorkspaceStore()
+    const tab = store.openScratchTab()
+    const draftUrl = tab.draft.url
+    store.setTabMeta(tab.id, {
+      source: 'definition',
+      refId: 55,
+      definitionId: 55,
+      title: 'Created',
+      method: 'PUT',
+    })
+    expect(store.tabs[0].source).toBe('definition')
+    expect(store.tabs[0].refId).toBe(55)
+    expect(store.tabs[0].definitionId).toBe(55)
+    expect(store.tabs[0].title).toBe('Created')
+    expect(store.tabs[0].method).toBe('PUT')
+    expect(store.tabs[0].draft.url).toBe(draftUrl)
+  })
+
   it('activeTab is null when no tabs', () => {
     const store = useWorkspaceStore()
     expect(store.activeTab).toBeNull()

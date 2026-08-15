@@ -8,6 +8,9 @@ import {
   type RequestTab,
   type ShellModule,
 } from '@/modules/api-test/shell/types/workspace'
+import { clampResponseHeight, clampSidebarWidth } from '@/modules/api-test/shell/utils/layoutPersist'
+
+type TabMetaPatch = Partial<Pick<RequestTab, 'source' | 'refId' | 'definitionId' | 'title' | 'method'>>
 
 function newTabId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -106,12 +109,22 @@ export const useWorkspaceStore = defineStore('apiTestWorkspace', () => {
     tab.result = result
   }
 
+  function setTabMeta(tabId: string, partial: TabMetaPatch) {
+    const tab = tabs.value.find((t) => t.id === tabId)
+    if (!tab) return
+    if (partial.source != null) tab.source = partial.source
+    if (partial.refId !== undefined) tab.refId = partial.refId
+    if (partial.definitionId !== undefined) tab.definitionId = partial.definitionId
+    if (partial.title != null) tab.title = partial.title
+    if (partial.method != null) tab.method = partial.method
+  }
+
   function setLayout(partial: { sidebarWidth?: number; responseHeight?: number }) {
     if (partial.sidebarWidth != null) {
-      sidebarWidth.value = partial.sidebarWidth
+      sidebarWidth.value = clampSidebarWidth(partial.sidebarWidth)
     }
     if (partial.responseHeight != null) {
-      responseHeight.value = partial.responseHeight
+      responseHeight.value = clampResponseHeight(partial.responseHeight)
     }
   }
 
@@ -128,6 +141,7 @@ export const useWorkspaceStore = defineStore('apiTestWorkspace', () => {
     closeTab,
     setActiveTab,
     patchDraft,
+    setTabMeta,
     markClean,
     setTabResult,
     setLayout,

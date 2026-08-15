@@ -7,6 +7,7 @@ import { useEnvironmentStore } from '@/modules/api-test/environment/stores/envir
 import VariableList from '@/modules/api-test/environment/components/VariableList.vue'
 import EnvironmentFormDialog from '@/modules/api-test/environment/components/EnvironmentFormDialog.vue'
 import type { EnvironmentVariableDTO } from '@/modules/api-test/environment/types/environment'
+import { resolveVariablesForUpdate } from '@/modules/api-test/environment/utils/variablesForUpdate'
 
 const PROJECT_ID = 1
 
@@ -68,7 +69,7 @@ async function onSave() {
       name: detail.name,
       description: detail.description,
       sortOrder: detail.sortOrder,
-      variables: variables.value,
+      variables: resolveVariablesForUpdate(variables.value, detail.variables),
     }, userId.value)
     message.success('保存成功')
     await envStore.loadAll(PROJECT_ID)

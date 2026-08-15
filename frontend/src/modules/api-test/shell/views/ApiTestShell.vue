@@ -81,7 +81,10 @@ function hasRunsQuery(): boolean {
 
 function applyCollectionQuery() {
   const id = parseCollectionIdQuery()
-  if (id == null || !hasRunsQuery()) return
+  if (id == null || !hasRunsQuery()) {
+    if (!hasRunsQuery()) openedRunsKey = null
+    return
+  }
   const key = String(id)
   if (openedRunsKey === key) return
   openedRunsKey = key

@@ -133,6 +133,41 @@ describe('RequestWorkspace', () => {
     expect(messageSuccess).toHaveBeenCalledWith('调试完成')
   })
 
+  it('blocks save with a warning when auth user is missing', async () => {
+    const auth = useAuthStore()
+    auth.user = null
+    const workspace = useWorkspaceStore()
+    workspace.openOrFocusTab({
+      source: 'definition',
+      refId: 3,
+      definitionId: 3,
+      title: 'Login',
+      method: 'POST',
+      draft: emptyDraft({ url: '/login', method: 'POST' }),
+    })
+
+    const wrapper = mount(RequestWorkspace)
+    await (wrapper.vm as any).handleSave()
+
+    expect(messageWarning).toHaveBeenCalled()
+    expect(updateMock).not.toHaveBeenCalled()
+  })
+
+  it('blocks scratch confirm save when auth user is missing', async () => {
+    const auth = useAuthStore()
+    auth.user = null
+    const workspace = useWorkspaceStore()
+    workspace.openScratchTab()
+    workspace.patchDraft(workspace.tabs[0].id, { url: '/new', method: 'PUT' })
+
+    const wrapper = mount(RequestWorkspace)
+    ;(wrapper.vm as any).scratchName = 'Created'
+    await (wrapper.vm as any).confirmScratchSave()
+
+    expect(messageWarning).toHaveBeenCalled()
+    expect(createMock).not.toHaveBeenCalled()
+  })
+
   it('saves a definition tab via update then markClean', async () => {
     const workspace = useWorkspaceStore()
     const tab = workspace.openOrFocusTab({

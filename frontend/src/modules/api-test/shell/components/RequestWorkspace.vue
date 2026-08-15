@@ -30,8 +30,17 @@ const envStore = useEnvironmentStore()
 const groupStore = useApiGroupStore()
 
 const { activeTab, responseHeight } = storeToRefs(workspace)
-const userId = computed(() => Number(authStore.user?.id) || 0)
 const executing = computed(() => debugStore.executing)
+
+function requireUserId(): number | null {
+  const raw = authStore.user?.id
+  const id = Number(raw)
+  if (raw == null || !Number.isInteger(id) || id <= 0) {
+    message.warning('请先登录后再保存')
+    return null
+  }
+  return id
+}
 
 const METHOD_OPTIONS = HTTP_METHOD_OPTIONS.map((o) => ({ label: o.label, value: o.value }))
 const CONTENT_TYPE_OPTIONS = [
@@ -65,7 +74,7 @@ function patch(partial: Partial<RequestDraft>) {
   if (!tab) return
   workspace.patchDraft(tab.id, partial)
   if (partial.method) {
-    tab.method = partial.method
+    workspace.setTabMeta(tab.id, { method: partial.method })
   }
 }
 
@@ -137,6 +146,8 @@ function buildParamsFromDraft(draft: RequestDraft): ApiDefinitionParamDTO[] {
 async function handleSave() {
   const tab = workspace.activeTab
   if (!tab) return
+  const userId = requireUserId()
+  if (userId == null) return
 
   if (tab.source === 'scratch') {
     scratchName.value = tab.title
@@ -164,7 +175,7 @@ async function handleSave() {
       method: tab.draft.method as HttpMethod,
       params: buildParamsFromDraft(tab.draft),
       contentType: tab.draft.contentType,
-    }, userId.value)
+    }, userId)
     workspace.markClean(tab.id)
     message.success('保存成功')
   } catch (e: any) {
@@ -179,6 +190,8 @@ async function confirmScratchSave() {
     message.warning('请输入接口名称')
     return
   }
+  const userId = requireUserId()
+  if (userId == null) return
 
   scratchSaving.value = true
   try {
@@ -190,12 +203,14 @@ async function confirmScratchSave() {
       method: tab.draft.method as HttpMethod,
       params: buildParamsFromDraft(tab.draft),
       contentType: tab.draft.contentType,
-    }, userId.value)
-    tab.source = 'definition'
-    tab.refId = created.id
-    tab.definitionId = created.id
-    tab.title = scratchName.value.trim()
-    tab.method = tab.draft.method
+    }, userId)
+    workspace.setTabMeta(tab.id, {
+      source: 'definition',
+      refId: created.id,
+      definitionId: created.id,
+      title: scratchName.value.trim(),
+      method: tab.draft.method,
+    })
     workspace.markClean(tab.id)
     showScratchDialog.value = false
     message.success('保存成功')

@@ -63,6 +63,7 @@ const DEV_DETAIL: EnvironmentDetailVO = {
   updateTime: '',
   variables: [
     { id: 11, name: 'baseUrl', value: 'https://dev.example', description: '', isSecret: false, sortOrder: 0 },
+    { id: 12, name: 'apiKey', value: 'sk-live', description: '', isSecret: true, sortOrder: 1 },
   ],
 }
 
@@ -119,7 +120,7 @@ describe('EnvironmentPanel', () => {
     const env = useEnvironmentStore()
     expect(env.selectedEnvironmentId).toBe(1)
     expect(detailMock).toHaveBeenCalledWith(1)
-    expect(wrapper.get('[data-testid="variable-list"]').text()).toContain('1 vars')
+    expect(wrapper.get('[data-testid="variable-list"]').text()).toContain('2 vars')
     expect(wrapper.get('[data-testid="env-item-1"]').classes()).toContain('is-active')
   })
 
@@ -154,11 +155,52 @@ describe('EnvironmentPanel', () => {
       1,
       expect.objectContaining({
         name: 'Dev',
-        variables: [expect.objectContaining({ name: 'baseUrl', value: 'https://dev.example' })],
+        variables: [
+          expect.objectContaining({ name: 'baseUrl', value: 'https://dev.example' }),
+          expect.objectContaining({ name: 'apiKey', value: 'sk-live', isSecret: true }),
+        ],
       }),
       42,
     )
     expect(messageSuccess).toHaveBeenCalled()
+  })
+
+  it('keeps previous secret values when the UI field was blanked on load', async () => {
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('[data-testid="env-item-1"]').trigger('click')
+    await flushPromises()
+
+    const list = wrapper.findComponent({ name: 'VariableList' })
+    expect(list.props('variables')).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'apiKey', value: '', isSecret: true }),
+    ]))
+
+    await wrapper.get('[data-testid="env-save"]').trigger('click')
+    await flushPromises()
+
+    const payload = updateMock.mock.calls[0][1] as { variables: Array<{ name: string; value?: string }> }
+    const apiKey = payload.variables.find((v) => v.name === 'apiKey')
+    expect(apiKey?.value).toBe('sk-live')
+  })
+
+  it('sends a newly typed secret value instead of the previous one', async () => {
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('[data-testid="env-item-1"]').trigger('click')
+    await flushPromises()
+
+    const list = wrapper.findComponent({ name: 'VariableList' })
+    await list.vm.$emit('update:variables', [
+      { id: 11, name: 'baseUrl', value: 'https://dev.example', description: '', isSecret: false, sortOrder: 0 },
+      { id: 12, name: 'apiKey', value: 'rotated-key', description: '', isSecret: true, sortOrder: 1 },
+    ])
+
+    await wrapper.get('[data-testid="env-save"]').trigger('click')
+    await flushPromises()
+
+    const payload = updateMock.mock.calls[0][1] as { variables: Array<{ name: string; value?: string }> }
+    expect(payload.variables.find((v) => v.name === 'apiKey')?.value).toBe('rotated-key')
   })
 
   it('opens create dialog from the new-environment button', async () => {

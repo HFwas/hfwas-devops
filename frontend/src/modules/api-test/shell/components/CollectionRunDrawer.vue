@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/modules/user/stores/auth'
@@ -25,6 +25,7 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
+const router = useRouter()
 const message = useMessage()
 const authStore = useAuthStore()
 const collectionStore = useCollectionStore()
@@ -100,9 +101,37 @@ async function selectHistoryRun(runId: number) {
   }
 }
 
-watch(() => [props.show, props.mode, props.collectionId, props.runNonce] as const, async ([show, mode, id]) => {
+function clearRunsQuery() {
+  if (!queryRuns()) return
+  const nextQuery = { ...route.query }
+  delete nextQuery.runs
+  void router.replace({ query: nextQuery })
+}
+
+watch(() => [props.show, props.mode, props.collectionId, props.runNonce, queryCollectionId.value, queryRuns()] as const, async ([show, mode, id, _runNonce, queryId, runs], prev) => {
+  const wasShown = prev?.[0]
+  if (wasShown && !show) {
+    honoredRunsKey = null
+    clearRunsQuery()
+    return
+  }
+
+  if (queryId != null && runs) {
+    const key = String(queryId)
+    if (honoredRunsKey !== key) {
+      honoredRunsKey = key
+      if (!show) emit('update:show', true)
+      runDetail.value = null
+      selectedRunId.value = null
+      await loadHistory(queryId)
+      return
+    }
+  }
+
   if (!show) return
-  const collectionId = id ?? queryCollectionId.value
+  if (runs && honoredRunsKey === String(queryId ?? id) && mode !== 'run') return
+
+  const collectionId = id ?? queryId
   if (collectionId == null) return
   if (mode === 'run') {
     await executeRun(collectionId)
@@ -113,18 +142,11 @@ watch(() => [props.show, props.mode, props.collectionId, props.runNonce] as cons
   }
 }, { immediate: true })
 
-watch(() => [queryCollectionId.value, queryRuns()] as const, async ([id, runs]) => {
-  if (id == null || !runs) return
-  const key = String(id)
-  if (honoredRunsKey === key) return
-  honoredRunsKey = key
-  emit('update:show', true)
-  runDetail.value = null
-  selectedRunId.value = null
-  await loadHistory(id)
-}, { immediate: true })
-
 function onUpdateShow(value: boolean) {
+  if (!value) {
+    honoredRunsKey = null
+    clearRunsQuery()
+  }
   emit('update:show', value)
 }
 
