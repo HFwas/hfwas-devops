@@ -7,13 +7,24 @@ import { useEnvironmentStore } from '@/modules/api-test/environment/stores/envir
 import { useDebugStore } from '@/modules/api-test/debug/stores/debug'
 import { useAuthStore } from '@/modules/user/stores/auth'
 
-const { messageWarning, messageSuccess, messageError, executeMock, createMock, updateMock } = vi.hoisted(() => ({
+const {
+  messageWarning,
+  messageSuccess,
+  messageError,
+  executeMock,
+  createMock,
+  updateMock,
+  createReqMock,
+  collectionPageMock,
+} = vi.hoisted(() => ({
   messageWarning: vi.fn(),
   messageSuccess: vi.fn(),
   messageError: vi.fn(),
   executeMock: vi.fn(),
   createMock: vi.fn(),
   updateMock: vi.fn(),
+  createReqMock: vi.fn(),
+  collectionPageMock: vi.fn(),
 }))
 
 vi.mock('naive-ui', async () => {
@@ -56,7 +67,18 @@ vi.mock('@/modules/api-test/define/api/group', () => ({
   },
 }))
 
+vi.mock('@/modules/api-test/collection/api/collection', () => ({
+  collectionApi: {
+    page: (...args: unknown[]) => collectionPageMock(...args),
+  },
+}))
+
+vi.mock('@/modules/api-test/shell/utils/createRequestInCollection', () => ({
+  createRequestInCollection: (...args: unknown[]) => createReqMock(...args),
+}))
+
 import RequestWorkspace from './RequestWorkspace.vue'
+import { useCollectionStore } from '@/modules/api-test/collection/stores/collection'
 
 describe('RequestWorkspace', () => {
   beforeEach(() => {
@@ -67,6 +89,8 @@ describe('RequestWorkspace', () => {
     executeMock.mockReset()
     createMock.mockReset()
     updateMock.mockReset()
+    createReqMock.mockReset()
+    collectionPageMock.mockReset()
     const auth = useAuthStore()
     auth.user = { id: 42, username: 'tester', displayName: 'Tester', role: 'user' }
   })
@@ -162,10 +186,11 @@ describe('RequestWorkspace', () => {
 
     const wrapper = mount(RequestWorkspace)
     ;(wrapper.vm as any).scratchName = 'Created'
+    ;(wrapper.vm as any).scratchCollectionId = 7
     await (wrapper.vm as any).confirmScratchSave()
 
     expect(messageWarning).toHaveBeenCalled()
-    expect(createMock).not.toHaveBeenCalled()
+    expect(createReqMock).not.toHaveBeenCalled()
   })
 
   it('saves a definition tab via update then markClean', async () => {
@@ -233,32 +258,114 @@ describe('RequestWorkspace', () => {
     expect(workspace.tabs[0].dirty).toBe(false)
   })
 
-  it('scratch save creates a definition then upgrades the tab', async () => {
+  it('scratch save creates request in collection then upgrades the tab', async () => {
     const workspace = useWorkspaceStore()
+    const collectionStore = useCollectionStore()
+    collectionStore.pageResult = {
+      records: [{
+        id: 7,
+        projectId: 1,
+        name: 'Auth',
+        description: '',
+        sortOrder: 0,
+        folderCount: 0,
+        itemCount: 1,
+        createTime: '',
+        updateTime: '',
+      }],
+      total: 1,
+      size: 200,
+      current: 1,
+      pages: 1,
+    }
     workspace.openScratchTab()
-    workspace.patchDraft(workspace.tabs[0].id, { url: '/new', method: 'PUT' })
-    createMock.mockResolvedValue({ id: 55, name: 'Created' })
+    workspace.patchDraft(workspace.tabs[0].id, {
+      url: '/new',
+      method: 'PUT',
+      description: 'scratch docs',
+      headers: { X: '1' },
+    })
+    createReqMock.mockResolvedValue({
+      definitionId: 55,
+      itemId: 99,
+      name: 'Created',
+      method: 'PUT',
+      path: '/new',
+    })
+    updateMock.mockResolvedValue({ id: 55, name: 'Created' })
 
     const wrapper = mount(RequestWorkspace)
     await (wrapper.vm as any).handleSave()
-    expect(createMock).not.toHaveBeenCalled()
+    expect(createReqMock).not.toHaveBeenCalled()
 
     ;(wrapper.vm as any).scratchName = 'Created'
-    ;(wrapper.vm as any).scratchGroupId = 2
+    ;(wrapper.vm as any).scratchCollectionId = 7
     await (wrapper.vm as any).confirmScratchSave()
 
-    expect(createMock).toHaveBeenCalledWith(expect.objectContaining({
+    expect(createReqMock).toHaveBeenCalledWith({
       projectId: 1,
+      collectionId: 7,
+      userId: 42,
       name: 'Created',
-      groupId: 2,
+      method: 'PUT',
+      path: '/new',
+    })
+    expect(updateMock).toHaveBeenCalledWith(55, expect.objectContaining({
+      name: 'Created',
       path: '/new',
       method: 'PUT',
+      description: 'scratch docs',
+      contentType: 'application/json',
     }), 42)
-    expect(workspace.tabs[0].source).toBe('definition')
+    expect(workspace.tabs[0].source).toBe('collection')
     expect(workspace.tabs[0].definitionId).toBe(55)
-    expect(workspace.tabs[0].refId).toBe(55)
+    expect(workspace.tabs[0].refId).toBe(99)
     expect(workspace.tabs[0].title).toBe('Created')
     expect(workspace.tabs[0].dirty).toBe(false)
+  })
+
+  it('renders docs textarea instead of ComingSoon for Docs', async () => {
+    const workspace = useWorkspaceStore()
+    workspace.openScratchTab()
+    workspace.patchDraft(workspace.tabs[0].id, { description: 'API notes' })
+
+    const wrapper = mount(RequestWorkspace)
+    ;(wrapper.vm as any).requestTab = 'docs'
+    await wrapper.vm.$nextTick()
+
+    const docsInput = wrapper.find('[data-testid="docs-description"]')
+    expect(docsInput.exists()).toBe(true)
+    const textarea = docsInput.find('textarea')
+    expect(textarea.exists()).toBe(true)
+    expect((textarea.element as HTMLTextAreaElement).value).toBe('API notes')
+
+    const comingSoonTitles = wrapper.findAll('.coming-soon__title').map((n) => n.text())
+    expect(comingSoonTitles).not.toContain('Docs')
+    expect(wrapper.text()).toContain('Docs')
+  })
+
+  it('includes description when saving definition', async () => {
+    const workspace = useWorkspaceStore()
+    workspace.openOrFocusTab({
+      source: 'definition',
+      refId: 3,
+      definitionId: 3,
+      title: 'Login',
+      method: 'POST',
+      draft: emptyDraft({
+        url: '/login',
+        method: 'POST',
+        description: 'Login API docs',
+      }),
+    })
+    updateMock.mockResolvedValue({ id: 3, name: 'Login' })
+
+    const wrapper = mount(RequestWorkspace)
+    await (wrapper.vm as any).handleSave()
+
+    expect(updateMock).toHaveBeenCalledWith(3, expect.objectContaining({
+      description: 'Login API docs',
+    }), 42)
   })
 
   it('shows execute errors without writing a tab result', async () => {

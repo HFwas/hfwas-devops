@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useMessage, type TreeSelectOption } from 'naive-ui'
+import { useMessage } from 'naive-ui'
 import { useAuthStore } from '@/modules/user/stores/auth'
 import { apiDefinitionApi } from '@/modules/api-test/define/api/definition'
 import { HTTP_METHOD_OPTIONS } from '@/modules/api-test/define/types/definition'
 import type { HttpMethod, ApiDefinitionParamDTO } from '@/modules/api-test/define/types/definition'
-import type { ApiGroupVO } from '@/modules/api-test/define/types/group'
-import { useApiGroupStore } from '@/modules/api-test/define/stores/group'
+import { useCollectionStore } from '@/modules/api-test/collection/stores/collection'
 import ApiWorkspaceResponse from '@/modules/api-test/define/components/ApiWorkspaceResponse.vue'
 import KeyValueEditor from '@/modules/api-test/shared/components/KeyValueEditor.vue'
 import ScriptEditor from '@/modules/api-test/debug/components/ScriptEditor.vue'
@@ -18,6 +17,7 @@ import { useDebugStore } from '@/modules/api-test/debug/stores/debug'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import type { RequestDraft } from '@/modules/api-test/shell/types/workspace'
+import { createRequestInCollection } from '@/modules/api-test/shell/utils/createRequestInCollection'
 import { clampResponseHeight } from '@/modules/api-test/shell/utils/layoutPersist'
 
 const PROJECT_ID = 1
@@ -27,9 +27,10 @@ const authStore = useAuthStore()
 const workspace = useWorkspaceStore()
 const debugStore = useDebugStore()
 const envStore = useEnvironmentStore()
-const groupStore = useApiGroupStore()
+const collectionStore = useCollectionStore()
 
 const { activeTab, responseHeight } = storeToRefs(workspace)
+const { pageResult } = storeToRefs(collectionStore)
 const executing = computed(() => debugStore.executing)
 
 function requireUserId(): number | null {
@@ -57,17 +58,11 @@ const responseTab = ref('response')
 const showScratchDialog = ref(false)
 const scratchSaving = ref(false)
 const scratchName = ref('')
-const scratchGroupId = ref<number | null>(null)
+const scratchCollectionId = ref<number | null>(null)
 
-const groupOptions = computed(() => buildGroupTreeOptions(groupStore.groupTree))
-
-function buildGroupTreeOptions(groups: ApiGroupVO[]): TreeSelectOption[] {
-  return groups.map((g) => ({
-    key: g.id,
-    label: g.name,
-    children: g.children?.length ? buildGroupTreeOptions(g.children) : undefined,
-  }))
-}
+const collectionOptions = computed(() =>
+  (pageResult.value.records ?? []).map((c) => ({ label: c.name, value: c.id })),
+)
 
 function patch(partial: Partial<RequestDraft>) {
   const tab = activeTab.value
@@ -151,13 +146,13 @@ async function handleSave() {
 
   if (tab.source === 'scratch') {
     scratchName.value = tab.title
-    scratchGroupId.value = null
+    scratchCollectionId.value = null
     showScratchDialog.value = true
-    if (!groupStore.groupTree.length) {
+    if (!pageResult.value.records?.length) {
       try {
-        await groupStore.loadTree(PROJECT_ID)
+        await collectionStore.loadPage({ projectId: PROJECT_ID, pageNo: 1, pageSize: 200 })
       } catch {
-        // group picker is optional
+        // collection picker is optional until confirm
       }
     }
     return
@@ -173,6 +168,7 @@ async function handleSave() {
       name: tab.title,
       path: tab.draft.url,
       method: tab.draft.method as HttpMethod,
+      description: tab.draft.description,
       params: buildParamsFromDraft(tab.draft),
       contentType: tab.draft.contentType,
     }, userId)
@@ -190,25 +186,37 @@ async function confirmScratchSave() {
     message.warning('请输入接口名称')
     return
   }
+  if (scratchCollectionId.value == null) {
+    message.warning('请选择目标集合')
+    return
+  }
   const userId = requireUserId()
   if (userId == null) return
 
   scratchSaving.value = true
   try {
-    const created = await apiDefinitionApi.create({
+    const name = scratchName.value.trim()
+    const created = await createRequestInCollection({
       projectId: PROJECT_ID,
-      name: scratchName.value.trim(),
-      groupId: scratchGroupId.value,
-      path: tab.draft.url,
+      collectionId: scratchCollectionId.value,
+      userId,
+      name,
       method: tab.draft.method as HttpMethod,
+      path: tab.draft.url || '/',
+    })
+    await apiDefinitionApi.update(created.definitionId, {
+      name,
+      path: tab.draft.url || '/',
+      method: tab.draft.method as HttpMethod,
+      description: tab.draft.description,
       params: buildParamsFromDraft(tab.draft),
       contentType: tab.draft.contentType,
     }, userId)
     workspace.setTabMeta(tab.id, {
-      source: 'definition',
-      refId: created.id,
-      definitionId: created.id,
-      title: scratchName.value.trim(),
+      source: 'collection',
+      refId: created.itemId,
+      definitionId: created.definitionId,
+      title: name,
       method: tab.draft.method,
     })
     workspace.markClean(tab.id)
@@ -366,7 +374,14 @@ onUnmounted(() => stopResponseResize?.())
         />
       </n-tab-pane>
       <n-tab-pane name="docs" tab="Docs">
-        <ComingSoonPane title="Docs" />
+        <n-input
+          data-testid="docs-description"
+          :value="activeTab.draft.description"
+          type="textarea"
+          :rows="12"
+          placeholder="接口描述 / 文档"
+          @update:value="(v: string) => patch({ description: v })"
+        />
       </n-tab-pane>
       <n-tab-pane name="settings" tab="Settings">
         <ComingSoonPane title="Settings" />
@@ -402,15 +417,12 @@ onUnmounted(() => stopResponseResize?.())
         <n-form-item label="接口名称">
           <n-input v-model:value="scratchName" placeholder="请输入接口名称" />
         </n-form-item>
-        <n-form-item label="所属分组（可选）">
-          <n-tree-select
-            v-model:value="scratchGroupId"
-            :options="groupOptions"
-            :default-expand-all="true"
-            placeholder="选择分组（可选）"
+        <n-form-item label="目标集合">
+          <n-select
+            v-model:value="scratchCollectionId"
+            :options="collectionOptions"
+            placeholder="选择集合"
             clearable
-            key-field="key"
-            label-field="label"
           />
         </n-form-item>
       </n-form>
