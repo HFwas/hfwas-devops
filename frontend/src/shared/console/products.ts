@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { Boxes, GitBranch, ServerCog, ShieldCheck, SquareKanban } from '@lucide/vue'
+import { Beaker, Boxes, GitBranch, ServerCog, ShieldCheck, SquareKanban } from '@lucide/vue'
 
 /**
  * 控制台产品目录（顶栏左侧下拉切换）
@@ -24,6 +24,14 @@ export const CONSOLE_PRODUCTS: ConsoleProduct[] = [
     icon: SquareKanban,
     path: '/pm/projects',
     group: '研发协同',
+  },
+  {
+    key: 'api-test',
+    name: '接口测试',
+    description: 'API 定义、调试与集合管理',
+    icon: Beaker,
+    path: '/api-test',
+    group: '质量保障',
   },
   {
     key: 'pipeline',

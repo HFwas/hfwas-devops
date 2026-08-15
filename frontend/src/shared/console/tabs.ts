@@ -5,6 +5,7 @@ import type { Component } from 'vue'
  * 只放产品自身的分区；平台工作台、用户中心走整页布局，不在这里挂 Tab。
  * 扩展点：追加一项即可；adminOnly 的 Tab 对非管理员隐藏。
  * matchPrefixes 用于根据当前路由反推激活的 Tab。
+ * api-test 已迁入 ApiTestShell 竖轨，不再占用二级 Tab。
  */
 export interface ConsoleTab {
   key: string
