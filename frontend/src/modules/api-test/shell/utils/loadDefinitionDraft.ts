@@ -7,6 +7,7 @@ export async function loadDefinitionIntoTab(definitionId: number) {
     url: detail.path || '',
     method: detail.method,
     contentType: detail.contentType || 'application/json',
+    description: detail.description || '',
   })
   for (const p of detail.params || []) {
     if (p.paramType === 'query') draft.queryParams[p.name] = p.defaultValue || ''

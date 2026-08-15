@@ -60,6 +60,36 @@ describe('loadDefinitionIntoTab', () => {
     expect(draft.body).toBe('')
   })
 
+  it('maps description from detail into draft', async () => {
+    detailMock.mockResolvedValue({
+      id: 3,
+      name: 'With Desc',
+      path: '/desc',
+      method: 'GET',
+      contentType: 'application/json',
+      description: 'API notes',
+      params: [],
+    })
+
+    const { draft } = await loadDefinitionIntoTab(3)
+    expect(draft.description).toBe('API notes')
+  })
+
+  it('defaults description to empty string when missing', async () => {
+    detailMock.mockResolvedValue({
+      id: 4,
+      name: 'No Desc',
+      path: '/no-desc',
+      method: 'GET',
+      contentType: 'application/json',
+      description: null,
+      params: [],
+    })
+
+    const { draft } = await loadDefinitionIntoTab(4)
+    expect(draft.description).toBe('')
+  })
+
   it('uses empty string when query or header defaultValue is missing', async () => {
     detailMock.mockResolvedValue({
       id: 2,

@@ -6,7 +6,7 @@ import type {
 
 export type ShellModule = 'apis' | 'collections' | 'environments' | 'docs' | 'specs' | 'mocks'
 
-export type TabSource = 'definition' | 'collection' | 'scratch'
+export type TabSource = 'definition' | 'collection' | 'collectionOverview' | 'scratch'
 
 export interface RequestDraft {
   url: string
@@ -15,6 +15,7 @@ export interface RequestDraft {
   queryParams: Record<string, string>
   body: string
   contentType: string
+  description: string
   preRequestScript: string
   postResponseScript: string
   assertions: ApiDebugAssertionDTO[]
@@ -42,6 +43,7 @@ export function emptyDraft(partial?: Partial<RequestDraft>): RequestDraft {
     queryParams: {},
     body: '',
     contentType: 'application/json',
+    description: '',
     preRequestScript: '',
     postResponseScript: '',
     assertions: [],

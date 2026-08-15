@@ -231,4 +231,18 @@ describe('useWorkspaceStore', () => {
     store.setTabResult(tab.id, null)
     expect(store.tabs[0].result).toBeNull()
   })
+
+  it('openOrFocusCollectionOverview dedupes by collection id', () => {
+    const store = useWorkspaceStore()
+    const a = store.openOrFocusCollectionOverview(9, 'Demo')
+    const b = store.openOrFocusCollectionOverview(9, 'Demo')
+    expect(a.id).toBe(b.id)
+    expect(store.tabs).toHaveLength(1)
+    expect(a.source).toBe('collectionOverview')
+    expect(a.refId).toBe(9)
+  })
+
+  it('emptyDraft includes description', () => {
+    expect(emptyDraft().description).toBe('')
+  })
 })

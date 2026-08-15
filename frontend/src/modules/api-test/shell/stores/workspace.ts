@@ -67,6 +67,16 @@ export const useWorkspaceStore = defineStore('apiTestWorkspace', () => {
     })
   }
 
+  function openOrFocusCollectionOverview(collectionId: number, title: string): RequestTab {
+    return openOrFocusTab({
+      source: 'collectionOverview',
+      refId: collectionId,
+      title,
+      method: '',
+      draft: emptyDraft(),
+    })
+  }
+
   function setActiveTab(tabId: string) {
     if (tabs.value.some((t) => t.id === tabId)) {
       activeTabId.value = tabId
@@ -138,6 +148,7 @@ export const useWorkspaceStore = defineStore('apiTestWorkspace', () => {
     setModule,
     openOrFocusTab,
     openScratchTab,
+    openOrFocusCollectionOverview,
     closeTab,
     setActiveTab,
     patchDraft,
