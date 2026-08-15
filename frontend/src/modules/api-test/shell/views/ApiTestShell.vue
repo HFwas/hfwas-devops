@@ -5,6 +5,8 @@ import { useRoute } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import ModuleRail from '@/modules/api-test/shell/components/ModuleRail.vue'
 import ResourcePanel from '@/modules/api-test/shell/components/ResourcePanel.vue'
+import RequestTabBar from '@/modules/api-test/shell/components/RequestTabBar.vue'
+import RequestWorkspace from '@/modules/api-test/shell/components/RequestWorkspace.vue'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import type { ShellModule } from '@/modules/api-test/shell/types/workspace'
 import { loadDefinitionIntoTab } from '@/modules/api-test/shell/utils/loadDefinitionDraft'
@@ -24,7 +26,7 @@ const SIDEBAR_MAX = 480
 const route = useRoute()
 const message = useMessage()
 const workspace = useWorkspaceStore()
-const { sidebarWidth, responseHeight, tabs, activeTabId } = storeToRefs(workspace)
+const { sidebarWidth, tabs } = storeToRefs(workspace)
 
 const treeLoaded = ref(false)
 let openedDefKey: string | null = null
@@ -130,25 +132,10 @@ onUnmounted(() => stopSidebarResize?.())
     />
 
     <div class="api-test-shell__main">
+      <RequestTabBar />
       <div class="api-test-shell__workspace">
-        <div v-if="tabs.length" class="api-test-shell__tab-stub" role="tablist">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            type="button"
-            role="tab"
-            class="api-test-shell__tab-stub-item"
-            :class="{ 'is-active': tab.id === activeTabId }"
-            :aria-selected="tab.id === activeTabId"
-            @click="workspace.setActiveTab(tab.id)"
-          >
-            {{ tab.method }} {{ tab.title }}
-          </button>
-        </div>
+        <RequestWorkspace v-if="tabs.length" />
         <n-empty v-else description="从左侧打开接口" />
-      </div>
-      <div class="api-test-shell__response" :style="{ height: `${responseHeight}px` }">
-        <span class="api-test-shell__response-label">响应</span>
       </div>
     </div>
   </div>
@@ -200,44 +187,8 @@ onUnmounted(() => stopSidebarResize?.())
   overflow: hidden;
 }
 
-.api-test-shell__tab-stub {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  align-content: flex-start;
+.api-test-shell__workspace > .request-workspace {
   align-self: stretch;
-  gap: 8px;
   width: 100%;
-  padding: 12px;
-}
-
-.api-test-shell__tab-stub-item {
-  padding: 6px 10px;
-  border: 1px solid var(--wb-border, #e5e7eb);
-  border-radius: 6px;
-  background: var(--wb-card-bg, #fff);
-  color: var(--wb-muted, #6b7280);
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.api-test-shell__tab-stub-item.is-active {
-  border-color: #4098fc;
-  color: #2d80e6;
-  background: rgba(64, 152, 252, 0.12);
-}
-
-.api-test-shell__response {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  border-top: 1px solid var(--wb-border, #e5e7eb);
-  color: var(--wb-muted, #6b7280);
-  background: var(--wb-card-bg, #fff);
-}
-
-.api-test-shell__response-label {
-  font-size: 13px;
 }
 </style>
