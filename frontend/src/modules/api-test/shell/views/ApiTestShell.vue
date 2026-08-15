@@ -160,6 +160,7 @@ onMounted(() => {
   })()
   void openDefFromQuery()
 })
+// Deep-links: ?collectionId=&runs=1 opens run history; ?envEdit=<id> opens EnvironmentEditDrawer
 watch(() => route.query, () => {
   applyCollectionQuery()
   applyEnvEditQuery()
