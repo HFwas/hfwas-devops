@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useMessage } from 'naive-ui'
 import ModuleRail from '@/modules/api-test/shell/components/ModuleRail.vue'
 import ResourcePanel from '@/modules/api-test/shell/components/ResourcePanel.vue'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import type { ShellModule } from '@/modules/api-test/shell/types/workspace'
+import { loadDefinitionIntoTab } from '@/modules/api-test/shell/utils/loadDefinitionDraft'
 
 const SHELL_MODULES: readonly ShellModule[] = [
   'apis',
@@ -20,8 +22,12 @@ const SIDEBAR_MIN = 180
 const SIDEBAR_MAX = 480
 
 const route = useRoute()
+const message = useMessage()
 const workspace = useWorkspaceStore()
-const { sidebarWidth, responseHeight } = storeToRefs(workspace)
+const { sidebarWidth, responseHeight, tabs, activeTabId } = storeToRefs(workspace)
+
+const treeLoaded = ref(false)
+let openedDefKey: string | null = null
 
 function isShellModule(value: unknown): value is ShellModule {
   return typeof value === 'string' && (SHELL_MODULES as readonly string[]).includes(value)
@@ -33,11 +39,50 @@ function applyQueryModule() {
   if (isShellModule(value)) {
     workspace.setModule(value)
   }
-  // def / collectionId stay on the query string for Task 4 / 7 panels
+}
+
+function parseDefQuery(): number | null {
+  const raw = route.query.def
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (typeof value !== 'string' || value === '') return null
+  const id = Number(value)
+  if (!Number.isInteger(id) || id <= 0) return null
+  return id
+}
+
+async function openDefFromQuery() {
+  if (!treeLoaded.value) return
+  const id = parseDefQuery()
+  if (id == null) return
+  const key = String(id)
+  if (openedDefKey === key) return
+  openedDefKey = key
+  try {
+    const { detail, draft } = await loadDefinitionIntoTab(id)
+    workspace.openOrFocusTab({
+      source: 'definition',
+      refId: id,
+      definitionId: id,
+      title: detail.name,
+      method: detail.method,
+      draft,
+    })
+  } catch (e: any) {
+    openedDefKey = null
+    message.error(e?.message || '加载接口失败')
+  }
+}
+
+function onTreeLoaded() {
+  treeLoaded.value = true
+  void openDefFromQuery()
 }
 
 onMounted(applyQueryModule)
 watch(() => route.query, applyQueryModule, { deep: true })
+watch(() => route.query.def, () => {
+  void openDefFromQuery()
+})
 
 let stopSidebarResize: (() => void) | null = null
 
@@ -76,7 +121,7 @@ onUnmounted(() => stopSidebarResize?.())
     <ModuleRail />
 
     <aside class="api-test-shell__sidebar" :style="{ width: `${sidebarWidth}px` }">
-      <ResourcePanel />
+      <ResourcePanel @loaded="onTreeLoaded" />
     </aside>
     <div
       class="api-test-shell__resizer"
@@ -86,7 +131,21 @@ onUnmounted(() => stopSidebarResize?.())
 
     <div class="api-test-shell__main">
       <div class="api-test-shell__workspace">
-        <n-empty description="从左侧打开接口" />
+        <div v-if="tabs.length" class="api-test-shell__tab-stub" role="tablist">
+          <button
+            v-for="tab in tabs"
+            :key="tab.id"
+            type="button"
+            role="tab"
+            class="api-test-shell__tab-stub-item"
+            :class="{ 'is-active': tab.id === activeTabId }"
+            :aria-selected="tab.id === activeTabId"
+            @click="workspace.setActiveTab(tab.id)"
+          >
+            {{ tab.method }} {{ tab.title }}
+          </button>
+        </div>
+        <n-empty v-else description="从左侧打开接口" />
       </div>
       <div class="api-test-shell__response" :style="{ height: `${responseHeight}px` }">
         <span class="api-test-shell__response-label">响应</span>
@@ -139,6 +198,33 @@ onUnmounted(() => stopSidebarResize?.())
   justify-content: center;
   min-height: 0;
   overflow: hidden;
+}
+
+.api-test-shell__tab-stub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  align-self: stretch;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+}
+
+.api-test-shell__tab-stub-item {
+  padding: 6px 10px;
+  border: 1px solid var(--wb-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--wb-card-bg, #fff);
+  color: var(--wb-muted, #6b7280);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.api-test-shell__tab-stub-item.is-active {
+  border-color: #4098fc;
+  color: #2d80e6;
+  background: rgba(64, 152, 252, 0.12);
 }
 
 .api-test-shell__response {
