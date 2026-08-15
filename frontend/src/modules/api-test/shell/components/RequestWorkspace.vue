@@ -13,14 +13,16 @@ import ScriptEditor from '@/modules/api-test/debug/components/ScriptEditor.vue'
 import AssertionEditor from '@/modules/api-test/debug/components/AssertionEditor.vue'
 import ExtractEditor from '@/modules/api-test/debug/components/ExtractEditor.vue'
 import ComingSoonPane from '@/modules/api-test/shell/components/ComingSoonPane.vue'
-import CurlImportDialog from '@/modules/api-test/debug/components/CurlImportDialog.vue'
-import type { CurlParseResultVO } from '@/modules/api-test/debug/types/curl'
 import { useDebugStore } from '@/modules/api-test/debug/stores/debug'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import type { RequestDraft } from '@/modules/api-test/shell/types/workspace'
 import { createRequestInCollection } from '@/modules/api-test/shell/utils/createRequestInCollection'
 import { clampResponseHeight } from '@/modules/api-test/shell/utils/layoutPersist'
+import {
+  buildBreadcrumbSegments,
+  resolveFolderNames,
+} from '@/modules/api-test/shell/utils/breadcrumbPath'
 
 const PROJECT_ID = 1
 
@@ -32,7 +34,7 @@ const envStore = useEnvironmentStore()
 const collectionStore = useCollectionStore()
 
 const { activeTab, responseHeight } = storeToRefs(workspace)
-const { pageResult } = storeToRefs(collectionStore)
+const { pageResult, currentDetail } = storeToRefs(collectionStore)
 const executing = computed(() => debugStore.executing)
 
 function requireUserId(): number | null {
@@ -62,22 +64,36 @@ const scratchSaving = ref(false)
 const scratchName = ref('')
 const scratchCollectionId = ref<number | null>(null)
 
-const showCurlImport = ref(false)
-
-function onCurlImported(result: CurlParseResultVO) {
-  patch({
-    url: result.url || '',
-    method: result.method || 'GET',
-    headers: result.headers || {},
-    body: result.body || '',
-    contentType: result.contentType || 'application/json',
-  })
-  message.success('cURL 导入成功')
-}
-
 const collectionOptions = computed(() =>
   (pageResult.value.records ?? []).map((c) => ({ label: c.name, value: c.id })),
 )
+
+const breadcrumbSegments = computed(() => {
+  const tab = activeTab.value
+  if (!tab) return []
+
+  let collectionName: string | null | undefined
+  let folderNames: string[] = []
+
+  if (tab.source === 'collection' && tab.collectionId != null) {
+    const detail =
+      currentDetail.value?.id === tab.collectionId ? currentDetail.value : null
+    collectionName =
+      detail?.name
+      ?? pageResult.value.records?.find((c) => c.id === tab.collectionId)?.name
+      ?? null
+    folderNames = resolveFolderNames(detail?.folders ?? [], tab.folderId)
+  }
+
+  return buildBreadcrumbSegments({
+    source: tab.source,
+    title: tab.title,
+    collectionName,
+    folderNames,
+  })
+})
+
+const breadcrumbPrefix = computed(() => breadcrumbSegments.value.slice(0, -1))
 
 function patch(partial: Partial<RequestDraft>) {
   const tab = activeTab.value
@@ -86,6 +102,12 @@ function patch(partial: Partial<RequestDraft>) {
   if (partial.method) {
     workspace.setTabMeta(tab.id, { method: partial.method })
   }
+}
+
+function onTitleChange(value: string) {
+  const tab = activeTab.value
+  if (!tab) return
+  workspace.setTabTitle(tab.id, value)
 }
 
 async function handleSend() {
@@ -109,6 +131,7 @@ async function handleSend() {
     })
     workspace.setTabResult(tab.id, result)
     message.success('调试完成')
+    debugStore.bumpHistoryEpoch()
   } catch (e: any) {
     message.error(e.message || '请求失败')
   }
@@ -187,6 +210,13 @@ async function handleSave() {
       params: buildParamsFromDraft(tab.draft),
       contentType: tab.draft.contentType,
     }, userId)
+    if (tab.source === 'collection' && tab.collectionId != null && tab.refId != null) {
+      await collectionStore.updateItem(tab.collectionId, tab.refId, {
+        definitionId: tab.definitionId,
+        name: tab.title,
+      })
+      await collectionStore.loadDetail(tab.collectionId)
+    }
     workspace.markClean(tab.id)
     message.success('保存成功')
   } catch (e: any) {
@@ -231,6 +261,7 @@ async function confirmScratchSave() {
       source: 'collection',
       refId: created.itemId,
       definitionId: created.definitionId,
+      collectionId: scratchCollectionId.value,
       title: name,
       method: tab.draft.method,
     })
@@ -288,6 +319,27 @@ onUnmounted(() => stopResponseResize?.())
       class="request-workspace__alert"
     />
 
+    <div class="request-workspace__name-row">
+      <div
+        v-if="breadcrumbPrefix.length"
+        data-testid="request-breadcrumb"
+        class="request-workspace__breadcrumb"
+      >
+        <template v-for="(seg, i) in breadcrumbPrefix" :key="`${i}-${seg}`">
+          <span class="request-workspace__breadcrumb-seg">{{ seg }}</span>
+          <span class="request-workspace__breadcrumb-sep" aria-hidden="true">›</span>
+        </template>
+      </div>
+      <n-input
+        :value="activeTab.title"
+        data-testid="request-name"
+        placeholder="请求名称"
+        size="small"
+        class="request-workspace__name"
+        @update:value="onTitleChange"
+      />
+    </div>
+
     <div class="request-workspace__url-bar">
       <n-select
         :value="activeTab.draft.method"
@@ -316,9 +368,6 @@ onUnmounted(() => stopResponseResize?.())
       </n-button>
       <n-button quaternary size="small" data-testid="request-save" @click="handleSave">
         保存
-      </n-button>
-      <n-button quaternary size="small" @click="showCurlImport = true">
-        导入 cURL
       </n-button>
     </div>
 
@@ -454,12 +503,6 @@ onUnmounted(() => stopResponseResize?.())
         </n-space>
       </template>
     </n-modal>
-
-    <!-- cURL 导入对话框 -->
-    <curl-import-dialog
-      v-model:show="showCurlImport"
-      @imported="onCurlImported"
-    />
   </div>
 </template>
 
@@ -475,6 +518,40 @@ onUnmounted(() => stopResponseResize?.())
 
 .request-workspace__alert {
   margin: var(--api-density-pad-y, 6px) var(--api-density-pad-x, 10px) 0;
+}
+
+.request-workspace__name-row {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: center;
+  padding: var(--api-density-pad-y, 6px) var(--api-density-pad-x, 10px) 0;
+}
+
+.request-workspace__breadcrumb {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  max-width: 100%;
+  font-size: 13px;
+  color: var(--wb-muted, #6b7280);
+}
+
+.request-workspace__breadcrumb-sep {
+  color: var(--wb-muted, #9ca3af);
+}
+
+.request-workspace__name {
+  max-width: 480px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.request-workspace__name :deep(.n-input__input-el) {
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .request-workspace__url-bar {

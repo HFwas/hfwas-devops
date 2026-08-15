@@ -17,6 +17,8 @@ const {
   createReqMock,
   collectionPageMock,
   collectionDetailMock,
+  listByDefinitionMock,
+  historyDetailMock,
 } = vi.hoisted(() => ({
   messageWarning: vi.fn(),
   messageSuccess: vi.fn(),
@@ -27,6 +29,8 @@ const {
   createReqMock: vi.fn(),
   collectionPageMock: vi.fn(),
   collectionDetailMock: vi.fn(),
+  listByDefinitionMock: vi.fn(),
+  historyDetailMock: vi.fn(),
 }))
 
 vi.mock('naive-ui', async () => {
@@ -52,7 +56,8 @@ vi.mock('@/modules/api-test/debug/api/debug', () => ({
 
 vi.mock('@/modules/api-test/debug/api/debugHistory', () => ({
   debugHistoryApi: {
-    listByDefinition: vi.fn(),
+    listByDefinition: (...args: unknown[]) => listByDefinitionMock(...args),
+    detail: (...args: unknown[]) => historyDetailMock(...args),
   },
 }))
 
@@ -73,6 +78,7 @@ vi.mock('@/modules/api-test/collection/api/collection', () => ({
   collectionApi: {
     page: (...args: unknown[]) => collectionPageMock(...args),
     detail: (...args: unknown[]) => collectionDetailMock(...args),
+    updateItem: vi.fn().mockResolvedValue({}),
   },
 }))
 
@@ -95,6 +101,9 @@ describe('RequestWorkspace', () => {
     createReqMock.mockReset()
     collectionPageMock.mockReset()
     collectionDetailMock.mockReset()
+    listByDefinitionMock.mockReset()
+    historyDetailMock.mockReset()
+    listByDefinitionMock.mockResolvedValue([])
     collectionDetailMock.mockResolvedValue({
       id: 7,
       projectId: 1,
@@ -168,6 +177,57 @@ describe('RequestWorkspace', () => {
     })
     expect(workspace.tabs[0].result).toEqual(result)
     expect(messageSuccess).toHaveBeenCalledWith('调试完成')
+  })
+
+  it('bumps historyEpoch after successful send', async () => {
+    const workspace = useWorkspaceStore()
+    workspace.openOrFocusTab({
+      source: 'definition',
+      refId: 9,
+      definitionId: 9,
+      title: 'Get User',
+      method: 'GET',
+      draft: emptyDraft({ url: '/users', method: 'GET' }),
+    })
+    executeMock.mockResolvedValue({
+      requestUrl: '/users',
+      requestMethod: 'GET',
+      durationMs: 12,
+      status: 'SUCCESS',
+    })
+    const debug = useDebugStore()
+    expect(debug.historyEpoch).toBe(0)
+    const wrapper = mount(RequestWorkspace)
+    await (wrapper.vm as any).handleSend()
+    expect(debug.historyEpoch).toBe(1)
+  })
+
+  it('renders breadcrumb segments for collection tab', async () => {
+    const workspace = useWorkspaceStore()
+    const collectionStore = useCollectionStore()
+    collectionStore.currentDetail = {
+      id: 1, projectId: 1, name: 'Auth', description: '', sortOrder: 0,
+      folders: [{
+        id: 10, collectionId: 1, parentId: null, name: 'Apps', description: '', sortOrder: 0,
+        children: [], items: [],
+      }],
+      items: [],
+    }
+    workspace.openOrFocusTab({
+      source: 'collection', refId: 88, definitionId: 11, collectionId: 1, folderId: 10,
+      title: 'Login', method: 'POST', draft: emptyDraft({ url: '/login', method: 'POST' }),
+    })
+    const wrapper = mount(RequestWorkspace)
+    expect(wrapper.get('[data-testid="request-breadcrumb"]').text()).toContain('Auth')
+    expect(wrapper.get('[data-testid="request-breadcrumb"]').text()).toContain('Apps')
+    expect(wrapper.find('[data-testid="request-name"]').exists()).toBe(true)
+  })
+
+  it('does not render response history tab', () => {
+    const workspace = useWorkspaceStore()
+    workspace.openScratchTab()
+    const wrapper = mount(RequestWorkspace)
+    expect(wrapper.find('[data-testid="request-history"]').exists()).toBe(false)
   })
 
   it('blocks save with a warning when auth user is missing', async () => {
@@ -250,10 +310,14 @@ describe('RequestWorkspace', () => {
 
   it('saves a collection tab by updating the linked definitionId', async () => {
     const workspace = useWorkspaceStore()
+    const collectionStore = useCollectionStore()
+    collectionStore.updateItem = vi.fn().mockResolvedValue({})
+    collectionStore.loadDetail = vi.fn().mockResolvedValue({ id: 1, folders: [], items: [] })
     workspace.openOrFocusTab({
       source: 'collection',
       refId: 88,
       definitionId: 11,
+      collectionId: 1,
       title: 'Item Login',
       method: 'POST',
       draft: emptyDraft({ url: '/login', method: 'POST' }),
@@ -268,7 +332,27 @@ describe('RequestWorkspace', () => {
       path: '/login',
       method: 'POST',
     }), 42)
+    expect(collectionStore.updateItem).toHaveBeenCalledWith(1, 88, expect.objectContaining({
+      definitionId: 11,
+      name: 'Item Login',
+    }))
     expect(workspace.tabs[0].dirty).toBe(false)
+  })
+
+  it('renames request via setTabTitle and marks dirty', async () => {
+    const workspace = useWorkspaceStore()
+    workspace.openOrFocusTab({
+      source: 'definition',
+      refId: 3,
+      definitionId: 3,
+      title: 'Old Name',
+      method: 'GET',
+      draft: emptyDraft({ url: '/x', method: 'GET' }),
+    })
+    const wrapper = mount(RequestWorkspace)
+    await (wrapper.vm as any).onTitleChange('New Name')
+    expect(workspace.tabs[0].title).toBe('New Name')
+    expect(workspace.tabs[0].dirty).toBe(true)
   })
 
   it('scratch save creates request in collection then upgrades the tab', async () => {
