@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import PlaceholderPanel from '@/modules/api-test/shell/components/PlaceholderPanel.vue'
 import ApiTreePanel from '@/modules/api-test/shell/components/ApiTreePanel.vue'
+import EnvironmentPanel from '@/modules/api-test/shell/components/EnvironmentPanel.vue'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import type { ShellModule } from '@/modules/api-test/shell/types/workspace'
 
@@ -22,14 +23,14 @@ const placeholderModule = computed(() => {
   return isPlaceholder(module) ? module : null
 })
 
-const fillPanel = computed(() => activeModule.value === 'apis')
+const fillPanel = computed(() => activeModule.value === 'apis' || activeModule.value === 'environments')
 </script>
 
 <template>
   <div class="resource-panel" :class="{ 'resource-panel--fill': fillPanel }">
     <ApiTreePanel v-show="activeModule === 'apis'" @loaded="emit('loaded')" />
-    <n-empty v-if="activeModule === 'collections'" description="集合面板将在后续任务接入" />
-    <n-empty v-else-if="activeModule === 'environments'" description="环境面板将在后续任务接入" />
+    <EnvironmentPanel v-if="activeModule === 'environments'" />
+    <n-empty v-else-if="activeModule === 'collections'" description="集合面板将在后续任务接入" />
     <PlaceholderPanel v-else-if="placeholderModule" :module="placeholderModule" />
   </div>
 </template>

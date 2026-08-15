@@ -7,6 +7,8 @@ import ModuleRail from '@/modules/api-test/shell/components/ModuleRail.vue'
 import ResourcePanel from '@/modules/api-test/shell/components/ResourcePanel.vue'
 import RequestTabBar from '@/modules/api-test/shell/components/RequestTabBar.vue'
 import RequestWorkspace from '@/modules/api-test/shell/components/RequestWorkspace.vue'
+import EnvironmentSelector from '@/modules/api-test/debug/components/EnvironmentSelector.vue'
+import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import type { ShellModule } from '@/modules/api-test/shell/types/workspace'
 import { loadDefinitionIntoTab } from '@/modules/api-test/shell/utils/loadDefinitionDraft'
@@ -26,7 +28,9 @@ const SIDEBAR_MAX = 480
 const route = useRoute()
 const message = useMessage()
 const workspace = useWorkspaceStore()
+const envStore = useEnvironmentStore()
 const { sidebarWidth, tabs } = storeToRefs(workspace)
+const { selectedEnvironmentId } = storeToRefs(envStore)
 
 const treeLoaded = ref(false)
 let openedDefKey: string | null = null
@@ -80,7 +84,14 @@ function onTreeLoaded() {
   void openDefFromQuery()
 }
 
-onMounted(applyQueryModule)
+function onEnvironmentChange(id: number | null) {
+  envStore.selectEnvironment(id)
+}
+
+onMounted(() => {
+  applyQueryModule()
+  void envStore.loadAll(1)
+})
 watch(() => route.query, applyQueryModule, { deep: true })
 watch(() => route.query.def, () => {
   void openDefFromQuery()
@@ -132,6 +143,13 @@ onUnmounted(() => stopSidebarResize?.())
     />
 
     <div class="api-test-shell__main">
+      <div class="api-test-shell__header" data-testid="shell-env-header">
+        <EnvironmentSelector
+          :project-id="1"
+          :environment-id="selectedEnvironmentId"
+          @update:environment-id="onEnvironmentChange"
+        />
+      </div>
       <RequestTabBar />
       <div class="api-test-shell__workspace">
         <RequestWorkspace v-if="tabs.length" />
@@ -176,6 +194,15 @@ onUnmounted(() => stopSidebarResize?.())
   flex-direction: column;
   min-width: 0;
   height: 100%;
+}
+
+.api-test-shell__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--wb-border, #e5e7eb);
 }
 
 .api-test-shell__workspace {
