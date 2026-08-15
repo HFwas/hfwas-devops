@@ -108,6 +108,7 @@
 
 <script setup lang="ts">
 import { computed, h } from 'vue'
+import { NTag } from 'naive-ui'
 import type { ApiDebugResultVO } from '@/modules/api-test/debug/types/debug'
 
 const props = defineProps<{
@@ -142,9 +143,10 @@ const assertionColumns = [
     title: '结果',
     key: 'passed',
     width: 70,
-    render: (row: any) => row.passed
-      ? h('span', { style: 'color: #67C23A;' }, '✓ 通过')
-      : h('span', { style: 'color: #F56C6C;' }, '✗ 失败'),
+    render: (row: { passed: boolean }) => h(NTag, {
+      size: 'small',
+      type: row.passed ? 'success' : 'error',
+    }, { default: () => (row.passed ? '✓ 通过' : '✗ 失败') }),
   },
 ]
 
@@ -181,8 +183,9 @@ function formatBody(body: string): string {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-top: 1px solid #e5e7eb;
-  background: #fafafa;
+  border-top: 1px solid var(--wb-border, #e5e7eb);
+  background: var(--wb-chip-bg, #f8fafc);
+  color: inherit;
 }
 
 .workspace-response__empty {
@@ -197,8 +200,8 @@ function formatBody(body: string): string {
   align-items: center;
   gap: 8px;
   padding: var(--api-density-pad-y, 6px) 0;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--wb-card-bg, #fff);
+  border-bottom: 1px solid var(--wb-border, #e5e7eb);
 }
 
 .workspace-response__body-input :deep(textarea) {
@@ -210,23 +213,23 @@ function formatBody(body: string): string {
   display: flex;
   gap: 16px;
   font-size: 13px;
-  color: #666;
+  color: var(--wb-muted, #6b7280);
 }
 
 .workspace-response__meta-item strong {
-  color: #333;
+  font-weight: 600;
 }
 
 .workspace-response__logs {
   padding: 8px 16px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--wb-card-bg, #fff);
+  border-bottom: 1px solid var(--wb-border, #e5e7eb);
 }
 
 .workspace-response__tabs {
   flex: 1;
   padding: 0 16px;
   overflow: auto;
-  background: #fff;
+  background: var(--wb-card-bg, #fff);
 }
 </style>
