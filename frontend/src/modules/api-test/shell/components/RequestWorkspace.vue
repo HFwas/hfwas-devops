@@ -13,6 +13,8 @@ import ScriptEditor from '@/modules/api-test/debug/components/ScriptEditor.vue'
 import AssertionEditor from '@/modules/api-test/debug/components/AssertionEditor.vue'
 import ExtractEditor from '@/modules/api-test/debug/components/ExtractEditor.vue'
 import ComingSoonPane from '@/modules/api-test/shell/components/ComingSoonPane.vue'
+import CurlImportDialog from '@/modules/api-test/debug/components/CurlImportDialog.vue'
+import type { CurlParseResultVO } from '@/modules/api-test/debug/types/curl'
 import { useDebugStore } from '@/modules/api-test/debug/stores/debug'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
@@ -59,6 +61,19 @@ const showScratchDialog = ref(false)
 const scratchSaving = ref(false)
 const scratchName = ref('')
 const scratchCollectionId = ref<number | null>(null)
+
+const showCurlImport = ref(false)
+
+function onCurlImported(result: CurlParseResultVO) {
+  patch({
+    url: result.url || '',
+    method: result.method || 'GET',
+    headers: result.headers || {},
+    body: result.body || '',
+    contentType: result.contentType || 'application/json',
+  })
+  message.success('cURL 导入成功')
+}
 
 const collectionOptions = computed(() =>
   (pageResult.value.records ?? []).map((c) => ({ label: c.name, value: c.id })),
@@ -270,7 +285,7 @@ onUnmounted(() => stopResponseResize?.())
       v-if="activeTab.loadError"
       type="error"
       :title="activeTab.loadError"
-      style="margin: 8px 16px 0;"
+      class="request-workspace__alert"
     />
 
     <div class="request-workspace__url-bar">
@@ -291,6 +306,7 @@ onUnmounted(() => stopResponseResize?.())
       />
       <n-button
         type="primary"
+        size="small"
         data-testid="request-send"
         :loading="executing"
         :disabled="!activeTab.draft.url"
@@ -300,6 +316,9 @@ onUnmounted(() => stopResponseResize?.())
       </n-button>
       <n-button quaternary size="small" data-testid="request-save" @click="handleSave">
         保存
+      </n-button>
+      <n-button quaternary size="small" @click="showCurlImport = true">
+        导入 cURL
       </n-button>
     </div>
 
@@ -435,6 +454,12 @@ onUnmounted(() => stopResponseResize?.())
         </n-space>
       </template>
     </n-modal>
+
+    <!-- cURL 导入对话框 -->
+    <curl-import-dialog
+      v-model:show="showCurlImport"
+      @imported="onCurlImported"
+    />
   </div>
 </template>
 
@@ -448,19 +473,27 @@ onUnmounted(() => stopResponseResize?.())
   background: var(--wb-card-bg, #fff);
 }
 
+.request-workspace__alert {
+  margin: var(--api-density-pad-y, 6px) var(--api-density-pad-x, 10px) 0;
+}
+
 .request-workspace__url-bar {
   display: flex;
   flex-shrink: 0;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  padding: 12px 16px 0;
+  padding: var(--api-density-pad-y, 6px) var(--api-density-pad-x, 10px) 0;
 }
 
 .request-workspace__tabs {
   flex: 1;
   min-height: 0;
-  padding: 0 16px;
+  padding: 0 var(--api-density-pad-x, 10px);
   overflow: auto;
+}
+
+.request-workspace__tabs :deep(.n-tabs-bar) {
+  background-color: var(--api-test-accent, #4098fc);
 }
 
 .request-workspace__body-header {
@@ -503,7 +536,11 @@ onUnmounted(() => stopResponseResize?.())
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 0 16px;
+  padding: 0 var(--api-density-pad-x, 10px);
   overflow: auto;
+}
+
+.request-workspace__response-tabs :deep(.n-tabs-bar) {
+  background-color: var(--api-test-accent, #4098fc);
 }
 </style>

@@ -81,7 +81,7 @@ function onClose(event: MouseEvent, tab: RequestTab) {
   display: flex;
   flex-shrink: 0;
   align-items: stretch;
-  min-height: 36px;
+  min-height: var(--api-row-height, 28px);
   overflow-x: auto;
   border-bottom: 1px solid var(--wb-border, #e5e7eb);
   color: inherit;
@@ -92,9 +92,10 @@ function onClose(event: MouseEvent, tab: RequestTab) {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   max-width: 220px;
-  padding: 0 8px 0 12px;
+  min-height: var(--api-row-height, 28px);
+  padding: 0 var(--api-density-pad-x, 10px);
   border: none;
   border-right: 1px solid var(--wb-border, #e5e7eb);
   background: transparent;
@@ -106,6 +107,7 @@ function onClose(event: MouseEvent, tab: RequestTab) {
 .request-tab-bar__tab.is-active {
   background: var(--wb-chip-bg, #f8fafc);
   color: inherit;
+  font-weight: 500;
   box-shadow: inset 0 -2px 0 var(--api-test-accent, #4098fc);
 }
 
@@ -148,7 +150,8 @@ function onClose(event: MouseEvent, tab: RequestTab) {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 32px;
+  width: var(--api-row-height, 28px);
+  min-height: var(--api-row-height, 28px);
   border: none;
   background: transparent;
   color: var(--wb-muted, #6b7280);
