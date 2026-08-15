@@ -8,6 +8,21 @@ describe('useWorkspaceStore', () => {
     setActivePinia(createPinia())
   })
 
+  it('openOrFocusTab stores folderId', () => {
+    const store = useWorkspaceStore()
+    const tab = store.openOrFocusTab({
+      source: 'collection',
+      refId: 1,
+      definitionId: 2,
+      collectionId: 3,
+      folderId: 9,
+      title: 'Login',
+      method: 'POST',
+      draft: emptyDraft(),
+    })
+    expect(tab.folderId).toBe(9)
+  })
+
   it('openOrFocusTab reuses same source+refId', () => {
     const store = useWorkspaceStore()
     const a = store.openOrFocusTab({
@@ -244,5 +259,13 @@ describe('useWorkspaceStore', () => {
 
   it('emptyDraft includes description', () => {
     expect(emptyDraft().description).toBe('')
+  })
+
+  it('setTabTitle renames and marks dirty', () => {
+    const store = useWorkspaceStore()
+    const tab = store.openScratchTab()
+    store.setTabTitle(tab.id, 'Renamed')
+    expect(store.tabs[0].title).toBe('Renamed')
+    expect(store.tabs[0].dirty).toBe(true)
   })
 })

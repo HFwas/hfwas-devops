@@ -10,7 +10,12 @@ import {
 } from '@/modules/api-test/shell/types/workspace'
 import { clampResponseHeight, clampSidebarWidth } from '@/modules/api-test/shell/utils/layoutPersist'
 
-type TabMetaPatch = Partial<Pick<RequestTab, 'source' | 'refId' | 'definitionId' | 'title' | 'method'>>
+type TabMetaPatch = Partial<
+  Pick<
+    RequestTab,
+    'source' | 'refId' | 'definitionId' | 'collectionId' | 'folderId' | 'title' | 'method'
+  >
+>
 
 function newTabId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -46,6 +51,8 @@ export const useWorkspaceStore = defineStore('apiTestWorkspace', () => {
       source: input.source,
       refId: input.refId,
       definitionId: input.definitionId,
+      collectionId: input.collectionId,
+      folderId: input.folderId,
       title: input.title,
       method: input.method,
       dirty: false,
@@ -125,8 +132,18 @@ export const useWorkspaceStore = defineStore('apiTestWorkspace', () => {
     if (partial.source != null) tab.source = partial.source
     if (partial.refId !== undefined) tab.refId = partial.refId
     if (partial.definitionId !== undefined) tab.definitionId = partial.definitionId
+    if (partial.collectionId !== undefined) tab.collectionId = partial.collectionId
+    if (partial.folderId !== undefined) tab.folderId = partial.folderId
     if (partial.title != null) tab.title = partial.title
     if (partial.method != null) tab.method = partial.method
+  }
+
+  /** Rename request tab and mark dirty so Save persists the name. */
+  function setTabTitle(tabId: string, title: string) {
+    const tab = tabs.value.find((t) => t.id === tabId)
+    if (!tab) return
+    tab.title = title
+    tab.dirty = true
   }
 
   function setLayout(partial: { sidebarWidth?: number; responseHeight?: number }) {
@@ -153,6 +170,7 @@ export const useWorkspaceStore = defineStore('apiTestWorkspace', () => {
     setActiveTab,
     patchDraft,
     setTabMeta,
+    setTabTitle,
     markClean,
     setTabResult,
     setLayout,

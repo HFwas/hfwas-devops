@@ -27,6 +27,9 @@ export interface RequestTab {
   source: TabSource
   refId?: number
   definitionId?: number
+  /** Parent collection when source is collection (for item rename/save). */
+  collectionId?: number
+  folderId?: number | null
   title: string
   method: string
   dirty: boolean
@@ -56,6 +59,8 @@ export interface OpenTabInput {
   source: TabSource
   refId?: number
   definitionId?: number
+  collectionId?: number
+  folderId?: number | null
   title: string
   method: string
   draft: RequestDraft
