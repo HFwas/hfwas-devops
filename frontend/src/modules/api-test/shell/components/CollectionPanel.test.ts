@@ -163,6 +163,31 @@ describe('CollectionPanel', () => {
     expect(tab?.method).toBe('POST')
   })
 
+  it('keeps a definition tab when opening a collection item so both sources coexist', async () => {
+    const workspace = useWorkspaceStore()
+    workspace.openOrFocusTab({
+      source: 'definition',
+      refId: 7,
+      definitionId: 7,
+      title: 'Create User',
+      method: 'PUT',
+      draft: emptyDraft({ url: '/users', method: 'PUT' }),
+    })
+
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('[data-testid="collection-item-9"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="tree-item-88"]').trigger('click')
+    await flushPromises()
+
+    expect(workspace.tabs.map((t) => t.source)).toEqual(['definition', 'collection'])
+    expect(workspace.tabs).toHaveLength(2)
+    expect(workspace.tabs[0].refId).toBe(7)
+    expect(workspace.tabs[1].refId).toBe(88)
+    expect(workspace.activeTab?.source).toBe('collection')
+  })
+
   it('falls back to definition name and method when the item omits them', async () => {
     detailMock.mockResolvedValue({
       ...AUTH_DETAIL,

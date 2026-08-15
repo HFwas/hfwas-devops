@@ -69,10 +69,10 @@ describe('ApiTestShell environment header', () => {
           NEmpty: true,
           CollectionRunDrawer: {
             name: 'CollectionRunDrawer',
-            props: ['show', 'collectionId', 'mode'],
+            props: ['show', 'collectionId', 'mode', 'runNonce'],
             emits: ['update:show'],
             template:
-              '<div v-if="show" data-testid="run-drawer">{{ collectionId }}:{{ mode }}</div>',
+              '<div v-if="show" data-testid="run-drawer">{{ collectionId }}:{{ mode }}:{{ runNonce }}</div>',
           },
           EnvironmentSelector: {
             name: 'EnvironmentSelector',
@@ -115,10 +115,19 @@ describe('ApiTestShell environment header', () => {
     expect(wrapper.find('[data-testid="run-drawer"]').exists()).toBe(false)
 
     await wrapper.get('[data-testid="emit-run"]').trigger('click')
-    expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:run')
+    expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:run:1')
 
     await wrapper.get('[data-testid="emit-history"]').trigger('click')
-    expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:history')
+    expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:history:1')
+  })
+
+  it('increments runNonce on a second Run while the drawer stays open in run mode', async () => {
+    const wrapper = mountShell()
+    await flushPromises()
+    await wrapper.get('[data-testid="emit-run"]').trigger('click')
+    expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:run:1')
+    await wrapper.get('[data-testid="emit-run"]').trigger('click')
+    expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:run:2')
   })
 
   it('opens history drawer from ?collectionId= and ?runs=1', async () => {
@@ -128,6 +137,6 @@ describe('ApiTestShell environment header', () => {
     const wrapper = mountShell()
     await flushPromises()
     expect(useWorkspaceStore().activeModule).toBe('collections')
-    expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:history')
+    expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:history:0')
   })
 })

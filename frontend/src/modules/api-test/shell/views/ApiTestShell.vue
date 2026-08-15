@@ -37,6 +37,7 @@ const treeLoaded = ref(false)
 const runDrawerShow = ref(false)
 const runCollectionId = ref<number | null>(null)
 const runDrawerMode = ref<'run' | 'history'>('history')
+const runNonce = ref(0)
 let openedDefKey: string | null = null
 let openedRunsKey: string | null = null
 
@@ -91,6 +92,7 @@ function onCollectionRun(id: number) {
   runCollectionId.value = id
   runDrawerMode.value = 'run'
   runDrawerShow.value = true
+  runNonce.value += 1
 }
 
 function onCollectionHistory(id: number) {
@@ -212,6 +214,7 @@ onUnmounted(() => stopSidebarResize?.())
       v-model:show="runDrawerShow"
       :collection-id="runCollectionId"
       :mode="runDrawerMode"
+      :run-nonce="runNonce"
     />
   </div>
 </template>

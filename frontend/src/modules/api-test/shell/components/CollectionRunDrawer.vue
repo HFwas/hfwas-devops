@@ -13,9 +13,11 @@ const props = withDefaults(defineProps<{
   show: boolean
   collectionId?: number | null
   mode?: 'run' | 'history'
+  runNonce?: number
 }>(), {
   collectionId: null,
   mode: 'history',
+  runNonce: 0,
 })
 
 const emit = defineEmits<{
@@ -98,7 +100,7 @@ async function selectHistoryRun(runId: number) {
   }
 }
 
-watch(() => [props.show, props.mode, props.collectionId] as const, async ([show, mode, id]) => {
+watch(() => [props.show, props.mode, props.collectionId, props.runNonce] as const, async ([show, mode, id]) => {
   if (!show) return
   const collectionId = id ?? queryCollectionId.value
   if (collectionId == null) return

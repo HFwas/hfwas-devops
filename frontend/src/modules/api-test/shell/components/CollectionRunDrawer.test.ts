@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest'
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '@/modules/user/stores/auth'
@@ -95,13 +95,18 @@ describe('CollectionRunDrawer', () => {
     useEnvironmentStore().selectEnvironment(5)
   })
 
-  function mountDrawer(props: { show?: boolean; collectionId?: number | null; mode?: 'run' | 'history' } = {}) {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  function mountDrawer(props: { show?: boolean; collectionId?: number | null; mode?: 'run' | 'history'; runNonce?: number } = {}) {
     return mount(CollectionRunDrawer, {
       attachTo: document.body,
       props: {
         show: props.show ?? true,
         collectionId: props.collectionId ?? 9,
         mode: props.mode ?? 'history',
+        runNonce: props.runNonce ?? 0,
       },
       global: {
         stubs: {
@@ -123,6 +128,18 @@ describe('CollectionRunDrawer', () => {
     expect(runDetailMock).toHaveBeenCalledWith(301)
     expect(document.body.textContent).toContain('Auth run')
     expect(routerPush).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('re-executes when runNonce increments while already open in run mode', async () => {
+    const wrapper = mountDrawer({ mode: 'run', runNonce: 1 })
+    await flushPromises()
+    expect(runMock).toHaveBeenCalledTimes(1)
+
+    await wrapper.setProps({ runNonce: 2 })
+    await flushPromises()
+    expect(runMock).toHaveBeenCalledTimes(2)
+    expect(runMock).toHaveBeenLastCalledWith(9, 5, 42)
     wrapper.unmount()
   })
 
