@@ -34,7 +34,7 @@ const envStore = useEnvironmentStore()
 const collectionStore = useCollectionStore()
 
 const { activeTab, responseHeight } = storeToRefs(workspace)
-const { pageResult, currentDetail } = storeToRefs(collectionStore)
+const { pageResult, currentDetail, detailsById } = storeToRefs(collectionStore)
 const executing = computed(() => debugStore.executing)
 
 function requireUserId(): number | null {
@@ -77,7 +77,8 @@ const breadcrumbSegments = computed(() => {
 
   if (tab.source === 'collection' && tab.collectionId != null) {
     const detail =
-      currentDetail.value?.id === tab.collectionId ? currentDetail.value : null
+      detailsById.value[tab.collectionId]
+      ?? (currentDetail.value?.id === tab.collectionId ? currentDetail.value : null)
     collectionName =
       detail?.name
       ?? pageResult.value.records?.find((c) => c.id === tab.collectionId)?.name

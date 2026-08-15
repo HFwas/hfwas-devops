@@ -162,6 +162,7 @@ async function onSelectHistory(id: number) {
     workspace.patchDraft(tab.id, mapped.draftPatch)
     workspace.setTabMeta(tab.id, { title: mapped.title, method: mapped.method })
     workspace.setTabResult(tab.id, mapped.result)
+    workspace.markClean(tab.id)
   } catch (e: any) {
     message.error(e?.message || '加载历史详情失败')
   }

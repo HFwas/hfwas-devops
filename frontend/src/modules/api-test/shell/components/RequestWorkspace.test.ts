@@ -223,6 +223,33 @@ describe('RequestWorkspace', () => {
     expect(wrapper.find('[data-testid="request-name"]').exists()).toBe(true)
   })
 
+  it('keeps folder breadcrumb from detailsById when currentDetail is another collection', () => {
+    const workspace = useWorkspaceStore()
+    const collectionStore = useCollectionStore()
+    collectionStore.detailsById[1] = {
+      id: 1, projectId: 1, name: 'Auth', description: '', sortOrder: 0,
+      folders: [{
+        id: 10, collectionId: 1, parentId: null, name: 'Apps', description: '', sortOrder: 0,
+        children: [], items: [],
+      }],
+      items: [],
+    }
+    collectionStore.currentDetail = {
+      id: 2, projectId: 1, name: 'Payments', description: '', sortOrder: 0,
+      folders: [],
+      items: [],
+    }
+    workspace.openOrFocusTab({
+      source: 'collection', refId: 88, definitionId: 11, collectionId: 1, folderId: 10,
+      title: 'Login', method: 'POST', draft: emptyDraft({ url: '/login', method: 'POST' }),
+    })
+    const wrapper = mount(RequestWorkspace)
+    const crumb = wrapper.get('[data-testid="request-breadcrumb"]').text()
+    expect(crumb).toContain('Auth')
+    expect(crumb).toContain('Apps')
+    expect(crumb).not.toContain('Payments')
+  })
+
   it('does not render response history tab', () => {
     const workspace = useWorkspaceStore()
     workspace.openScratchTab()

@@ -309,6 +309,56 @@ describe('CollectionsSidebar', () => {
     expect(ws.tabs.some((t) => t.source === 'scratch' && t.draft.url === '/x')).toBe(true)
   })
 
+  it('history-opened scratch tab is clean after hydrate', async () => {
+    historyPageMock.mockResolvedValue({
+      records: [{
+        id: 7,
+        definitionId: null,
+        environmentId: null,
+        name: 'GET /x',
+        requestUrl: '/x',
+        requestMethod: 'GET',
+        responseStatusCode: 200,
+        responseSize: 1,
+        durationMs: 5,
+        status: 'SUCCESS',
+        allAssertionsPassed: true,
+        createTime: 't',
+      }],
+      total: 1,
+      size: 50,
+      current: 1,
+      pages: 1,
+    })
+    historyDetailMock.mockResolvedValue({
+      id: 7,
+      projectId: 1,
+      definitionId: null,
+      environmentId: null,
+      name: 'GET /x',
+      requestUrl: '/x',
+      requestMethod: 'GET',
+      requestHeaders: { A: '1' },
+      requestQuery: {},
+      requestBody: '',
+      requestContentType: 'application/json',
+      responseStatusCode: 200,
+      responseBody: '{}',
+      durationMs: 5,
+      status: 'SUCCESS',
+      createBy: 1,
+      createTime: 't',
+    })
+    const wrapper = mountSidebar()
+    await wrapper.get('[data-testid="sidebar-mode-history"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="history-row-7"]').trigger('click')
+    await flushPromises()
+    const tab = useWorkspaceStore().tabs.find((t) => t.source === 'scratch' && t.draft.url === '/x')
+    expect(tab).toBeDefined()
+    expect(tab?.dirty).toBe(false)
+  })
+
   it('emits run and history from collection overflow', async () => {
     const wrapper = mountSidebar()
     await flushPromises()
