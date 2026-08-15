@@ -7,7 +7,17 @@ import { useCollectionStore } from '@/modules/api-test/collection/stores/collect
 import { emptyDraft } from '@/modules/api-test/shell/types/workspace'
 import type { CollectionDetailVO, CollectionItemVO, CollectionVO } from '@/modules/api-test/collection/types/collection'
 
-const { pageMock, detailMock, createMock, loadDefMock, createReqMock, messageError, messageWarning } = vi.hoisted(() => ({
+const {
+  pageMock,
+  detailMock,
+  createMock,
+  loadDefMock,
+  createReqMock,
+  messageError,
+  messageWarning,
+  historyPageMock,
+  historyDetailMock,
+} = vi.hoisted(() => ({
   pageMock: vi.fn(),
   detailMock: vi.fn(),
   createMock: vi.fn(),
@@ -15,6 +25,8 @@ const { pageMock, detailMock, createMock, loadDefMock, createReqMock, messageErr
   createReqMock: vi.fn(),
   messageError: vi.fn(),
   messageWarning: vi.fn(),
+  historyPageMock: vi.fn(),
+  historyDetailMock: vi.fn(),
 }))
 
 vi.mock('naive-ui', async () => {
@@ -48,6 +60,13 @@ vi.mock('@/modules/api-test/shell/utils/createRequestInCollection', () => ({
   createRequestInCollection: (...args: unknown[]) => createReqMock(...args),
 }))
 
+vi.mock('@/modules/api-test/debug/api/debugHistory', () => ({
+  debugHistoryApi: {
+    page: (...args: unknown[]) => historyPageMock(...args),
+    detail: (...args: unknown[]) => historyDetailMock(...args),
+  },
+}))
+
 import CollectionsSidebar from './CollectionsSidebar.vue'
 
 function collectionVO(partial: Partial<CollectionVO> & Pick<CollectionVO, 'id' | 'name'>): CollectionVO {
@@ -66,7 +85,7 @@ function collectionVO(partial: Partial<CollectionVO> & Pick<CollectionVO, 'id' |
 const LOGIN_ITEM: CollectionItemVO = {
   id: 88,
   collectionId: 1,
-  folderId: null,
+  folderId: 12,
   definitionId: 7,
   name: 'Login',
   description: '',
@@ -109,6 +128,8 @@ describe('CollectionsSidebar', () => {
     createReqMock.mockReset()
     messageError.mockReset()
     messageWarning.mockReset()
+    historyPageMock.mockReset()
+    historyDetailMock.mockReset()
 
     const auth = useAuthStore()
     auth.user = {
@@ -145,10 +166,10 @@ describe('CollectionsSidebar', () => {
         stubs: {
           CollectionTree: {
             name: 'CollectionTree',
-            props: ['folders', 'items'],
+            props: ['folders', 'items', 'selectedId'],
             emits: ['selectItem', 'selectFolder'],
             template:
-              '<div data-testid="collection-tree">'
+              '<div data-testid="collection-tree" :data-selected-id="selectedId ?? \'\'">'
               + '<button v-for="item in items" :key="item.id" type="button" :data-testid="`tree-item-${item.id}`" @click="$emit(\'selectItem\', item)">{{ item.name }}</button>'
               + '</div>',
           },
@@ -163,7 +184,8 @@ describe('CollectionsSidebar', () => {
 
     expect(wrapper.get('[data-testid="collections-sidebar"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="create-collection"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('COLLECTIONS')
+    expect(wrapper.get('[data-testid="sidebar-mode-collections"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="sidebar-mode-history"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="collection-row-1"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="collection-row-2"]').exists()).toBe(true)
   })
@@ -223,8 +245,68 @@ describe('CollectionsSidebar', () => {
     expect(tab?.source).toBe('collection')
     expect(tab?.refId).toBe(88)
     expect(tab?.definitionId).toBe(7)
+    expect(tab?.folderId).toBe(12)
     expect(tab?.title).toBe('Login')
     expect(tab?.method).toBe('POST')
+    expect(wrapper.get('[data-testid="collection-tree"]').attributes('data-selected-id')).toBe('88')
+  })
+
+  it('switches to history mode and loads page', async () => {
+    historyPageMock.mockResolvedValue({ records: [], total: 0, size: 50, current: 1, pages: 0 })
+    const wrapper = mountSidebar()
+    await wrapper.get('[data-testid="sidebar-mode-history"]').trigger('click')
+    await flushPromises()
+    expect(historyPageMock).toHaveBeenCalledWith(expect.objectContaining({ projectId: 1 }))
+    expect(wrapper.find('[data-testid="history-sidebar-list"]').exists()).toBe(true)
+  })
+
+  it('clicking history row opens a new scratch tab with mapped draft', async () => {
+    historyPageMock.mockResolvedValue({
+      records: [{
+        id: 7,
+        definitionId: null,
+        environmentId: null,
+        name: 'GET /x',
+        requestUrl: '/x',
+        requestMethod: 'GET',
+        responseStatusCode: 200,
+        responseSize: 1,
+        durationMs: 5,
+        status: 'SUCCESS',
+        allAssertionsPassed: true,
+        createTime: 't',
+      }],
+      total: 1,
+      size: 50,
+      current: 1,
+      pages: 1,
+    })
+    historyDetailMock.mockResolvedValue({
+      id: 7,
+      projectId: 1,
+      definitionId: null,
+      environmentId: null,
+      name: 'GET /x',
+      requestUrl: '/x',
+      requestMethod: 'GET',
+      requestHeaders: { A: '1' },
+      requestQuery: {},
+      requestBody: '',
+      requestContentType: 'application/json',
+      responseStatusCode: 200,
+      responseBody: '{}',
+      durationMs: 5,
+      status: 'SUCCESS',
+      createBy: 1,
+      createTime: 't',
+    })
+    const wrapper = mountSidebar()
+    await wrapper.get('[data-testid="sidebar-mode-history"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="history-row-7"]').trigger('click')
+    await flushPromises()
+    const ws = useWorkspaceStore()
+    expect(ws.tabs.some((t) => t.source === 'scratch' && t.draft.url === '/x')).toBe(true)
   })
 
   it('emits run and history from collection overflow', async () => {
@@ -269,5 +351,14 @@ describe('CollectionsSidebar', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('New From Scratch')
+  })
+
+  it('renders import curl button and emits import-curl', async () => {
+    const wrapper = mountSidebar()
+    await flushPromises()
+    const btn = wrapper.get('[data-testid="import-curl"]')
+    expect(btn.exists()).toBe(true)
+    await btn.trigger('click')
+    expect(wrapper.emitted('import-curl')).toBeTruthy()
   })
 })

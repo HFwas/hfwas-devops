@@ -9,26 +9,38 @@ import type {
   CollectionItemVO,
   CollectionVO,
 } from '@/modules/api-test/collection/types/collection'
+import { debugHistoryApi } from '@/modules/api-test/debug/api/debugHistory'
+import { useDebugStore } from '@/modules/api-test/debug/stores/debug'
+import type { ApiDebugHistoryVO } from '@/modules/api-test/debug/types/debug'
 import { useAuthStore } from '@/modules/user/stores/auth'
+import HistorySidebarList from '@/modules/api-test/shell/components/HistorySidebarList.vue'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import { createRequestInCollection } from '@/modules/api-test/shell/utils/createRequestInCollection'
 import { loadDefinitionIntoTab } from '@/modules/api-test/shell/utils/loadDefinitionDraft'
+import { mapHistoryDetailToTab } from '@/modules/api-test/shell/utils/mapHistoryDetailToTab'
 
 const PROJECT_ID = 1
 
 const emit = defineEmits<{
   run: [collectionId: number]
   history: [collectionId: number]
+  'import-curl': []
 }>()
 
 const message = useMessage()
 const collectionStore = useCollectionStore()
 const authStore = useAuthStore()
 const workspace = useWorkspaceStore()
+const debugStore = useDebugStore()
 const { pageResult, currentDetail } = storeToRefs(collectionStore)
+const { historyEpoch } = storeToRefs(debugStore)
 
 const collections = computed(() => pageResult.value.records || [])
 const userId = computed(() => Number(authStore.user?.id) || 0)
+
+const sidebarMode = ref<'collections' | 'history'>('collections')
+const historyRecords = ref<ApiDebugHistoryVO[]>([])
+const historyLoading = ref(false)
 
 const expandedIds = ref<Set<number>>(new Set())
 const detailCache = reactive<Record<number, CollectionDetailVO>>({})
@@ -44,6 +56,12 @@ const filteredCollections = computed(() => {
   return collections.value.filter((c) => c.name.toLowerCase().includes(kw))
 })
 
+const activeCollectionItemId = computed(() => {
+  const tab = workspace.activeTab
+  if (tab?.source === 'collection' && tab.refId != null) return tab.refId
+  return null
+})
+
 onMounted(async () => {
   await reloadPage()
 })
@@ -54,6 +72,34 @@ async function reloadPage() {
   } catch (e: any) {
     message.error(e?.message || '加载集合失败')
   }
+}
+
+async function loadHistoryPage() {
+  historyLoading.value = true
+  try {
+    const page = await debugHistoryApi.page({
+      projectId: PROJECT_ID,
+      pageNo: 1,
+      pageSize: 50,
+    })
+    historyRecords.value = page.records || []
+  } catch (e: any) {
+    message.error(e?.message || '加载历史失败')
+    historyRecords.value = []
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+watch(
+  () => [sidebarMode.value, historyEpoch.value] as const,
+  async ([mode]) => {
+    if (mode === 'history') await loadHistoryPage()
+  },
+)
+
+function setSidebarMode(mode: 'collections' | 'history') {
+  sidebarMode.value = mode
 }
 
 function isExpanded(id: number) {
@@ -97,12 +143,27 @@ async function onSelectItem(item: CollectionItemVO) {
       source: 'collection',
       refId: item.id,
       definitionId: item.definitionId,
+      collectionId: item.collectionId,
+      folderId: item.folderId,
       title: item.name || detail.name,
       method: item.method || detail.method,
       draft,
     })
   } catch (e: any) {
     message.error(e?.message || '加载接口失败')
+  }
+}
+
+async function onSelectHistory(id: number) {
+  try {
+    const detail = await debugHistoryApi.detail(id)
+    const mapped = mapHistoryDetailToTab(detail)
+    const tab = workspace.openScratchTab()
+    workspace.patchDraft(tab.id, mapped.draftPatch)
+    workspace.setTabMeta(tab.id, { title: mapped.title, method: mapped.method })
+    workspace.setTabResult(tab.id, mapped.result)
+  } catch (e: any) {
+    message.error(e?.message || '加载历史详情失败')
   }
 }
 
@@ -167,6 +228,7 @@ async function onAddRequest(collectionId: number, event: Event) {
       source: 'collection',
       refId: result.itemId,
       definitionId: result.definitionId,
+      collectionId,
       title: result.name || detail.name,
       method: result.method || detail.method,
       draft,
@@ -185,12 +247,35 @@ function onHistory(collectionId: number, event: Event) {
   event.stopPropagation()
   emit('history', collectionId)
 }
+
+function onImportCurl() {
+  emit('import-curl')
+}
 </script>
 
 <template>
   <div class="collections-sidebar" data-testid="collections-sidebar">
     <div class="collections-sidebar__toolbar">
-      <span class="collections-sidebar__title">COLLECTIONS</span>
+      <div class="collections-sidebar__modes">
+        <button
+          type="button"
+          class="collections-sidebar__mode"
+          :class="{ 'collections-sidebar__mode--active': sidebarMode === 'collections' }"
+          data-testid="sidebar-mode-collections"
+          @click="setSidebarMode('collections')"
+        >
+          Collections
+        </button>
+        <button
+          type="button"
+          class="collections-sidebar__mode"
+          :class="{ 'collections-sidebar__mode--active': sidebarMode === 'history' }"
+          data-testid="sidebar-mode-history"
+          @click="setSidebarMode('history')"
+        >
+          History
+        </button>
+      </div>
       <n-input
         v-model:value="searchKeyword"
         size="tiny"
@@ -199,6 +284,17 @@ function onHistory(collectionId: number, event: Event) {
         class="collections-sidebar__search"
       />
       <n-button
+        v-if="sidebarMode === 'collections'"
+        size="tiny"
+        quaternary
+        data-testid="import-curl"
+        title="导入 cURL"
+        @click="onImportCurl"
+      >
+        导入
+      </n-button>
+      <n-button
+        v-if="sidebarMode === 'collections'"
         size="tiny"
         quaternary
         data-testid="create-collection"
@@ -210,7 +306,15 @@ function onHistory(collectionId: number, event: Event) {
     </div>
 
     <div class="collections-sidebar__body">
-      <template v-if="filteredCollections.length">
+      <HistorySidebarList
+        v-if="sidebarMode === 'history'"
+        :records="historyRecords"
+        :loading="historyLoading"
+        :keyword="searchKeyword"
+        @select="onSelectHistory"
+      />
+
+      <template v-else-if="filteredCollections.length">
         <div
           v-for="col in filteredCollections"
           :key="col.id"
@@ -257,6 +361,7 @@ function onHistory(collectionId: number, event: Event) {
             <CollectionTree
               :folders="detailFor(col.id)?.folders || []"
               :items="detailFor(col.id)?.items || []"
+              :selected-id="activeCollectionItemId"
               @select-item="onSelectItem"
             />
           </div>
@@ -329,12 +434,29 @@ function onHistory(collectionId: number, event: Event) {
   border-bottom: 1px solid var(--wb-border, #e5e7eb);
 }
 
-.collections-sidebar__title {
+.collections-sidebar__modes {
+  display: flex;
   flex-shrink: 0;
+  border: 1px solid var(--wb-border, #e5e7eb);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.collections-sidebar__mode {
+  margin: 0;
+  padding: 2px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--wb-text-secondary, #64748b);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--wb-text-secondary, #64748b);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.collections-sidebar__mode--active {
+  background: var(--wb-chip-bg, #f1f5f9);
+  color: var(--wb-text, #0f172a);
 }
 
 .collections-sidebar__search {
@@ -347,6 +469,8 @@ function onHistory(collectionId: number, event: Event) {
   min-height: 0;
   overflow: auto;
   padding: var(--api-density-pad-y, 4px) 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .collections-sidebar__section {
