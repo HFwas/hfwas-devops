@@ -325,7 +325,7 @@ function onHistory(collectionId: number, event: Event) {
   flex-shrink: 0;
   align-items: center;
   gap: 6px;
-  padding: 10px 10px 8px;
+  padding: var(--api-density-pad-y, 5px) var(--api-density-pad-x, 10px);
   border-bottom: 1px solid var(--wb-border, #e5e7eb);
 }
 
@@ -346,7 +346,7 @@ function onHistory(collectionId: number, event: Event) {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 4px 0;
+  padding: var(--api-density-pad-y, 4px) 0;
 }
 
 .collections-sidebar__section {
@@ -358,9 +358,10 @@ function onHistory(collectionId: number, event: Event) {
   align-items: center;
   gap: 4px;
   width: 100%;
-  padding: 4px 8px;
+  min-height: var(--api-row-height, 28px);
+  padding: var(--api-density-pad-y, 4px) var(--api-density-pad-x, 8px);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--api-font, 13px);
 }
 
 .collections-sidebar__row:hover {
@@ -387,11 +388,15 @@ function onHistory(collectionId: number, event: Event) {
   flex-shrink: 0;
   align-items: center;
   gap: 0;
+  opacity: 0.55;
+}
+
+.collections-sidebar__row:hover .collections-sidebar__row-actions {
   opacity: 0.85;
 }
 
 .collections-sidebar__tree {
-  padding: 0 4px 4px 18px;
+  padding: 0 var(--api-density-pad-x, 4px) var(--api-density-pad-y, 4px) 18px;
 }
 
 .collections-sidebar__empty {
