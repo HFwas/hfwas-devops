@@ -3,12 +3,15 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import PlaceholderPanel from '@/modules/api-test/shell/components/PlaceholderPanel.vue'
 import ApiTreePanel from '@/modules/api-test/shell/components/ApiTreePanel.vue'
+import CollectionPanel from '@/modules/api-test/shell/components/CollectionPanel.vue'
 import EnvironmentPanel from '@/modules/api-test/shell/components/EnvironmentPanel.vue'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import type { ShellModule } from '@/modules/api-test/shell/types/workspace'
 
 const emit = defineEmits<{
   loaded: []
+  run: [collectionId: number]
+  history: [collectionId: number]
 }>()
 
 const workspace = useWorkspaceStore()
@@ -23,14 +26,22 @@ const placeholderModule = computed(() => {
   return isPlaceholder(module) ? module : null
 })
 
-const fillPanel = computed(() => activeModule.value === 'apis' || activeModule.value === 'environments')
+const fillPanel = computed(() =>
+  activeModule.value === 'apis'
+  || activeModule.value === 'environments'
+  || activeModule.value === 'collections',
+)
 </script>
 
 <template>
   <div class="resource-panel" :class="{ 'resource-panel--fill': fillPanel }">
     <ApiTreePanel v-show="activeModule === 'apis'" @loaded="emit('loaded')" />
     <EnvironmentPanel v-if="activeModule === 'environments'" />
-    <n-empty v-else-if="activeModule === 'collections'" description="集合面板将在后续任务接入" />
+    <CollectionPanel
+      v-else-if="activeModule === 'collections'"
+      @run="emit('run', $event)"
+      @history="emit('history', $event)"
+    />
     <PlaceholderPanel v-else-if="placeholderModule" :module="placeholderModule" />
   </div>
 </template>

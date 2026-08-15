@@ -7,6 +7,7 @@ import ModuleRail from '@/modules/api-test/shell/components/ModuleRail.vue'
 import ResourcePanel from '@/modules/api-test/shell/components/ResourcePanel.vue'
 import RequestTabBar from '@/modules/api-test/shell/components/RequestTabBar.vue'
 import RequestWorkspace from '@/modules/api-test/shell/components/RequestWorkspace.vue'
+import CollectionRunDrawer from '@/modules/api-test/shell/components/CollectionRunDrawer.vue'
 import EnvironmentSelector from '@/modules/api-test/debug/components/EnvironmentSelector.vue'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
@@ -33,7 +34,11 @@ const { sidebarWidth, tabs } = storeToRefs(workspace)
 const { selectedEnvironmentId } = storeToRefs(envStore)
 
 const treeLoaded = ref(false)
+const runDrawerShow = ref(false)
+const runCollectionId = ref<number | null>(null)
+const runDrawerMode = ref<'run' | 'history'>('history')
 let openedDefKey: string | null = null
+let openedRunsKey: string | null = null
 
 function isShellModule(value: unknown): value is ShellModule {
   return typeof value === 'string' && (SHELL_MODULES as readonly string[]).includes(value)
@@ -54,6 +59,44 @@ function parseDefQuery(): number | null {
   const id = Number(value)
   if (!Number.isInteger(id) || id <= 0) return null
   return id
+}
+
+function parseCollectionIdQuery(): number | null {
+  const raw = route.query.collectionId
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (typeof value !== 'string' || value === '') return null
+  const id = Number(value)
+  if (!Number.isInteger(id) || id <= 0) return null
+  return id
+}
+
+function hasRunsQuery(): boolean {
+  const raw = route.query.runs
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return value === '1'
+}
+
+function applyCollectionQuery() {
+  const id = parseCollectionIdQuery()
+  if (id == null || !hasRunsQuery()) return
+  const key = String(id)
+  if (openedRunsKey === key) return
+  openedRunsKey = key
+  runCollectionId.value = id
+  runDrawerMode.value = 'history'
+  runDrawerShow.value = true
+}
+
+function onCollectionRun(id: number) {
+  runCollectionId.value = id
+  runDrawerMode.value = 'run'
+  runDrawerShow.value = true
+}
+
+function onCollectionHistory(id: number) {
+  runCollectionId.value = id
+  runDrawerMode.value = 'history'
+  runDrawerShow.value = true
 }
 
 async function openDefFromQuery() {
@@ -90,9 +133,13 @@ function onEnvironmentChange(id: number | null) {
 
 onMounted(() => {
   applyQueryModule()
+  applyCollectionQuery()
   void envStore.loadAll(1)
 })
-watch(() => route.query, applyQueryModule, { deep: true })
+watch(() => route.query, () => {
+  applyQueryModule()
+  applyCollectionQuery()
+}, { deep: true })
 watch(() => route.query.def, () => {
   void openDefFromQuery()
 })
@@ -134,7 +181,11 @@ onUnmounted(() => stopSidebarResize?.())
     <ModuleRail />
 
     <aside class="api-test-shell__sidebar" :style="{ width: `${sidebarWidth}px` }">
-      <ResourcePanel @loaded="onTreeLoaded" />
+      <ResourcePanel
+        @loaded="onTreeLoaded"
+        @run="onCollectionRun"
+        @history="onCollectionHistory"
+      />
     </aside>
     <div
       class="api-test-shell__resizer"
@@ -156,6 +207,12 @@ onUnmounted(() => stopSidebarResize?.())
         <n-empty v-else description="从左侧打开接口" />
       </div>
     </div>
+
+    <CollectionRunDrawer
+      v-model:show="runDrawerShow"
+      :collection-id="runCollectionId"
+      :mode="runDrawerMode"
+    />
   </div>
 </template>
 

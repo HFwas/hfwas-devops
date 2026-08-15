@@ -46,6 +46,8 @@ describe('ApiTestShell environment header', () => {
     listAllMock.mockResolvedValue([])
     routeQuery.module = undefined
     routeQuery.def = undefined
+    routeQuery.collectionId = undefined
+    routeQuery.runs = undefined
   })
 
   function mountShell() {
@@ -53,10 +55,25 @@ describe('ApiTestShell environment header', () => {
       global: {
         stubs: {
           ModuleRail: true,
-          ResourcePanel: true,
+          ResourcePanel: {
+            name: 'ResourcePanel',
+            emits: ['loaded', 'run', 'history'],
+            template:
+              '<div data-testid="resource-panel">'
+              + '<button data-testid="emit-run" type="button" @click="$emit(\'run\', 9)" />'
+              + '<button data-testid="emit-history" type="button" @click="$emit(\'history\', 9)" />'
+              + '</div>',
+          },
           RequestTabBar: true,
           RequestWorkspace: true,
           NEmpty: true,
+          CollectionRunDrawer: {
+            name: 'CollectionRunDrawer',
+            props: ['show', 'collectionId', 'mode'],
+            emits: ['update:show'],
+            template:
+              '<div v-if="show" data-testid="run-drawer">{{ collectionId }}:{{ mode }}</div>',
+          },
           EnvironmentSelector: {
             name: 'EnvironmentSelector',
             props: ['projectId', 'environmentId'],
@@ -90,5 +107,27 @@ describe('ApiTestShell environment header', () => {
     mountShell()
     await flushPromises()
     expect(useWorkspaceStore().activeModule).toBe('environments')
+  })
+
+  it('opens the run drawer from ResourcePanel run/history without changing route', async () => {
+    const wrapper = mountShell()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="run-drawer"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="emit-run"]').trigger('click')
+    expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:run')
+
+    await wrapper.get('[data-testid="emit-history"]').trigger('click')
+    expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:history')
+  })
+
+  it('opens history drawer from ?collectionId= and ?runs=1', async () => {
+    routeQuery.module = 'collections'
+    routeQuery.collectionId = '9'
+    routeQuery.runs = '1'
+    const wrapper = mountShell()
+    await flushPromises()
+    expect(useWorkspaceStore().activeModule).toBe('collections')
+    expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:history')
   })
 })

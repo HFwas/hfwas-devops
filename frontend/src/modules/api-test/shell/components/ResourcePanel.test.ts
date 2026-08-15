@@ -15,6 +15,7 @@ describe('ResourcePanel', () => {
         stubs: {
           ApiTreePanel: { template: '<div data-testid="api-tree-panel" />' },
           EnvironmentPanel: { template: '<div data-testid="environment-panel" />' },
+          CollectionPanel: { template: '<div data-testid="collection-panel" />' },
           PlaceholderPanel: true,
           NEmpty: {
             props: ['description'],
@@ -39,5 +40,13 @@ describe('ResourcePanel', () => {
     const wrapper = mountPanel()
     expect(wrapper.find('[data-testid="environment-panel"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="api-tree-panel"]').exists()).toBe(true)
+  })
+
+  it('shows CollectionPanel when activeModule is collections', () => {
+    const workspace = useWorkspaceStore()
+    workspace.setModule('collections')
+    const wrapper = mountPanel()
+    expect(wrapper.find('[data-testid="collection-panel"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('集合面板将在后续任务接入')
   })
 })
