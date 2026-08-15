@@ -4,11 +4,13 @@ import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
+import { useCollectionStore } from '@/modules/api-test/collection/stores/collection'
 
 const routeQuery: Record<string, string | undefined> = {}
 
-const { listAllMock } = vi.hoisted(() => ({
+const { listAllMock, collectionDetailMock } = vi.hoisted(() => ({
   listAllMock: vi.fn(),
+  collectionDetailMock: vi.fn(),
 }))
 
 vi.mock('vue-router', () => ({
@@ -38,6 +40,16 @@ vi.mock('@/modules/api-test/environment/api/environment', () => ({
   },
 }))
 
+vi.mock('@/modules/api-test/collection/api/collection', () => ({
+  collectionApi: {
+    page: vi.fn().mockResolvedValue({ records: [], total: 0, size: 200, current: 1, pages: 0 }),
+    detail: (...args: unknown[]) => collectionDetailMock(...args),
+    run: vi.fn(),
+    runHistory: vi.fn(),
+    runDetail: vi.fn(),
+  },
+}))
+
 import ApiTestShell from './ApiTestShell.vue'
 
 describe('ApiTestShell environment header', () => {
@@ -46,6 +58,16 @@ describe('ApiTestShell environment header', () => {
     sessionStorage.clear()
     listAllMock.mockReset()
     listAllMock.mockResolvedValue([])
+    collectionDetailMock.mockReset()
+    collectionDetailMock.mockResolvedValue({
+      id: 9,
+      projectId: 1,
+      name: 'Payments',
+      description: '',
+      sortOrder: 0,
+      folders: [],
+      items: [],
+    })
     routeQuery.module = undefined
     routeQuery.def = undefined
     routeQuery.collectionId = undefined
@@ -165,12 +187,53 @@ describe('ApiTestShell environment header', () => {
     expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:run:2')
   })
 
+  it('opens collection overview from ?collectionId= without runs', async () => {
+    routeQuery.collectionId = '9'
+    const wrapper = mountShell()
+    await flushPromises()
+    expect(collectionDetailMock).toHaveBeenCalledWith(9)
+    const tab = useWorkspaceStore().activeTab
+    expect(tab?.source).toBe('collectionOverview')
+    expect(tab?.refId).toBe(9)
+    expect(tab?.title).toBe('Payments')
+    expect(wrapper.find('[data-testid="collection-overview"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="run-drawer"]').exists()).toBe(false)
+  })
+
+  it('opens overview from page list name without loading detail when already listed', async () => {
+    routeQuery.collectionId = '9'
+    const store = useCollectionStore()
+    store.pageResult = {
+      records: [{
+        id: 9,
+        projectId: 1,
+        name: 'Listed Name',
+        description: '',
+        sortOrder: 0,
+        folderCount: 0,
+        itemCount: 0,
+        createTime: '',
+        updateTime: '',
+      }],
+      total: 1,
+      size: 200,
+      current: 1,
+      pages: 1,
+    }
+    mountShell()
+    await flushPromises()
+    expect(collectionDetailMock).not.toHaveBeenCalled()
+    expect(useWorkspaceStore().activeTab?.title).toBe('Listed Name')
+  })
+
   it('opens history drawer from ?collectionId= and ?runs=1', async () => {
     routeQuery.collectionId = '9'
     routeQuery.runs = '1'
     const wrapper = mountShell()
     await flushPromises()
     expect(wrapper.get('[data-testid="run-drawer"]').text()).toBe('9:history:0')
+    expect(useWorkspaceStore().activeTab?.source).toBe('collectionOverview')
+    expect(useWorkspaceStore().activeTab?.refId).toBe(9)
   })
 
   it('opens environment edit drawer from ?envEdit= after loadAll', async () => {

@@ -16,6 +16,7 @@ const {
   updateMock,
   createReqMock,
   collectionPageMock,
+  collectionDetailMock,
 } = vi.hoisted(() => ({
   messageWarning: vi.fn(),
   messageSuccess: vi.fn(),
@@ -25,6 +26,7 @@ const {
   updateMock: vi.fn(),
   createReqMock: vi.fn(),
   collectionPageMock: vi.fn(),
+  collectionDetailMock: vi.fn(),
 }))
 
 vi.mock('naive-ui', async () => {
@@ -70,6 +72,7 @@ vi.mock('@/modules/api-test/define/api/group', () => ({
 vi.mock('@/modules/api-test/collection/api/collection', () => ({
   collectionApi: {
     page: (...args: unknown[]) => collectionPageMock(...args),
+    detail: (...args: unknown[]) => collectionDetailMock(...args),
   },
 }))
 
@@ -91,6 +94,16 @@ describe('RequestWorkspace', () => {
     updateMock.mockReset()
     createReqMock.mockReset()
     collectionPageMock.mockReset()
+    collectionDetailMock.mockReset()
+    collectionDetailMock.mockResolvedValue({
+      id: 7,
+      projectId: 1,
+      name: 'Auth',
+      description: '',
+      sortOrder: 0,
+      folders: [],
+      items: [],
+    })
     const auth = useAuthStore()
     auth.user = { id: 42, username: 'tester', displayName: 'Tester', role: 'user' }
   })
@@ -322,6 +335,8 @@ describe('RequestWorkspace', () => {
     expect(workspace.tabs[0].refId).toBe(99)
     expect(workspace.tabs[0].title).toBe('Created')
     expect(workspace.tabs[0].dirty).toBe(false)
+    expect(collectionDetailMock).toHaveBeenCalledWith(7)
+    expect(collectionStore.currentDetail?.id).toBe(7)
   })
 
   it('renders docs textarea instead of ComingSoon for Docs', async () => {

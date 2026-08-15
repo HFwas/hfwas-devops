@@ -10,6 +10,7 @@ import RequestWorkspace from '@/modules/api-test/shell/components/RequestWorkspa
 import CollectionRunDrawer from '@/modules/api-test/shell/components/CollectionRunDrawer.vue'
 import EnvironmentEditDrawer from '@/modules/api-test/shell/components/EnvironmentEditDrawer.vue'
 import EnvironmentSelector from '@/modules/api-test/debug/components/EnvironmentSelector.vue'
+import { useCollectionStore } from '@/modules/api-test/collection/stores/collection'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import { loadDefinitionIntoTab } from '@/modules/api-test/shell/utils/loadDefinitionDraft'
@@ -24,6 +25,7 @@ const PROJECT_ID = 1
 const route = useRoute()
 const message = useMessage()
 const workspace = useWorkspaceStore()
+const collectionStore = useCollectionStore()
 const envStore = useEnvironmentStore()
 const { sidebarWidth, responseHeight, activeTab } = storeToRefs(workspace)
 const { selectedEnvironmentId } = storeToRefs(envStore)
@@ -35,6 +37,7 @@ const runNonce = ref(0)
 const envDrawerShow = ref(false)
 const envDrawerId = ref<number | null>(null)
 let openedDefKey: string | null = null
+let openedOverviewKey: string | null = null
 let openedRunsKey: string | null = null
 let openedEnvEditKey: string | null = null
 
@@ -85,10 +88,40 @@ function applyEnvEditQuery() {
   envDrawerShow.value = true
 }
 
+async function resolveCollectionTitle(id: number): Promise<string> {
+  const fromPage = collectionStore.pageResult.records?.find((c) => c.id === id)?.name
+  if (fromPage) return fromPage
+  if (collectionStore.currentDetail?.id === id && collectionStore.currentDetail.name) {
+    return collectionStore.currentDetail.name
+  }
+  try {
+    const detail = await collectionStore.loadDetail(id)
+    return detail?.name || `Collection ${id}`
+  } catch {
+    return `Collection ${id}`
+  }
+}
+
+async function openOverviewFromQuery(id: number) {
+  const key = String(id)
+  if (openedOverviewKey === key) return
+  openedOverviewKey = key
+  const title = await resolveCollectionTitle(id)
+  workspace.openOrFocusCollectionOverview(id, title)
+}
+
 function applyCollectionQuery() {
   const id = parseCollectionIdQuery()
-  if (id == null || !hasRunsQuery()) {
-    if (!hasRunsQuery()) openedRunsKey = null
+  if (id == null) {
+    openedOverviewKey = null
+    openedRunsKey = null
+    return
+  }
+
+  void openOverviewFromQuery(id)
+
+  if (!hasRunsQuery()) {
+    openedRunsKey = null
     return
   }
   const key = String(id)
@@ -160,7 +193,7 @@ onMounted(() => {
   })()
   void openDefFromQuery()
 })
-// Deep-links: ?collectionId=&runs=1 opens run history; ?envEdit=<id> opens EnvironmentEditDrawer
+// Deep-links: ?collectionId= opens overview; +runs=1 also opens run history; ?envEdit=<id> opens EnvironmentEditDrawer
 watch(() => route.query, () => {
   applyCollectionQuery()
   applyEnvEditQuery()

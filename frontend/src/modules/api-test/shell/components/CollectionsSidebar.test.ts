@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import { useAuthStore } from '@/modules/user/stores/auth'
+import { useCollectionStore } from '@/modules/api-test/collection/stores/collection'
 import { emptyDraft } from '@/modules/api-test/shell/types/workspace'
 import type { CollectionDetailVO, CollectionItemVO, CollectionVO } from '@/modules/api-test/collection/types/collection'
 
@@ -235,5 +236,38 @@ describe('CollectionsSidebar', () => {
 
     expect(wrapper.emitted('run')).toEqual([[1]])
     expect(wrapper.emitted('history')).toEqual([[1]])
+  })
+
+  it('syncs detailCache when collectionStore.currentDetail updates externally', async () => {
+    const wrapper = mountSidebar()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="collection-row-1"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Login')
+    expect(wrapper.text()).not.toContain('New From Scratch')
+
+    const refreshed: CollectionDetailVO = {
+      ...AUTH_DETAIL,
+      items: [
+        ...AUTH_DETAIL.items,
+        {
+          id: 200,
+          collectionId: 1,
+          folderId: null,
+          definitionId: 201,
+          name: 'New From Scratch',
+          description: '',
+          enabled: true,
+          sortOrder: 1,
+          method: 'GET',
+          path: '/scratch',
+        },
+      ],
+    }
+    useCollectionStore().currentDetail = refreshed
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('New From Scratch')
   })
 })

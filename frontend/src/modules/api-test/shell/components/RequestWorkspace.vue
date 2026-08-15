@@ -220,6 +220,8 @@ async function confirmScratchSave() {
       method: tab.draft.method,
     })
     workspace.markClean(tab.id)
+    // Refresh collection detail so CollectionsSidebar detailCache picks up the new item
+    await collectionStore.loadDetail(scratchCollectionId.value)
     showScratchDialog.value = false
     message.success('保存成功')
   } catch (e: any) {

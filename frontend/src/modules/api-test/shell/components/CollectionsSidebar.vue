@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMessage } from 'naive-ui'
 import { useCollectionStore } from '@/modules/api-test/collection/stores/collection'
@@ -25,7 +25,7 @@ const message = useMessage()
 const collectionStore = useCollectionStore()
 const authStore = useAuthStore()
 const workspace = useWorkspaceStore()
-const { pageResult } = storeToRefs(collectionStore)
+const { pageResult, currentDetail } = storeToRefs(collectionStore)
 
 const collections = computed(() => pageResult.value.records || [])
 const userId = computed(() => Number(authStore.user?.id) || 0)
@@ -74,6 +74,13 @@ async function ensureDetail(id: number) {
     return null
   }
 }
+
+/** Sync store currentDetail into local cache (e.g. after scratch save elsewhere) */
+watch(currentDetail, (detail) => {
+  if (detail != null) {
+    detailCache[detail.id] = detail
+  }
+})
 
 async function onSelectCollection(col: CollectionVO) {
   const next = new Set(expandedIds.value)
