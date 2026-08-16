@@ -40,6 +40,7 @@ data/
 
 ### Local dev runtime ###
 .run/
+logs/
 
 ### Superpowers brainstorm companion ###
 .superpowers/
