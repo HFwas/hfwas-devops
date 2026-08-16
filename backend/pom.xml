@@ -18,6 +18,7 @@
         <module>user-core</module>
         <module>pm-core</module>
         <module>api-test-core</module>
+        <module>file-parser</module>
         <module>server</module>
     </modules>
 

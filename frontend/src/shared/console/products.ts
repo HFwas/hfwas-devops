@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { Beaker, Boxes, GitBranch, ServerCog, ShieldCheck, SquareKanban } from '@lucide/vue'
+import { Beaker, Boxes, FileText, GitBranch, ServerCog, ShieldCheck, SquareKanban } from '@lucide/vue'
 
 /**
  * 控制台产品目录（顶栏左侧下拉切换）
@@ -32,6 +32,14 @@ export const CONSOLE_PRODUCTS: ConsoleProduct[] = [
     icon: Beaker,
     path: '/api-test',
     group: '质量保障',
+  },
+  {
+    key: 'file-parser',
+    name: '文件解析',
+    description: '上传并解析文档、PDF、图片等文件',
+    icon: FileText,
+    path: '/file-parser',
+    group: '效率工具',
   },
   {
     key: 'pipeline',
