@@ -2,6 +2,7 @@ package com.hfwas.devops.common.core.exception;
 
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
 import com.hfwas.devops.common.core.base.BaseResult;
+import com.hfwas.devops.common.core.requestid.RequestIdHolder;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ResultCode;
 import lombok.extern.slf4j.Slf4j;
@@ -24,14 +25,14 @@ public class ExceptionAdvice {
     @ResponseStatus(HttpStatus.OK)
     public BaseResult<Void> handleBizException(BizException e) {
         log.warn("[{}] {}", e.getCode(), e.getMessage());
-        return BaseResult.failed(e.getCode(), e.getMessage());
+        return withRequestId(BaseResult.failed(e.getCode(), e.getMessage()));
     }
 
     @ExceptionHandler(ApiTestException.class)
     @ResponseStatus(HttpStatus.OK)
     public BaseResult<Void> handleApiTestException(ApiTestException e) {
         log.warn("[ApiTest] {}", e.getMessage());
-        return BaseResult.failed(e.getCode(), e.getMessage());
+        return withRequestId(BaseResult.failed(e.getCode(), e.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -39,7 +40,7 @@ public class ExceptionAdvice {
     public BaseResult<Void> handleIllegalArgument(IllegalArgumentException e) {
         BizException biz = LegacyErrorCodeResolver.resolve(e);
         log.warn("[{}] {}", biz.getCode(), biz.getMessage());
-        return BaseResult.failed(biz.getCode(), biz.getMessage());
+        return withRequestId(BaseResult.failed(biz.getCode(), biz.getMessage()));
     }
 
     @ExceptionHandler(IllegalStateException.class)
@@ -47,21 +48,21 @@ public class ExceptionAdvice {
     public BaseResult<Void> handleIllegalState(IllegalStateException e) {
         BizException biz = LegacyErrorCodeResolver.resolve(e);
         log.warn("[{}] {}", biz.getCode(), biz.getMessage());
-        return BaseResult.failed(biz.getCode(), biz.getMessage());
+        return withRequestId(BaseResult.failed(biz.getCode(), biz.getMessage()));
     }
 
     @ExceptionHandler(AuthenticationException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public BaseResult<Void> handleAuthentication(AuthenticationException e) {
         log.warn("Authentication failed: {}", e.getMessage());
-        return BaseResult.failed(ResultCode.UNAUTHORIZED);
+        return withRequestId(BaseResult.failed(ResultCode.UNAUTHORIZED));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public BaseResult<Void> handleAccessDenied(AccessDeniedException e) {
         log.warn("Access denied: {}", e.getMessage());
-        return BaseResult.failed(ResultCode.FORBIDDEN);
+        return withRequestId(BaseResult.failed(ResultCode.FORBIDDEN));
     }
 
     @ExceptionHandler({
@@ -72,19 +73,25 @@ public class ExceptionAdvice {
     @ResponseStatus(HttpStatus.OK)
     public BaseResult<Void> handleValidation(Exception e) {
         log.warn("Validation failed: {}", e.getMessage());
-        return BaseResult.failed(ResultCode.BAD_REQUEST);
+        return withRequestId(BaseResult.failed(ResultCode.BAD_REQUEST));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public BaseResult<Void> handleNotFound(NoResourceFoundException e) {
-        return BaseResult.failed(ResultCode.NOT_FOUND);
+        return withRequestId(BaseResult.failed(ResultCode.NOT_FOUND));
     }
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.OK)
     public BaseResult<Void> handleException(Exception e) {
-        log.error(e.getMessage(), e);
-        return BaseResult.failed(ResultCode.INTERNAL_ERROR);
+        log.error("Unhandled exception [requestId={}]", RequestIdHolder.get(), e);
+        return withRequestId(BaseResult.failed(ResultCode.INTERNAL_ERROR));
+    }
+
+    /** 注入 requestId 到响应体 */
+    private static <T> BaseResult<T> withRequestId(BaseResult<T> result) {
+        result.setRequestId(RequestIdHolder.get());
+        return result;
     }
 }

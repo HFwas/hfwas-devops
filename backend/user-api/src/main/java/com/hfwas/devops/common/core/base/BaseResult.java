@@ -13,6 +13,8 @@ public class BaseResult<T> {
     private Integer code;
     private String msg;
     private T data;
+    /** 请求追踪 ID，出错时用于检索完整链路日志 */
+    private String requestId;
 
     public static <T> BaseResult<T> ok() {
         return restResult(ResultCode.SUCCESS.getCode(), null, null);
@@ -59,6 +61,7 @@ public class BaseResult<T> {
         apiResult.setCode(code);
         apiResult.setData(data);
         apiResult.setMsg(msg);
+        // requestId 由调用方在构建响应时设置（ExceptionAdvice / ApiErrorWriter）
         return apiResult;
     }
 }

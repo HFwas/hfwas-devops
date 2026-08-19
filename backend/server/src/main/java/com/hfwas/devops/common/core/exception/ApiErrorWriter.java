@@ -2,6 +2,7 @@ package com.hfwas.devops.common.core.exception;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hfwas.devops.common.core.base.BaseResult;
+import com.hfwas.devops.common.core.requestid.RequestIdHolder;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ErrorCode;
 import com.hfwas.devops.common.error.ResultCode;
@@ -37,7 +38,18 @@ public class ApiErrorWriter {
         response.setStatus(httpStatus.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        objectMapper.writeValue(response.getWriter(), BaseResult.failed(code, message));
+
+        // 设置响应头，方便调用方检索日志
+        String requestId = RequestIdHolder.get();
+        if (requestId != null) {
+            response.setHeader(RequestIdHolder.HEADER_NAME, requestId);
+        }
+
+        // 响应体注入 requestId
+        BaseResult<Object> result = BaseResult.failed(code, message);
+        result.setRequestId(requestId);
+
+        objectMapper.writeValue(response.getWriter(), result);
     }
 
     public HttpStatus resolveHttpStatus(int code) {

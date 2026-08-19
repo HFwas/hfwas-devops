@@ -1,6 +1,7 @@
 package com.hfwas.devops.config;
 
 import com.hfwas.devops.common.core.exception.ApiErrorWriter;
+import com.hfwas.devops.common.core.requestid.RequestIdFilter;
 import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.user.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final TenantContextFilter tenantContextFilter;
+    private final RequestIdFilter requestIdFilter;
     private final ApiErrorWriter apiErrorWriter;
 
     @Bean
@@ -50,7 +52,8 @@ public class SecurityConfig {
                                 apiErrorWriter.write(response, HttpStatus.UNAUTHORIZED, ResultCode.UNAUTHORIZED))
                         .accessDeniedHandler((request, response, e) ->
                                 apiErrorWriter.write(response, HttpStatus.FORBIDDEN, ResultCode.FORBIDDEN)))
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // RequestIdFilter 必须在最前面，确保所有请求都有 requestId
+                .addFilterBefore(requestIdFilter, JwtAuthFilter.class)
                 .addFilterAfter(tenantContextFilter, JwtAuthFilter.class);
         return http.build();
     }
