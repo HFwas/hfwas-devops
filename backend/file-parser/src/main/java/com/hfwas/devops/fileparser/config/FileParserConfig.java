@@ -4,6 +4,9 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * 文件解析配置
  */
@@ -35,6 +38,9 @@ public class FileParserConfig {
 
     /** 扫描版 PDF 解析配置 */
     private ScannedPdfConfig scannedPdf = new ScannedPdfConfig();
+
+    /** MIME 类型映射配置 */
+    private MimeConfig mime = new MimeConfig();
 
     @Data
     public static class ParserConfig {
@@ -93,5 +99,21 @@ public class FileParserConfig {
          * 超过此值会自动缩放，防止超大页面渲染出巨幅 BufferedImage。
          */
         private int maxImageDimension = 2048;
+    }
+
+    @Data
+    public static class MimeConfig {
+        /**
+         * 扩展名到 MIME 类型的映射覆盖。
+         * 用于自定义/国产格式的 MIME 类型映射，优先级高于内置映射。
+         * 格式: { ".ext": "application/xxx" }
+         */
+        private Map<String, String> extensionMappings;
+
+        /**
+         * 额外支持的 MIME 类型前缀列表。
+         * 用于 TikaDocumentParser 等解析器匹配非标准 MIME 类型。
+         */
+        private List<String> additionalMimePrefixes;
     }
 }

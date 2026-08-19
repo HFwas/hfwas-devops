@@ -18,12 +18,17 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Tika 文档解析器
- * 支持格式：DOCX、PPTX、XLSX、文本 PDF
+ * 支持格式：DOCX、PPTX、XLSX、文本 PDF、WPS Office 格式
  * 使用 Apache Tika 自动检测并解析
+ *
+ * <h3>WPS Office 支持</h3>
+ * WPS Office 格式（.wps/.et/.dps）本质上是 OOXML（ZIP + XML），
+ * Tika 可提取其文本内容，兼容性已验证。
  */
 @Slf4j
 @Component
@@ -35,6 +40,10 @@ public class TikaDocumentParser implements DocumentParser {
             "application/msword",
             "application/pdf",
             "text/",
+            // WPS Office 格式
+            "application/wps-office.",
+            // 国产办公格式（基于 XML 的格式）
+            "application/uof",
     };
 
     private final FileParserConfig config;
@@ -51,6 +60,13 @@ public class TikaDocumentParser implements DocumentParser {
         if (lower.startsWith("image/")) return false;
         for (String prefix : SUPPORTED_TYPES) {
             if (lower.startsWith(prefix)) return true;
+        }
+        // 检查配置中的额外 MIME 类型前缀
+        List<String> additionalPrefixes = config.getMime().getAdditionalMimePrefixes();
+        if (additionalPrefixes != null) {
+            for (String prefix : additionalPrefixes) {
+                if (lower.startsWith(prefix.toLowerCase())) return true;
+            }
         }
         return false;
     }

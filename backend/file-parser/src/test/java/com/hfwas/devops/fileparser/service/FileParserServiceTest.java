@@ -1,5 +1,6 @@
 package com.hfwas.devops.fileparser.service;
 
+import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
 import com.hfwas.devops.fileparser.parser.ImageOcrParser;
 import com.hfwas.devops.fileparser.parser.PlainTextParser;
@@ -38,13 +39,22 @@ class FileParserServiceTest {
     @Mock
     private PlainTextParser plainTextParser;
 
+    @Mock
+    private FileParserConfig config;
+
+    @Mock
+    private FileParserConfig.MimeConfig mimeConfig;
+
     private FileParserService fileParserService;
 
     @BeforeEach
     void setUp() {
+        lenient().when(config.getMime()).thenReturn(mimeConfig);
+        lenient().when(mimeConfig.getExtensionMappings()).thenReturn(null);
+        lenient().when(mimeConfig.getAdditionalMimePrefixes()).thenReturn(null);
         fileParserService = new FileParserService(
                 fileStorageService, tikaParser, scannedPdfParser,
-                imageOcrParser, plainTextParser
+                imageOcrParser, plainTextParser, config
         );
     }
 

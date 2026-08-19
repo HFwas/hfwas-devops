@@ -14,30 +14,46 @@ spring:
 
 # 文件解析模块配置
 file-parser:
-  # 临时文件存储目录
-  upload-dir: ./data/uploads
-  # 单文件大小限制（与 Spring multipart max-file-size 保持一致）
-  max-file-size: 52428800
-  # 单次请求总大小限制
-  max-total-size: 209715200
-  # 临时文件清理间隔（小时）
-  cleanup-hours: 1
+  # 临时文件存储目录（环境变量: FILE_PARSER_UPLOAD_DIR）
+  upload-dir: ${FILE_PARSER_UPLOAD_DIR:./data/uploads}
+  # 单文件大小限制（环境变量: FILE_PARSER_MAX_FILE_SIZE，单位字节）
+  max-file-size: ${FILE_PARSER_MAX_FILE_SIZE:52428800}
+  # 单次请求总大小限制（环境变量: FILE_PARSER_MAX_TOTAL_SIZE，单位字节）
+  max-total-size: ${FILE_PARSER_MAX_TOTAL_SIZE:209715200}
+  # 临时文件清理间隔（环境变量: FILE_PARSER_CLEANUP_HOURS，单位小时）
+  cleanup-hours: ${FILE_PARSER_CLEANUP_HOURS:1}
   parser:
-    # 字符集检测取样字节数
-    charset-detection-sample-size: 4096
+    # 字符集检测取样字节数（环境变量: FILE_PARSER_CHARSET_SAMPLE_SIZE）
+    charset-detection-sample-size: ${FILE_PARSER_CHARSET_SAMPLE_SIZE:4096}
   ocr:
-    enabled: true
-    lang: chi_sim+eng
-    preprocessing: true
-    cache-results: true
-    parallel-pages: 4
-    # 最大并发 OCR 推理数（控制堆外内存使用）
-    max-concurrent: 2
+    enabled: ${FILE_PARSER_OCR_ENABLED:true}
+    lang: ${FILE_PARSER_OCR_LANG:chi_sim+eng}
+    preprocessing: ${FILE_PARSER_OCR_PREPROCESSING:true}
+    cache-results: ${FILE_PARSER_OCR_CACHE_RESULTS:true}
+    parallel-pages: ${FILE_PARSER_OCR_PARALLEL_PAGES:4}
+    # 最大并发 OCR 推理数（环境变量: FILE_PARSER_OCR_MAX_CONCURRENT，控制堆外内存）
+    max-concurrent: ${FILE_PARSER_OCR_MAX_CONCURRENT:2}
   tika:
-    # Tika 提取文本最大长度（字符数）
-    max-text-length: 10485760
+    # Tika 提取文本最大长度（环境变量: FILE_PARSER_TIKA_MAX_TEXT_LENGTH，单位字符数）
+    max-text-length: ${FILE_PARSER_TIKA_MAX_TEXT_LENGTH:10485760}
   scanned-pdf:
-    # 最大处理页数
-    max-pages: 50
-    # 渲染图片最大像素尺寸
-    max-image-dimension: 2048
+    # 最大处理页数（环境变量: FILE_PARSER_SCANNED_PDF_MAX_PAGES）
+    max-pages: ${FILE_PARSER_SCANNED_PDF_MAX_PAGES:50}
+    # 渲染图片最大像素尺寸（环境变量: FILE_PARSER_SCANNED_PDF_MAX_IMAGE_DIMENSION）
+    max-image-dimension: ${FILE_PARSER_SCANNED_PDF_MAX_IMAGE_DIMENSION:2048}
+  # MIME 类型映射配置
+  mime:
+    # 扩展名到 MIME 类型的映射覆盖（优先级高于内置映射）
+    extension-mappings:
+      ".wps": "${FILE_PARSER_MIME_WPS:application/wps-office.wps}"
+      ".wpt": "${FILE_PARSER_MIME_WPT:application/wps-office.wpt}"
+      ".et": "${FILE_PARSER_MIME_ET:application/wps-office.et}"
+      ".ett": "${FILE_PARSER_MIME_ETT:application/wps-office.ett}"
+      ".dps": "${FILE_PARSER_MIME_DPS:application/wps-office.dps}"
+      ".dpt": "${FILE_PARSER_MIME_DPT:application/wps-office.dpt}"
+      ".ofd": "${FILE_PARSER_MIME_OFD:application/ofd}"
+      ".uof": "${FILE_PARSER_MIME_UOF:application/uof}"
+      ".ceb": "${FILE_PARSER_MIME_CEB:application/ceb}"
+      ".cebx": "${FILE_PARSER_MIME_CEBX:application/cebx}"
+    # 额外支持的 MIME 类型前缀列表（逗号分隔，环境变量: FILE_PARSER_ADDITIONAL_MIME_PREFIXES）
+    additional-mime-prefixes: ${FILE_PARSER_ADDITIONAL_MIME_PREFIXES:application/wps-office.,application/uof}
