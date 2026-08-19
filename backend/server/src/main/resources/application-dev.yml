@@ -9,5 +9,35 @@ spring:
   servlet:
     multipart:
       enabled: true
-      max-file-size: 200MB
+      max-file-size: 50MB
       max-request-size: 200MB
+
+# 文件解析模块配置
+file-parser:
+  # 临时文件存储目录
+  upload-dir: ./data/uploads
+  # 单文件大小限制（与 Spring multipart max-file-size 保持一致）
+  max-file-size: 52428800
+  # 单次请求总大小限制
+  max-total-size: 209715200
+  # 临时文件清理间隔（小时）
+  cleanup-hours: 1
+  parser:
+    # 字符集检测取样字节数
+    charset-detection-sample-size: 4096
+  ocr:
+    enabled: true
+    lang: chi_sim+eng
+    preprocessing: true
+    cache-results: true
+    parallel-pages: 4
+    # 最大并发 OCR 推理数（控制堆外内存使用）
+    max-concurrent: 2
+  tika:
+    # Tika 提取文本最大长度（字符数）
+    max-text-length: 10485760
+  scanned-pdf:
+    # 最大处理页数
+    max-pages: 50
+    # 渲染图片最大像素尺寸
+    max-image-dimension: 2048

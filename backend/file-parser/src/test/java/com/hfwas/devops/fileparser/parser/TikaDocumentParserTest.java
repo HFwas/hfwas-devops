@@ -1,19 +1,37 @@
 package com.hfwas.devops.fileparser.parser;
 
+import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.File;
 import java.net.URL;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TikaDocumentParserTest {
 
-    private final TikaDocumentParser parser = new TikaDocumentParser();
+    @Mock
+    private FileParserConfig config;
+
+    @Mock
+    private FileParserConfig.TikaConfig tikaConfig;
+
+    private TikaDocumentParser parser;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(config.getTika()).thenReturn(tikaConfig);
+        lenient().when(tikaConfig.getMaxTextLength()).thenReturn(10 * 1024 * 1024);
+        parser = new TikaDocumentParser(config);
+    }
 
     @Test
     void shouldSupportOfficeMimeTypes() {

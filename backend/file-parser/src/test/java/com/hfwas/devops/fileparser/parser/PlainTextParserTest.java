@@ -1,8 +1,11 @@
 package com.hfwas.devops.fileparser.parser;
 
+import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.File;
@@ -10,11 +13,26 @@ import java.net.URL;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PlainTextParserTest {
 
-    private final PlainTextParser parser = new PlainTextParser();
+    @Mock
+    private FileParserConfig config;
+
+    @Mock
+    private FileParserConfig.ParserConfig parserConfig;
+
+    private PlainTextParser parser;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(config.getParser()).thenReturn(parserConfig);
+        lenient().when(parserConfig.getCharsetDetectionSampleSize()).thenReturn(4096);
+        parser = new PlainTextParser(config);
+    }
 
     @Test
     void shouldSupportTextMimeTypes() {

@@ -85,7 +85,7 @@ public class FileStorageService {
     }
 
     /**
-     * 定时清理过期临时文件（默认每 24 小时运行一次）
+     * 定时清理过期临时文件（默认每 1 小时运行一次）
      */
     @Scheduled(fixedRateString = "${file-parser.cleanup-hours:24}",
             initialDelayString = "${file-parser.cleanup-hours:24}")

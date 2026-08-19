@@ -1,6 +1,7 @@
 package com.hfwas.devops.fileparser.parser;
 
 import cn.hutool.core.util.StrUtil;
+import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.exception.TikaException;
@@ -36,6 +37,12 @@ public class TikaDocumentParser implements DocumentParser {
             "text/",
     };
 
+    private final FileParserConfig config;
+
+    public TikaDocumentParser(FileParserConfig config) {
+        this.config = config;
+    }
+
     @Override
     public boolean supports(String mimeType) {
         if (mimeType == null) return false;
@@ -54,7 +61,8 @@ public class TikaDocumentParser implements DocumentParser {
 
         try (InputStream input = new FileInputStream(file)) {
             Parser parser = new AutoDetectParser();
-            BodyContentHandler handler = new BodyContentHandler(-1);
+            // 使用配置的文本长度上限，防止超大文档撑爆堆内存
+            BodyContentHandler handler = new BodyContentHandler(config.getTika().getMaxTextLength());
             Metadata metadata = new Metadata();
             ParseContext context = new ParseContext();
 
@@ -82,6 +90,19 @@ public class TikaDocumentParser implements DocumentParser {
                     .build();
 
         } catch (TikaException | SAXException | IOException e) {
+            // Tika 文本超出限制时抛出 SAXException，转成友好的错误消息
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("max character limit")) {
+                log.warn("Tika parse exceeded text length limit for {}: {}", fileName, msg);
+                return FileParseResultVO.builder()
+                        .success(false)
+                        .fileName(fileName)
+                        .fileSize(file.length())
+                        .errorMessage("文档内容过长，超过最大提取限制（"
+                                + (config.getTika().getMaxTextLength() / 1024 / 1024) + "MB），请减小文件后重试")
+                        .parseTimeMs(System.currentTimeMillis() - start)
+                        .build();
+            }
             log.error("Tika parse failed for {}: {}", fileName, e.getMessage());
             return FileParseResultVO.builder()
                     .success(false)

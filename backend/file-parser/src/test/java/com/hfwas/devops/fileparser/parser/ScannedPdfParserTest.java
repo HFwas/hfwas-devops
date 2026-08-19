@@ -1,5 +1,6 @@
 package com.hfwas.devops.fileparser.parser;
 
+import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
 import com.hfwas.devops.fileparser.ocr.OcrService;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +15,7 @@ import java.net.URL;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class ScannedPdfParserTest {
@@ -21,11 +23,20 @@ class ScannedPdfParserTest {
     @Mock
     private OcrService ocrService;
 
+    @Mock
+    private FileParserConfig config;
+
+    @Mock
+    private FileParserConfig.ScannedPdfConfig scannedPdfConfig;
+
     private ScannedPdfParser parser;
 
     @BeforeEach
     void setUp() {
-        parser = new ScannedPdfParser(ocrService);
+        lenient().when(config.getScannedPdf()).thenReturn(scannedPdfConfig);
+        lenient().when(scannedPdfConfig.getMaxPages()).thenReturn(50);
+        lenient().when(scannedPdfConfig.getMaxImageDimension()).thenReturn(2048);
+        parser = new ScannedPdfParser(ocrService, config);
     }
 
     @Test

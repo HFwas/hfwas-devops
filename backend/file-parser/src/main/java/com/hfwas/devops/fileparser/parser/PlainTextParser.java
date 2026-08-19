@@ -1,13 +1,14 @@
 package com.hfwas.devops.fileparser.parser;
 
-import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
+import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -33,6 +34,12 @@ public class PlainTextParser implements DocumentParser {
             StandardCharsets.UTF_16BE,
     };
 
+    private final FileParserConfig config;
+
+    public PlainTextParser(FileParserConfig config) {
+        this.config = config;
+    }
+
     @Override
     public boolean supports(String mimeType) {
         if (mimeType == null) return false;
@@ -45,7 +52,7 @@ public class PlainTextParser implements DocumentParser {
         long start = System.currentTimeMillis();
 
         try {
-            // 检测文件编码
+            // 检测文件编码（只读取文件头部采样，而非整个文件）
             Charset detectedCharset = detectCharset(file);
             log.info("Detected charset for {}: {}", fileName, detectedCharset.name());
 
@@ -103,9 +110,11 @@ public class PlainTextParser implements DocumentParser {
 
     /**
      * 检测文件编码
+     * 只读取文件头部采样字节，避免加载整个文件到内存。
      */
     private Charset detectCharset(File file) throws IOException {
-        byte[] bytes = FileUtil.readBytes(file);
+        int sampleSize = config.getParser().getCharsetDetectionSampleSize();
+        byte[] bytes = readFileHead(file, sampleSize);
         if (bytes.length == 0) {
             return StandardCharsets.UTF_8;
         }
@@ -139,6 +148,23 @@ public class PlainTextParser implements DocumentParser {
         }
 
         return StandardCharsets.UTF_8;
+    }
+
+    /**
+     * 读取文件头部的采样字节，避免加载整个文件。
+     * UTF-16 编码的所有字符都分布在文件头部，采样 4KB 足够检测编码。
+     */
+    private byte[] readFileHead(File file, int sampleSize) throws IOException {
+        long fileLen = file.length();
+        if (fileLen == 0) {
+            return new byte[0];
+        }
+        int readSize = (int) Math.min(fileLen, sampleSize);
+        byte[] buffer = new byte[readSize];
+        try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+            raf.readFully(buffer);
+        }
+        return buffer;
     }
 
     /**

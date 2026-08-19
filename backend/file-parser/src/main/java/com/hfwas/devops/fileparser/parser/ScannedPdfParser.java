@@ -1,5 +1,6 @@
 package com.hfwas.devops.fileparser.parser;
 
+import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
 import com.hfwas.devops.fileparser.ocr.OcrService;
 import lombok.extern.slf4j.Slf4j;
@@ -23,18 +24,24 @@ import java.util.List;
  * 扫描版 PDF 解析器
  * 使用 PDFBox 提取页面图片，再通过 RapidOCR 进行文字识别。
  * 适用于无法直接提取文本的扫描件 PDF。
+ *
+ * 内存安全说明：
+ * - 每页渲染出的 BufferedImage 在循环内被 GC 回收
+ * - 通过 maxImageDimension 限制超大页面的渲染尺寸，防止巨幅 BufferedImage
+ * - 通过 maxPages 限制总页数，防止无限循环
  */
 @Slf4j
 @Component
 public class ScannedPdfParser implements DocumentParser {
 
     private static final int OCR_DPI = 300;
-    private static final int MAX_PAGES = 50;
 
     private final OcrService ocrService;
+    private final FileParserConfig config;
 
-    public ScannedPdfParser(OcrService ocrService) {
+    public ScannedPdfParser(OcrService ocrService, FileParserConfig config) {
         this.ocrService = ocrService;
+        this.config = config;
     }
 
     @Override
@@ -48,10 +55,12 @@ public class ScannedPdfParser implements DocumentParser {
 
         try (PDDocument document = Loader.loadPDF(file)) {
             int totalPages = document.getNumberOfPages();
-            int pagesToProcess = Math.min(totalPages, MAX_PAGES);
+            int maxPages = config.getScannedPdf().getMaxPages();
+            int maxDimension = config.getScannedPdf().getMaxImageDimension();
+            int pagesToProcess = Math.min(totalPages, maxPages);
 
-            log.info("Processing scanned PDF: {} ({} pages, processing {})",
-                    fileName, totalPages, pagesToProcess);
+            log.info("Processing scanned PDF: {} ({} pages, processing {}, maxImageDimension={})",
+                    fileName, totalPages, pagesToProcess, maxDimension);
 
             PDFRenderer renderer = new PDFRenderer(document);
             List<FileParseResultVO.PageContent> pages = new ArrayList<>();
@@ -60,6 +69,9 @@ public class ScannedPdfParser implements DocumentParser {
 
             for (int i = 0; i < pagesToProcess; i++) {
                 BufferedImage pageImage = renderer.renderImageWithDPI(i, OCR_DPI, ImageType.RGB);
+
+                // 缩放超大页面，防止巨幅 BufferedImage 撑爆堆内存
+                pageImage = scaleIfNeeded(pageImage, maxDimension);
 
                 // 将页面图片保存到临时文件进行 OCR
                 Path tempImage = Files.createTempFile("pdf-page-", ".png");
@@ -130,5 +142,37 @@ public class ScannedPdfParser implements DocumentParser {
                     .parseTimeMs(elapsed)
                     .build();
         }
+    }
+
+    /**
+     * 如果图片尺寸超过最大限制，等比例缩放。
+     * 防止超大页面（如工程图纸）渲染出巨幅 BufferedImage 撑爆堆内存。
+     */
+    private BufferedImage scaleIfNeeded(BufferedImage image, int maxDimension) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+        int maxSide = Math.max(width, height);
+
+        if (maxSide <= maxDimension) {
+            return image;
+        }
+
+        double scale = (double) maxDimension / maxSide;
+        int newWidth = (int) (width * scale);
+        int newHeight = (int) (height * scale);
+
+        BufferedImage scaled = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = scaled.createGraphics();
+        try {
+            g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+                    java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.drawImage(image, 0, 0, newWidth, newHeight, null);
+        } finally {
+            g.dispose();
+        }
+
+        log.debug("Scaled page image from {}x{} to {}x{} (maxDimension={})",
+                width, height, newWidth, newHeight, maxDimension);
+        return scaled;
     }
 }

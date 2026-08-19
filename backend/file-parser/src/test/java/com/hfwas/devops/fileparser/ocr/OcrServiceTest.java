@@ -1,20 +1,37 @@
 package com.hfwas.devops.fileparser.ocr;
 
+import com.hfwas.devops.fileparser.config.FileParserConfig;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.File;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class OcrServiceTest {
 
+    @Mock
+    private FileParserConfig config;
+
+    @Mock
+    private FileParserConfig.OcrConfig ocrConfig;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(config.getOcr()).thenReturn(ocrConfig);
+        lenient().when(ocrConfig.getMaxConcurrent()).thenReturn(2);
+    }
+
     @Test
     void shouldReturnEmptyWhenEngineNotInitialized() {
         // 创建一个未初始化的 OcrService（模拟引擎初始化失败的情况）
-        OcrService service = new OcrService();
+        OcrService service = new OcrService(config);
 
         // 不调用 init()
         assertFalse(service.isAvailable());

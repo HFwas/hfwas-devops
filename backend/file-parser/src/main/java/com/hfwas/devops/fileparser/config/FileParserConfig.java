@@ -21,11 +21,29 @@ public class FileParserConfig {
     /** 单次请求总大小限制（字节），默认 200MB */
     private long maxTotalSize = 200 * 1024 * 1024;
 
-    /** 临时文件清理间隔（小时），默认 24h */
-    private int cleanupHours = 24;
+    /** 临时文件清理间隔（小时），默认 1h */
+    private int cleanupHours = 1;
+
+    /** 解析器通用配置 */
+    private ParserConfig parser = new ParserConfig();
 
     /** OCR 配置 */
     private OcrConfig ocr = new OcrConfig();
+
+    /** Tika 文档解析配置 */
+    private TikaConfig tika = new TikaConfig();
+
+    /** 扫描版 PDF 解析配置 */
+    private ScannedPdfConfig scannedPdf = new ScannedPdfConfig();
+
+    @Data
+    public static class ParserConfig {
+        /**
+         * 字符集检测取样字节数，默认 4KB。
+         * 检测编码时只需读取文件头部少量字节，避免加载整个文件。
+         */
+        private int charsetDetectionSampleSize = 4096;
+    }
 
     @Data
     public static class OcrConfig {
@@ -43,5 +61,37 @@ public class FileParserConfig {
 
         /** 并行 OCR 页数 */
         private int parallelPages = 4;
+
+        /**
+         * 最大并发 OCR 推理数，默认 2。
+         * ONNX Runtime 推理在堆外内存（Native Memory）中执行，
+         * 并发数过高会导致堆外内存膨胀，引发 OOM。
+         */
+        private int maxConcurrent = 2;
+    }
+
+    @Data
+    public static class TikaConfig {
+        /**
+         * Tika 提取文本最大长度（字符数），默认 10MB。
+         * 防止超大文档解析出超长字符串挤占堆内存。
+         * BodyContentHandler 使用此值限制写入，超出时抛出异常。
+         */
+        private int maxTextLength = 10 * 1024 * 1024;
+    }
+
+    @Data
+    public static class ScannedPdfConfig {
+        /**
+         * 最大处理页数，默认 50 页。
+         * 超过此页数的 PDF 只处理前 N 页。
+         */
+        private int maxPages = 50;
+
+        /**
+         * 渲染图片最大像素尺寸（宽高中较大值），默认 2048px。
+         * 超过此值会自动缩放，防止超大页面渲染出巨幅 BufferedImage。
+         */
+        private int maxImageDimension = 2048;
     }
 }
