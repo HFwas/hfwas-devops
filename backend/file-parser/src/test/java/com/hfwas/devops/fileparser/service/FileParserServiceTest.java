@@ -189,4 +189,40 @@ class FileParserServiceTest {
         assertNotNull(result.getErrorMessage());
         assertTrue(result.getErrorMessage().contains("不支持"));
     }
+
+    @Test
+    void shouldReturnOfdUnsupportedForApplicationOfd() throws Exception {
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file", "doc.ofd", "application/ofd", "fake ofd content".getBytes()
+        );
+
+        File tempFile = File.createTempFile("test-", ".ofd");
+        tempFile.deleteOnExit();
+
+        when(fileStorageService.save(any())).thenReturn(tempFile);
+
+        FileParseResultVO result = fileParserService.parse(multipartFile, null);
+
+        assertFalse(result.isSuccess());
+        assertNotNull(result.getErrorMessage());
+        assertTrue(result.getErrorMessage().contains("OFD"));
+    }
+
+    @Test
+    void shouldReturnOfdUnsupportedForVndOfd() throws Exception {
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file", "doc.ofd", "application/vnd.ofd", "fake ofd content".getBytes()
+        );
+
+        File tempFile = File.createTempFile("test-", ".ofd");
+        tempFile.deleteOnExit();
+
+        when(fileStorageService.save(any())).thenReturn(tempFile);
+
+        FileParseResultVO result = fileParserService.parse(multipartFile, null);
+
+        assertFalse(result.isSuccess());
+        assertNotNull(result.getErrorMessage());
+        assertTrue(result.getErrorMessage().contains("OFD"));
+    }
 }

@@ -44,6 +44,30 @@ public class TikaDocumentParser implements DocumentParser {
             "application/wps-office.",
             // 国产办公格式（基于 XML 的格式）
             "application/uof",
+            // ===== 兼容类型 =====
+            // WPS Office 兼容类型（application/wps-office.* 已有，此处补充）
+            // 旧版 Word 兼容
+            "application/x-msword",
+            // CSV 兼容
+            "application/csv",
+            // 旧版 Excel 兼容
+            "application/msexcel",
+            "application/x-msexcel",
+            "application/x-excel",
+            "application/excel",
+            // 旧版 PowerPoint 兼容
+            "application/mspowerpoint",
+            "application/powerpoint",
+            "application/x-mspowerpoint",
+            // Markdown 兼容
+            "application/markdown",
+            // OFD 兼容
+            "application/vnd.ofd",
+            // 音频格式（Tika 可提取元数据）
+            "audio/",
+            // 压缩包格式（Tika 可列出目录结构）
+            "application/x-rar",
+            "application/rar",
     };
 
     private final FileParserConfig config;

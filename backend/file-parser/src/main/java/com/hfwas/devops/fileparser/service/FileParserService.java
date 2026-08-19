@@ -79,7 +79,7 @@ public class FileParserService {
             log.info("Detected MIME type: {} for file: {}", mimeType, multipartFile.getOriginalFilename());
 
             // 3. 特殊处理：OFD 格式（暂不支持解析）
-            if ("application/ofd".equals(mimeType)) {
+            if ("application/ofd".equals(mimeType) || "application/vnd.ofd".equals(mimeType)) {
                 long elapsed = System.currentTimeMillis() - start;
                 log.warn("OFD format not yet supported: {}", multipartFile.getOriginalFilename());
                 return FileParseResultVO.builder()
