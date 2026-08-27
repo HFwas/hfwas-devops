@@ -32,7 +32,10 @@ import java.util.Map;
  * <h3>信创与 WPS 特殊格式支持</h3>
  * <ul>
  *   <li>WPS Office: .wps/.wpt → WPS Writer, .et/.ett → WPS Spreadsheet, .dps/.dpt → WPS Presentation</li>
- *   <li>国产格式: .ofd (开放版式文档), .uof (统一办公文档), .ceb (中国电子公文)</li>
+ *   <li>国产文档格式: .ofd (开放版式文档), .uof (统一办公文档), .ceb (中国电子公文)</li>
+ *   <li>国产图片格式: .pcx, .jp2/.j2k/.jpf (JPEG 2000), .wmf/.emf,
+ *       .djvu/.djv, .xbm/.xpm, .pbm/.pgm/.ppm/.pnm (Netpbm),
+ *       .wbmp, .heic/.heif, .avif</li>
  * </ul>
  */
 @Slf4j
@@ -252,6 +255,35 @@ public class FileParserService {
         map.put(".gif", "image/gif");
         map.put(".svg", "image/svg+xml");
         map.put(".ico", "image/x-icon");
+
+        // ---- 信创/国产图片格式 ----
+        // PCX 图片格式（国产系统/老旧系统中常用）
+        map.put(".pcx", "image/pcx");
+        // JPEG 2000（国产文档管理系统常用）
+        map.put(".jp2", "image/jp2");
+        map.put(".j2k", "image/jpeg2000");
+        map.put(".jpf", "image/jpeg2000");
+        // WMF/EMF 矢量图（Office 文档中嵌入的矢量图形）
+        map.put(".wmf", "image/wmf");
+        map.put(".emf", "image/emf");
+        // DJVU 扫描文档格式（国产数字图书馆系统常用）
+        map.put(".djvu", "image/vnd.djvu");
+        map.put(".djv", "image/vnd.djvu");
+        // Linux 信创系统图片格式（X Window System）
+        map.put(".xbm", "image/x-xbitmap");
+        map.put(".xpm", "image/x-xpixmap");
+        // Netpbm 格式（国产图像处理流程中常用）
+        map.put(".pbm", "image/x-portable-bitmap");
+        map.put(".pgm", "image/x-portable-graymap");
+        map.put(".ppm", "image/x-portable-pixmap");
+        map.put(".pnm", "image/x-portable-anymap");
+        // WBMP 无线位图（嵌入式信创设备）
+        map.put(".wbmp", "image/vnd.wap.wbmp");
+        // HEIC/HEIF 高压缩率图片格式（国产移动端生态常用）
+        map.put(".heic", "image/heic");
+        map.put(".heif", "image/heif");
+        // AVIF 现代图片格式
+        map.put(".avif", "image/avif");
 
         // ---- 纯文本 / 代码 ----
         map.put(".txt", "text/plain");
