@@ -41,6 +41,9 @@ public class FileParseResultVO {
     /** OCR 信息 */
     private OcrInfo ocrInfo;
 
+    /** 图片压缩信息（仅图片 OCR 解析时存在） */
+    private CompressionInfo compressionInfo;
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -93,5 +96,28 @@ public class FileParseResultVO {
         private String engine;
         private int pagesProcessed;
         private double confidence;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CompressionInfo {
+        /** 原始文件大小（字节） */
+        private long originalSize;
+        /** 压缩后文件大小（字节） */
+        private long compressedSize;
+        /** 压缩比 (original - compressed) / original */
+        private double compressionRatio;
+        /** 压缩质量配置 */
+        private float quality;
+        /** 原始图片宽度（像素） */
+        private int originalWidth;
+        /** 原始图片高度（像素） */
+        private int originalHeight;
+        /** 压缩后图片宽度（像素） */
+        private int compressedWidth;
+        /** 压缩后图片高度（像素） */
+        private int compressedHeight;
     }
 }

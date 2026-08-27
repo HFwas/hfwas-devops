@@ -41,6 +41,20 @@ file-parser:
     max-pages: ${FILE_PARSER_SCANNED_PDF_MAX_PAGES:50}
     # 渲染图片最大像素尺寸（环境变量: FILE_PARSER_SCANNED_PDF_MAX_IMAGE_DIMENSION）
     max-image-dimension: ${FILE_PARSER_SCANNED_PDF_MAX_IMAGE_DIMENSION:2048}
+  # 图片压缩配置（OCR 前预处理）
+  compression:
+    # 是否启用压缩（环境变量: FILE_PARSER_COMPRESSION_ENABLED）
+    enabled: ${FILE_PARSER_COMPRESSION_ENABLED:true}
+    # 输出图片质量，0.0~1.0（环境变量: FILE_PARSER_COMPRESSION_QUALITY）
+    quality: ${FILE_PARSER_COMPRESSION_QUALITY:0.8}
+    # 最大宽度（环境变量: FILE_PARSER_COMPRESSION_MAX_WIDTH）
+    max-width: ${FILE_PARSER_COMPRESSION_MAX_WIDTH:1920}
+    # 最大高度（环境变量: FILE_PARSER_COMPRESSION_MAX_HEIGHT）
+    max-height: ${FILE_PARSER_COMPRESSION_MAX_HEIGHT:1920}
+    # 最小压缩比阈值，低于此值使用原图（环境变量: FILE_PARSER_COMPRESSION_MIN_RATIO）
+    min-compress-ratio: ${FILE_PARSER_COMPRESSION_MIN_RATIO:0.05}
+    # 最小文件大小，小于此值不压缩，单位字节（环境变量: FILE_PARSER_COMPRESSION_MIN_FILE_SIZE）
+    min-file-size: ${FILE_PARSER_COMPRESSION_MIN_FILE_SIZE:10240}
   # MIME 类型映射配置
   mime:
     # 扩展名到 MIME 类型的映射覆盖（优先级高于内置映射）

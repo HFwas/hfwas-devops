@@ -23,3 +23,12 @@ user:
   jwt:
     secret: hfwas-devops-user-jwt-secret-key-change-in-production
     expire-seconds: 86400
+
+file-parser:
+  compression:
+    enabled: true
+    quality: 0.8
+    max-width: 1920
+    max-height: 1920
+    min-compress-ratio: 0.05
+    min-file-size: 10240

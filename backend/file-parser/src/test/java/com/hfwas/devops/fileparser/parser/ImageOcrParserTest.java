@@ -1,6 +1,9 @@
 package com.hfwas.devops.fileparser.parser;
 
+import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
+import com.hfwas.devops.fileparser.image.ImageCompressionResult;
+import com.hfwas.devops.fileparser.image.ImageCompressionService;
 import com.hfwas.devops.fileparser.ocr.OcrService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,11 +12,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.File;
-import java.net.URL;
+import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -22,11 +29,30 @@ class ImageOcrParserTest {
     @Mock
     private OcrService ocrService;
 
+    @Mock
+    private ImageCompressionService compressionService;
+
+    @Mock
+    private FileParserConfig config;
+
+    @Mock
+    private FileParserConfig.CompressionConfig compressionConfig;
+
     private ImageOcrParser parser;
 
     @BeforeEach
     void setUp() {
-        parser = new ImageOcrParser(ocrService);
+        // 默认配置：压缩启用
+        lenient().when(config.getCompression()).thenReturn(compressionConfig);
+        lenient().when(compressionConfig.isEnabled()).thenReturn(true);
+        // 默认压缩服务返回跳过（不压缩）
+        lenient().when(compressionConfig.getQuality()).thenReturn(0.8f);
+        lenient().when(compressionService.compress(any(File.class), anyString()))
+                .thenAnswer(invocation -> {
+                    File file = invocation.getArgument(0);
+                    return ImageCompressionResult.skipped(file);
+                });
+        parser = new ImageOcrParser(ocrService, compressionService, config);
     }
 
     @Test
@@ -75,6 +101,7 @@ class ImageOcrParserTest {
         assertEquals("rapidocr", result.getOcrInfo().getEngine());
         assertEquals(0.92, result.getOcrInfo().getConfidence(), 0.01);
 
+        verify(compressionService).compress(any(File.class), anyString());
         verify(ocrService).recognizeWithConfidence(any(File.class));
     }
 
@@ -115,6 +142,91 @@ class ImageOcrParserTest {
         assertTrue(result.isSuccess());
         assertNotNull(result.getWarnings());
         assertFalse(result.getWarnings().isEmpty());
+    }
+
+    @Test
+    void shouldSkipCompressionWhenDisabled() throws Exception {
+        when(compressionConfig.isEnabled()).thenReturn(false);
+
+        File file = getTestFile("sample.png");
+        when(ocrService.recognizeWithConfidence(any(File.class)))
+                .thenReturn(new OcrService.OcrResult("文本", 0.9));
+
+        FileParseResultVO result = parser.parse(file, "sample.png");
+
+        assertTrue(result.isSuccess());
+        verify(compressionService, never()).compress(any(File.class), anyString());
+        assertNull(result.getCompressionInfo());
+    }
+
+    @Test
+    void shouldIncludeCompressionInfoInResult() throws Exception {
+        // 创建临时压缩文件
+        Path compressedPath = Files.createTempFile("compressed-", ".jpg");
+        File compressedFile = compressedPath.toFile();
+        compressedFile.deleteOnExit();
+
+        ImageCompressionResult compressionResult = ImageCompressionResult.success(
+                compressedFile, 100000, 30000, 1920, 1080, 800, 450);
+        when(compressionService.compress(any(File.class), anyString()))
+                .thenReturn(compressionResult);
+
+        File file = getTestFile("sample.png");
+        when(ocrService.recognizeWithConfidence(any(File.class)))
+                .thenReturn(new OcrService.OcrResult("压缩后文本", 0.85));
+
+        FileParseResultVO result = parser.parse(file, "sample.png");
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getCompressionInfo());
+        assertEquals(100000, result.getCompressionInfo().getOriginalSize());
+        assertEquals(30000, result.getCompressionInfo().getCompressedSize());
+        assertEquals(0.7, result.getCompressionInfo().getCompressionRatio(), 0.01);
+        assertEquals(1920, result.getCompressionInfo().getOriginalWidth());
+        assertEquals(1080, result.getCompressionInfo().getOriginalHeight());
+        assertEquals(800, result.getCompressionInfo().getCompressedWidth());
+        assertEquals(450, result.getCompressionInfo().getCompressedHeight());
+        assertEquals(0.8f, result.getCompressionInfo().getQuality(), 0.01);
+    }
+
+    @Test
+    void shouldHandleCompressionFailure() throws Exception {
+        // 压缩服务返回失败
+        File file = getTestFile("sample.png");
+        when(compressionService.compress(any(File.class), anyString()))
+                .thenReturn(ImageCompressionResult.failed(file, "Compression failed"));
+
+        when(ocrService.recognizeWithConfidence(any(File.class)))
+                .thenReturn(new OcrService.OcrResult("原图文本", 0.9));
+
+        FileParseResultVO result = parser.parse(file, "sample.png");
+
+        assertTrue(result.isSuccess());
+        assertEquals("原图文本", result.getContent().getText());
+        // 压缩失败时 compressionInfo 应为 null
+        assertNull(result.getCompressionInfo());
+    }
+
+    @Test
+    void shouldCleanupCompressedTempFile() throws Exception {
+        // 创建临时压缩文件
+        Path compressedPath = Files.createTempFile("compressed-", ".jpg");
+        File compressedFile = compressedPath.toFile();
+        assertTrue(compressedFile.exists());
+
+        ImageCompressionResult compressionResult = ImageCompressionResult.success(
+                compressedFile, 100000, 30000, 1920, 1080, 800, 450);
+        when(compressionService.compress(any(File.class), anyString()))
+                .thenReturn(compressionResult);
+
+        File file = getTestFile("sample.png");
+        when(ocrService.recognizeWithConfidence(any(File.class)))
+                .thenReturn(new OcrService.OcrResult("文本", 0.9));
+
+        parser.parse(file, "sample.png");
+
+        // 验证压缩临时文件已被清理
+        assertFalse(compressedFile.exists());
     }
 
     @Test

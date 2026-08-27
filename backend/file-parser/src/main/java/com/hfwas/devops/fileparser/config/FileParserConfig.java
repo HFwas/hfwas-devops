@@ -42,6 +42,9 @@ public class FileParserConfig {
     /** MIME 类型映射配置 */
     private MimeConfig mime = new MimeConfig();
 
+    /** 图片压缩配置 */
+    private CompressionConfig compression = new CompressionConfig();
+
     @Data
     public static class ParserConfig {
         /**
@@ -115,5 +118,26 @@ public class FileParserConfig {
          * 用于 TikaDocumentParser 等解析器匹配非标准 MIME 类型。
          */
         private List<String> additionalMimePrefixes;
+    }
+
+    @Data
+    public static class CompressionConfig {
+        /** 是否启用图片压缩（OCR 前预处理） */
+        private boolean enabled = true;
+
+        /** 输出图片质量，0.0~1.0，默认 0.8 */
+        private float quality = 0.8f;
+
+        /** 最大宽度（像素），超过此值等比例缩放 */
+        private int maxWidth = 1920;
+
+        /** 最大高度（像素），超过此值等比例缩放 */
+        private int maxHeight = 1920;
+
+        /** 最小压缩比阈值，低于此值使用原图（避免无效压缩），默认 5% */
+        private double minCompressRatio = 0.05;
+
+        /** 最小文件大小（字节），小于此值不压缩，默认 10KB */
+        private long minFileSize = 10 * 1024;
     }
 }
