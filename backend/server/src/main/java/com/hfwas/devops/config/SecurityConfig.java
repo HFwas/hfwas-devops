@@ -52,7 +52,9 @@ public class SecurityConfig {
                                 apiErrorWriter.write(response, HttpStatus.UNAUTHORIZED, ResultCode.UNAUTHORIZED))
                         .accessDeniedHandler((request, response, e) ->
                                 apiErrorWriter.write(response, HttpStatus.FORBIDDEN, ResultCode.FORBIDDEN)))
-                // RequestIdFilter 必须在最前面，确保所有请求都有 requestId
+                // 过滤器顺序: RequestIdFilter → JwtAuthFilter → TenantContextFilter → UsernamePasswordAuthenticationFilter
+                // 注意: JwtAuthFilter 必须先添加到链中才能被其他 addFilterBefore/addFilterAfter 引用
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(requestIdFilter, JwtAuthFilter.class)
                 .addFilterAfter(tenantContextFilter, JwtAuthFilter.class);
         return http.build();
