@@ -59,6 +59,27 @@
       </n-space>
     </n-card>
 
+    <!-- Excel 专属设置 -->
+    <n-card v-if="selectedFormats.includes('excel')" class="section-card" :bordered="true" title="2. Excel 设置">
+      <n-space vertical>
+        <n-space align="center">
+          <span class="setting-label">列数</span>
+          <n-input-number v-model:value="columnCount" :min="1" :max="1000" :step="1" style="width:120px" />
+          <span class="hint-text">自定义列数，自动生成列名（列1, 列2...）</span>
+        </n-space>
+        <n-space align="center">
+          <span class="setting-label">行大小</span>
+          <n-input-number v-model:value="rowSize" :min="1" :max="10000" :step="1" style="width:120px" />
+          <span class="hint-text">每个单元格的字符数，越大单元格内容越长</span>
+        </n-space>
+        <n-space align="center">
+          <span class="setting-label">行数</span>
+          <n-input-number v-model:value="rowCount" :min="1" :max="9999999" :step="1" style="width:120px" />
+          <span class="hint-text">生成行数（不限制，可设置极大值）</span>
+        </n-space>
+      </n-space>
+    </n-card>
+
     <!-- 生成按钮 -->
     <n-card class="section-card action-card" :bordered="true">
       <div class="action-bar">
@@ -110,6 +131,9 @@ const fileCount = ref(1)
 const outputDir = ref('')
 const selectedSizes = ref<number[]>([])
 const currentProgress = ref('准备中...')
+const columnCount = ref(8)
+const rowSize = ref(10)
+const rowCount = ref(20)
 
 const FILE_SIZE_OPTIONS = [
   { label: '不限制', value: 0 },
@@ -178,6 +202,9 @@ async function handleGenerate() {
         sizes,
         fileCount: fileCount.value,
         directory: outputDir.value.trim() || undefined,
+        columnCount: selectedFormats.value.includes('excel') ? columnCount.value : undefined,
+        rowSize: selectedFormats.value.includes('excel') ? rowSize.value : undefined,
+        rowCount: selectedFormats.value.includes('excel') ? rowCount.value : undefined,
       })
 
       if (result.success) {

@@ -37,6 +37,9 @@ export async function batchGenerate(req: {
   sizes: number[]
   fileCount: number
   directory?: string
+  columnCount?: number
+  rowSize?: number
+  rowCount?: number
 }): Promise<{
   success: boolean
   directory: string

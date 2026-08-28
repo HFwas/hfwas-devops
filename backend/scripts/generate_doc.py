@@ -235,13 +235,14 @@ _MOCK_GENERATORS = {
 }
 
 
-def generate_mock_rows(columns: list, row_count: int = 10) -> list:
+def generate_mock_rows(columns: list, row_count: int = 10, row_size: int = 10) -> list:
     """
     根据列名自动生成模拟数据行
 
     columns: 列名列表，如 ["姓名", "年龄", "部门", "薪资"]
              或 dict 列表，如 [{"name": "姓名", "type": "name"}, ...]
     row_count: 生成行数
+    row_size: 每个单元格的字符数/数据量（仅对字符串类型生效）
 
     返回: [["王伟", 28, "技术部", 15000], ...]
     """
@@ -258,8 +259,28 @@ def generate_mock_rows(columns: list, row_count: int = 10) -> list:
     for _ in range(row_count):
         row = []
         for col_name, col_type in col_configs:
-            generator = _MOCK_GENERATORS.get(col_type, _MOCK_GENERATORS["text"])
-            row.append(generator())
+            if col_type == "text" and row_size > 10:
+                # 根据 row_size 生成对应长度的随机文本
+                # 每 10 个 row_size 生成约 1 个中文字符的等效内容
+                text_len = max(1, row_size // 3)
+                chars = string.ascii_letters + string.digits + " "
+                row.append(''.join(random.choices(chars, k=text_len)))
+            elif col_type == "name" and row_size > 10:
+                # 姓名可以加长（双名变多名）
+                extra = max(0, (row_size - 10) // 5)
+                row.append(_mock_name() + ''.join(random.choices(['伟','芳','娜','强','磊','军','洋','勇','杰','涛'], k=extra)))
+            elif col_type == "address" and row_size > 10:
+                # 地址加长
+                extra = f"第{random.randint(1, row_size)}号院{random.randint(1, row_size)}号楼"
+                row.append(_mock_address() + extra)
+            elif col_type == "email" and row_size > 10:
+                # 邮箱加长
+                local_len = max(5, row_size // 3)
+                local = ''.join(random.choices(string.ascii_lowercase + string.digits, k=local_len))
+                row.append(f"{local}@{random.choice(['company.cn', 'corp.com', 'group.net'])}")
+            else:
+                generator = _MOCK_GENERATORS.get(col_type, _MOCK_GENERATORS["text"])
+                row.append(generator())
         rows.append(row)
 
     return rows
@@ -395,7 +416,15 @@ def generate_excel_mock(data: dict, output_path: str):
     from openpyxl.utils import get_column_letter
 
     columns = data.get("columns", [])
+    column_count = data.get("column_count", 0)
+    if column_count > 0:
+        # column_count 优先：自动生成列名
+        columns = [f"列{i}" for i in range(1, column_count + 1)]
+    elif not columns:
+        # 都没有设置时，沿用默认列
+        columns = ["姓名", "年龄", "部门", "薪资", "手机号", "邮箱", "入职日期", "状态"]
     row_count = data.get("row_count", 10)
+    row_size = data.get("row_size", 10)
     file_count = data.get("file_count", 1)
     output_dir = data.get("output_dir", "")
     headers = [c["name"] if isinstance(c, dict) else str(c) for c in columns]
@@ -422,7 +451,7 @@ def generate_excel_mock(data: dict, output_path: str):
         return os.path.getsize(path)
 
     if file_count <= 1:
-        generated = generate_mock_rows(columns, row_count)
+        generated = generate_mock_rows(columns, row_count, row_size=row_size)
         save_path = output_path if not output_dir else os.path.join(output_dir, os.path.basename(output_path))
         _write_one(save_path, [headers] + generated)
         size = os.path.getsize(save_path)
@@ -437,7 +466,7 @@ def generate_excel_mock(data: dict, output_path: str):
         for i in range(file_count):
             start = i * rows_per_file
             end = start + rows_per_file if i < file_count - 1 else row_count
-            generated = generate_mock_rows(columns, end - start)
+            generated = generate_mock_rows(columns, end - start, row_size=row_size)
             data_rows = [headers] + generated
             part_name = f"{base_name}_{i + 1}{ext}"
             if output_dir:
@@ -753,8 +782,11 @@ def _adjust_content_for_size(data: dict, fmt: str) -> dict:
 
     # ── Excel ──
     elif fmt == "excel":
-        data["row_count"] = max(10, units)
-        data.setdefault("columns", ["姓名", "年龄", "部门", "薪资", "手机号", "邮箱", "入职日期", "状态"])
+        # 用户显式设置了 row_count 或 column_count 时，不再覆盖
+        if "row_count" not in data or data.get("row_count", 0) <= 0:
+            data["row_count"] = max(10, units)
+        if "column_count" not in data:
+            data.setdefault("columns", ["姓名", "年龄", "部门", "薪资", "手机号", "邮箱", "入职日期", "状态"])
 
     # ── PPT ──
     elif fmt == "ppt":
@@ -828,7 +860,9 @@ GENERATORS = {
     ),
     "excel": lambda data, path: generate_excel_mock({
         "columns": data.get("columns") or ["姓名", "年龄", "部门", "薪资", "手机号", "邮箱", "入职日期", "状态"],
+        "column_count": data.get("column_count", 0),
         "row_count": data.get("row_count", 20),
+        "row_size": data.get("row_size", 10),
         "file_count": data.get("file_count", 1),
         "output_dir": data.get("output_dir", ""),
         "sheet_name": data.get("sheet_name", "Sheet1"),

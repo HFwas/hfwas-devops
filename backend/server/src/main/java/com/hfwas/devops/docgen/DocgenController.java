@@ -136,6 +136,15 @@ public class DocgenController {
                     data.put("format", fmt);
                     data.put("file_count", fileCount);
                     data.put("file_size", size);
+                    if (request.getColumnCount() != null) {
+                        data.put("column_count", request.getColumnCount());
+                    }
+                    if (request.getRowSize() != null) {
+                        data.put("row_size", request.getRowSize());
+                    }
+                    if (request.getRowCount() != null) {
+                        data.put("row_count", request.getRowCount());
+                    }
 
                     docgenUtil.generateToFile(fmt, data, outputPath);
 
@@ -187,5 +196,8 @@ public class DocgenController {
         private List<Long> sizes;        // [0, 102400, 1048576]
         private int fileCount = 1;
         private String directory;        // 可选，空则用临时目录
+        private Integer columnCount;     // 可选，Excel 列数
+        private Integer rowSize;         // 可选，每行数据量（字符数）
+        private Integer rowCount;        // 可选，行数覆盖
     }
 }
