@@ -1,6 +1,6 @@
 # HFWAS DevOps
 
-可扩展的 DevOps 平台，当前包含 **项目管理（PM）** 与 **用户/租户中心** 两大子系统。后端为单体 Spring Boot 服务，前端为 Vue 3 SPA，本地开发使用 SQLite，零外部依赖即可启动。
+可扩展的 DevOps 平台，当前包含 **项目管理（PM）**、**用户/租户中心**、**文档生成（Docgen）** 与 **文件解析（File Parser）** 四大子系统。后端为单体 Spring Boot 服务，前端为 Vue 3 SPA，本地开发使用 SQLite，零外部依赖即可启动。
 
 ---
 
@@ -32,6 +32,25 @@
 | 审计 | 登录日志、操作日志 |
 | 集成 | LDAP 等身份连接器（admin 配置） |
 
+### 文档生成（Docgen）
+
+| 能力 | 说明 |
+|------|------|
+| 格式支持 | Word（.docx）、Excel（.xlsx）、PPT（.pptx）、图片（.png）、Markdown（.md）、PDF（.pdf） |
+| 批量生成 | 多格式 × 多文件大小 × 文件数，自动生成所有组合 |
+| 文件大小梯度 | 100KB、500KB、1MB、2MB、5MB、10MB、15MB、20MB，支持多选 |
+| 输出方式 | 单个文件直接下载 / 批量文件保存到服务器目录 |
+| 文件命名 | `{格式标签}_{大小标签}_{基础名}_{序号}.{ext}`，如 `Word_100KB_文档_1.docx` |
+| 生成引擎 | Python 脚本（`python-docx`、`openpyxl`、`python-pptx`、`matplotlib`、`markdown`、`fpdf`） |
+
+### 文件解析（File Parser）
+
+| 能力 | 说明 |
+|------|------|
+| 图片 OCR | 支持图片文字提取（Tesseract） |
+| 文件压缩 | 配置压缩质量、最大尺寸、最小压缩比 |
+| 格式检测 | 基于 MIME Type 的格式识别，支持 WPS Office 及国产信创格式 |
+
 ---
 
 ## 技术栈
@@ -40,6 +59,7 @@
 |------|------|
 | 后端 | Java 21、Spring Boot 3.4、Spring Security、MyBatis-Plus |
 | 前端 | Vue 3、TypeScript、Vite 6、Naive UI、Pinia、Vue Flow |
+| 脚本 | Python 3（python-docx、openpyxl、python-pptx、matplotlib、fpdf） |
 | 数据库 | SQLite（`./data/hfwas-devops.db`，启动时自动迁移） |
 | 构建 | Maven 3.8+、npm |
 
@@ -54,11 +74,14 @@ hfwas-devops/
 │   ├── user-api/          # 用户模块公共 API / 注解 / 错误码
 │   ├── user-core/         # 用户领域逻辑、认证、租户、站内信
 │   ├── pm-core/           # PM 内核：事项、字段、查询引擎、工作流
-│   └── server/            # Spring Boot 启动入口 + REST Controllers
+│   ├── file-parser/       # 文件解析：图片 OCR、文件压缩、MIME 格式检测
+│   ├── server/            # Spring Boot 启动入口 + REST Controllers
+│   └── scripts/           # Python 脚本（文档生成引擎 generate_doc.py）
 ├── frontend/
 │   └── src/modules/
 │       ├── pm/            # 项目管理前端
-│       └── user/          # 用户中心前端
+│       ├── user/          # 用户中心前端
+│       └── docgen/        # 文档生成前端
 ├── scripts/               # 本地开发启动脚本
 └── docs/                  # 设计文档与 API 说明
 ```
@@ -75,6 +98,7 @@ hfwas-devops/
 | Maven | 3.8+ |
 | Node.js | 18+（推荐 20+） |
 | npm | 9+ |
+| Python | 3.8+（文档生成需要） |
 
 ---
 
@@ -161,11 +185,13 @@ BACKEND_PORT=8089 FRONTEND_PORT=5173 ./scripts/start-dev.sh
 {
   "code": 0,
   "msg": null,
-  "data": {}
+  "data": {},
+  "requestId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 }
 ```
 
 - `code === 0` 表示成功；非零为业务错误码（见 [docs/error-code-design.md](docs/error-code-design.md)）
+- `requestId` 请求追踪 ID，由 `RequestIdResponseAdvice` 自动注入每个响应，出错时用于检索完整链路日志
 - Long 类型 ID 序列化为字符串，避免 JavaScript 精度丢失
 
 ### API 模块前缀
@@ -175,6 +201,7 @@ BACKEND_PORT=8089 FRONTEND_PORT=5173 ./scripts/start-dev.sh
 | `/health/*` | 健康检查 |
 | `/user/*` | 用户、租户、认证、站内信、审计 |
 | `/pm/*` | 项目管理 |
+| `/api/docgen/*` | 文档生成 |
 
 ### 主要 REST 入口
 
@@ -211,6 +238,12 @@ BACKEND_PORT=8089 FRONTEND_PORT=5173 ./scripts/start-dev.sh
 | PmSavedViewController | `/pm/views` | 保存视图 |
 | PmMetaController | `/pm` | 元数据、看板、类型目录 |
 
+**文档生成模块**
+
+| Controller | Base Path | 说明 |
+|------------|-----------|------|
+| DocgenController | `/api/docgen` | 文档生成：单文件下载、批量生成到目录 |
+
 完整接口清单见 [docs/pm-api.md](docs/pm-api.md) §13。
 
 ---
@@ -225,6 +258,14 @@ BACKEND_PORT=8089 FRONTEND_PORT=5173 ./scripts/start-dev.sh
 | `spring.datasource.url` | `jdbc:sqlite:./data/hfwas-devops.db` | SQLite 路径（相对 server 工作目录） |
 | `user.jwt.secret` | 内置 dev 值 | **生产必须修改** |
 | `user.jwt.expire-seconds` | `86400` | Token 有效期（秒） |
+| `docgen.script-path` | `../scripts/generate_doc.py` | 文档生成 Python 脚本路径 |
+| `docgen.python-path` | `python3` | Python 解释器路径 |
+| `docgen.output-dir` | `../../files` | 文档生成默认输出目录（相对 server 工作目录） |
+| `file-parser.compression.enabled` | `true` | 是否启用文件压缩 |
+| `file-parser.compression.quality` | `0.8` | 压缩质量（0-1） |
+| `file-parser.compression.max-width` | `1920` | 压缩最大宽度（px） |
+| `file-parser.compression.max-height` | `1920` | 压缩最大高度（px） |
+| `file-parser.compression.min-file-size` | `10240` | 最小压缩文件大小（字节） |
 
 开发 profile（`application-dev.yml`）会禁用 Redis 自动配置；本地无需 Redis。
 
@@ -253,6 +294,16 @@ cd backend/server
 java -jar target/server-1.0-SNAPSHOT.jar
 ```
 
+### Python 文档生成脚本
+
+文档生成功能依赖 Python 3 及以下库：
+
+```bash
+pip install python-docx openpyxl python-pptx matplotlib fpdf2 markdown
+```
+
+脚本位于 `backend/scripts/generate_doc.py`，支持 Word、Excel、PPT、图片、Markdown、PDF 六种格式，以及文件大小梯度控制。
+
 ### 前端
 
 ```bash
@@ -276,6 +327,7 @@ npm run build
 | `/pm/projects/:id/settings/*` | 项目设置（模块、字段、类型、工作流） |
 | `/user/*` | 用户中心（admin） |
 | `/messages` | 站内信收件箱 |
+| `/docgen` | 文档生成 |
 
 ---
 

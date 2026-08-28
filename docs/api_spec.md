@@ -2,7 +2,7 @@
 
 > 基础路径：`/api/apitest`
 > 响应格式：`BaseResult<T>` 统一包装
-> 日期：2026-08-13
+> 日期：2026-08-28
 
 ---
 
@@ -12,7 +12,8 @@
 {
   "code": 0,
   "msg": "success",
-  "data": {}
+  "data": {},
+  "requestId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 }
 ```
 
@@ -21,6 +22,7 @@
 | `code` | Integer | 0-成功，非0-失败 |
 | `msg` | String | 提示信息 |
 | `data` | T | 业务数据 |
+| `requestId` | String | 请求追踪 ID，由 `RequestIdResponseAdvice` 自动注入 |
 
 ---
 

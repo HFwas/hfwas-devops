@@ -1,10 +1,18 @@
 # 接口测试平台 — 数据库设计
 
 > 模块：api-test-core（接口测试核心）
-> 技术栈：MySQL 8.3 + MyBatis Plus + Redisson
-> 日期：2026-08-13
+> 技术栈：SQLite 3 + MyBatis Plus + Redisson (本地开发) / MySQL 8.3 (生产)
+> 日期：2026-08-28
 
 ---
+
+> **说明：** 本设计文档以 MySQL 为基准描述表结构，实际本地开发使用 SQLite（`backend/server/src/main/resources/db/api-test-schema.sql`）。差异如下：
+> - 字段类型：`BIGINT` → `INTEGER`、`VARCHAR(n)` → `TEXT`、`TINYINT` → `INTEGER`、`JSON` → `TEXT`、`DATETIME` → `TEXT`
+> - 默认值：`CURRENT_TIMESTAMP` → `datetime('now')`、`ON UPDATE CURRENT_TIMESTAMP` → 由应用层维护 `update_time`
+> - 字段名：`created_by` → `create_by`、`updated_by` → `update_by`
+> - 生产环境可切换为 MySQL，SQL 需做对应转换。
+>
+> ---
 
 ## Phase1 · 接口管理模块
 
@@ -319,6 +327,7 @@ CREATE TABLE `api_definition_script` (
 CREATE TABLE `api_definition_assertion` (
     `id`                BIGINT       NOT NULL COMMENT '主键（雪花ID）',
     `definition_id`     BIGINT       NOT NULL COMMENT '所属接口定义ID',
+    `name`              VARCHAR(200) NULL     COMMENT '断言名称（前端显示标签）',
     `source`            VARCHAR(30)  NOT NULL COMMENT '断言来源 RESPONSE_STATUS / RESPONSE_HEADERS / RESPONSE_BODY / RESPONSE_TIME',
     `compare_type`      VARCHAR(20)  NOT NULL COMMENT '比较方式 EQUALS / NOT_EQUALS / CONTAINS / NOT_CONTAINS / REGEX / GT / GTE / LT / LTE',
     `expression`        VARCHAR(500) NULL     COMMENT '表达式（JSONPath 或 Header 名称）',
@@ -426,6 +435,9 @@ CREATE TABLE `api_debug_history` (
     `duration_ms`       BIGINT       NOT NULL DEFAULT 0 COMMENT '请求耗时（毫秒）',
     `status`            VARCHAR(20)  NOT NULL DEFAULT 'SUCCESS' COMMENT '调试状态 SUCCESS / FAILURE / ERROR',
     `error_message`     TEXT         NULL     COMMENT '错误信息（网络异常/脚本异常时填充）',
+    -- 脚本日志
+    `pre_request_logs`      TEXT     NULL     COMMENT '前置脚本执行日志（沙箱输出）',
+    `post_response_logs`    TEXT     NULL     COMMENT '后置脚本执行日志（沙箱输出）',
     -- 断言结果
     `assertion_results` JSON         NULL     COMMENT '断言结果列表 [{name, passed, actual, expected}]',
     `all_assertions_passed` TINYINT  NULL     COMMENT '断言是否全部通过 0-未通过 1-通过 null-无断言',
@@ -524,6 +536,8 @@ CREATE TABLE `api_debug_history` (
   "responseSize": 2048,
   "durationMs": 156,
   "status": "SUCCESS",
+  "preRequestLogs": ["[sandbox] 前置脚本执行完成"],
+  "postResponseLogs": ["[sandbox] 后置脚本执行完成"],
   "assertionResults": [
     { "name": "状态码为200", "passed": true, "actual": 200, "expected": 200 },
     { "name": "响应包含data字段", "passed": true, "actual": "包含", "expected": "data" }
@@ -546,8 +560,8 @@ CREATE TABLE `api_debug_history` (
 | `id` | 主键，雪花算法ID | `IdType.ASSIGN_ID` |
 | `project_id` | 项目ID，多租户隔离 | 所有业务表必含 |
 | `deleted` | 逻辑删除标记 | 所有业务表必含，0-未删 1-已删 |
-| `created_by` | 创建人ID | 所有业务表必含 |
-| `updated_by` | 更新人ID | 一般业务表含 |
+| `created_by` | 创建人ID | 所有业务表必含（SQLite 实现为 `create_by`） |
+| `updated_by` | 更新人ID | 一般业务表含（SQLite 实现为 `update_by`） |
 | `create_time` | 创建时间 | `DEFAULT CURRENT_TIMESTAMP` |
 | `update_time` | 更新时间 | `ON UPDATE CURRENT_TIMESTAMP` |
 
@@ -581,8 +595,11 @@ CREATE TABLE `api_debug_history` (
 | 表 | 索引 | 说明 |
 |----|------|------|
 | `api_group` | `(project_id, sort_order)` | 项目内分组排序查询 |
+| `api_group` | `(project_id, parent_id)` | 按父分组查询子分组 |
 | `api_definition` | `(project_id, status)` | 项目内按状态筛选 |
-| `api_definition` | `(path(100))` | 路径搜索前缀匹配 |
+| `api_definition` | `(path, method)` | 路径+方法联合查询 |
+| `api_definition` | `(status)` | 按状态筛选 |
+| `api_definition` | `(group_id)` | 按分组查询 |
 | `api_definition_param` | `(definition_id, param_type)` | 按类型查询参数 |
 | `api_definition_response` | `(definition_id, status_code)` | 按状态码查询响应 |
 | `api_definition_version` | `(definition_id, version)` | 版本查询 |

@@ -1,7 +1,7 @@
 # PM 模块接口文档
 
-> 版本：1.2  
-> 更新日期：2026-07-05  
+> 版本：1.3  
+> 更新日期：2026-08-28  
 > 适用范围：hfwas-devops 项目管理（PM）REST API
 
 ---
@@ -45,7 +45,8 @@
 {
   "code": 0,
   "msg": null,
-  "data": {}
+  "data": {},
+  "requestId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 }
 ```
 
@@ -54,6 +55,7 @@
 | code | integer | `0` 成功；非 `0` 为业务错误码（见 [error-code-design.md](./error-code-design.md)） |
 | msg | string | 错误或提示信息，成功时通常为 `null` |
 | data | T | 业务数据 |
+| requestId | string | 请求追踪 ID，由 `RequestIdResponseAdvice` 自动注入；出错时用于检索完整链路日志 |
 
 ### 1.4 分页结构
 
@@ -1238,7 +1240,8 @@ Key 为 **工作流中的 statusCode**（按 `sortOrder` 排序），Value 为�
 {
   "code": 20002,
   "msg": "项目不存在或无权访问",
-  "data": null
+  "data": null,
+  "requestId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 }
 ```
 
