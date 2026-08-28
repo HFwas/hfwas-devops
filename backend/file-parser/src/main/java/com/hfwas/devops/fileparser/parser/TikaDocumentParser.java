@@ -117,7 +117,8 @@ public class TikaDocumentParser implements DocumentParser {
                     .build();
 
             long elapsed = System.currentTimeMillis() - start;
-            log.info("Tika parsed {} in {}ms, text length={}", fileName, elapsed, text.length());
+            log.info("Tika parsed {} in {}ms", fileName, elapsed);
+            logParsedContentDetail(fileName, text, mimeType, file.length(), elapsed);
 
             return FileParseResultVO.builder()
                     .success(true)
@@ -152,6 +153,63 @@ public class TikaDocumentParser implements DocumentParser {
                     .parseTimeMs(System.currentTimeMillis() - start)
                     .build();
         }
+    }
+
+    /**
+     * 输出解析后的内容结构详情到日志，方便肉眼验证。
+     * 统计行数、列数、单元格内容长度（min/max/avg）、总数据量。
+     */
+    private void logParsedContentDetail(String fileName, String text, String mimeType, long fileSize, long elapsedMs) {
+        if (text == null || text.isEmpty()) {
+            log.info("  [{}] text=empty, fileSize={} bytes", fileName, fileSize);
+            return;
+        }
+
+        boolean isSpreadsheet = mimeType != null
+                && (mimeType.contains("spreadsheet") || mimeType.contains("excel") || mimeType.contains("csv"));
+
+        String[] lines = text.split("\n");
+        int dataRows = 0;
+        int columns = 0;
+        long totalCellChars = 0;
+        int cellCount = 0;
+        int minCellLen = Integer.MAX_VALUE;
+        int maxCellLen = 0;
+
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) continue;
+            // 跳过 sheet 名行（Excel 第一行通常是 Sheet1）
+            if (isSpreadsheet && dataRows == 0 && !trimmed.contains("\t")) {
+                log.info("  [{}] sheet name: {}", fileName, trimmed);
+                continue;
+            }
+            String[] cells = trimmed.split("\t");
+            if (dataRows == 0) {
+                columns = cells.length;
+                log.info("  [{}] columns: {}", fileName, columns);
+            }
+            dataRows++;
+            for (String cell : cells) {
+                int len = cell.length();
+                totalCellChars += len;
+                cellCount++;
+                if (len < minCellLen) minCellLen = len;
+                if (len > maxCellLen) maxCellLen = len;
+            }
+        }
+
+        double avgCellLen = cellCount > 0 ? (double) totalCellChars / cellCount : 0;
+        double avgCharsPerRow = dataRows > 0 ? (double) totalCellChars / dataRows : 0;
+
+        String typeLabel = isSpreadsheet ? "spreadsheet" : "document";
+        log.info("  [{}] {} | fileSize={} bytes | textLength={} chars | rows={} | cols={} | "
+                        + "cellLen: min={} max={} avg={} | chars/row={} | parseTime={}ms",
+                fileName, typeLabel, fileSize, text.length(),
+                dataRows, columns, minCellLen, maxCellLen,
+                String.format("%.1f", avgCellLen),
+                String.format("%.1f", avgCharsPerRow),
+                elapsedMs);
     }
 
     private Map<String, String> extractMetadata(Metadata metadata) {
