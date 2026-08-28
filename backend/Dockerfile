@@ -53,6 +53,10 @@ COPY --from=builder /build/backend/server/target/server-*.jar /app/server.jar
 
 WORKDIR /app
 
+# glibc MALLOC_ARENA_MAX: 限制 malloc arena 数，防止多核容器 RSS 膨胀
+# 默认 8*cores，每个 arena ~64MB，多核场景浪费严重
+ENV MALLOC_ARENA_MAX=2
+
 # Create data directories
 RUN mkdir -p /app/data /app/files /app/dumps
 

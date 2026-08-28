@@ -53,6 +53,8 @@ backend:
 
   # Environment variables (overrides application.yml)
   extraEnv:
+    - name: MALLOC_ARENA_MAX
+      value: "2"
     - name: JAVA_TOOL_OPTIONS
       value: "-Xms512m -Xmx1g -XX:MaxDirectMemorySize=512m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/dumps"
 
