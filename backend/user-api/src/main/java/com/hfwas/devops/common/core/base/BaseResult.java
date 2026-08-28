@@ -61,7 +61,7 @@ public class BaseResult<T> {
         apiResult.setCode(code);
         apiResult.setData(data);
         apiResult.setMsg(msg);
-        // requestId 由调用方在构建响应时设置（ExceptionAdvice / ApiErrorWriter）
+        // requestId 由 ResponseBodyAdvice 在序列化前注入
         return apiResult;
     }
 }
