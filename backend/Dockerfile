@@ -54,7 +54,7 @@ COPY --from=builder /build/backend/server/target/server-*.jar /app/server.jar
 WORKDIR /app
 
 # Create data directories
-RUN mkdir -p /app/data /app/files
+RUN mkdir -p /app/data /app/files /app/dumps
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
@@ -62,4 +62,10 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 
 EXPOSE 8089
 
-ENTRYPOINT ["java", "-jar", "/app/server.jar"]
+ENTRYPOINT ["java", \
+    "-Xms512m", "-Xmx1g", \
+    "-XX:MaxDirectMemorySize=512m", \
+    "-XX:+ExitOnOutOfMemoryError", \
+    "-XX:+HeapDumpOnOutOfMemoryError", \
+    "-XX:HeapDumpPath=/app/dumps", \
+    "-jar", "/app/server.jar"]

@@ -52,7 +52,9 @@ backend:
     docgenOutputDir: /app/files
 
   # Environment variables (overrides application.yml)
-  extraEnv: []
+  extraEnv:
+    - name: JAVA_TOOL_OPTIONS
+      value: "-Xms512m -Xmx1g -XX:MaxDirectMemorySize=512m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/dumps"
 
   # Resources
   resources:
