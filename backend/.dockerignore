@@ -1,0 +1,16 @@
+target/
+*.jar
+*.war
+*.log
+.git
+.gitignore
+.idea/
+*.iml
+.DS_Store
+node_modules/
+__pycache__/
+*.pyc
+.venv
+venv/
+data/
+files/

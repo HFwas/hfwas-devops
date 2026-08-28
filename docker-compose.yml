@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: hfwas/devops-backend:latest
+    container_name: devops-backend
+    ports:
+      - "8089:8089"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      USER_JWT_SECRET: change-me-in-production
+      USER_JWT_EXPIRE_SECONDS: "86400"
+      DOCGEN_OUTPUT_DIR: /app/files
+    volumes:
+      - devops-data:/app/data
+      - devops-files:/app/files
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8089/health/check"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: hfwas/devops-frontend:latest
+    container_name: devops-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  devops-data:
+    driver: local
+  devops-files:
+    driver: local

@@ -76,12 +76,20 @@ hfwas-devops/
 │   ├── pm-core/           # PM 内核：事项、字段、查询引擎、工作流
 │   ├── file-parser/       # 文件解析：图片 OCR、文件压缩、MIME 格式检测
 │   ├── server/            # Spring Boot 启动入口 + REST Controllers
-│   └── scripts/           # Python 脚本（文档生成引擎 generate_doc.py）
+│   ├── scripts/           # Python 脚本（文档生成引擎 generate_doc.py）
+│   ├── Dockerfile         # 后端容器镜像构建
+│   └── .dockerignore      # 后端 Docker 构建忽略规则
 ├── frontend/
-│   └── src/modules/
-│       ├── pm/            # 项目管理前端
-│       ├── user/          # 用户中心前端
-│       └── docgen/        # 文档生成前端
+│   ├── docker/
+│   │   └── nginx.conf     # 生产环境 Nginx 配置
+│   ├── Dockerfile         # 前端容器镜像构建
+│   └── .dockerignore      # 前端 Docker 构建忽略规则
+├── charts/
+│   └── devops/            # Helm Chart（Kubernetes 部署）
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       └── templates/
+├── docker-compose.yml     # 本地 Docker Compose 编排
 ├── scripts/               # 本地开发启动脚本
 └── docs/                  # 设计文档与 API 说明
 ```
@@ -313,6 +321,43 @@ npm run build
 ```
 
 产物：`frontend/dist/`
+
+### Docker 构建
+
+```bash
+# 后端镜像
+cd backend
+docker build -t hfwas/devops-backend:latest .
+
+# 前端镜像
+cd frontend
+docker build -t hfwas/devops-frontend:latest .
+```
+
+### Docker Compose 启动
+
+```bash
+# 从项目根目录启动
+docker compose up -d
+
+# 查看日志
+docker compose logs -f
+```
+
+### Helm 部署（Kubernetes）
+
+```bash
+# 安装
+helm install devops ./charts/devops \
+  --set backend.config.jwtSecret="your-secret-here" \
+  --set frontend.ingress.hosts[0].host="devops.example.com"
+
+# 升级
+helm upgrade devops ./charts/devops
+
+# 卸载
+helm uninstall devops
+```
 
 ---
 

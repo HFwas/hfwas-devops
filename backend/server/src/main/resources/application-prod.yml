@@ -1,0 +1,54 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+  jackson:
+    serialization:
+      FAIL_ON_EMPTY_BEANS: false
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 200MB
+
+# 文件解析模块配置
+file-parser:
+  upload-dir: ${FILE_PARSER_UPLOAD_DIR:./data/uploads}
+  max-file-size: ${FILE_PARSER_MAX_FILE_SIZE:52428800}
+  max-total-size: ${FILE_PARSER_MAX_TOTAL_SIZE:209715200}
+  cleanup-hours: ${FILE_PARSER_CLEANUP_HOURS:1}
+  parser:
+    charset-detection-sample-size: ${FILE_PARSER_CHARSET_SAMPLE_SIZE:4096}
+  ocr:
+    enabled: ${FILE_PARSER_OCR_ENABLED:true}
+    lang: ${FILE_PARSER_OCR_LANG:chi_sim+eng}
+    preprocessing: ${FILE_PARSER_OCR_PREPROCESSING:true}
+    cache-results: ${FILE_PARSER_OCR_CACHE_RESULTS:true}
+    parallel-pages: ${FILE_PARSER_OCR_PARALLEL_PAGES:4}
+    max-concurrent: ${FILE_PARSER_OCR_MAX_CONCURRENT:2}
+  tika:
+    max-text-length: ${FILE_PARSER_TIKA_MAX_TEXT_LENGTH:10485760}
+  scanned-pdf:
+    max-pages: ${FILE_PARSER_SCANNED_PDF_MAX_PAGES:50}
+    max-image-dimension: ${FILE_PARSER_SCANNED_PDF_MAX_IMAGE_DIMENSION:2048}
+  compression:
+    enabled: ${FILE_PARSER_COMPRESSION_ENABLED:true}
+    quality: ${FILE_PARSER_COMPRESSION_QUALITY:0.8}
+    max-width: ${FILE_PARSER_COMPRESSION_MAX_WIDTH:1920}
+    max-height: ${FILE_PARSER_COMPRESSION_MAX_HEIGHT:1920}
+    min-compress-ratio: ${FILE_PARSER_COMPRESSION_MIN_RATIO:0.05}
+    min-file-size: ${FILE_PARSER_COMPRESSION_MIN_FILE_SIZE:10240}
+  mime:
+    extension-mappings:
+      ".wps": "${FILE_PARSER_MIME_WPS:application/wps-office.wps}"
+      ".wpt": "${FILE_PARSER_MIME_WPT:application/wps-office.wpt}"
+      ".et": "${FILE_PARSER_MIME_ET:application/wps-office.et}"
+      ".ett": "${FILE_PARSER_MIME_ETT:application/wps-office.ett}"
+      ".dps": "${FILE_PARSER_MIME_DPS:application/wps-office.dps}"
+      ".dpt": "${FILE_PARSER_MIME_DPT:application/wps-office.dpt}"
+      ".ofd": "${FILE_PARSER_MIME_OFD:application/ofd}"
+      ".uof": "${FILE_PARSER_MIME_UOF:application/uof}"
+      ".ceb": "${FILE_PARSER_MIME_CEB:application/ceb}"
+      ".cebx": "${FILE_PARSER_MIME_CEBX:application/cebx}"
+    additional-mime-prefixes: ${FILE_PARSER_ADDITIONAL_MIME_PREFIXES:application/wps-office.,application/uof}
