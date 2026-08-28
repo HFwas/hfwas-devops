@@ -3,6 +3,7 @@ import { pmRoutes } from '@/modules/pm/router/pmRoutes'
 import { userRoutes } from '@/modules/user/router/userRoutes'
 import { apiTestRoutes } from '@/modules/api-test/define/router/apiTestRoutes'
 import { fileParserRoutes } from '@/modules/file-parser/router/fileParserRoutes'
+import { docgenRoutes } from '@/modules/docgen/router/docgenRoutes'
 import { useAuthStore } from '@/modules/user/stores/auth'
 import { resolveRouteProjectId } from '@/modules/pm/utils/projectRoute'
 
@@ -19,6 +20,7 @@ const router = createRouter({
     ...pmRoutes,
     ...apiTestRoutes,
     ...fileParserRoutes,
+    ...docgenRoutes,
   ],
 })
 

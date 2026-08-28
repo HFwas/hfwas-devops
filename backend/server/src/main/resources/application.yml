@@ -32,3 +32,8 @@ file-parser:
     max-height: 1920
     min-compress-ratio: 0.05
     min-file-size: 10240
+
+docgen:
+  script-path: ../scripts/generate_doc.py
+  python-path: python3
+  output-dir: ../../files    # 默认输出目录，相对路径基于 backend/server/
