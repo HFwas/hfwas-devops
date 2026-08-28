@@ -85,10 +85,28 @@ hfwas-devops/
 │   ├── Dockerfile         # 前端容器镜像构建
 │   └── .dockerignore      # 前端 Docker 构建忽略规则
 ├── charts/
-│   └── devops/            # Helm Chart（Kubernetes 部署）
+│   ├── backend/            # Helm Chart（后端 Spring Boot 部署）
+│   │   ├── Chart.yaml
+│   │   ├── values.yaml
+│   │   └── templates/
+│   │       ├── _helpers.tpl
+│   │       ├── configmap.yaml          # 应用环境变量
+│   │       ├── deployment.yaml         # 部署（含反亲和 + 安全上下文）
+│   │       ├── hpa.yaml                # 自动伸缩
+│   │       ├── logback-configmap.yaml  # 可挂载的日志配置
+│   │       ├── pvc.yaml                # 数据、文件、日志持久卷
+│   │       ├── secret.yaml             # JWT 密钥
+│   │       └── service.yaml
+│   └── frontend/           # Helm Chart（前端 Vue 3 + Nginx 部署）
 │       ├── Chart.yaml
 │       ├── values.yaml
 │       └── templates/
+│           ├── _helpers.tpl
+│           ├── configmap.yaml          # Nginx 配置（含 API 反向代理）
+│           ├── deployment.yaml         # 部署（含反亲和 + 安全上下文）
+│           ├── hpa.yaml
+│           ├── ingress.yaml            # 入口配置
+│           └── service.yaml
 ├── docker-compose.yml     # 本地 Docker Compose 编排
 ├── scripts/               # 本地开发启动脚本
 └── docs/                  # 设计文档与 API 说明
@@ -325,13 +343,11 @@ npm run build
 ### Docker 构建
 
 ```bash
-# 后端镜像
-cd backend
-docker build -t hfwas/devops-backend:latest .
+# 后端镜像（从项目根目录构建）
+docker build -t hfwas/devops-backend:latest -f backend/Dockerfile .
 
-# 前端镜像
-cd frontend
-docker build -t hfwas/devops-frontend:latest .
+# 前端镜像（从项目根目录构建）
+docker build -t hfwas/devops-frontend:latest -f frontend/Dockerfile .
 ```
 
 ### Docker Compose 启动
@@ -347,16 +363,24 @@ docker compose logs -f
 ### Helm 部署（Kubernetes）
 
 ```bash
-# 安装
-helm install devops ./charts/devops \
-  --set backend.config.jwtSecret="your-secret-here" \
-  --set frontend.ingress.hosts[0].host="devops.example.com"
+# 安装后端
+helm install devops-backend ./charts/backend \
+  --set config.jwtSecret="your-secret-here" \
+  --set replicaCount=2
+
+# 安装前端（需先部署后端）
+helm install devops-frontend ./charts/frontend \
+  --set config.backendUrl="http://devops-backend:8089" \
+  --set ingress.hosts[0].host="devops.example.com" \
+  --set replicaCount=2
 
 # 升级
-helm upgrade devops ./charts/devops
+helm upgrade devops-backend ./charts/backend
+helm upgrade devops-frontend ./charts/frontend
 
 # 卸载
-helm uninstall devops
+helm uninstall devops-backend
+helm uninstall devops-frontend
 ```
 
 ---

@@ -1,0 +1,137 @@
+# =============================================================================
+# Backend (Spring Boot) — 默认值
+# =============================================================================
+
+# 全局设置
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+image:
+  repository: hfwas/devops-backend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+service:
+  type: ClusterIP
+  port: 8089
+  annotations: {}
+
+# 应用配置
+config:
+  springProfilesActive: prod
+  serverPort: 8089
+  jwtSecret: "change-me-in-production"
+  jwtExpireSeconds: 86400
+  docgenScriptPath: /app/scripts/generate_doc.py
+  docgenPythonPath: python3
+  docgenOutputDir: /app/files
+
+# 额外环境变量
+extraEnv:
+  - name: MALLOC_ARENA_MAX
+    value: "2"
+  - name: JAVA_TOOL_OPTIONS
+    value: "-Xms512m -Xmx1g -XX:MaxDirectMemorySize=512m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/dumps"
+
+# livenessProbe
+livenessProbe:
+  enabled: true
+  path: /health/check
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# readinessProbe
+readinessProbe:
+  enabled: true
+  path: /health/check
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# 资源
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2
+    memory: 2Gi
+
+# 持久化（SQLite 数据）
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  mountPath: /app/data
+  existingClaim: ""
+
+# 文件输出目录（文档生成）
+filePersistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 5Gi
+  mountPath: /app/files
+  existingClaim: ""
+
+# 日志目录
+logPersistence:
+  enabled: false
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  mountPath: /app/logs
+  existingClaim: ""
+
+# 自动伸缩
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Pod 注解
+podAnnotations: {}
+
+# Pod 安全上下文（UID 1000 = Dockerfile 中 devops 用户）
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 1000
+
+# 容器安全上下文
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+  runAsNonRoot: true
+
+# 节点选择
+nodeSelector: {}
+
+# 容忍
+tolerations: []
+
+# 亲和性
+affinity: {}
+
+# 反亲和（多副本分散到不同节点）
+podAntiAffinity:
+  preferredDuringScheduling: true
+  topologyKey: kubernetes.io/hostname

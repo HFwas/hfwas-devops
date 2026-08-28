@@ -1,8 +1,8 @@
-{{- define "devops.name" -}}
+{{- define "frontend.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{- define "devops.fullname" -}}
+{{- define "frontend.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -15,39 +15,40 @@
 {{- end }}
 {{- end }}
 
-{{- define "devops.chart" -}}
+{{- define "frontend.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{- define "devops.labels" -}}
-helm.sh/chart: {{ include "devops.chart" . }}
-{{ include "devops.selectorLabels" . }}
+{{- define "frontend.labels" -}}
+helm.sh/chart: {{ include "frontend.chart" . }}
+{{ include "frontend.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
-{{- define "devops.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "devops.name" . }}
+{{- define "frontend.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "frontend.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: frontend
 {{- end }}
 
-{{- define "devops.imagePullSecrets" -}}
+{{- define "frontend.imagePullSecrets" -}}
 {{- if .Values.global.imagePullSecrets }}
 imagePullSecrets:
 {{- range .Values.global.imagePullSecrets }}
   - name: {{ . }}
 {{- end }}
-{{- else if .Values.backend.imagePullSecrets }}
+{{- else if .Values.imagePullSecrets }}
 imagePullSecrets:
-{{- range .Values.backend.imagePullSecrets }}
+{{- range .Values.imagePullSecrets }}
   - name: {{ . }}
 {{- end }}
 {{- end }}
 {{- end }}
 
-{{- define "devops.imageRegistry" -}}
+{{- define "frontend.imageRegistry" -}}
 {{- if .Values.global.imageRegistry }}
 {{- printf "%s/" .Values.global.imageRegistry }}
 {{- else }}

@@ -29,6 +29,12 @@ RUN mvn clean package -pl backend/server -am -DskipTests -B -q
 # =============================================================================
 FROM eclipse-temurin:21-jre-alpine
 
+# 创建非 root 用户
+# 使用固定 UID/GID 以兼容 Helm PodSecurityContext runAsUser
+RUN addgroup -S devops -g 1000 && \
+    adduser -S devops -u 1000 -G devops -h /app -s /sbin/nologin
+
+# 安装运行时依赖
 RUN apk add --no-cache \
     python3 \
     py3-pip \
@@ -46,7 +52,8 @@ RUN pip3 install --no-cache-dir \
     fpdf2 \
     markdown \
     Pillow>=10.0.0 \
-    -q
+    -q && \
+    rm -rf /root/.cache/pip
 
 # Copy the fat JAR
 COPY --from=builder /build/backend/server/target/server-*.jar /app/server.jar
@@ -57,14 +64,18 @@ WORKDIR /app
 # 默认 8*cores，每个 arena ~64MB，多核场景浪费严重
 ENV MALLOC_ARENA_MAX=2
 
-# Create data directories
-RUN mkdir -p /app/data /app/files /app/dumps
+# 创建数据目录并设置权限
+RUN mkdir -p /app/data /app/files /app/dumps /app/logs /app/config && \
+    chown -R devops:devops /app
 
-# Health check
+# 健康检查
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD wget -qO- http://localhost:8089/health/check || exit 1
 
 EXPOSE 8089
+
+# 切换到非 root 用户
+USER devops:devops
 
 ENTRYPOINT ["java", \
     "-Xms512m", "-Xmx1g", \

@@ -1,0 +1,65 @@
+{{- if .Values.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.persistence.existingClaim | default (printf "%s-data" (include "backend.fullname" .)) }}
+  labels:
+    {{- include "backend.labels" . | nindent 4 }}
+  {{- if not .Values.persistence.existingClaim }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.accessMode }}
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+{{- end }}
+---
+{{- if .Values.filePersistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.filePersistence.existingClaim | default (printf "%s-files" (include "backend.fullname" .)) }}
+  labels:
+    {{- include "backend.labels" . | nindent 4 }}
+  {{- if not .Values.filePersistence.existingClaim }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.filePersistence.accessMode }}
+  {{- if .Values.filePersistence.storageClass }}
+  storageClassName: {{ .Values.filePersistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.filePersistence.size }}
+{{- end }}
+---
+{{- if .Values.logPersistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.logPersistence.existingClaim | default (printf "%s-logs" (include "backend.fullname" .)) }}
+  labels:
+    {{- include "backend.labels" . | nindent 4 }}
+  {{- if not .Values.logPersistence.existingClaim }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.logPersistence.accessMode }}
+  {{- if .Values.logPersistence.storageClass }}
+  storageClassName: {{ .Values.logPersistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.logPersistence.size }}
+{{- end }}

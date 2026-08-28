@@ -1,14 +1,14 @@
 apiVersion: v2
-name: hfwas-devops
-description: HFWAS DevOps Platform — PM, User Center, Docgen, File Parser
+name: hfwas-devops-backend
+description: HFWAS DevOps Platform — Backend (Spring Boot + Python 文档生成)
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
 
 keywords:
   - devops
-  - project-management
-  - work-item
+  - backend
+  - spring-boot
   - document-generation
 
 home: https://github.com/HFwas/hfwas-devops
@@ -18,5 +18,3 @@ sources:
 maintainers:
   - name: HFwas
     email: hfwas@example.com
-
-dependencies: []

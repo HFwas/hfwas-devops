@@ -1,0 +1,155 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "backend.fullname" . }}
+  labels:
+    {{- include "backend.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+    {{- if eq .Values.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxSurge: {{ .Values.strategy.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.strategy.rollingUpdate.maxUnavailable }}
+    {{- end }}
+  selector:
+    matchLabels:
+      {{- include "backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "backend.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- include "backend.imagePullSecrets" . | nindent 6 }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: backend
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          image: "{{ include "backend.imageRegistry" . }}{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.config.serverPort }}
+              name: http
+              protocol: TCP
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: {{ .Values.config.springProfilesActive | quote }}
+            - name: SERVER_PORT
+              value: {{ .Values.config.serverPort | quote }}
+            - name: USER_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "backend.fullname" . }}
+                  key: secret
+            - name: USER_JWT_EXPIRE_SECONDS
+              value: {{ .Values.config.jwtExpireSeconds | quote }}
+            - name: DOCGEN_SCRIPT_PATH
+              value: {{ .Values.config.docgenScriptPath | quote }}
+            - name: DOCGEN_PYTHON_PATH
+              value: {{ .Values.config.docgenPythonPath | quote }}
+            - name: DOCGEN_OUTPUT_DIR
+              value: {{ .Values.config.docgenOutputDir | quote }}
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:sqlite:{{ .Values.persistence.mountPath }}/hfwas-devops.db"
+            - name: LOGGING_CONFIG
+              value: "file:{{ .Values.config.logbackPath | default "/app/config/logback-spring.xml" }}"
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "backend.fullname" . }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+          {{- end }}
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            - name: files
+              mountPath: {{ .Values.filePersistence.mountPath }}
+            - name: logs
+              mountPath: /app/logs
+            - name: config
+              mountPath: /app/config/logback-spring.xml
+              subPath: logback-spring.xml
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim | default (printf "%s-data" (include "backend.fullname" .)) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: files
+          {{- if .Values.filePersistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.filePersistence.existingClaim | default (printf "%s-files" (include "backend.fullname" .)) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: logs
+          {{- if .Values.logPersistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.logPersistence.existingClaim | default (printf "%s-logs" (include "backend.fullname" .)) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: config
+          configMap:
+            name: {{ include "backend.fullname" . }}-logback
+      {{- /* 合并自定义亲和性和 Pod 反亲和 */}}
+      {{- $affinity := .Values.affinity | default dict }}
+      {{- if and (gt (.Values.replicaCount | int) 1) .Values.podAntiAffinity }}
+      {{- $antiAffinity := dict "podAntiAffinity" (dict "preferredDuringSchedulingIgnoredDuringExecution" (list (dict
+        "weight" 100
+        "podAffinityTerm" (dict
+          "labelSelector" (dict "matchLabels" (dict
+            "app.kubernetes.io/name" (include "backend.name" .)
+            "app.kubernetes.io/instance" .Release.Name
+            "app.kubernetes.io/component" "backend"
+          ))
+          "topologyKey" (.Values.podAntiAffinity.topologyKey | default "kubernetes.io/hostname")
+        )
+      ))) }}
+      {{- $affinity = merge $affinity $antiAffinity }}
+      {{- end }}
+      {{- if gt (len $affinity) 0 }}
+      affinity:
+        {{- toYaml $affinity | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

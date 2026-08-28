@@ -1,0 +1,20 @@
+apiVersion: v2
+name: hfwas-devops-frontend
+description: HFWAS DevOps Platform — Frontend (Vue 3 + Vite + Nginx)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - devops
+  - frontend
+  - vue
+  - nginx
+
+home: https://github.com/HFwas/hfwas-devops
+sources:
+  - https://github.com/HFwas/hfwas-devops
+
+maintainers:
+  - name: HFwas
+    email: hfwas@example.com
