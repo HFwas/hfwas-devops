@@ -9,6 +9,7 @@ WORKDIR /build
 RUN apk add --no-cache maven
 
 # Cache dependencies first (layer 1)
+# Build context is project root, so pom.xml is the parent POM
 COPY pom.xml .
 COPY backend/pom.xml backend/pom.xml
 COPY backend/user-api/pom.xml backend/user-api/pom.xml
@@ -20,7 +21,7 @@ COPY backend/server/pom.xml backend/server/pom.xml
 RUN mvn dependency:go-offline -pl backend/server -am -B -q || true
 
 # Copy source and build
-COPY . .
+COPY backend/ backend/
 RUN mvn clean package -pl backend/server -am -DskipTests -B -q
 
 # =============================================================================
@@ -33,9 +34,6 @@ RUN apk add --no-cache \
     py3-pip \
     py3-pillow \
     py3-matplotlib \
-    tesseract-ocr \
-    tesseract-ocr-data-chi_sim \
-    tesseract-ocr-data-eng \
     && rm -rf /var/cache/apk/*
 
 # Install Python dependencies for docgen
