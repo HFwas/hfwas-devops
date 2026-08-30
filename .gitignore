@@ -44,3 +44,6 @@ logs/
 
 ### Superpowers brainstorm companion ###
 .superpowers/
+
+### Generated files ###
+files/

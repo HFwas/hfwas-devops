@@ -1,6 +1,7 @@
 package com.hfwas.devops.docgen;
 
 import com.hfwas.devops.common.docgen.DocgenUtil;
+import com.hfwas.devops.user.operlog.annotation.OperLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,6 +38,7 @@ public class DocgenController {
             "image", "图片", "md", "MD", "pdf", "PDF"
     );
 
+    @OperLog(module = "docgen", action = "generate", bizType = "document", summary = "生成文档")
     @PostMapping(value = "/generate", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public ResponseEntity<byte[]> generate(@RequestBody DocgenRequest request) {
         byte[] bytes = docgenUtil.generate(
@@ -64,6 +66,7 @@ public class DocgenController {
                 .body(bytes);
     }
 
+    @OperLog(module = "docgen", action = "generate", bizType = "document", summary = "生成文档到目录")
     @PostMapping("/generate-to-dir")
     public ResponseEntity<Map<String, Object>> generateToDir(@RequestBody DocgenDirRequest request) {
         // 空目录时使用默认目录
@@ -94,6 +97,7 @@ public class DocgenController {
         return ResponseEntity.ok(result);
     }
 
+    @OperLog(module = "docgen", action = "batch_generate", bizType = "document", summary = "批量生成文档")
     @PostMapping("/batch-generate")
     public ResponseEntity<Map<String, Object>> batchGenerate(@RequestBody BatchGenerateRequest request) {
         List<String> formats = request.getFormats();

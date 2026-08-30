@@ -6,6 +6,7 @@ import com.hfwas.devops.user.model.LoginResponse;
 import com.hfwas.devops.user.model.SwitchTenantRequest;
 import com.hfwas.devops.user.model.TenantOptionVO;
 import com.hfwas.devops.user.model.UserProfile;
+import com.hfwas.devops.user.operlog.annotation.OperLog;
 
 import java.util.List;
 import com.hfwas.devops.user.service.AuthService;
@@ -22,6 +23,7 @@ public class UserAuthController {
 
     private final AuthService authService;
 
+    @OperLog(module = "user", action = "login", bizType = "user", summary = "用户登录")
     @PostMapping("/login")
     public BaseResult<LoginResponse> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         return BaseResult.ok(authService.login(request, httpRequest));
@@ -37,6 +39,7 @@ public class UserAuthController {
         return BaseResult.ok(authService.listMyTenants());
     }
 
+    @OperLog(module = "user", action = "switch_tenant", bizType = "tenant", summary = "切换租户")
     @PostMapping("/switch-tenant")
     public BaseResult<LoginResponse> switchTenant(@RequestBody SwitchTenantRequest request,
                                                   HttpServletRequest httpRequest) {
@@ -44,6 +47,7 @@ public class UserAuthController {
         return BaseResult.ok(authService.switchTenant(request, token, httpRequest));
     }
 
+    @OperLog(module = "user", action = "logout", bizType = "user", summary = "用户登出")
     @PostMapping("/logout")
     public BaseResult<Void> logout(HttpServletRequest request) {
         String token = resolveToken(request);
