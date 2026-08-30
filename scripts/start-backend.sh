@@ -57,4 +57,10 @@ fi
 
 log "启动后端 (http://localhost:$BACKEND_PORT) ..."
 cd "$ROOT_DIR/backend/server"
-exec mvn spring-boot:run -DskipTests
+exec mvn spring-boot:run -DskipTests \
+  -Dspring-boot.run.jvmArguments="\
+    -Xms512m -Xmx1g \
+    -XX:MaxDirectMemorySize=512m \
+    -XX:+ExitOnOutOfMemoryError \
+    -XX:+HeapDumpOnOutOfMemoryError \
+    -XX:HeapDumpPath=$RUN_DIR/dumps"

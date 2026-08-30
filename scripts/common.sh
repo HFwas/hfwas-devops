@@ -6,7 +6,7 @@ RUN_DIR="$ROOT_DIR/.run"
 BACKEND_PORT="${BACKEND_PORT:-8089}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 
-mkdir -p "$RUN_DIR"
+mkdir -p "$RUN_DIR" "$RUN_DIR/dumps"
 
 log() {
   printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"
