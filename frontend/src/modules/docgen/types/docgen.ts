@@ -1,9 +1,3 @@
-export interface DocgenRequest {
-  format: DocgenFormat
-  filename: string
-  data: Record<string, any>
-}
-
 export type DocgenFormat = 'word' | 'excel' | 'ppt' | 'image' | 'md' | 'pdf'
 
 export const FORMAT_OPTIONS: { value: DocgenFormat; label: string; ext: string; icon: string }[] = [
@@ -14,10 +8,6 @@ export const FORMAT_OPTIONS: { value: DocgenFormat; label: string; ext: string; 
   { value: 'md',    label: 'Markdown', ext: '.md', icon: '📝' },
   { value: 'pdf',   label: 'PDF',   ext: '.pdf',  icon: '📕' },
 ]
-
-export const FORMAT_MAP = Object.fromEntries(
-  FORMAT_OPTIONS.map(f => [f.value, f])
-) as Record<DocgenFormat, typeof FORMAT_OPTIONS[0]>
 
 /** 默认数据模板 */
 export const DEFAULT_DATA_TEMPLATES: Record<DocgenFormat, Record<string, any>> = {

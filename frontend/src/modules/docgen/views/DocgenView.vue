@@ -103,8 +103,8 @@
           {{ currentProgress }}
         </n-tag>
 
-        <span v-if="!generating && !outputDir && totalFileCount > 1" class="hint-text">
-          多组合时自动保存到项目 files/ 目录
+        <span v-if="!generating && !outputDir" class="hint-text">
+          文件保存到项目 files/ 目录
         </span>
       </div>
     </n-card>
@@ -115,11 +115,9 @@
 import { ref, computed } from 'vue'
 import { useMessage, NSpace, NInputNumber, NSelect, NCheckbox, NCheckboxGroup, NTag } from 'naive-ui'
 import { FileDown, Loader } from '@lucide/vue'
-import {
-  FORMAT_OPTIONS, FORMAT_MAP,
-} from '@/modules/docgen/types/docgen'
+import { FORMAT_OPTIONS } from '@/modules/docgen/types/docgen'
 import type { DocgenFormat } from '@/modules/docgen/types/docgen'
-import { generateDocument, batchGenerate, downloadBlob } from '@/modules/docgen/api/docgen'
+import { batchGenerate } from '@/modules/docgen/api/docgen'
 
 const message = useMessage()
 
@@ -176,46 +174,26 @@ async function handleGenerate() {
   currentProgress.value = `正在生成 ${total} 个文件...`
 
   try {
-    const isSingleMode = selectedFormats.value.length === 1 && sizes.length === 1 && fileCount.value === 1
+    // 统一走批量生成接口，保存到目录（不下载）
+    const result = await batchGenerate({
+      formats: selectedFormats.value,
+      filename: filename.value || '文档',
+      sizes,
+      fileCount: fileCount.value,
+      directory: outputDir.value.trim() || undefined,
+      columnCount: selectedFormats.value.includes('excel') ? columnCount.value : undefined,
+      rowSize: selectedFormats.value.includes('excel') ? rowSize.value : undefined,
+      rowCount: selectedFormats.value.includes('excel') ? rowCount.value : undefined,
+    })
 
-    if (isSingleMode && !outputDir.value.trim()) {
-      // 单格式 + 单大小 + 单文件 + 无目录 → 沿用旧下载逻辑
-      const fmt = selectedFormats.value[0]
-      const size = sizes[0]
-      const ext = FORMAT_MAP[fmt]?.ext ?? '.bin'
-      const label = FORMAT_MAP[fmt]?.label ?? ''
-      const sizeLabel = size === 0 ? '' : '_' + formatSizeLabel(size)
-      const fileName = `${label}${sizeLabel}_${filename.value || '文档'}${ext}`
-
-      const blob = await generateDocument({
-        format: fmt,
-        filename: fileName,
-        data: { format: fmt, file_count: 1, file_size: size },
-      })
-      downloadBlob(blob, fileName)
-      message.success(`${label} 文件已生成并下载`)
-    } else {
-      // 批量生成
-      const result = await batchGenerate({
-        formats: selectedFormats.value,
-        filename: filename.value || '文档',
-        sizes,
-        fileCount: fileCount.value,
-        directory: outputDir.value.trim() || undefined,
-        columnCount: selectedFormats.value.includes('excel') ? columnCount.value : undefined,
-        rowSize: selectedFormats.value.includes('excel') ? rowSize.value : undefined,
-        rowCount: selectedFormats.value.includes('excel') ? rowCount.value : undefined,
-      })
-
-      if (result.success) {
-        const fileList = result.files?.map(f => f.filename).join(', ') || ''
-        message.success(result.message, { duration: 5000 })
-        // 如果文件数不多，显示文件名列表
-        if (result.files && result.files.length <= 10) {
-          currentProgress.value = `已生成: ${fileList}`
-        } else {
-          currentProgress.value = `已生成 ${result.total} 个文件`
-        }
+    if (result.success) {
+      const fileList = result.files?.map(f => f.filename).join(', ') || ''
+      message.success(result.message, { duration: 5000 })
+      // 如果文件数不多，显示文件名列表
+      if (result.files && result.files.length <= 10) {
+        currentProgress.value = `已生成: ${fileList}`
+      } else {
+        currentProgress.value = `已生成 ${result.total} 个文件`
       }
     }
   } catch (err: any) {
