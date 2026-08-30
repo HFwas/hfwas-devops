@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
@@ -53,10 +55,12 @@ public class DocgenController {
             default -> "application/octet-stream";
         };
 
+        String encodedFilename = URLEncoder.encode(request.getFilename(), StandardCharsets.UTF_8)
+                .replace("+", "%20");
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + request.getFilename() + "\"")
+                        "attachment; filename*=UTF-8''" + encodedFilename)
                 .body(bytes);
     }
 
