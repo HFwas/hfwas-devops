@@ -28,7 +28,7 @@ file-parser:
     parallel-pages: ${FILE_PARSER_OCR_PARALLEL_PAGES:4}
     max-concurrent: ${FILE_PARSER_OCR_MAX_CONCURRENT:2}
   tika:
-    max-text-length: ${FILE_PARSER_TIKA_MAX_TEXT_LENGTH:10485760}
+    max-text-length: ${FILE_PARSER_TIKA_MAX_TEXT_LENGTH:104857600}
   scanned-pdf:
     max-pages: ${FILE_PARSER_SCANNED_PDF_MAX_PAGES:50}
     max-image-dimension: ${FILE_PARSER_SCANNED_PDF_MAX_IMAGE_DIMENSION:2048}

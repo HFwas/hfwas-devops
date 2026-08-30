@@ -127,6 +127,40 @@ class TikaDocumentParserTest {
         }
     }
 
+    @Test
+    void shouldReturnFriendlyErrorWhenExceedingTextLengthLimit() throws Exception {
+        // 设置极小的文本长度限制，解析 sample.txt（60+ char）必然触发
+        lenient().when(tikaConfig.getMaxTextLength()).thenReturn(5);
+        parser = new TikaDocumentParser(config);
+
+        File file = getTestFile("sample.txt");
+        FileParseResultVO result = parser.parse(file, "sample.txt");
+
+        assertFalse(result.isSuccess());
+        assertNotNull(result.getErrorMessage());
+        // 验证返回友好提示，包含"最大提取限制"字样
+        assertTrue(result.getErrorMessage().contains("最大提取限制"),
+                "应返回友好提示，而非原始异常: " + result.getErrorMessage());
+        // 验证提示包含可配置的提示信息
+        assertTrue(result.getErrorMessage().contains("max-text-length"),
+                "应提示用户可调整配置: " + result.getErrorMessage());
+    }
+
+    @Test
+    void shouldParseSuccessfullyWithSmallLimitIfContentFits() throws Exception {
+        // 设置足够大的限制，确保能正常解析
+        lenient().when(tikaConfig.getMaxTextLength()).thenReturn(1000);
+        parser = new TikaDocumentParser(config);
+
+        File file = getTestFile("sample.txt");
+        FileParseResultVO result = parser.parse(file, "sample.txt");
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getContent());
+        assertNotNull(result.getContent().getText());
+        assertTrue(result.getContent().getText().contains("Hello World"));
+    }
+
     private File getTestFile(String fileName) {
         URL url = getClass().getClassLoader().getResource("files/" + fileName);
         assertNotNull(url, "Test file not found: " + fileName);

@@ -82,11 +82,13 @@ public class FileParserConfig {
     @Data
     public static class TikaConfig {
         /**
-         * Tika 提取文本最大长度（字符数），默认 10MB。
+         * Tika 提取文本最大长度（字符数），默认 100MB。
          * 防止超大文档解析出超长字符串挤占堆内存。
          * BodyContentHandler 使用此值限制写入，超出时抛出异常。
+         * 可通过环境变量 {@code FILE_PARSER_TIKA_MAX_TEXT_LENGTH} 或配置文件
+         * {@code file-parser.tika.max-text-length} 自定义。
          */
-        private int maxTextLength = 10 * 1024 * 1024;
+        private int maxTextLength = 100 * 1024 * 1024;
     }
 
     @Data

@@ -132,15 +132,19 @@ public class TikaDocumentParser implements DocumentParser {
 
         } catch (TikaException | SAXException | IOException e) {
             // Tika 文本超出限制时抛出 SAXException，转成友好的错误消息
+            // BodyContentHandler/WriteOutContentHandler 的异常消息格式：
+            // "Your document contained more than X characters, and so your requested limit has been reached."
             String msg = e.getMessage();
-            if (msg != null && msg.contains("max character limit")) {
+            if (msg != null && (msg.contains("more than") && msg.contains("limit has been reached"))
+                    || msg.contains("max character limit")) {
                 log.warn("Tika parse exceeded text length limit for {}: {}", fileName, msg);
                 return FileParseResultVO.builder()
                         .success(false)
                         .fileName(fileName)
                         .fileSize(file.length())
                         .errorMessage("文档内容过长，超过最大提取限制（"
-                                + (config.getTika().getMaxTextLength() / 1024 / 1024) + "MB），请减小文件后重试")
+                                + (config.getTika().getMaxTextLength() / 1024 / 1024) + "MB），可增大 "
+                                + "file-parser.tika.max-text-length 配置后重试")
                         .parseTimeMs(System.currentTimeMillis() - start)
                         .build();
             }
