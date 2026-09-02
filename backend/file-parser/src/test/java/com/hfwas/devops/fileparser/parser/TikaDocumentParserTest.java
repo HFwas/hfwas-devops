@@ -3,12 +3,14 @@ package com.hfwas.devops.fileparser.parser;
 import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.File;
+import java.lang.reflect.Method;
 import java.net.URL;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,6 +32,7 @@ class TikaDocumentParserTest {
     void setUp() {
         lenient().when(config.getTika()).thenReturn(tikaConfig);
         lenient().when(tikaConfig.getMaxTextLength()).thenReturn(10 * 1024 * 1024);
+        lenient().when(tikaConfig.getCleanupStrategy()).thenReturn("basic");
         parser = new TikaDocumentParser(config);
     }
 
@@ -159,6 +162,214 @@ class TikaDocumentParserTest {
         assertNotNull(result.getContent());
         assertNotNull(result.getContent().getText());
         assertTrue(result.getContent().getText().contains("Hello World"));
+    }
+
+    // ========== cleanupText 空白行清洗测试 ==========
+
+    @Test
+    @DisplayName("cleanupText: 正常文本不应被修改")
+    void shouldKeepNormalTextUnchanged() throws Exception {
+        String input = "第一行内容\n\n第二行内容\n\n第三行内容";
+        String result = invokeCleanupText(input);
+        assertEquals(input, result);
+    }
+
+    @Test
+    @DisplayName("cleanupText: 连续 3+ 空行应压缩为 1 个")
+    void shouldCollapseConsecutiveBlankLines() throws Exception {
+        assertEquals("第一行\n\n第二行", invokeCleanupText("第一行\n\n\n\n\n第二行"));
+        assertEquals("第一行\n\n第二行", invokeCleanupText("第一行\n\n\n\n\n\n\n\n第二行"));
+    }
+
+    @Test
+    @DisplayName("cleanupText: 行尾空白字符应被去除")
+    void shouldTrimTrailingWhitespace() throws Exception {
+        assertEquals("第一行\n第二行", invokeCleanupText("第一行  \n第二行\t\n"));
+    }
+
+    @Test
+    @DisplayName("cleanupText: 行首空白字符应被去除")
+    void shouldTrimLeadingWhitespace() throws Exception {
+        assertEquals("第一行\n第二行", invokeCleanupText("第一行\n  第二行"));
+    }
+
+    @Test
+    @DisplayName("cleanupText: 纯空白行（空格/Tab）应被移除")
+    void shouldRemoveWhitespaceOnlyLines() throws Exception {
+        // 空格组成的行
+        assertEquals("第一行\n\n第二行", invokeCleanupText("第一行\n     \n\n第二行"));
+        // Tab 组成的行
+        assertEquals("第一行\n\n第二行", invokeCleanupText("第一行\n\t\t\n\n第二行"));
+        // 混合空白字符
+        assertEquals("第一行\n\n第二行", invokeCleanupText("第一行\n \t \n\n第二行"));
+    }
+
+    @Test
+    @DisplayName("cleanupText: 首尾换行应被去除")
+    void shouldTrimLeadingAndTrailingNewlines() throws Exception {
+        assertEquals("第一行\n第二行", invokeCleanupText("\n\n第一行\n第二行\n\n"));
+        assertEquals("第一行\n第二行", invokeCleanupText("\n\n\n第一行\n第二行\n\n\n"));
+    }
+
+    @Test
+    @DisplayName("cleanupText: 混合场景 — 多种空白问题同时存在")
+    void shouldHandleMixedWhitespaceIssues() throws Exception {
+        String input = "\n\n  标题  \n\n\n\n正文内容\n\n\t\n\n第三行  \n\n\n";
+        String expected = "标题\n\n正文内容\n\n第三行";
+        assertEquals(expected, invokeCleanupText(input));
+    }
+
+    @Test
+    @DisplayName("cleanupText: \\r\\n 和 \\r 应统一为 \\n")
+    void shouldNormalizeLineEndings() throws Exception {
+        String input = "第一行\r\n\n\n第二行\r\n第三行\r";
+        String result = invokeCleanupText(input);
+        // 统一后不应包含 \r
+        assertFalse(result.contains("\r"));
+        // 连续空行已被压缩
+        assertEquals("第一行\n\n第二行\n第三行", result);
+    }
+
+    @Test
+    @DisplayName("cleanupText: 空字符串应返回空字符串")
+    void shouldReturnEmptyForEmptyString() throws Exception {
+        assertEquals("", invokeCleanupText(""));
+    }
+
+    @Test
+    @DisplayName("cleanupText: 单个换行符应返回空字符串")
+    void shouldHandleSingleNewline() throws Exception {
+        assertEquals("", invokeCleanupText("\n"));
+    }
+
+    @Test
+    @DisplayName("cleanupText: 仅有空白字符应返回空字符串")
+    void shouldHandleOnlyWhitespace() throws Exception {
+        assertEquals("", invokeCleanupText("   \n\n\t\n  \n"));
+    }
+
+    @Test
+    @DisplayName("cleanupText: 真实 DOCX 场景模拟 — 表格/段落混合空白")
+    void shouldCleanupDocxLikeContent() throws Exception {
+        // 模拟 DOCX 中常见的：标题 + 空段落 + 正文 + 表格空行 + 正文
+        String input = "一、项目背景\n\n\n\n\n\n\n1.1 概述\n\n\n\n\n\n\n\n\n\n\n表格内容\n\n\n\n\n\n\n\n\n\n\n\n三、总结\n\n";
+        String expected = "一、项目背景\n\n1.1 概述\n\n表格内容\n\n三、总结";
+        assertEquals(expected, invokeCleanupText(input));
+    }
+
+    // ========== docx 策略深度清洗测试 ==========
+
+    @Test
+    @DisplayName("cleanupText(docx): 应删除由 = 组成的分隔线")
+    void shouldRemoveEqualsSeparator() throws Exception {
+        // 设计分割线
+        assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n======== 设计分割线：李钊\n后面内容"));
+        // 产品分割线
+        assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n========================产品分割线：李钊======================\n后面内容"));
+        // 纯 = 分隔线
+        assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n====================\n后面内容"));
+    }
+
+    @Test
+    @DisplayName("cleanupText(docx): 应删除由 - 组成的分隔线")
+    void shouldRemoveDashSeparator() throws Exception {
+        assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n----------------------------------------\n后面内容"));
+    }
+
+    @Test
+    @DisplayName("cleanupText(docx): 应删除 @xxx 内部协同标记")
+    void shouldRemoveAtMentions() throws Exception {
+        assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n@郑威 补充\n后面内容"));
+        assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n@董皓辰 从这边开始写设计\n后面内容"));
+        assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n@林培峰\n后面内容"));
+    }
+
+    @Test
+    @DisplayName("cleanupText(basic): 应删除图片文件名残留（PNG/JPEG 等格式）")
+    void shouldRemoveImageFileList() throws Exception {
+        // 图片文件清理在 basic 策略中执行
+        assertEquals("文档正文", invokeCleanupText("文档正文\nimage1.png\nimage2.png\nimage3.png"));
+        assertEquals("文档正文", invokeCleanupText("文档正文\nimage1.jpeg\nimage2.jpeg"));
+        assertEquals("文档正文", invokeCleanupText("文档正文\nimage1.png\nimage2.jpeg\nimage3.gif"));
+    }
+
+    @Test
+    @DisplayName("cleanupText(docx): 应删除 to研发/待研发确认 备注")
+    void shouldRemoveDevNotes() throws Exception {
+        assertEquals("正文", invokeCleanupTextDocx("正文\nto研发：需要先判断文件夹是否存在"));
+        assertEquals("正文", invokeCleanupTextDocx("正文\n待研发确认这里是选项还是输入框"));
+    }
+
+    @Test
+    @DisplayName("cleanupText(docx): 应删除 URL 内链")
+    void shouldRemoveUrls() throws Exception {
+        assertEquals("正文", invokeCleanupTextDocx("正文\nhttp://qingyu.dbcs.jh/kb/dPf/d/bbve"));
+        assertEquals("正文", invokeCleanupTextDocx("正文\nhttps://example.com/path"));
+    }
+
+    @Test
+    @DisplayName("cleanupText(docx): 应删除占位文本")
+    void shouldRemovePlaceholderText() throws Exception {
+        assertEquals("正文", invokeCleanupTextDocx("正文\nxxx岗位选择xxx菜单，进入XXXX界面"));
+    }
+
+    @Test
+    @DisplayName("cleanupText(docx): 应删除单独一行的数字页码")
+    void shouldRemovePageNumber() throws Exception {
+        assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n22\n后面内容"));
+        // 段落中的数字不应被删除
+        assertEquals("第 1 章 引言", invokeCleanupTextDocx("第 1 章 引言"));
+    }
+
+    @Test
+    @DisplayName("cleanupText(docx): 完整 DOCX 文档清洗场景")
+    void shouldFullyCleanDocxContent() throws Exception {
+        String input = "一、背景\n"
+                + "\n"
+                + "======== 设计分割线：李钊\n"
+                + "\n"
+                + "【功能描述】\n"
+                + "@郑威 补充\n"
+                + "\n"
+                + "页面内容\n"
+                + "to研发：需要确认接口\n"
+                + "http://example.com\n"
+                + "\n"
+                + "image1.png\n"
+                + "image2.png\n"
+                + "三、总结\n"
+                + "\n";
+        String expected = "一、背景\n\n【功能描述】\n\n页面内容\n\n三、总结";
+        assertEquals(expected, invokeCleanupTextDocx(input));
+    }
+
+    @Test
+    @DisplayName("cleanupText(docx): 电子表格不应执行深度清洗")
+    void shouldNotCleanSpreadsheetDeeply() throws Exception {
+        String input = "列1\t列2\n@xxx\t数据";
+        // 电子表格只做 basic 清洗，保留 @xxx
+        assertEquals("列1\t列2\n@xxx\t数据", invokeCleanupText(input, "text/csv"));
+    }
+
+    private String invokeCleanupTextDocx(String input) throws Exception {
+        // 创建 docx 策略的解析器实例
+        lenient().when(tikaConfig.getCleanupStrategy()).thenReturn("docx");
+        TikaDocumentParser docxParser = new TikaDocumentParser(config);
+        return invokeCleanupText(docxParser, input, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    }
+
+    private String invokeCleanupText(String input) throws Exception {
+        return invokeCleanupText(parser, input, "text/plain");
+    }
+
+    private String invokeCleanupText(String input, String mimeType) throws Exception {
+        return invokeCleanupText(parser, input, mimeType);
+    }
+
+    private String invokeCleanupText(TikaDocumentParser p, String input, String mimeType) throws Exception {
+        Method method = TikaDocumentParser.class.getDeclaredMethod("cleanupText", String.class, String.class);
+        method.setAccessible(true);
+        return (String) method.invoke(p, input, mimeType);
     }
 
     private File getTestFile(String fileName) {
