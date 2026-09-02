@@ -63,6 +63,8 @@ cd "$ROOT_DIR/backend/server"
 exec mvn spring-boot:run -DskipTests \
   -Dspring-boot.run.jvmArguments="\
     -Xms512m -Xmx1g \
+    -Dorg.bytedeco.javacpp.maxPhysicalBytes=6G \
+    -Dorg.bytedeco.javacpp.maxphysicalbytes=6G \
     -XX:MaxDirectMemorySize=512m \
     -XX:+ExitOnOutOfMemoryError \
     -XX:+HeapDumpOnOutOfMemoryError \

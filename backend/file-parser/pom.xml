@@ -56,30 +56,18 @@
             <version>0.4.20</version>
         </dependency>
 
-        <!-- RapidOCR: 基于 ONNX Runtime 的深度学习 OCR -->
-        <!-- 核心库 -->
+        <!-- ONNX Runtime Java: 深度学习推理引擎 -->
         <dependency>
-            <groupId>io.github.mymonstercat</groupId>
-            <artifactId>rapidocr</artifactId>
-            <version>0.0.7</version>
+            <groupId>com.microsoft.onnxruntime</groupId>
+            <artifactId>onnxruntime</artifactId>
+            <version>1.28.0</version>
         </dependency>
-        <!-- 平台检测 + ONNX Runtime 依赖 -->
+
+        <!-- JavaCV OpenCV: 图像处理（DB 后处理：膨胀、轮廓查找） -->
         <dependency>
-            <groupId>io.github.mymonstercat</groupId>
-            <artifactId>rapidocr-onnx-platform</artifactId>
-            <version>0.0.7</version>
-        </dependency>
-        <!-- macOS ARM64（Apple Silicon）原生库，含 ONNX Runtime native -->
-        <dependency>
-            <groupId>io.github.mymonstercat</groupId>
-            <artifactId>rapidocr-onnx-macosx-arm64</artifactId>
-            <version>1.2.2</version>
-        </dependency>
-        <!-- ONNX 模型文件（检测 + 识别） -->
-        <dependency>
-            <groupId>io.github.mymonstercat</groupId>
-            <artifactId>rapidocr-onnx-models</artifactId>
-            <version>1.2.2</version>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>opencv-platform</artifactId>
+            <version>4.10.0-1.5.11</version>
         </dependency>
 
         <dependency>
@@ -128,6 +116,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+                <configuration>
+                    <argLine>-Dorg.bytedeco.javacpp.maxPhysicalBytes=6G -Dorg.bytedeco.javacpp.maxphysicalbytes=6G</argLine>
+                </configuration>
             </plugin>
         </plugins>
     </build>

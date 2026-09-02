@@ -32,7 +32,7 @@ file-parser:
     cache-results: ${FILE_PARSER_OCR_CACHE_RESULTS:true}
     parallel-pages: ${FILE_PARSER_OCR_PARALLEL_PAGES:4}
     # 最大并发 OCR 推理数（环境变量: FILE_PARSER_OCR_MAX_CONCURRENT，控制堆外内存）
-    max-concurrent: ${FILE_PARSER_OCR_MAX_CONCURRENT:2}
+    max-concurrent: ${FILE_PARSER_OCR_MAX_CONCURRENT:1}
   tika:
     # Tika 提取文本最大长度（环境变量: FILE_PARSER_TIKA_MAX_TEXT_LENGTH，单位字符数）
     max-text-length: ${FILE_PARSER_TIKA_MAX_TEXT_LENGTH:104857600}
@@ -55,6 +55,12 @@ file-parser:
     min-compress-ratio: ${FILE_PARSER_COMPRESSION_MIN_RATIO:0.05}
     # 最小文件大小，小于此值不压缩，单位字节（环境变量: FILE_PARSER_COMPRESSION_MIN_FILE_SIZE）
     min-file-size: ${FILE_PARSER_COMPRESSION_MIN_FILE_SIZE:10240}
+  # PP-OCRv6 ONNX 模型配置
+  onnx:
+    # 模型存储目录（环境变量: FILE_PARSER_ONNX_MODEL_DIR，默认使用 ~/.hfwas-devops/models/ppocrv6）
+    model-dir: ${FILE_PARSER_ONNX_MODEL_DIR:}
+    # 模型档次: tiny | small | medium（环境变量: FILE_PARSER_ONNX_MODEL_TIER）
+    model-tier: ${FILE_PARSER_ONNX_MODEL_TIER:medium}
   # MIME 类型映射配置
   mime:
     # 扩展名到 MIME 类型的映射覆盖（优先级高于内置映射）

@@ -26,7 +26,7 @@ file-parser:
     preprocessing: ${FILE_PARSER_OCR_PREPROCESSING:true}
     cache-results: ${FILE_PARSER_OCR_CACHE_RESULTS:true}
     parallel-pages: ${FILE_PARSER_OCR_PARALLEL_PAGES:4}
-    max-concurrent: ${FILE_PARSER_OCR_MAX_CONCURRENT:2}
+    max-concurrent: ${FILE_PARSER_OCR_MAX_CONCURRENT:1}
   tika:
     max-text-length: ${FILE_PARSER_TIKA_MAX_TEXT_LENGTH:104857600}
   scanned-pdf:
@@ -39,6 +39,9 @@ file-parser:
     max-height: ${FILE_PARSER_COMPRESSION_MAX_HEIGHT:1920}
     min-compress-ratio: ${FILE_PARSER_COMPRESSION_MIN_RATIO:0.05}
     min-file-size: ${FILE_PARSER_COMPRESSION_MIN_FILE_SIZE:10240}
+  onnx:
+    model-dir: ${FILE_PARSER_ONNX_MODEL_DIR:}
+    model-tier: ${FILE_PARSER_ONNX_MODEL_TIER:medium}
   mime:
     extension-mappings:
       ".wps": "${FILE_PARSER_MIME_WPS:application/wps-office.wps}"

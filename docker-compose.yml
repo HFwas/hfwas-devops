@@ -15,7 +15,7 @@ services:
       USER_JWT_EXPIRE_SECONDS: "86400"
       DOCGEN_OUTPUT_DIR: /app/files
       MALLOC_ARENA_MAX: "2"
-      JAVA_TOOL_OPTIONS: "-Xms512m -Xmx1g -XX:MaxDirectMemorySize=512m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/dumps"
+      JAVA_TOOL_OPTIONS: "-Xms512m -Xmx1g -Dorg.bytedeco.javacpp.maxPhysicalBytes=6G -Dorg.bytedeco.javacpp.maxphysicalbytes=6G -XX:MaxDirectMemorySize=512m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/dumps"
     volumes:
       - devops-data:/app/data
       - devops-files:/app/files

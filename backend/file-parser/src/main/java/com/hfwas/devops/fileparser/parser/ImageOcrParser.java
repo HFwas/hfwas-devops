@@ -2,38 +2,20 @@ package com.hfwas.devops.fileparser.parser;
 
 import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
-import com.hfwas.devops.fileparser.image.ImageCompressionResult;
 import com.hfwas.devops.fileparser.image.ImageCompressionService;
 import com.hfwas.devops.fileparser.ocr.OcrService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.List;
 
 /**
  * 图片 OCR 解析器
- * 使用 RapidOCR 直接对图片文件进行文字识别。
+ * 使用 PP-OCRv6 对图片文件进行文字识别。
  * 支持格式：JPG、PNG、BMP、TIFF、WEBP 等常见图片格式，以及信创/国产图片格式。
  *
- * <h3>图片压缩预处理</h3>
- * 在 OCR 识别前，可选择性地对图片进行压缩/缩放，以减少 OCR 耗时和内存占用。
- * 压缩失败时自动回退到原图，不中断流程。
- *
- * <h3>信创/国产图片格式支持</h3>
- * <ul>
- *   <li>PCX - 国产系统常用位图格式</li>
- *   <li>JPEG 2000 - 国产文档管理系统常用</li>
- *   <li>WMF/EMF - Office 文档中嵌入的矢量图形</li>
- *   <li>DJVU - 国产数字图书馆扫描文档格式</li>
- *   <li>XBM/XPM - Linux 信创系统图片格式</li>
- *   <li>Netpbm (PBM/PGM/PPM/PNM) - 国产图像处理流程中常用</li>
- *   <li>WBMP - 嵌入式信创设备位图</li>
- *   <li>HEIC/HEIF - 国产移动端生态高压缩率图片</li>
- *   <li>AVIF - 现代图片格式</li>
- * </ul>
+ * <p>OCR 始终使用原图。不要在识别前做 1920 JPEG 压缩，手机拍屏/终端小字会被打糊。
  */
 @Slf4j
 @Component
@@ -54,7 +36,9 @@ public class ImageOcrParser implements DocumentParser {
     };
 
     private final OcrService ocrService;
+    @SuppressWarnings("unused")
     private final ImageCompressionService compressionService;
+    @SuppressWarnings("unused")
     private final FileParserConfig config;
 
     public ImageOcrParser(OcrService ocrService,
@@ -80,16 +64,11 @@ public class ImageOcrParser implements DocumentParser {
     public FileParseResultVO parse(File file, String fileName) {
         long start = System.currentTimeMillis();
 
-        // 1. 可选：图片压缩预处理
-        ImageCompressionResult compressionResult = compressIfEnabled(file, fileName);
-        File ocrFile = compressionResult.file();
-        File compressedFile = compressionResult.applied() ? ocrFile : null;
-
         try {
             log.info("Processing image OCR: {}", fileName);
 
-            // 2. 执行 OCR 识别
-            OcrService.OcrResult result = ocrService.recognizeWithConfidence(ocrFile);
+            // OCR 必须走原图。压缩到 1920 JPEG 会把屏幕截图里的终端小字打糊。
+            OcrService.OcrResult result = ocrService.recognizeWithConfidence(file);
 
             long elapsed = System.currentTimeMillis() - start;
             log.info("Image OCR parsed {} in {}ms, text length={}, confidence={}",
@@ -100,14 +79,8 @@ public class ImageOcrParser implements DocumentParser {
                     .build();
 
             List<String> warnings = null;
-            if (result.confidence() < 0.5) {
+            if (result.confidence() < 0.3) {
                 warnings = List.of("OCR 识别质量较低，建议使用清晰度更高的图片");
-            }
-
-            // 3. 构建压缩信息
-            FileParseResultVO.CompressionInfo compressionInfo = null;
-            if (compressionResult.applied()) {
-                compressionInfo = buildCompressionInfo(compressionResult, ocrFile);
             }
 
             return FileParseResultVO.builder()
@@ -120,11 +93,10 @@ public class ImageOcrParser implements DocumentParser {
                     .content(content)
                     .warnings(warnings)
                     .ocrInfo(FileParseResultVO.OcrInfo.builder()
-                            .engine("rapidocr")
+                            .engine("ppocrv6")
                             .pagesProcessed(1)
                             .confidence(result.confidence())
                             .build())
-                    .compressionInfo(compressionInfo)
                     .build();
 
         } catch (Exception e) {
@@ -137,42 +109,7 @@ public class ImageOcrParser implements DocumentParser {
                     .errorMessage("图片 OCR 识别失败: " + e.getMessage())
                     .parseTimeMs(elapsed)
                     .build();
-        } finally {
-            // 4. 清理压缩临时文件
-            if (compressedFile != null) {
-                try {
-                    Files.deleteIfExists(compressedFile.toPath());
-                } catch (IOException e) {
-                    log.warn("Failed to delete compressed temp file: {}", compressedFile.getName(), e);
-                }
-            }
         }
-    }
-
-    /**
-     * 如果压缩配置启用，对图片进行压缩预处理
-     */
-    private ImageCompressionResult compressIfEnabled(File file, String fileName) {
-        if (!config.getCompression().isEnabled()) {
-            return ImageCompressionResult.skipped(file);
-        }
-        return compressionService.compress(file, fileName);
-    }
-
-    /**
-     * 构建压缩信息
-     */
-    private FileParseResultVO.CompressionInfo buildCompressionInfo(ImageCompressionResult result, File compressedFile) {
-        return FileParseResultVO.CompressionInfo.builder()
-                .originalSize(result.originalSize())
-                .compressedSize(result.compressedSize())
-                .compressionRatio(result.ratio())
-                .quality(config.getCompression().getQuality())
-                .originalWidth(result.originalWidth())
-                .originalHeight(result.originalHeight())
-                .compressedWidth(result.compressedWidth())
-                .compressedHeight(result.compressedHeight())
-                .build();
     }
 
     private String detectMimeType(String fileName) {

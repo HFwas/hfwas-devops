@@ -45,6 +45,9 @@ public class FileParserConfig {
     /** 图片压缩配置 */
     private CompressionConfig compression = new CompressionConfig();
 
+    /** ONNX 模型配置 */
+    private OnnxConfig onnx = new OnnxConfig();
+
     @Data
     public static class ParserConfig {
         /**
@@ -72,11 +75,10 @@ public class FileParserConfig {
         private int parallelPages = 4;
 
         /**
-         * 最大并发 OCR 推理数，默认 2。
-         * ONNX Runtime 推理在堆外内存（Native Memory）中执行，
-         * 并发数过高会导致堆外内存膨胀，引发 OOM。
+         * 最大并发 OCR 推理数，默认 1。
+         * ONNX Runtime / OpenCV 推理在堆外内存中执行，并发会叠加 native 占用。
          */
-        private int maxConcurrent = 2;
+        private int maxConcurrent = 1;
     }
 
     @Data
@@ -153,5 +155,22 @@ public class FileParserConfig {
 
         /** 最小文件大小（字节），小于此值不压缩，默认 10KB */
         private long minFileSize = 10 * 1024;
+    }
+
+    @Data
+    public static class OnnxConfig {
+        /**
+         * 模型存储目录，默认 ~/.hfwas-devops/models/ppocrv6/
+         */
+        private String modelDir = System.getProperty("user.home") + "/.hfwas-devops/models/ppocrv6";
+
+        /**
+         * 模型档次: tiny | small | medium
+         * PP-OCRv6 三档可选：
+         * - tiny: 1.5M 参数，浏览器/边缘设备
+         * - small: 7.7M 参数，推荐，精度与速度平衡
+         * - medium: 34.5M 参数，云端高精度
+         */
+        private String modelTier = "medium";
     }
 }
