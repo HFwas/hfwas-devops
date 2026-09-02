@@ -1,26 +1,17 @@
 package com.hfwas.devops.fileparser.parser;
 
-import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
-import com.hfwas.devops.fileparser.image.ImageCompressionResult;
-import com.hfwas.devops.fileparser.image.ImageCompressionService;
 import com.hfwas.devops.fileparser.ocr.OcrService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.List;
 
 /**
- * 图片 OCR 解析器
- * 使用 RapidOCR 直接对图片文件进行文字识别。
+ * 图片 OCR 解析器。
+ * 直接对原图做文字识别，不做缩放或重编码。
  * 支持格式：JPG、PNG、BMP、TIFF、WEBP 等常见图片格式，以及信创/国产图片格式。
- *
- * <h3>图片压缩预处理</h3>
- * 在 OCR 识别前，可选择性地对图片进行压缩/缩放，以减少 OCR 耗时和内存占用。
- * 压缩失败时自动回退到原图，不中断流程。
  *
  * <h3>信创/国产图片格式支持</h3>
  * <ul>
@@ -54,15 +45,9 @@ public class ImageOcrParser implements DocumentParser {
     };
 
     private final OcrService ocrService;
-    private final ImageCompressionService compressionService;
-    private final FileParserConfig config;
 
-    public ImageOcrParser(OcrService ocrService,
-                          ImageCompressionService compressionService,
-                          FileParserConfig config) {
+    public ImageOcrParser(OcrService ocrService) {
         this.ocrService = ocrService;
-        this.compressionService = compressionService;
-        this.config = config;
     }
 
     @Override
@@ -72,7 +57,6 @@ public class ImageOcrParser implements DocumentParser {
         for (String prefix : IMAGE_MIME_PREFIXES) {
             if (lower.startsWith(prefix)) return true;
         }
-        // 也支持 image/ 通配
         return lower.startsWith("image/");
     }
 
@@ -80,16 +64,10 @@ public class ImageOcrParser implements DocumentParser {
     public FileParseResultVO parse(File file, String fileName) {
         long start = System.currentTimeMillis();
 
-        // 1. 可选：图片压缩预处理
-        ImageCompressionResult compressionResult = compressIfEnabled(file, fileName);
-        File ocrFile = compressionResult.file();
-        File compressedFile = compressionResult.applied() ? ocrFile : null;
-
         try {
             log.info("Processing image OCR: {}", fileName);
 
-            // 2. 执行 OCR 识别
-            OcrService.OcrResult result = ocrService.recognizeWithConfidence(ocrFile);
+            OcrService.OcrResult result = ocrService.recognizeWithConfidence(file);
 
             long elapsed = System.currentTimeMillis() - start;
             log.info("Image OCR parsed {} in {}ms, text length={}, confidence={}",
@@ -100,14 +78,8 @@ public class ImageOcrParser implements DocumentParser {
                     .build();
 
             List<String> warnings = null;
-            if (result.confidence() < 0.5) {
-                warnings = List.of("OCR 识别质量较低，建议使用清晰度更高的图片");
-            }
-
-            // 3. 构建压缩信息
-            FileParseResultVO.CompressionInfo compressionInfo = null;
-            if (compressionResult.applied()) {
-                compressionInfo = buildCompressionInfo(compressionResult, ocrFile);
+            if (result.confidence() < 0.3) {
+                warnings = List.of("OCR 识别置信度较低，部分文字可能识别有误，建议使用清晰度更高的图片");
             }
 
             return FileParseResultVO.builder()
@@ -124,7 +96,6 @@ public class ImageOcrParser implements DocumentParser {
                             .pagesProcessed(1)
                             .confidence(result.confidence())
                             .build())
-                    .compressionInfo(compressionInfo)
                     .build();
 
         } catch (Exception e) {
@@ -137,48 +108,12 @@ public class ImageOcrParser implements DocumentParser {
                     .errorMessage("图片 OCR 识别失败: " + e.getMessage())
                     .parseTimeMs(elapsed)
                     .build();
-        } finally {
-            // 4. 清理压缩临时文件
-            if (compressedFile != null) {
-                try {
-                    Files.deleteIfExists(compressedFile.toPath());
-                } catch (IOException e) {
-                    log.warn("Failed to delete compressed temp file: {}", compressedFile.getName(), e);
-                }
-            }
         }
     }
 
-    /**
-     * 如果压缩配置启用，对图片进行压缩预处理
-     */
-    private ImageCompressionResult compressIfEnabled(File file, String fileName) {
-        if (!config.getCompression().isEnabled()) {
-            return ImageCompressionResult.skipped(file);
-        }
-        return compressionService.compress(file, fileName);
-    }
-
-    /**
-     * 构建压缩信息
-     */
-    private FileParseResultVO.CompressionInfo buildCompressionInfo(ImageCompressionResult result, File compressedFile) {
-        return FileParseResultVO.CompressionInfo.builder()
-                .originalSize(result.originalSize())
-                .compressedSize(result.compressedSize())
-                .compressionRatio(result.ratio())
-                .quality(config.getCompression().getQuality())
-                .originalWidth(result.originalWidth())
-                .originalHeight(result.originalHeight())
-                .compressedWidth(result.compressedWidth())
-                .compressedHeight(result.compressedHeight())
-                .build();
-    }
-
-    private String detectMimeType(String fileName) {
+    String detectMimeType(String fileName) {
         if (fileName == null) return "image/unknown";
         String lower = fileName.toLowerCase();
-        // 标准图片格式
         if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
         if (lower.endsWith(".png")) return "image/png";
         if (lower.endsWith(".bmp")) return "image/bmp";
@@ -187,7 +122,6 @@ public class ImageOcrParser implements DocumentParser {
         if (lower.endsWith(".gif")) return "image/gif";
         if (lower.endsWith(".svg")) return "image/svg+xml";
         if (lower.endsWith(".ico")) return "image/x-icon";
-        // 信创/国产图片格式
         if (lower.endsWith(".pcx")) return "image/pcx";
         if (lower.endsWith(".jp2")) return "image/jp2";
         if (lower.endsWith(".j2k") || lower.endsWith(".jpf")) return "image/jpeg2000";

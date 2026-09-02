@@ -124,7 +124,7 @@ hfwas-devops/
 | Maven | 3.8+ |
 | Node.js | 18+（推荐 20+） |
 | npm | 9+ |
-| Python | 3.8+（文档生成需要） |
+| Python | 3.8+（文档生成、OCR v6；启动脚本会自动建虚拟环境） |
 
 ---
 
@@ -141,6 +141,7 @@ hfwas-devops/
 ```
 
 脚本会后台启动后端、前台启动前端；`Ctrl+C` 退出时会自动停止后端。
+首次启动后端会在 `backend/scripts/.venv` 创建虚拟环境，安装文档生成与 PP-OCRv6 worker 依赖；ONNX 模型放在 `backend/file-parser/src/main/resources/ocr/models/`（首次缺失时下载进去，之后离线读取）。
 
 | 服务 | 地址 |
 |------|------|
@@ -287,11 +288,6 @@ BACKEND_PORT=8089 FRONTEND_PORT=5173 ./scripts/start-dev.sh
 | `docgen.script-path` | `../scripts/generate_doc.py` | 文档生成 Python 脚本路径 |
 | `docgen.python-path` | `python3` | Python 解释器路径 |
 | `docgen.output-dir` | `../../files` | 文档生成默认输出目录（相对 server 工作目录） |
-| `file-parser.compression.enabled` | `true` | 是否启用文件压缩 |
-| `file-parser.compression.quality` | `0.8` | 压缩质量（0-1） |
-| `file-parser.compression.max-width` | `1920` | 压缩最大宽度（px） |
-| `file-parser.compression.max-height` | `1920` | 压缩最大高度（px） |
-| `file-parser.compression.min-file-size` | `10240` | 最小压缩文件大小（字节） |
 
 开发 profile（`application-dev.yml`）会禁用 Redis 自动配置；本地无需 Redis。
 
@@ -320,15 +316,27 @@ cd backend/server
 java -jar target/server-1.0-SNAPSHOT.jar
 ```
 
-### Python 文档生成脚本
+### Python 文档生成与 OCR
 
-文档生成功能依赖 Python 3 及以下库：
+`./scripts/start-backend.sh` / `start-dev.sh` 会自动准备 `backend/scripts/.venv` 虚拟环境，并安装：
+
+- `backend/scripts/requirements.txt`（文档生成）
+- `backend/scripts/requirements-ocr.txt`（PP-OCRv6 worker）
+- `backend/scripts/prepare_ocr_models.py`（把 PP-OCRv6 ONNX 保存到 `backend/file-parser/src/main/resources/ocr/models/`）
+
+也可手动安装：
 
 ```bash
-pip install python-docx openpyxl python-pptx matplotlib fpdf2 markdown
+python3 -m venv backend/scripts/.venv
+backend/scripts/.venv/bin/pip install -r backend/scripts/requirements.txt
+backend/scripts/.venv/bin/pip install -r backend/scripts/requirements-ocr.txt
+backend/scripts/.venv/bin/python backend/scripts/prepare_ocr_models.py
 ```
 
-脚本位于 `backend/scripts/generate_doc.py`，支持 Word、Excel、PPT、图片、Markdown、PDF 六种格式，以及文件大小梯度控制。
+文档生成脚本：`backend/scripts/generate_doc.py`。
+OCR worker：`backend/file-parser/src/main/resources/ocr/ocr_worker.py`（Java 启动后常驻，不需要单独起进程）。
+
+跳过 Python 准备：`./scripts/start-backend.sh --skip-python`。
 
 ### 前端
 

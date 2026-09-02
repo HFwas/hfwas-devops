@@ -27,18 +27,17 @@ file-parser:
     cache-results: ${FILE_PARSER_OCR_CACHE_RESULTS:true}
     parallel-pages: ${FILE_PARSER_OCR_PARALLEL_PAGES:4}
     max-concurrent: ${FILE_PARSER_OCR_MAX_CONCURRENT:2}
+    model-version: ${FILE_PARSER_OCR_MODEL_VERSION:v4}
+    python-path: ${FILE_PARSER_OCR_PYTHON:python3}
+    python-worker: ${FILE_PARSER_OCR_PYTHON_WORKER:}
+    python-timeout-ms: ${FILE_PARSER_OCR_PYTHON_TIMEOUT_MS:30000}
+    python-det-model-dir: ${FILE_PARSER_OCR_DET_MODEL_DIR:}
+    python-rec-model-dir: ${FILE_PARSER_OCR_REC_MODEL_DIR:}
   tika:
     max-text-length: ${FILE_PARSER_TIKA_MAX_TEXT_LENGTH:104857600}
   scanned-pdf:
     max-pages: ${FILE_PARSER_SCANNED_PDF_MAX_PAGES:50}
     max-image-dimension: ${FILE_PARSER_SCANNED_PDF_MAX_IMAGE_DIMENSION:2048}
-  compression:
-    enabled: ${FILE_PARSER_COMPRESSION_ENABLED:true}
-    quality: ${FILE_PARSER_COMPRESSION_QUALITY:0.8}
-    max-width: ${FILE_PARSER_COMPRESSION_MAX_WIDTH:1920}
-    max-height: ${FILE_PARSER_COMPRESSION_MAX_HEIGHT:1920}
-    min-compress-ratio: ${FILE_PARSER_COMPRESSION_MIN_RATIO:0.05}
-    min-file-size: ${FILE_PARSER_COMPRESSION_MIN_FILE_SIZE:10240}
   mime:
     extension-mappings:
       ".wps": "${FILE_PARSER_MIME_WPS:application/wps-office.wps}"

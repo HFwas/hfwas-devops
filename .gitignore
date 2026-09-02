@@ -42,6 +42,10 @@ data/
 .run/
 logs/
 
+### Python ###
+backend/scripts/.venv/
+backend/scripts/venv/
+
 ### Superpowers brainstorm companion ###
 .superpowers/
 

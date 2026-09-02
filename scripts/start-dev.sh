@@ -8,6 +8,7 @@ source "$SCRIPT_DIR/common.sh"
 BUILD=false
 INSTALL=false
 FORCE=false
+SKIP_PYTHON=false
 
 usage() {
   cat <<EOF
@@ -16,10 +17,11 @@ usage() {
   后台启动后端 + 前台启动前端（开发常用）
 
 选项:
-  --build    后端启动前先编译
-  --install  前端启动前先 npm install
-  --force    端口占用时先结束旧进程
-  -h, --help 显示帮助
+  --build         后端启动前先编译
+  --install       前端启动前先 npm install
+  --force         端口占用时先结束旧进程
+  --skip-python   跳过 Python 虚拟环境
+  -h, --help      显示帮助
 
 停止: scripts/stop-dev.sh
 EOF
@@ -30,6 +32,7 @@ while [ $# -gt 0 ]; do
     --build) BUILD=true ;;
     --install) INSTALL=true ;;
     --force) FORCE=true ;;
+    --skip-python) SKIP_PYTHON=true ;;
     -h | --help)
       usage
       exit 0
@@ -46,6 +49,7 @@ FRONTEND_ARGS=()
 [ "$BUILD" = true ] && BACKEND_ARGS+=(--build)
 [ "$INSTALL" = true ] && FRONTEND_ARGS+=(--install)
 [ "$FORCE" = true ] && BACKEND_ARGS+=(--force) && FRONTEND_ARGS+=(--force)
+[ "$SKIP_PYTHON" = true ] && BACKEND_ARGS+=(--skip-python)
 
 cleanup() {
   log "停止开发服务 ..."

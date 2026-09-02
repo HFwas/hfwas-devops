@@ -42,9 +42,6 @@ public class FileParserConfig {
     /** MIME 类型映射配置 */
     private MimeConfig mime = new MimeConfig();
 
-    /** 图片压缩配置 */
-    private CompressionConfig compression = new CompressionConfig();
-
     @Data
     public static class ParserConfig {
         /**
@@ -77,6 +74,28 @@ public class FileParserConfig {
          * 并发数过高会导致堆外内存膨胀，引发 OOM。
          */
         private int maxConcurrent = 2;
+
+        /**
+         * OCR 模型版本：v4 或 v6
+         * v4 = PP-OCRv4 (RapidOCR)
+         * v6 = PP-OCRv6（常驻 Python worker）
+         */
+        private String modelVersion = "v4";
+
+        /** V6 Python 解释器 */
+        private String pythonPath = "python3";
+
+        /** V6 worker 脚本；空则从 classpath 解出 ocr_worker.py */
+        private String pythonWorker = "";
+
+        /** V6 检测模型目录；空则使用 worker 旁的 resources/ocr/models */
+        private String pythonDetModelDir = "";
+
+        /** V6 识别模型目录；空则使用 worker 旁的 resources/ocr/models */
+        private String pythonRecModelDir = "";
+
+        /** 单次识别超时（毫秒）；worker 首次就绪另有至少 60s */
+        private long pythonTimeoutMs = 30_000;
     }
 
     @Data
@@ -132,26 +151,5 @@ public class FileParserConfig {
          * 用于 TikaDocumentParser 等解析器匹配非标准 MIME 类型。
          */
         private List<String> additionalMimePrefixes;
-    }
-
-    @Data
-    public static class CompressionConfig {
-        /** 是否启用图片压缩（OCR 前预处理） */
-        private boolean enabled = true;
-
-        /** 输出图片质量，0.0~1.0，默认 0.8 */
-        private float quality = 0.8f;
-
-        /** 最大宽度（像素），超过此值等比例缩放 */
-        private int maxWidth = 1920;
-
-        /** 最大高度（像素），超过此值等比例缩放 */
-        private int maxHeight = 1920;
-
-        /** 最小压缩比阈值，低于此值使用原图（避免无效压缩），默认 5% */
-        private double minCompressRatio = 0.05;
-
-        /** 最小文件大小（字节），小于此值不压缩，默认 10KB */
-        private long minFileSize = 10 * 1024;
     }
 }

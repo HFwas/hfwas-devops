@@ -49,13 +49,6 @@
             <version>3.0.8</version>
         </dependency>
 
-        <!-- Thumbnailator: 图片压缩/缩放（OCR 前预处理） -->
-        <dependency>
-            <groupId>net.coobird</groupId>
-            <artifactId>thumbnailator</artifactId>
-            <version>0.4.20</version>
-        </dependency>
-
         <!-- RapidOCR: 基于 ONNX Runtime 的深度学习 OCR -->
         <!-- 核心库 -->
         <dependency>
@@ -106,6 +99,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

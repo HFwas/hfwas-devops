@@ -7,6 +7,7 @@ source "$SCRIPT_DIR/common.sh"
 
 BUILD=false
 FORCE=false
+SKIP_PYTHON=false
 
 usage() {
   cat <<EOF
@@ -15,9 +16,10 @@ usage() {
   启动后端 Spring Boot（端口 $BACKEND_PORT）
 
 选项:
-  --build    启动前先编译 (mvn install -pl server -am -DskipTests)
-  --force    若端口被占用，先结束占用进程
-  -h, --help 显示帮助
+  --build         启动前先编译 (mvn install -pl server -am -DskipTests)
+  --force         若端口被占用，先结束占用进程
+  --skip-python   跳过 Python 虚拟环境（OCR v6 / 文档生成将使用系统 python3）
+  -h, --help      显示帮助
 EOF
 }
 
@@ -25,6 +27,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --build) BUILD=true ;;
     --force) FORCE=true ;;
+    --skip-python) SKIP_PYTHON=true ;;
     -h | --help)
       usage
       exit 0
@@ -38,9 +41,6 @@ done
 
 require_cmd mvn
 require_cmd java
-
-# 设置 Python 虚拟环境（文档生成依赖）
-setup_python_venv
 
 if [ -n "$(port_pids "$BACKEND_PORT")" ]; then
   if [ "$FORCE" = true ]; then
@@ -56,6 +56,12 @@ fi
 if [ "$BUILD" = true ]; then
   log "编译后端 ..."
   (cd "$ROOT_DIR/backend" && mvn install -pl server -am -DskipTests -q)
+fi
+
+if [ "$SKIP_PYTHON" = true ]; then
+  log "已跳过 Python 虚拟环境"
+else
+  ensure_python_env
 fi
 
 log "启动后端 (http://localhost:$BACKEND_PORT) ..."
