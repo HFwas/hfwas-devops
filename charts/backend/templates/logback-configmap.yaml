@@ -18,6 +18,7 @@ data:
       <!-- 文件输出 - 所有日志 -->
       <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>/app/logs/devops.log</file>
+        <append>true</append>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
           <fileNamePattern>/app/logs/devops.%d{yyyy-MM-dd}.log</fileNamePattern>
           <maxHistory>30</maxHistory>
@@ -30,6 +31,7 @@ data:
       <!-- 错误日志单独输出 -->
       <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>/app/logs/devops-error.log</file>
+        <append>true</append>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
           <fileNamePattern>/app/logs/devops-error.%d{yyyy-MM-dd}.log</fileNamePattern>
           <maxHistory>30</maxHistory>

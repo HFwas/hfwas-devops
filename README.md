@@ -447,7 +447,7 @@ rm -f backend/server/data/hfwas-devops.db
 
 **后端启动超时**
 
-查看日志：`.run/backend.log`
+查看日志：`logs/backend.log`
 
 **前端 API 404**
 

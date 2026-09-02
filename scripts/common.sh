@@ -2,7 +2,7 @@
 # Shared helpers for dev scripts.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RUN_DIR="$ROOT_DIR/.run"
+RUN_DIR="$ROOT_DIR/logs"
 BACKEND_PORT="${BACKEND_PORT:-8089}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 VENV_DIR="$ROOT_DIR/backend/scripts/.venv"

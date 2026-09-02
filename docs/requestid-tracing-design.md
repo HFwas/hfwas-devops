@@ -468,7 +468,7 @@ java.lang.NullPointerException: ...
 检索命令：
 
 ```bash
-grep "a1b2c3d4-e5f6-7890-1234-5678abcdef01" ./logs/devops.log
+grep "a1b2c3d4-e5f6-7890-1234-5678abcdef01" logs/devops.log
 ```
 
 ---
