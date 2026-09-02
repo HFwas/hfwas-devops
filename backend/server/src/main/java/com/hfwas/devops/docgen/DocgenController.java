@@ -1,5 +1,6 @@
 package com.hfwas.devops.docgen;
 
+import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.common.docgen.DocgenUtil;
 import com.hfwas.devops.user.operlog.annotation.OperLog;
 import lombok.Data;
@@ -68,7 +69,7 @@ public class DocgenController {
 
     @OperLog(module = "docgen", action = "generate", bizType = "document", summary = "生成文档到目录")
     @PostMapping("/generate-to-dir")
-    public ResponseEntity<Map<String, Object>> generateToDir(@RequestBody DocgenDirRequest request) {
+    public BaseResult<Map<String, Object>> generateToDir(@RequestBody DocgenDirRequest request) {
         // 空目录时使用默认目录
         String dir = request.getDirectory();
         if (dir == null || dir.trim().isEmpty()) {
@@ -94,18 +95,18 @@ public class DocgenController {
         result.put("filename", request.getFilename());
         result.put("message", "文件已生成到: " + Paths.get(dir, request.getFilename()));
 
-        return ResponseEntity.ok(result);
+        return BaseResult.ok(result);
     }
 
     @OperLog(module = "docgen", action = "batch_generate", bizType = "document", summary = "批量生成文档")
     @PostMapping("/batch-generate")
-    public ResponseEntity<Map<String, Object>> batchGenerate(@RequestBody BatchGenerateRequest request) {
+    public BaseResult<Map<String, Object>> batchGenerate(@RequestBody BatchGenerateRequest request) {
         List<String> formats = request.getFormats();
         List<Long> sizes = request.getSizes();
         int fileCount = request.getFileCount();
 
         if (formats == null || formats.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "请至少选择一个格式"));
+            return BaseResult.failed(400, "请至少选择一个格式");
         }
         if (sizes == null || sizes.isEmpty()) {
             sizes = List.of(0L);
@@ -172,7 +173,7 @@ public class DocgenController {
         result.put("files", generatedFiles);
         result.put("total", total);
         result.put("message", "已生成 " + total + " 个文件到: " + dir);
-        return ResponseEntity.ok(result);
+        return BaseResult.ok(result);
     }
 
     /** 格式化文件大小标签：0 → "不限", 102400 → "100KB", 1048576 → "1MB" */

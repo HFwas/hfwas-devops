@@ -95,6 +95,13 @@
             <artifactId>commons-io</artifactId>
         </dependency>
 
+        <!-- user-api: BaseResult 统一响应实体 -->
+        <dependency>
+            <groupId>com.hfwas.devops</groupId>
+            <artifactId>user-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

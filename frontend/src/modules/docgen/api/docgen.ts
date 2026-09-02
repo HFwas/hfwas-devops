@@ -1,4 +1,4 @@
-import request from '@/shared/api/request'
+import { post } from '@/shared/api/request'
 import type { DocgenFormat } from '@/modules/docgen/types/docgen'
 
 /**
@@ -10,10 +10,7 @@ export async function generateToDir(req: {
   data: Record<string, unknown>
   directory: string
 }): Promise<{ success: boolean; directory: string; filename: string; message: string }> {
-  const res = await request.post('/api/docgen/generate-to-dir', req, {
-    timeout: 120000,
-  })
-  return res.data
+  return post('/api/docgen/generate-to-dir', req, 120000)
 }
 
 /**
@@ -36,8 +33,5 @@ export async function batchGenerate(req: {
   total: number
   message: string
 }> {
-  const res = await request.post('/api/docgen/batch-generate', req, {
-    timeout: 600000, // 10 分钟超时
-  })
-  return res.data
+  return post('/api/docgen/batch-generate', req, 600000) // 10 分钟超时
 }

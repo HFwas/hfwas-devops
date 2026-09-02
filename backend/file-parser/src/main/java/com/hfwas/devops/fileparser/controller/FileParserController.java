@@ -1,5 +1,6 @@
 package com.hfwas.devops.fileparser.controller;
 
+import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.fileparser.dto.FileParseRequest;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
 import com.hfwas.devops.fileparser.service.FileParserService;
@@ -28,18 +29,12 @@ public class FileParserController {
      * 上传并解析单个文件
      */
     @PostMapping("/upload")
-    public ResponseEntity<FileParseResultVO> upload(
+    public BaseResult<FileParseResultVO> upload(
             @RequestParam("file") MultipartFile file,
             @Valid FileParseRequest request) {
 
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body(
-                    FileParseResultVO.builder()
-                            .success(false)
-                            .fileName(file.getOriginalFilename())
-                            .errorMessage("上传文件为空")
-                            .build()
-            );
+            return BaseResult.failed(400, "上传文件为空");
         }
 
         log.info("Received file upload: {} ({} bytes)", file.getOriginalFilename(), file.getSize());
@@ -47,7 +42,10 @@ public class FileParserController {
         FileParseResultVO result = fileParserService.parse(file,
                 request != null ? request.getOptions() : null);
 
-        return ResponseEntity.ok(result);
+        if (!result.isSuccess()) {
+            return BaseResult.failed(500, result.getErrorMessage());
+        }
+        return BaseResult.ok(result);
     }
 
     /**

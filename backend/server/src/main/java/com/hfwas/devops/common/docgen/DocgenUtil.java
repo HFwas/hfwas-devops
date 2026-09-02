@@ -21,8 +21,23 @@ public class DocgenUtil {
     @Value("${docgen.script-path:backend/scripts/generate_doc.py}")
     private String scriptPath;
 
-    @Value("${docgen.python-path:python3}")
+    @Value("${docgen.python-path:}")
     private String pythonPath;
+
+    /**
+     * 获取 Python 可执行路径：优先使用配置的路径，其次探测虚拟环境，最后回退到系统 python3
+     */
+    private String resolvePythonPath() {
+        if (!pythonPath.isEmpty()) {
+            return pythonPath;
+        }
+        // 探测项目虚拟环境
+        File venvPython = new File("backend/scripts/.venv/bin/python3");
+        if (venvPython.exists()) {
+            return venvPython.getAbsolutePath();
+        }
+        return "python3";
+    }
 
     /**
      * 生成文档，返回文件字节数组
@@ -35,8 +50,9 @@ public class DocgenUtil {
             MAPPER.writeValue(dataFile, data);
 
             String scriptAbsPath = new File(scriptPath).getAbsolutePath();
+            String python = resolvePythonPath();
             ProcessBuilder pb = new ProcessBuilder(
-                    pythonPath, scriptAbsPath, format,
+                    python, scriptAbsPath, format,
                     dataFile.getAbsolutePath(), outputFile.getAbsolutePath()
             );
             pb.redirectErrorStream(true);
@@ -82,8 +98,9 @@ public class DocgenUtil {
             MAPPER.writeValue(dataFile, data);
 
             String scriptAbsPath = new File(scriptPath).getAbsolutePath();
+            String python = resolvePythonPath();
             ProcessBuilder pb = new ProcessBuilder(
-                    pythonPath, scriptAbsPath, format,
+                    python, scriptAbsPath, format,
                     dataFile.getAbsolutePath(), outputPath
             );
             pb.redirectErrorStream(true);

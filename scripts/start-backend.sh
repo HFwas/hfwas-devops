@@ -39,6 +39,9 @@ done
 require_cmd mvn
 require_cmd java
 
+# 设置 Python 虚拟环境（文档生成依赖）
+setup_python_venv
+
 if [ -n "$(port_pids "$BACKEND_PORT")" ]; then
   if [ "$FORCE" = true ]; then
     log "释放端口 $BACKEND_PORT ..."
@@ -63,4 +66,6 @@ exec mvn spring-boot:run -DskipTests \
     -XX:MaxDirectMemorySize=512m \
     -XX:+ExitOnOutOfMemoryError \
     -XX:+HeapDumpOnOutOfMemoryError \
-    -XX:HeapDumpPath=$RUN_DIR/dumps"
+    -XX:HeapDumpPath=$RUN_DIR/dumps" \
+  -Dspring-boot.run.arguments="\
+    --docgen.python-path=$VENV_DIR/bin/python3"

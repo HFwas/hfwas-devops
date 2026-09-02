@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_DIR="$ROOT_DIR/.run"
 BACKEND_PORT="${BACKEND_PORT:-8089}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
+VENV_DIR="$ROOT_DIR/backend/scripts/.venv"
 
 mkdir -p "$RUN_DIR" "$RUN_DIR/dumps"
 
@@ -23,6 +24,25 @@ require_cmd() {
 
 port_pids() {
   lsof -ti:"$1" 2>/dev/null || true
+}
+
+# 设置 Python 虚拟环境并安装文档生成依赖
+# 在启动后端前调用，确保 generate_doc.py 的依赖已就绪
+setup_python_venv() {
+  require_cmd python3
+
+  if [ ! -f "$VENV_DIR/bin/python3" ]; then
+    log "创建 Python 虚拟环境 ..."
+    python3 -m venv "$VENV_DIR"
+  fi
+
+  # 检查依赖是否已安装（以 python-docx 为探针）
+  if ! "$VENV_DIR/bin/python3" -c "import docx" 2>/dev/null; then
+    log "安装 Python 文档生成依赖 ..."
+    "$VENV_DIR/bin/pip3" install -r "$ROOT_DIR/backend/scripts/requirements.txt" -q
+  fi
+
+  log "Python 虚拟环境就绪: $VENV_DIR"
 }
 
 wait_for_port() {

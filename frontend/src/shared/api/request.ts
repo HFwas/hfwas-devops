@@ -63,8 +63,9 @@ request.interceptors.response.use(
   },
 )
 
-export async function post<T>(url: string, data?: unknown): Promise<T> {
-  const res = await request.post<BaseResult<T>>(url, data)
+export async function post<T>(url: string, data?: unknown, timeout?: number): Promise<T> {
+  const config = timeout ? { timeout } : undefined
+  const res = await request.post<BaseResult<T>>(url, data, config)
   return res.data.data
 }
 
@@ -99,10 +100,14 @@ export async function postBlob(url: string, data?: unknown, defaultFilename = 'e
 }
 
 /** POST multipart form for file upload APIs. */
-export async function postFormData<T>(url: string, form: FormData): Promise<T> {
-  const res = await request.post<BaseResult<T>>(url, form, {
+export async function postFormData<T>(url: string, form: FormData, timeout?: number): Promise<T> {
+  const config: Record<string, unknown> = {
     headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  }
+  if (timeout) {
+    config.timeout = timeout
+  }
+  const res = await request.post<BaseResult<T>>(url, form, config)
   return res.data.data
 }
 
