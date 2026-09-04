@@ -143,6 +143,36 @@ class FileParserServiceTest {
     }
 
     @Test
+    void shouldRouteToTikaForPdfWithoutThrowingOnMimeDetect() throws Exception {
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                "file", "doc.pdf", "application/pdf", "%PDF-1.4 fake".getBytes(StandardCharsets.UTF_8)
+        );
+
+        File tempFile = File.createTempFile("test-", ".pdf");
+        tempFile.deleteOnExit();
+        java.nio.file.Files.writeString(tempFile.toPath(), "%PDF-1.4 fake");
+
+        when(fileStorageService.save(any())).thenReturn(tempFile);
+        when(tikaParser.supports(anyString())).thenReturn(true);
+        when(tikaParser.parse(any(File.class), eq("doc.pdf")))
+                .thenReturn(FileParseResultVO.builder()
+                        .success(true)
+                        .fileName("doc.pdf")
+                        .fileSize(tempFile.length())
+                        .mimeType("application/pdf")
+                        .parseMethod("tika")
+                        .content(FileParseResultVO.Content.builder().text("pdf text").build())
+                        .build());
+
+        FileParseResultVO result = fileParserService.parse(multipartFile, null);
+
+        assertTrue(result.isSuccess(), result.getErrorMessage());
+        assertEquals("tika", result.getParseMethod());
+        verify(tikaParser).parse(any(File.class), eq("doc.pdf"));
+        verify(fileStorageService).delete(any());
+    }
+
+    @Test
     void shouldRouteToImageOcrForImageFile() throws Exception {
         MockMultipartFile multipartFile = new MockMultipartFile(
                 "file", "photo.png", "image/png", "fake png content".getBytes()

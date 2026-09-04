@@ -129,7 +129,12 @@ public class OcrService {
             }
             engineV6 = new OcrPythonWorker(python, script, config.getOcr().getPythonTimeoutMs(), Map.of(
                     "FILE_PARSER_OCR_DET_MODEL_DIR", config.getOcr().getPythonDetModelDir(),
-                    "FILE_PARSER_OCR_REC_MODEL_DIR", config.getOcr().getPythonRecModelDir()
+                    "FILE_PARSER_OCR_REC_MODEL_DIR", config.getOcr().getPythonRecModelDir(),
+                    "MPLBACKEND", "Agg",
+                    "PADDLE_PDX_EAGER_INIT", "0",
+                    "PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True",
+                    "HF_HUB_OFFLINE", "1",
+                    "TRANSFORMERS_OFFLINE", "1"
             ));
             log.info("PP-OCRv6 Python worker initialized in {}ms ({})",
                     System.currentTimeMillis() - start, script);

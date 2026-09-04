@@ -4,9 +4,10 @@ import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
 import com.hfwas.devops.fileparser.parser.DocumentParser;
 import com.hfwas.devops.fileparser.parser.ImageOcrParser;
+import com.hfwas.devops.fileparser.parser.PlainTextParser;
 import com.hfwas.devops.fileparser.parser.ScannedPdfParser;
 import com.hfwas.devops.fileparser.parser.TikaDocumentParser;
-import com.hfwas.devops.fileparser.parser.PlainTextParser;
+import com.hfwas.devops.fileparser.parser.TikaHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.Tika;
 import org.springframework.stereotype.Service;
@@ -59,7 +60,7 @@ public class FileParserService {
                              ImageOcrParser imageOcrParser,
                              PlainTextParser plainTextParser,
                              FileParserConfig config) {
-        this.tika = new Tika();
+        this.tika = TikaHolder.tika();
         this.fileStorageService = fileStorageService;
         this.config = config;
         // 解析器优先级顺序：Tika（含 DOCX/PPTX/XLSX/WPS/文本PDF） > 扫描PDF > 图片OCR > 纯文本
@@ -151,7 +152,7 @@ public class FileParserService {
             if (mimeType != null && !"application/octet-stream".equals(mimeType)) {
                 return mimeType;
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.warn("Tika MIME detection failed, falling back to extension: {}", e.getMessage());
         }
 

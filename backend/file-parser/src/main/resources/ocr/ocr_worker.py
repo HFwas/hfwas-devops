@@ -12,14 +12,18 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 import traceback
 from pathlib import Path
 
 # PaddleOCR 3.x / modelscope 在 Python 3.13 上未设置该变量会崩溃。
 os.environ.setdefault("HUB_DATASET_ENDPOINT", "https://modelscope.cn/api/v1/datasets")
 os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+os.environ.setdefault("PADDLE_PDX_EAGER_INIT", "0")
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+# paddlex 会顺带 import matplotlib；Agg 避免弹 GUI，也减少字体缓存扫描。
+os.environ.setdefault("MPLBACKEND", "Agg")
 
 DET_NAME = "PP-OCRv6_medium_det_onnx"
 REC_NAME = "PP-OCRv6_medium_rec_onnx"
@@ -46,12 +50,15 @@ def _model_dir(env_name: str, default_name: str) -> str:
 def load_engine():
     det = _model_dir("FILE_PARSER_OCR_DET_MODEL_DIR", DET_NAME)
     rec = _model_dir("FILE_PARSER_OCR_REC_MODEL_DIR", REC_NAME)
+    t0 = time.perf_counter()
     try:
         from paddleocr import PaddleOCR
     except ImportError as e:
         raise RuntimeError("需要 PaddleOCR 3.7.0: pip install paddleocr==3.7.0") from e
+    log(f"import paddleocr: {(time.perf_counter() - t0) * 1000:.0f}ms")
 
     # Python 3.13 没有官方 paddlepaddle wheel；3.7 可用 onnxruntime 跑 PP-OCRv6。
+    t1 = time.perf_counter()
     engine = PaddleOCR(
         text_detection_model_name="PP-OCRv6_medium_det",
         text_detection_model_dir=det,
@@ -63,6 +70,7 @@ def load_engine():
         use_doc_unwarping=False,
         use_textline_orientation=False,
     )
+    log(f"PaddleOCR() ctor: {(time.perf_counter() - t1) * 1000:.0f}ms")
     log(f"using PaddleOCR 3.7 PP-OCRv6 (onnxruntime) det={det} rec={rec}")
     return engine
 
