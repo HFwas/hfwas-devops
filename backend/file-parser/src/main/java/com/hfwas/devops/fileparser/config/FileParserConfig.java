@@ -113,7 +113,7 @@ public class FileParserConfig {
          * 文本清洗策略，默认 basic。
          * <ul>
          *   <li>{@code none}: 不进行任何清洗，保留 Tika 原始输出</li>
-         *   <li>{@code basic}: 基础清洗 — 去除多余空白行、行首行尾空白</li>
+         *   <li>{@code basic}: 仅 Word/PPT — 去除 Tika 抽出的多余空白行、嵌入图文件名</li>
          *   <li>{@code docx}: DOCX 文档深度清洗 — 在 basic 基础上，额外去除
          *       内部协同批注（{@code @xxx}）、设计分割线、图片文件名清单、
          *       研发内部备注、占位文本等，适用于正式交付场景</li>

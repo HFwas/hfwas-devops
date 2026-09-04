@@ -34,13 +34,14 @@
         <mysql.version>8.3.0</mysql.version>
         <snakeyaml.version>2.2</snakeyaml.version>
         <easyexcel.version>4.0.3</easyexcel.version>
-        <jsoup.version>1.18.3</jsoup.version>
+        <jsoup.version>1.23.1</jsoup.version>
         <guava.version>33.4.0-jre</guava.version>
         <spring-tx.version>6.1.10</spring-tx.version>
         <webmvc.version>6.1.14</webmvc.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <mapstruct-processor.version>1.6.3</mapstruct-processor.version>
         <commons-io.version>2.17.0</commons-io.version>
+        <commons-compress.version>1.28.0</commons-compress.version>
         <commons-collections.version>3.2.2</commons-collections.version>
         <tomcat.version>10.1.55</tomcat.version>
         <tomcat-embed.version>10.1.55</tomcat-embed.version>
@@ -259,6 +260,12 @@
                 <groupId>org.apache.poi</groupId>
                 <artifactId>poi-ooxml</artifactId>
                 <version>${poi-ooxml.version}</version>
+            </dependency>
+            <!-- Tika 4 按 IOException 捕获 ArchiveException；1.27.x 仍继承 Exception，探测 PDF 会 500 -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>${commons-compress.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jsoup</groupId>

@@ -56,7 +56,6 @@ public class PlainTextParser implements DocumentParser {
             Charset detectedCharset = detectCharset(file);
             log.info("Detected charset for {}: {}", fileName, detectedCharset.name());
 
-            // 读取文件内容
             String text = Files.readString(file.toPath(), detectedCharset);
             long fileSize = file.length();
 
