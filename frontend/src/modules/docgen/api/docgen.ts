@@ -26,6 +26,11 @@ export async function batchGenerate(req: {
   columnCount?: number
   rowSize?: number
   rowCount?: number
+  pageCount?: number
+  encrypt?: boolean
+  pdfPassword?: string
+  emptyContent?: boolean
+  emptyPageCount?: boolean
 }): Promise<{
   success: boolean
   directory: string

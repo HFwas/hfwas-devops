@@ -27,11 +27,7 @@
       <n-space vertical>
         <n-space align="center" :wrap="false">
           <span class="setting-label">文件名</span>
-          <n-input v-model:value="filename" placeholder="输入文件基础名" clearable style="flex:1">
-            <template #suffix>
-              <n-tag :bordered="false" size="tiny" type="info">自动追加格式名</n-tag>
-            </template>
-          </n-input>
+          <n-input v-model:value="filename" placeholder="输入文件基础名" clearable style="flex:1" />
         </n-space>
         <n-space align="center">
           <span class="setting-label">文件数</span>
@@ -48,12 +44,12 @@
           <n-input v-model:value="outputDir" placeholder="文件生成后保存的目录路径，留空则使用默认目录" clearable style="flex:1" />
           <span class="hint-text">留空时保存到项目 files/ 目录</span>
         </n-space>
-        <!-- 预计生成总数 -->
-        <n-space v-if="totalFileCount > 1" align="center">
-          <span class="setting-label">合计</span>
-          <n-tag type="warning" :bordered="false">
-            预计生成 <strong>{{ totalFileCount }}</strong> 个文件
-            （{{ selectedFormats.length }} 种格式 × {{ selectedSizes.length || 1 }} 种大小 × {{ fileCount }} 个）
+        <n-space align="center" :wrap="true">
+          <span class="setting-label">预览</span>
+          <n-tag :bordered="false" type="info">{{ namePreview }}</n-tag>
+          <n-tag v-if="totalFileCount > 1" type="warning" :bordered="false">
+            共 {{ totalFileCount }} 个
+            （{{ selectedFormats.length }} 格式 × {{ selectedSizes.length || 1 }} 大小 × {{ fileCount }} 份）
           </n-tag>
         </n-space>
       </n-space>
@@ -76,6 +72,47 @@
           <span class="setting-label">行数</span>
           <n-input-number v-model:value="rowCount" :min="1" :max="9999999" :step="1" style="width:120px" />
           <span class="hint-text">生成行数（不限制，可设置极大值）</span>
+        </n-space>
+      </n-space>
+    </n-card>
+
+    <!-- PDF 专属设置 -->
+    <n-card v-if="selectedFormats.includes('pdf')" class="section-card" :bordered="true" title="2. PDF 设置">
+      <n-space vertical>
+        <n-space align="center">
+          <span class="setting-label">页数</span>
+          <n-input-number
+            v-model:value="pageCount"
+            :min="1"
+            :max="9999"
+            :step="1"
+            :disabled="emptyPageCount"
+            style="width:120px"
+          />
+          <span class="hint-text">{{ emptyPageCount ? '已开启空页数，按内容自动分页' : '生成 PDF 的页数' }}</span>
+        </n-space>
+        <n-space align="center">
+          <span class="setting-label">空页数</span>
+          <n-switch v-model:value="emptyPageCount" />
+          <span class="hint-text">开启后不指定页数，按内容自动分页</span>
+        </n-space>
+        <n-space align="center">
+          <span class="setting-label">空内容</span>
+          <n-switch v-model:value="emptyContent" />
+          <span class="hint-text">开启后不写入正文，只生成空白页</span>
+        </n-space>
+        <n-space align="center">
+          <span class="setting-label">加密</span>
+          <n-switch v-model:value="encrypt" />
+          <n-input
+            v-if="encrypt"
+            v-model:value="pdfPassword"
+            type="password"
+            show-password-on="click"
+            placeholder="打开密码"
+            style="width:160px"
+          />
+          <span class="hint-text">{{ encrypt ? '打开 PDF 需要密码，默认 123456' : '开启后生成带密码的 PDF' }}</span>
         </n-space>
       </n-space>
     </n-card>
@@ -113,7 +150,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useMessage, NSpace, NInputNumber, NSelect, NCheckbox, NCheckboxGroup, NTag } from 'naive-ui'
+import { useMessage, NSpace, NInputNumber, NSelect, NCheckbox, NCheckboxGroup, NTag, NSwitch } from 'naive-ui'
 import { FileDown, Loader } from '@lucide/vue'
 import { FORMAT_OPTIONS } from '@/modules/docgen/types/docgen'
 import type { DocgenFormat } from '@/modules/docgen/types/docgen'
@@ -132,6 +169,11 @@ const currentProgress = ref('准备中...')
 const columnCount = ref(8)
 const rowSize = ref(10)
 const rowCount = ref(20)
+const pageCount = ref(5)
+const emptyPageCount = ref(false)
+const emptyContent = ref(false)
+const encrypt = ref(false)
+const pdfPassword = ref('123456')
 
 const FILE_SIZE_OPTIONS = [
   { label: '不限制', value: 0 },
@@ -151,6 +193,57 @@ const totalFileCount = computed(() => {
   const sizeCount = selectedSizes.value.length || 1
   return fmtCount * sizeCount * fileCount.value
 })
+
+const namePreview = computed(() => {
+  const fmt = selectedFormats.value[0] || 'word'
+  const ext = FORMAT_OPTIONS.find(o => o.value === fmt)?.ext || '.bin'
+  const size = selectedSizes.value[0] ?? 0
+  const name = buildOutputFileName(filename.value, fmt, ext, size, 0, fileCount.value)
+  if (totalFileCount.value > 1) {
+    return `${name} 等`
+  }
+  return name
+})
+
+function sanitizeBaseName(name: string): string {
+  const cleaned = (name || '文档').trim().replace(/[\\/:*?"<>|\s]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+  return cleaned || '文档'
+}
+
+function formatSizeLabel(bytes: number): string {
+  if (bytes <= 0) return ''
+  if (bytes < 1024 * 1024) return `${bytes / 1024}KB`
+  return `${bytes / (1024 * 1024)}MB`
+}
+
+function todayPrefix(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}${m}${day}`
+}
+
+function buildOutputFileName(
+  rawName: string,
+  fmt: DocgenFormat,
+  ext: string,
+  size: number,
+  index: number,
+  count: number,
+): string {
+  const parts = [todayPrefix(), sanitizeBaseName(rawName)]
+  const sizeLabel = formatSizeLabel(size)
+  if (sizeLabel) parts.push(sizeLabel)
+  if (fmt === 'pdf') {
+    if (emptyPageCount.value) parts.push('空页数')
+    else if (pageCount.value > 0) parts.push(`${pageCount.value}页`)
+    if (emptyContent.value) parts.push('空内容')
+    if (encrypt.value) parts.push('加密')
+  }
+  if (count > 1) parts.push(String(index + 1))
+  return `${parts.join('_')}${ext}`
+}
 
 // ─── 生成逻辑 ───
 async function handleGenerate() {
@@ -184,6 +277,11 @@ async function handleGenerate() {
       columnCount: selectedFormats.value.includes('excel') ? columnCount.value : undefined,
       rowSize: selectedFormats.value.includes('excel') ? rowSize.value : undefined,
       rowCount: selectedFormats.value.includes('excel') ? rowCount.value : undefined,
+      pageCount: selectedFormats.value.includes('pdf') && !emptyPageCount.value ? pageCount.value : undefined,
+      encrypt: selectedFormats.value.includes('pdf') ? encrypt.value : undefined,
+      pdfPassword: selectedFormats.value.includes('pdf') && encrypt.value ? (pdfPassword.value || '123456') : undefined,
+      emptyContent: selectedFormats.value.includes('pdf') ? emptyContent.value : undefined,
+      emptyPageCount: selectedFormats.value.includes('pdf') ? emptyPageCount.value : undefined,
     })
 
     if (result.success) {
@@ -201,13 +299,6 @@ async function handleGenerate() {
   } finally {
     generating.value = false
   }
-}
-
-/** 格式化文件大小标签 */
-function formatSizeLabel(bytes: number): string {
-  if (bytes <= 0) return '不限'
-  if (bytes < 1024 * 1024) return (bytes / 1024) + 'KB'
-  return (bytes / (1024 * 1024)) + 'MB'
 }
 </script>
 

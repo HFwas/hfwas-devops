@@ -26,6 +26,17 @@ import string
 import platform
 import subprocess
 from datetime import datetime
+import math
+
+
+def _as_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return False
 
 
 # ============================================================
@@ -672,49 +683,143 @@ def generate_pdf(data: dict, output_path: str):
         "table": {
             "headers": ["列1", "列2"],
             "rows": [["a1", "b1"], ["a2", "b2"]]
-        }
+        },
+        "page_count": 5,          # 可选，指定生成页数
+        "empty_page_count": false, # true 时不指定页数，按内容自动分页
+        "empty_content": false,    # true 时不写正文（空白页）
+        "encrypt": false,          # true 时加密
+        "pdf_password": "123456"
     }
     """
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
+    from reportlab.lib.pdfencrypt import StandardEncryption
+
+    empty_content = _as_bool(data.get("empty_content"))
+    empty_page_count = _as_bool(data.get("empty_page_count"))
+    encrypt = _as_bool(data.get("encrypt"))
+    password = str(data.get("pdf_password") or data.get("password") or "123456")
+
+    page_count = 0 if empty_page_count else int(data.get("page_count") or 0)
+    content = [] if empty_content else list(data.get("content") or [])
+    if not empty_content and not content:
+        content = ["这是第一段内容，由 Python 脚本自动生成。", "这是第二段内容。"]
+    total_paragraphs = len(content)
+    title = data.get("title", "文档")
+
+    encrypt_obj = None
+    if encrypt:
+        encrypt_obj = StandardEncryption(userPassword=password, ownerPassword=password)
 
     width, height = A4
-    c = canvas.Canvas(output_path, pagesize=A4)
+    c = canvas.Canvas(output_path, pagesize=A4, encrypt=encrypt_obj)
 
-    # 标题
-    c.setFont("Helvetica-Bold", 24)
-    c.drawString(50 * mm, height - 30 * mm, data.get("title", "文档"))
+    if empty_content:
+        blank_pages = page_count if page_count > 0 else 1
+        for i in range(blank_pages):
+            if i > 0:
+                c.showPage()
+        c.save()
+        flags = []
+        if encrypt:
+            flags.append("加密")
+        flags.append("空内容")
+        if empty_page_count:
+            flags.append("空页数")
+        print(f"[OK] PDF 文件已生成: {output_path}，共 {blank_pages} 页（{', '.join(flags)}）")
+        return
 
-    # 正文
-    c.setFont("Helvetica", 12)
-    y = height - 50 * mm
-    for line in data.get("content", []):
-        c.drawString(30 * mm, y, line)
-        y -= 8 * mm
+    # A4: 595×842 pt, 可用高度约 660pt
+    # 每行 8mm ≈ 22.7pt, 每页约 29 行
+    # 每段落约 5 行（含自动换行），每页约 5-6 段落
+    MAX_PARAS_PER_PAGE = 6
+    LINE_HEIGHT = 8 * mm
 
-    # 表格
-    table = data.get("table")
-    if table:
-        y -= 20 * mm
-        headers = table.get("headers", [])
-        rows = table.get("rows", [])
-        c.setFont("Helvetica-Bold", 10)
-        x = 30 * mm
-        for h in headers:
-            c.drawString(x, y, h)
-            x += 40 * mm
-        y -= 8 * mm
-        c.setFont("Helvetica", 10)
-        for row in rows:
-            x = 30 * mm
-            for cell in row:
-                c.drawString(x, y, str(cell))
-                x += 40 * mm
-            y -= 8 * mm
+    if page_count > 0 and total_paragraphs > 0:
+        # 按指定页数均分段落
+        paras_per_page = math.ceil(total_paragraphs / page_count)
+    else:
+        paras_per_page = MAX_PARAS_PER_PAGE
+
+    para_index = 0
+    page_num = 0
+
+    while para_index < total_paragraphs or (page_count > 0 and page_num < page_count):
+        page_num += 1
+        need_content = page_count > 0 and page_num > 1 and para_index >= total_paragraphs
+
+        if page_num == 1:
+            c.setFont("Helvetica-Bold", 24)
+            c.drawString(50 * mm, height - 30 * mm, title)
+            y = height - 50 * mm
+        elif need_content:
+            c.setFont("Helvetica", 10)
+            c.drawString(50 * mm, height - 20 * mm, f"{title}（第 {page_num} 页 - 空白）")
+            c.showPage()
+            continue
+        else:
+            c.setFont("Helvetica", 10)
+            c.drawString(50 * mm, height - 20 * mm, f"{title}（第 {page_num} 页）")
+            y = height - 35 * mm
+
+        c.setFont("Helvetica", 12)
+        # 渲染当前页的段落，按段落数限，不按行数限
+        para_on_page = 0
+        while para_index < total_paragraphs and para_on_page < paras_per_page:
+            text = content[para_index]
+
+            # 自动换行渲染
+            if c.stringWidth(text, "Helvetica", 12) > width - 60 * mm:
+                words = text.split()
+                line = ""
+                for word in words:
+                    test_line = f"{line} {word}".strip()
+                    if c.stringWidth(test_line, "Helvetica", 12) > width - 60 * mm:
+                        c.drawString(30 * mm, y, line)
+                        y -= LINE_HEIGHT
+                        line = word
+                    else:
+                        line = test_line
+                if line:
+                    c.drawString(30 * mm, y, line)
+                    y -= LINE_HEIGHT
+            else:
+                c.drawString(30 * mm, y, text)
+                y -= LINE_HEIGHT
+
+            para_index += 1
+            para_on_page += 1
+
+        # 表格（最后一页）
+        if para_index >= total_paragraphs:
+            table = data.get("table")
+            if table and y > 40 * mm:
+                y -= 10 * mm
+                headers = table.get("headers", [])
+                rows = table.get("rows", [])
+                c.setFont("Helvetica-Bold", 10)
+                x = 30 * mm
+                for h in headers:
+                    c.drawString(x, y, h)
+                    x += 40 * mm
+                y -= 8 * mm
+                c.setFont("Helvetica", 10)
+                for row in rows:
+                    if y < 20 * mm:
+                        break
+                    x = 30 * mm
+                    for cell in row:
+                        c.drawString(x, y, str(cell))
+                        x += 40 * mm
+                    y -= 8 * mm
+
+        if para_index < total_paragraphs or (page_count > 0 and page_num < page_count):
+            c.showPage()
 
     c.save()
-    print(f"[OK] PDF 文件已生成: {output_path}")
+    extra = "，已加密" if encrypt else ""
+    print(f"[OK] PDF 文件已生成: {output_path}，共 {page_num} 页{extra}")
 
 
 # ============================================================
@@ -802,14 +907,20 @@ def _adjust_content_for_size(data: dict, fmt: str) -> dict:
 
     # ── PDF ──
     elif fmt == "pdf":
+        data.setdefault("title", "示例文档")
+        if _as_bool(data.get("empty_content")):
+            data["content"] = []
+            return data
         random.seed(42)
+        page_count = 0 if _as_bool(data.get("empty_page_count")) else data.get("page_count", 0)
+        if page_count > 0:
+            units = max(units, page_count * 15)
         paragraphs = []
         for _ in range(units):
             text = ' '.join(''.join(random.choices(string.ascii_lowercase, k=random.randint(3, 10)))
                           for _ in range(40))
             paragraphs.append(text)
         data["content"] = paragraphs
-        data.setdefault("title", "示例文档")
 
     # ── 图片 ──
     elif fmt == "image":
@@ -896,12 +1007,7 @@ GENERATORS = {
             ]
         }, path
     ),
-    "pdf": lambda data, path: generate_pdf(
-        data if data.get("content") else {
-            "title": "示例文档",
-            "content": ["这是第一段内容，由 Python 脚本自动生成。", "这是第二段内容。"],
-        }, path
-    ),
+    "pdf": lambda data, path: generate_pdf(data, path),
 }
 
 

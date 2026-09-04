@@ -16,6 +16,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @RestController
@@ -28,16 +30,11 @@ public class DocgenController {
     @Value("${docgen.output-dir:../../files}")
     private String defaultOutputDir;
 
-    // 格式 → 扩展名映射
     private static final Map<String, String> EXT_MAP = Map.of(
             "word", ".docx", "excel", ".xlsx", "ppt", ".pptx",
             "image", ".png", "md", ".md", "pdf", ".pdf"
     );
-    // 格式 → 标签映射
-    private static final Map<String, String> LABEL_MAP = Map.of(
-            "word", "Word", "excel", "Excel", "ppt", "PPT",
-            "image", "图片", "md", "MD", "pdf", "PDF"
-    );
+    private static final DateTimeFormatter DATE_PREFIX = DateTimeFormatter.BASIC_ISO_DATE;
 
     @OperLog(module = "docgen", action = "generate", bizType = "document", summary = "生成文档")
     @PostMapping(value = "/generate", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
@@ -129,16 +126,13 @@ public class DocgenController {
         List<Map<String, Object>> generatedFiles = new ArrayList<>();
         int total = 0;
 
+        String datePrefix = LocalDate.now().format(DATE_PREFIX);
         for (String fmt : formats) {
             String ext = EXT_MAP.getOrDefault(fmt, ".bin");
-            String label = LABEL_MAP.getOrDefault(fmt, fmt);
 
             for (long size : sizes) {
-                String sizeLabel = formatSizeLabel(size);
-
                 for (int n = 0; n < fileCount; n++) {
-                    String suffix = fileCount > 1 ? "_" + (n + 1) : "";
-                    String fileName = label + "_" + sizeLabel + "_" + baseName + suffix + ext;
+                    String fileName = buildOutputFileName(datePrefix, baseName, fmt, ext, size, n, fileCount, request);
                     String outputPath = dirPath.resolve(fileName).toString();
 
                     Map<String, Object> data = new HashMap<>();
@@ -153,6 +147,21 @@ public class DocgenController {
                     }
                     if (request.getRowCount() != null) {
                         data.put("row_count", request.getRowCount());
+                    }
+                    if (request.getPageCount() != null) {
+                        data.put("page_count", request.getPageCount());
+                    }
+                    if (request.getEncrypt() != null) {
+                        data.put("encrypt", request.getEncrypt());
+                    }
+                    if (request.getPdfPassword() != null && !request.getPdfPassword().isBlank()) {
+                        data.put("pdf_password", request.getPdfPassword());
+                    }
+                    if (request.getEmptyContent() != null) {
+                        data.put("empty_content", request.getEmptyContent());
+                    }
+                    if (request.getEmptyPageCount() != null) {
+                        data.put("empty_page_count", request.getEmptyPageCount());
                     }
 
                     docgenUtil.generateToFile(fmt, data, outputPath);
@@ -176,10 +185,60 @@ public class DocgenController {
         return BaseResult.ok(result);
     }
 
-    /** 格式化文件大小标签：0 → "不限", 102400 → "100KB", 1048576 → "1MB" */
+    /**
+     * {日期}_{基础名}[_{大小}][_{页数|空页数}][_空内容][_加密][_{序号}].{ext}
+     * 例：20260903_文档_5页_加密.pdf
+     */
+    private static String buildOutputFileName(
+            String datePrefix,
+            String baseName,
+            String fmt,
+            String ext,
+            long size,
+            int index,
+            int fileCount,
+            BatchGenerateRequest request
+    ) {
+        List<String> parts = new ArrayList<>();
+        parts.add(datePrefix);
+        parts.add(sanitizeBaseName(baseName));
+        if (size > 0) {
+            parts.add(formatSizeLabel(size));
+        }
+        if ("pdf".equals(fmt)) {
+            if (Boolean.TRUE.equals(request.getEmptyPageCount())) {
+                parts.add("空页数");
+            } else if (request.getPageCount() != null && request.getPageCount() > 0) {
+                parts.add(request.getPageCount() + "页");
+            }
+            if (Boolean.TRUE.equals(request.getEmptyContent())) {
+                parts.add("空内容");
+            }
+            if (Boolean.TRUE.equals(request.getEncrypt())) {
+                parts.add("加密");
+            }
+        }
+        if (fileCount > 1) {
+            parts.add(String.valueOf(index + 1));
+        }
+        return String.join("_", parts) + ext;
+    }
+
+    private static String sanitizeBaseName(String name) {
+        if (name == null || name.isBlank()) {
+            return "文档";
+        }
+        String cleaned = name.trim().replaceAll("[\\\\/:*?\"<>|\\s]+", "_");
+        cleaned = cleaned.replaceAll("_+", "_");
+        cleaned = cleaned.replaceAll("^_|_$", "");
+        return cleaned.isBlank() ? "文档" : cleaned;
+    }
+
+    /** 仅用于有目标大小时：102400 → 100KB，1048576 → 1MB */
     private static String formatSizeLabel(long bytes) {
-        if (bytes <= 0) return "不限";
-        if (bytes < 1024 * 1024) return (bytes / 1024) + "KB";
+        if (bytes < 1024 * 1024) {
+            return (bytes / 1024) + "KB";
+        }
         return (bytes / (1024 * 1024)) + "MB";
     }
 
@@ -208,5 +267,10 @@ public class DocgenController {
         private Integer columnCount;     // 可选，Excel 列数
         private Integer rowSize;         // 可选，每行数据量（字符数）
         private Integer rowCount;        // 可选，行数覆盖
+        private Integer pageCount;       // 可选，PDF 页数
+        private Boolean encrypt;         // 可选，PDF 是否加密
+        private String pdfPassword;      // 可选，PDF 打开密码
+        private Boolean emptyContent;    // 可选，PDF 是否空内容
+        private Boolean emptyPageCount;  // 可选，true 时不指定页数
     }
 }

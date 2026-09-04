@@ -13,7 +13,7 @@ usage() {
   cat <<EOF
 用法: $(basename "$0") [选项]
 
-  启动后端 Spring Boot（端口 $BACKEND_PORT）
+  启动后端 Spring Boot（端口 ${BACKEND_PORT}）
 
 选项:
   --build         启动前先编译 (mvn install -pl server -am -DskipTests)
@@ -55,7 +55,8 @@ fi
 
 if [ "$BUILD" = true ]; then
   log "编译后端 ..."
-  (cd "$ROOT_DIR/backend" && mvn install -pl server -am -DskipTests -q)
+  # 从仓库根安装，确保 hfwas-devops 的 dependencyManagement 也写入本地仓库
+  (cd "$ROOT_DIR" && mvn install -pl backend/server -am -DskipTests -q)
 fi
 
 if [ "$SKIP_PYTHON" = true ]; then
