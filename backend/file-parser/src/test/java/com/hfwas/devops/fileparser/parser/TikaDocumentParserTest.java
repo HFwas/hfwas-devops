@@ -2,6 +2,11 @@ package com.hfwas.devops.fileparser.parser;
 
 import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -107,6 +112,32 @@ class TikaDocumentParserTest {
         assertNotNull(result.getContent().getText());
         // Tika 解析文本可能包含元数据前缀，但应包含原文内容
         assertTrue(result.getContent().getText().contains("Hello World"));
+    }
+
+    @Test
+    @DisplayName("Tika 探测 PDF 不应因 commons-compress ArchiveException 失败")
+    void shouldParseMinimalPdf() throws Exception {
+        File pdf = File.createTempFile("tiny-", ".pdf");
+        pdf.deleteOnExit();
+        try (PDDocument doc = new PDDocument()) {
+            PDPage page = new PDPage();
+            doc.addPage(page);
+            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+                cs.beginText();
+                cs.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+                cs.newLineAtOffset(72, 700);
+                cs.showText("hello pdf");
+                cs.endText();
+            }
+            doc.save(pdf);
+        }
+
+        FileParseResultVO result = parser.parse(pdf, "tiny.pdf");
+
+        assertTrue(result.isSuccess(), () -> result.getErrorMessage());
+        assertEquals("tika", result.getParseMethod());
+        assertNotNull(result.getContent());
+        assertTrue(result.getContent().getText().contains("hello pdf"));
     }
 
     @Test
@@ -260,23 +291,6 @@ class TikaDocumentParserTest {
     // ========== docx 策略深度清洗测试 ==========
 
     @Test
-    @DisplayName("cleanupText(docx): 应删除由 = 组成的分隔线")
-    void shouldRemoveEqualsSeparator() throws Exception {
-        // 设计分割线
-        assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n======== 设计分割线：李钊\n后面内容"));
-        // 产品分割线
-        assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n========================产品分割线：李钊======================\n后面内容"));
-        // 纯 = 分隔线
-        assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n====================\n后面内容"));
-    }
-
-    @Test
-    @DisplayName("cleanupText(docx): 应删除由 - 组成的分隔线")
-    void shouldRemoveDashSeparator() throws Exception {
-        assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n----------------------------------------\n后面内容"));
-    }
-
-    @Test
     @DisplayName("cleanupText(docx): 应删除 @xxx 内部协同标记")
     void shouldRemoveAtMentions() throws Exception {
         assertEquals("前面内容\n\n后面内容", invokeCleanupTextDocx("前面内容\n@郑威 补充\n后面内容"));
@@ -285,12 +299,11 @@ class TikaDocumentParserTest {
     }
 
     @Test
-    @DisplayName("cleanupText(basic): 应删除图片文件名残留（PNG/JPEG 等格式）")
-    void shouldRemoveImageFileList() throws Exception {
-        // 图片文件清理在 basic 策略中执行
-        assertEquals("文档正文", invokeCleanupText("文档正文\nimage1.png\nimage2.png\nimage3.png"));
-        assertEquals("文档正文", invokeCleanupText("文档正文\nimage1.jpeg\nimage2.jpeg"));
-        assertEquals("文档正文", invokeCleanupText("文档正文\nimage1.png\nimage2.jpeg\nimage3.gif"));
+    @DisplayName("cleanupText(basic): Markdown 图片语法（![alt](image.png)）不应被删除")
+    void shouldKeepMarkdownImageSyntax() throws Exception {
+        // MarkdownContentHandler 输出图片为 ![alt](image.png)，不是纯文本 image1.png
+        assertEquals("正文\n\n![图片](image1.png)", invokeCleanupText("正文\n\n![图片](image1.png)"));
+        assertEquals("正文\n\n![截图](screenshot.png)", invokeCleanupText("正文\n\n![截图](screenshot.png)"));
     }
 
     @Test
@@ -298,13 +311,6 @@ class TikaDocumentParserTest {
     void shouldRemoveDevNotes() throws Exception {
         assertEquals("正文", invokeCleanupTextDocx("正文\nto研发：需要先判断文件夹是否存在"));
         assertEquals("正文", invokeCleanupTextDocx("正文\n待研发确认这里是选项还是输入框"));
-    }
-
-    @Test
-    @DisplayName("cleanupText(docx): 应删除 URL 内链")
-    void shouldRemoveUrls() throws Exception {
-        assertEquals("正文", invokeCleanupTextDocx("正文\nhttp://qingyu.dbcs.jh/kb/dPf/d/bbve"));
-        assertEquals("正文", invokeCleanupTextDocx("正文\nhttps://example.com/path"));
     }
 
     @Test
@@ -326,17 +332,12 @@ class TikaDocumentParserTest {
     void shouldFullyCleanDocxContent() throws Exception {
         String input = "一、背景\n"
                 + "\n"
-                + "======== 设计分割线：李钊\n"
-                + "\n"
                 + "【功能描述】\n"
                 + "@郑威 补充\n"
                 + "\n"
                 + "页面内容\n"
                 + "to研发：需要确认接口\n"
-                + "http://example.com\n"
                 + "\n"
-                + "image1.png\n"
-                + "image2.png\n"
                 + "三、总结\n"
                 + "\n";
         String expected = "一、背景\n\n【功能描述】\n\n页面内容\n\n三、总结";
@@ -344,11 +345,49 @@ class TikaDocumentParserTest {
     }
 
     @Test
+    @DisplayName("cleanupText: 非 Word/PPT 类型也执行基础空白清洗")
+    void shouldApplyBasicCleanupForAllTypes() throws Exception {
+        // MarkdownContentHandler 输出后，基础空白清洗适用于所有文档类型
+        // 行尾空格、首尾空白、多余空行会被清理
+        assertEquals("indented\n\ntext", invokeCleanupText("  indented\n\n\n\ntext", "text/plain"));
+        assertEquals("content", invokeCleanupText("content\nimage1.png", "text/plain"));
+        assertEquals("内容", invokeCleanupText("内容\nimage1.png", "application/json"));
+        assertEquals("content", invokeCleanupText("content\nimage1.png", "application/pdf"));
+        // 电子表格也做基础清洗，但保留 @ 标记
+        assertEquals("列1\t列2\n@xxx\t数据", invokeCleanupText("列1\t列2\n@xxx\t数据",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+    }
+
+    @Test
+    @DisplayName("cleanupText: PPT 的 Markdown 图片语法（![alt](image.png)）不被删除")
+    void shouldKeepMarkdownImagesForPptx() throws Exception {
+        // MarkdownContentHandler 输出 PPT 图片为 Markdown 格式
+        assertEquals("封面\n\n正文\n\n![图表](image1.png)", invokeCleanupText("封面\n\n\n\n正文\n\n![图表](image1.png)",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation"));
+    }
+
+    @Test
+    @DisplayName("cleanupText: PDF 也执行基础空白清洗")
+    void shouldApplyBasicCleanupForPdf() throws Exception {
+        // MarkdownContentHandler 输出 PDF 后，基础空白清洗同样适用
+        assertEquals("第一行\n\n第二行", invokeCleanupText("第一行  \n\n\n\n第二行", "application/pdf"));
+        assertEquals("第一行\n\n第二行", invokeCleanupText("第一行  \n\n\n\n第二行", "application/pdf; charset=UTF-8"));
+    }
+
+    @Test
     @DisplayName("cleanupText(docx): 电子表格不应执行深度清洗")
     void shouldNotCleanSpreadsheetDeeply() throws Exception {
         String input = "列1\t列2\n@xxx\t数据";
-        // 电子表格只做 basic 清洗，保留 @xxx
+        // 电子表格只做基础清洗，保留 @xxx
         assertEquals("列1\t列2\n@xxx\t数据", invokeCleanupText(input, "text/csv"));
+    }
+
+    @Test
+    @DisplayName("cleanupText(docx): 分隔线（--- 和 ===）在 Markdown 中是有效语法，不应删除")
+    void shouldKeepMarkdownHorizontalRules() throws Exception {
+        // Markdown 中 --- 是水平线，=== 是 setext 标题下划线，都是有效语法
+        assertEquals("前面内容\n\n---\n\n后面内容", invokeCleanupTextDocx("前面内容\n\n---\n\n后面内容"));
+        assertEquals("前面内容\n\n===\n\n后面内容", invokeCleanupTextDocx("前面内容\n\n===\n\n后面内容"));
     }
 
     private String invokeCleanupTextDocx(String input) throws Exception {
@@ -359,7 +398,8 @@ class TikaDocumentParserTest {
     }
 
     private String invokeCleanupText(String input) throws Exception {
-        return invokeCleanupText(parser, input, "text/plain");
+        return invokeCleanupText(parser, input,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     }
 
     private String invokeCleanupText(String input, String mimeType) throws Exception {

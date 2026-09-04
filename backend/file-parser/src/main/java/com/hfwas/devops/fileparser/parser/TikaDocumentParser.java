@@ -5,18 +5,24 @@ import com.hfwas.devops.fileparser.config.FileParserConfig;
 import com.hfwas.devops.fileparser.dto.FileParseResultVO;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.exception.WriteLimitReachedException;
+import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.metadata.HttpHeaders;
 import org.apache.tika.metadata.Metadata;
-import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
-import org.apache.tika.sax.BodyContentHandler;
+import org.apache.tika.parser.pdf.PDFParserConfig;
+import org.apache.tika.sax.ToMarkdownContentHandler;
 import org.springframework.stereotype.Component;
+import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,12 +75,8 @@ public class TikaDocumentParser implements DocumentParser {
     private static final Pattern BLANK_LINE = Pattern.compile("\\n[ \\t]+\\n");
     /** 连续 3+ 空行 */
     private static final Pattern MANY_NEWLINES = Pattern.compile("\\n{3,}");
-    /** 分隔线整行：3 个以上 = 或 - */
-    private static final Pattern SEPARATOR_LINE = Pattern.compile("^[=]{3,}.*$|^[-]{3,}.*$", Pattern.MULTILINE);
     /** 内部协同批注 @xxx */
     private static final Pattern AT_MENTION = Pattern.compile("@\\S+[ \\t]*\\S*");
-    /** 图片文件名残留 */
-    private static final Pattern IMAGE_FILE = Pattern.compile("^image\\d+\\.(png|jpe?g|gif|bmp|svg|webp)\\s*$", Pattern.MULTILINE);
     /** 研发备注 to研发/开发/产品 */
     private static final Pattern TO_DEV = Pattern.compile("^[ 　]*to(研发|开发|产品)[：:].*$", Pattern.MULTILINE);
     /** 待研发/开发/产品确认 */
@@ -83,8 +85,6 @@ public class TikaDocumentParser implements DocumentParser {
     private static final Pattern PENDING_PAREN = Pattern.compile("\\(待确认[^)]*\\)");
     /** 待确认句尾 */
     private static final Pattern PENDING_END = Pattern.compile("待确认[。，]");
-    /** URL 内链 */
-    private static final Pattern URL_LINK = Pattern.compile("http[s]?://\\S+");
     /** 占位文本 xxx岗位/选择/菜单/功能 */
     private static final Pattern PLACEHOLDER = Pattern.compile("^xxx(岗位|选择|菜单|功能).*$", Pattern.MULTILINE);
     /** 后续待拆分占位 */
@@ -93,6 +93,15 @@ public class TikaDocumentParser implements DocumentParser {
     private static final Pattern PAGE_NUMBER = Pattern.compile("^\\d{1,4}$", Pattern.MULTILINE);
     /** 孤立逗号 */
     private static final Pattern LONELY_COMMA = Pattern.compile("[，,]\\s*\n");
+
+    /**
+     * PDFBox 堆内窗口。Tika 默认 512MB，和抽出文本、Spring 同处 1g 堆时 G1 会在抽取中反复回收。
+     * 超出部分走 scratch 文件，不加大 {@code -Xmx}。
+     */
+    private static final long PDF_MAX_MAIN_MEMORY_BYTES = 16L * 1024 * 1024;
+
+    /** 超过此长度不再 {@code split("\\n")} 打结构日志，避免 15MB 文本再复制一份。 */
+    private static final int CONTENT_STATS_MAX_CHARS = 100_000;
 
     private final FileParserConfig config;
 
@@ -122,19 +131,42 @@ public class TikaDocumentParser implements DocumentParser {
     @Override
     public FileParseResultVO parse(File file, String fileName) {
         long start = System.currentTimeMillis();
+        int maxTextLength = config.getTika().getMaxTextLength();
+        Path extractFile = null;
 
-        try (InputStream input = new FileInputStream(file)) {
-            Parser parser = new AutoDetectParser();
-            // 使用配置的文本长度上限，防止超大文档撑爆堆内存
-            BodyContentHandler handler = new BodyContentHandler(config.getTika().getMaxTextLength());
+        try {
+            extractFile = Files.createTempFile("tika-extract-", ".md");
             Metadata metadata = new Metadata();
-            ParseContext context = new ParseContext();
+            try (TikaInputStream input = TikaInputStream.get(file);
+                 Writer writer = Files.newBufferedWriter(extractFile, StandardCharsets.UTF_8)) {
+                Parser parser = TikaHolder.parser();
+                ContentHandler handler = new ToMarkdownContentHandler(writer);
+                ParseContext context = new ParseContext();
+                PDFParserConfig pdfConfig = new PDFParserConfig();
+                pdfConfig.setMaxMainMemoryBytes(PDF_MAX_MAIN_MEMORY_BYTES);
+                context.set(PDFParserConfig.class, pdfConfig);
+                try {
+                    parser.parse(input, handler, metadata, context);
+                } catch (TikaException | SAXException e) {
+                    if (WriteLimitReachedException.isWriteLimitReached(e)) {
+                        log.warn("Tika parse exceeded text length limit for {}: {}", fileName, e.getMessage());
+                        return FileParseResultVO.builder()
+                                .success(false)
+                                .fileName(fileName)
+                                .fileSize(file.length())
+                                .errorMessage("文档内容过长，超过最大提取限制（"
+                                        + (maxTextLength / 1024 / 1024) + "MB），可增大 "
+                                        + "file-parser.tika.max-text-length 配置后重试")
+                                .parseTimeMs(System.currentTimeMillis() - start)
+                                .build();
+                    }
+                    log.error("Tika parse failed for {}: {}", fileName, e.getMessage());
+                    return fail(file, fileName, start, "Tika 解析失败: " + e.getMessage());
+                }
+            }
 
-            parser.parse(input, handler, metadata, context);
-
-            String text = handler.toString();
-            String mimeType = metadata.get(Metadata.CONTENT_TYPE);
-            // 文本清洗：根据配置策略执行文档内容清洗
+            String text = Files.readString(extractFile, StandardCharsets.UTF_8);
+            String mimeType = metadata.get(HttpHeaders.CONTENT_TYPE);
             text = cleanupText(text, mimeType);
 
             FileParseResultVO.Content content = FileParseResultVO.Content.builder()
@@ -143,7 +175,7 @@ public class TikaDocumentParser implements DocumentParser {
                     .build();
 
             long elapsed = System.currentTimeMillis() - start;
-            log.info("Tika parsed {} in {}ms", fileName, elapsed);
+            log.info("Tika parsed {} in {}ms, chars={}", fileName, elapsed, text.length());
             logParsedContentDetail(fileName, text, mimeType, file.length(), elapsed);
 
             return FileParseResultVO.builder()
@@ -156,58 +188,59 @@ public class TikaDocumentParser implements DocumentParser {
                     .content(content)
                     .build();
 
-        } catch (TikaException | SAXException | IOException e) {
-            // Tika 文本超出限制时抛出 SAXException，转成友好的错误消息
-            // BodyContentHandler/WriteOutContentHandler 的异常消息格式：
-            // "Your document contained more than X characters, and so your requested limit has been reached."
-            String msg = e.getMessage();
-            if (msg != null && (msg.contains("more than") && msg.contains("limit has been reached"))
-                    || msg.contains("max character limit")) {
-                log.warn("Tika parse exceeded text length limit for {}: {}", fileName, msg);
-                return FileParseResultVO.builder()
-                        .success(false)
-                        .fileName(fileName)
-                        .fileSize(file.length())
-                        .errorMessage("文档内容过长，超过最大提取限制（"
-                                + (config.getTika().getMaxTextLength() / 1024 / 1024) + "MB），可增大 "
-                                + "file-parser.tika.max-text-length 配置后重试")
-                        .parseTimeMs(System.currentTimeMillis() - start)
-                        .build();
-            }
+        } catch (Exception e) {
             log.error("Tika parse failed for {}: {}", fileName, e.getMessage());
-            return FileParseResultVO.builder()
-                    .success(false)
-                    .fileName(fileName)
-                    .fileSize(file.length())
-                    .errorMessage("Tika 解析失败: " + e.getMessage())
-                    .parseTimeMs(System.currentTimeMillis() - start)
-                    .build();
+            return fail(file, fileName, start, "Tika 解析失败: " + e.getMessage());
+        } finally {
+            if (extractFile != null) {
+                try {
+                    Files.deleteIfExists(extractFile);
+                } catch (IOException e) {
+                    log.debug("Failed to delete extract temp file: {}", extractFile, e);
+                }
+            }
         }
     }
 
+    private FileParseResultVO fail(File file, String fileName, long start, String errorMessage) {
+        return FileParseResultVO.builder()
+                .success(false)
+                .fileName(fileName)
+                .fileSize(file.length())
+                .errorMessage(errorMessage)
+                .parseTimeMs(System.currentTimeMillis() - start)
+                .build();
+    }
+
     /**
-     * 文本清洗：根据配置策略对 Tika 解析结果进行清洗。
+     * 文本清洗：根据配置策略对 Tika Markdown 解析结果进行清洗。
      * <p>
      * 支持三种策略：
      * <ul>
-     *   <li>{@code none} — 不进行清洗，保留 Tika 原始输出</li>
-     *   <li>{@code basic} — 基础清洗：统一换行符、去除行首行尾空白、去除空白行、压缩连续空行、
-     *       删除图片文件名残留（如 {@code image1.png}）</li>
-     *   <li>{@code docx} — DOCX 文档深度清洗：在 basic 基础上，额外去除文档内部协同标记、
-     *       分隔线、URL 内链、研发备注等，适用于正式交付场景</li>
+     *   <li>{@code none} — 不进行清洗，保留 Tika 原始 Markdown 输出</li>
+     *   <li>{@code basic} — 统一换行符、清理多余空白行、删除 {@code @xxx} 协同标记。
+     *       保留 Markdown 语法（标题、表格、列表、URL 等）。</li>
+     *   <li>{@code docx} — DOCX 文档深度清洗：在 basic 基础上，额外去除
+     *       研发内部备注、占位文本、页码残留等，适用于正式交付场景</li>
      * </ul>
      *
-     * <h4>深度清洗规则（docx 策略）</h4>
+     * <h4>与纯文本输出的差异</h4>
+     * Tika 4.x 使用 {@code ToMarkdownContentHandler} 输出，文档结构保留完整：
      * <ul>
-     *   <li>删除 {@code @xxx} 内部协同标记及同行后续内容</li>
-     *   <li>删除由 3 个以上 {@code =} 或 {@code -} 组成的分隔线整行</li>
-     *   <li>删除 URL 内链（{@code http://}、{@code https://}）</li>
-     *   <li>删除研发内部备注（{@code to研发}、{@code 待研发确认}、{@code 待确认} 等）</li>
-     *   <li>删除常见占位文本（如 {@code xxx岗位选择xxx菜单} 等模板占位符）</li>
-     *   <li>删除单独一行的数字（文档页脚页码残留）</li>
+     *   <li>标题 → {@code # 标题}</li>
+     *   <li>加粗 → {@code **文本**}</li>
+     *   <li>表格 → {@code | 列1 | 列2 |}</li>
+     *   <li>图片 → {@code ![alt](image.png)}</li>
+     *   <li>URL → {@code [text](http://...)}</li>
+     * </ul>
+     * 清洗正则已针对 Markdown 语法调整：
+     * <ul>
+     *   <li>不再删除 {@code ---}（Markdown 水平线）</li>
+     *   <li>不再删除 {@code http://} URL（Markdown 有效语法）</li>
+     *   <li>不再删除 {@code image1.png} 行（Markdown 图片语法为 {@code ![alt](image.png)}）</li>
      * </ul>
      *
-     * @param raw      原始文本
+     * @param raw      原始 Markdown 文本
      * @param mimeType 文档 MIME 类型（用于判断是否为文档类格式）
      * @return 清洗后的文本
      */
@@ -218,6 +251,8 @@ public class TikaDocumentParser implements DocumentParser {
         if ("none".equals(strategy)) {
             return raw;
         }
+        // Markdown 输出已保留文档结构，基础空白清洗适用于所有文档类型
+        // txt/md/xlsx/pdf 等同样受益于空白行清理
 
         // ========== 基础清洗（basic & docx 共用） ==========
 
@@ -229,53 +264,58 @@ public class TikaDocumentParser implements DocumentParser {
         text = LEADING_WS.matcher(text).replaceAll("\n");
         text = BLANK_LINE.matcher(text).replaceAll("\n");
 
-        // 5. 删除图片文件名残留（所有文档类型通用，图片非业务内容）
-        text = IMAGE_FILE.matcher(text).replaceAll("");
-
-        // 6. 压缩连续 3+ 空行
+        // 5. 压缩连续 3+ 空行
         text = MANY_NEWLINES.matcher(text).replaceAll("\n\n");
 
-        if (!"docx".equals(strategy)) {
-            return text.trim();
-        }
-
-        // ========== DOCX 深度清洗 ==========
-        boolean isSpreadsheet = mimeType != null
-                && (mimeType.contains("spreadsheet") || mimeType.contains("excel") || mimeType.contains("csv"));
-        if (isSpreadsheet) {
-            return text.trim();
-        }
-
-        // 6. 分隔线整行（预编译 Pattern 单次编译，复用匹配）
-        text = SEPARATOR_LINE.matcher(text).replaceAll("");
-
-        // 7. @xxx 内部协同批注
+        // 6. @xxx 内部协同批注（中文文档常见，Markdown 中 @ 无特殊含义）
         text = AT_MENTION.matcher(text).replaceAll("");
 
-        // 8. 研发备注
+        if (!"docx".equals(strategy) || !isWordMime(normalizeMime(mimeType))) {
+            return text.trim();
+        }
+
+        // ========== DOCX 深度清洗（协同稿，仅 Word） ==========
+
+        // 7. 研发备注
         text = TO_DEV.matcher(text).replaceAll("");
         text = PENDING_DEV.matcher(text).replaceAll("\n");
         text = PENDING_PAREN.matcher(text).replaceAll("");
         text = PENDING_END.matcher(text).replaceAll("");
 
-        // 9. URL 内链
-        text = URL_LINK.matcher(text).replaceAll("");
-
-        // 10. 占位文本
+        // 8. 占位文本
         text = PLACEHOLDER.matcher(text).replaceAll("");
         text = PLACEHOLDER_PENDING.matcher(text).replaceAll("");
 
-        // 11. 页码残留
+        // 9. 页码残留（单行数字，注意 Markdown 列表中数字会误伤，仅用于非列表上下文）
         text = PAGE_NUMBER.matcher(text).replaceAll("");
 
-        // 12. 孤立逗号
+        // 10. 孤立逗号
         text = LONELY_COMMA.matcher(text).replaceAll("\n");
 
-        // 14. 再次压缩连续空行 + 去首尾空白
+        // 11. 再次压缩连续空行 + 去首尾空白
         text = MANY_NEWLINES.matcher(text).replaceAll("\n\n");
         text = text.trim();
 
         return text;
+    }
+
+    private static boolean isWordMime(String m) {
+        return m.startsWith("application/vnd.openxmlformats-officedocument.wordprocessingml")
+                || m.startsWith("application/msword")
+                || m.startsWith("application/x-msword")
+                || m.startsWith("application/vnd.ms-word")
+                || m.contains("wps-office.wps")
+                || m.contains("wps-office.wpt")
+                || m.contains("wps-office.doc");
+    }
+
+    private static String normalizeMime(String mimeType) {
+        if (mimeType == null) {
+            return "";
+        }
+        String m = mimeType.toLowerCase();
+        int semi = m.indexOf(';');
+        return semi < 0 ? m : m.substring(0, semi).trim();
     }
 
     /**
@@ -285,6 +325,9 @@ public class TikaDocumentParser implements DocumentParser {
     private void logParsedContentDetail(String fileName, String text, String mimeType, long fileSize, long elapsedMs) {
         if (text == null || text.isEmpty()) {
             log.info("  [{}] text=empty, fileSize={} bytes", fileName, fileSize);
+            return;
+        }
+        if (text.length() > CONTENT_STATS_MAX_CHARS) {
             return;
         }
 

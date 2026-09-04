@@ -61,6 +61,9 @@
               <n-tag :bordered="false" size="small" type="info">{{ formatFileSize(result.fileSize) }}</n-tag>
               <n-tag :bordered="false" size="small" type="success">{{ methodLabel(result.parseMethod) }}</n-tag>
               <n-tag :bordered="false" size="small" type="warning">{{ result.parseTimeMs }}ms</n-tag>
+              <n-tag v-if="previewTruncated" :bordered="false" size="small" type="warning">
+                预览截断 {{ formatCharCount(PREVIEW_CHAR_LIMIT) }}
+              </n-tag>
             </div>
             <n-button size="small" @click="resetUpload">
               <template #icon><n-icon><RefreshCw /></n-icon></template>
@@ -77,21 +80,22 @@
 
         <!-- 结果 Tab -->
         <n-tabs type="line" animated>
-          <!-- 文本内容 -->
+          <!-- 文本内容（Markdown 渲染） -->
           <n-tab-pane v-if="result.content?.text" name="text" tab="文本">
             <div class="text-actions">
-              <n-button size="tiny" @click="copyText(result.content!.text)">
+              <n-button size="tiny" @click="copyText(displayText, previewTruncated)">
                 <template #icon><n-icon><Clipboard /></n-icon></template>
-                复制全文
+                {{ previewTruncated ? '复制预览' : '复制全文' }}
               </n-button>
+              <n-button v-if="previewTruncated" size="tiny" @click="downloadFullText">
+                <template #icon><n-icon><Download /></n-icon></template>
+                下载全文
+              </n-button>
+              <span v-if="previewTruncated" class="preview-hint">
+                页面仅展示前 {{ formatCharCount(PREVIEW_CHAR_LIMIT) }}，全文 {{ formatCharCount(fullText.length) }}，点击下载查看全部
+              </span>
             </div>
-            <n-input
-              :value="result.content.text"
-              type="textarea"
-              :autosize="{ minRows: 10, maxRows: 30 }"
-              readonly
-              placeholder="无文本内容"
-            />
+            <div class="markdown-body" v-html="renderedHtml" />
           </n-tab-pane>
 
           <!-- 分页内容（PDF 专用） -->
@@ -202,12 +206,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useMessage } from 'naive-ui'
-import { FileText, AlertCircle, RefreshCw, Clipboard } from '@lucide/vue'
+import { FileText, AlertCircle, RefreshCw, Clipboard, Download } from '@lucide/vue'
 import type { UploadFileInfo } from 'naive-ui'
 import { uploadFile } from '@/modules/file-parser/api/fileParser'
 import type { FileParseResult, UploadStatus } from '@/modules/file-parser/types/fileParser'
+import MarkdownIt from 'markdown-it'
+
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: true,
+  breaks: true,
+})
+
+const PREVIEW_CHAR_LIMIT = 100_000
 
 const message = useMessage()
 
@@ -215,6 +229,18 @@ const isDragOver = ref(false)
 const uploadStatus = ref<UploadStatus>('idle')
 const result = ref<FileParseResult | null>(null)
 const errorMessage = ref('')
+
+const fullText = computed(() => result.value?.content?.text ?? '')
+const previewTruncated = computed(() => fullText.value.length > PREVIEW_CHAR_LIMIT)
+const displayText = computed(() =>
+  previewTruncated.value ? fullText.value.slice(0, PREVIEW_CHAR_LIMIT) : fullText.value
+)
+
+const renderedHtml = computed(() => {
+  const text = displayText.value
+  if (!text) return ''
+  return md.render(text)
+})
 
 function handleFileChange({ file }: { file: UploadFileInfo }) {
   if (!file.file) return
@@ -257,16 +283,34 @@ function resetUpload() {
   errorMessage.value = ''
 }
 
-function copyText(text: string) {
+function copyText(text: string, preview = false) {
   navigator.clipboard.writeText(text).then(() => {
-    message.success('已复制到剪贴板')
+    message.success(preview ? '已复制预览到剪贴板' : '已复制到剪贴板')
   })
+}
+
+function downloadFullText() {
+  const text = fullText.value
+  if (!text) return
+  const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  const base = (result.value?.fileName || 'extracted').replace(/\.[^.]+$/, '')
+  link.href = url
+  link.download = `${base}.md`
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return bytes + 'B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB'
   return (bytes / (1024 * 1024)).toFixed(1) + 'MB'
+}
+
+function formatCharCount(count: number): string {
+  if (count >= 10000) return `${(count / 10000).toFixed(count % 10000 === 0 ? 0 : 1)} 万字`
+  return `${count} 字`
 }
 
 function methodLabel(method: string): string {
@@ -396,9 +440,148 @@ function buildTableColumns(table: { sheetName: string; rows: string[][] }) {
   margin-bottom: 8px;
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+.preview-hint {
+  font-size: 12px;
+  color: #999;
 }
 
 .warnings {
   margin-bottom: 12px;
+}
+
+/* Markdown 渲染样式 */
+.markdown-body {
+  padding: 16px;
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #333;
+  overflow-x: auto;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.markdown-body h1 { font-size: 1.6em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+.markdown-body h2 { font-size: 1.35em; border-bottom: 1px solid #eee; padding-bottom: 0.25em; }
+.markdown-body h3 { font-size: 1.15em; }
+
+.markdown-body p {
+  margin: 0.5em 0;
+}
+
+.markdown-body strong {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.markdown-body em {
+  font-style: italic;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 2em;
+  margin: 0.5em 0;
+}
+
+.markdown-body li {
+  margin: 0.25em 0;
+}
+
+.markdown-body blockquote {
+  margin: 0.5em 0;
+  padding: 0.5em 1em;
+  border-left: 4px solid #2080f0;
+  background: #f0f7ff;
+  color: #555;
+}
+
+.markdown-body code {
+  padding: 0.2em 0.4em;
+  background: #f0f0f0;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.markdown-body pre {
+  padding: 12px 16px;
+  background: #282c34;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+
+.markdown-body pre code {
+  padding: 0;
+  background: none;
+  color: #abb2bf;
+  font-size: 0.85em;
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid #ddd;
+  padding: 6px 12px;
+  text-align: left;
+}
+
+.markdown-body th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+
+.markdown-body tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.markdown-body hr {
+  border: none;
+  border-top: 2px solid #e0e0e0;
+  margin: 1em 0;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  border-radius: 4px;
+  margin: 0.5em 0;
+}
+
+.markdown-body a {
+  color: #2080f0;
+  text-decoration: none;
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.markdown-body .task-list-item {
+  list-style: none;
+}
+
+.markdown-body .task-list-item input[type="checkbox"] {
+  margin-right: 0.5em;
 }
 </style>
