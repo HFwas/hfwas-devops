@@ -1,0 +1,188 @@
+# ============================================================
+# Kong 声明式配置（DB-less 模式）
+# 修改后执行: docker compose -f docker-compose.kong.yml restart kong
+# ============================================================
+_format_version: "3.0"
+_transform: true
+
+# ──────────────────────────────────────
+# Services（上游服务）
+# ──────────────────────────────────────
+
+services:
+
+  # ----- 后端 API 服务 -----
+  - name: backend-service
+    url: http://host.docker.internal:8089
+    # 如果后端也是在 docker 容器中（使用 docker-compose.yml），改用:
+    # url: http://backend:8089
+    connect_timeout: 30000
+    write_timeout: 30000
+    read_timeout: 60000
+    retries: 3
+    routes:
+      - name: backend-api
+        paths:
+          - /api
+        # strip_path 去掉 /api 前缀，后端不用感知网关
+        strip_path: true
+        methods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+          - HEAD
+          - OPTIONS
+        protocols:
+          - http
+          - https
+        # 健康检查端点不走 /api 转换
+        # 后端实际路径 /health/check，通过 /api/health/check 访问
+        # strip_path=true 会将 /api/health/check → /health/check
+
+  # ----- 前端 SPA 服务 -----
+  - name: frontend-service
+    # 前端 Vite 开发服务器
+    url: http://host.docker.internal:5173
+    # 如果前端 nginx 容器（docker-compose.yml），改用:
+    # url: http://frontend:80
+    connect_timeout: 10000
+    write_timeout: 30000
+    read_timeout: 30000
+    retries: 0
+    routes:
+      - name: frontend-spa
+        paths:
+          - /
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - HEAD
+          - OPTIONS
+        protocols:
+          - http
+          - https
+
+  # ----- Keycloak 认证服务 -----
+  - name: keycloak-service
+    # Keycloak 与 Kong 在同一个 compose 文件中，通过容器名访问
+    url: http://keycloak:8080
+    connect_timeout: 15000
+    write_timeout: 30000
+    read_timeout: 30000
+    retries: 2
+    routes:
+      - name: keycloak-auth
+        # Keycloak 配置了 KC_HTTP_RELATIVE_PATH=/auth，所有路径均在 /auth 下
+        paths:
+          - /auth
+        strip_path: false
+        methods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - HEAD
+          - OPTIONS
+        protocols:
+          - http
+          - https
+
+# ──────────────────────────────────────
+# 全局插件
+# ──────────────────────────────────────
+
+plugins:
+
+  # ----- CORS（开发环境宽松） -----
+  - name: cors
+    service: backend-service
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Content-Type
+        - Authorization
+        - X-Tenant-Id
+        - X-Requested-With
+      exposed_headers:
+        - Content-Disposition
+        - Content-Type
+        - X-Total-Count
+      credentials: true
+      max_age: 3600
+      preflight_continue: false
+
+  - name: cors
+    service: keycloak-service
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Content-Type
+        - Authorization
+        - X-Requested-With
+      credentials: true
+      max_age: 3600
+      preflight_continue: false
+
+  # ----- 请求日志（调试用） -----
+  - name: file-log
+    service: backend-service
+    config:
+      path: /usr/local/kong/logs/access.log
+      reopen: true
+
+  # ----- 速率限制（开发环境较宽松） -----
+  - name: rate-limiting
+    service: backend-service
+    config:
+      minute: 300
+      hour: 10000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+
+  # ----- 请求大小限制 -----
+  - name: request-size-limiting
+    service: backend-service
+    config:
+      allowed_payload_size: 200  # MB
+
+# ──────────────────────────────────────
+# 上游（负载均衡 / 健康检查）
+# ──────────────────────────────────────
+
+upstreams:
+  - name: backend-service
+    healthchecks:
+      active:
+        type: http
+        http_path: /health/check
+        healthy:
+          interval: 15
+          successes: 1
+        unhealthy:
+          interval: 10
+          timeouts: 3
+          http_failures: 2
+    targets:
+      - target: host.docker.internal:8089
+        weight: 100

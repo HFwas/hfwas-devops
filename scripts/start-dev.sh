@@ -9,6 +9,7 @@ BUILD=false
 INSTALL=false
 FORCE=false
 SKIP_PYTHON=false
+KONG=false
 
 usage() {
   cat <<EOF
@@ -21,6 +22,7 @@ usage() {
   --install       前端启动前先 npm install
   --force         端口占用时先结束旧进程
   --skip-python   跳过 Python 虚拟环境
+  --kong          启动 Kong 统一网关（需先启动 Docker）
   -h, --help      显示帮助
 
 停止: scripts/stop-dev.sh
@@ -33,6 +35,7 @@ while [ $# -gt 0 ]; do
     --install) INSTALL=true ;;
     --force) FORCE=true ;;
     --skip-python) SKIP_PYTHON=true ;;
+    --kong) KONG=true ;;
     -h | --help)
       usage
       exit 0
@@ -67,12 +70,18 @@ trap cleanup EXIT INT TERM
 log "后台启动后端 ..."
 nohup "$SCRIPT_DIR/start-backend.sh" "${BACKEND_ARGS[@]}" >"$RUN_DIR/backend.log" 2>&1 &
 echo $! >"$RUN_DIR/backend.pid"
-wait_for_backend "后端" 120
+wait_for_backend "后端" 240
+
+# 可选启动 Kong 网关
+if [ "$KONG" = true ]; then
+  start_kong
+fi
 
 log "后端日志: $RUN_DIR/backend.log"
 log "API: http://localhost:$BACKEND_PORT"
 log "前端: http://localhost:$FRONTEND_PORT （启动中）"
+[ "$KONG" = true ] && log "Kong: http://localhost:${KONG_PORT}"
 echo ""
 
-# 前台启动前端（Ctrl+C 会触发 cleanup 停止后端）
+# 前台启动前端（Ctrl+C 会触发 cleanup 停止后端 + Kong）
 exec "$SCRIPT_DIR/start-frontend.sh" "${FRONTEND_ARGS[@]}"

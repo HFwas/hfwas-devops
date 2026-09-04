@@ -12,7 +12,7 @@ usage() {
   cat <<EOF
 用法: $(basename "$0") [选项]
 
-  启动前端 Vite 开发服务器（端口 $FRONTEND_PORT，API 代理至 $BACKEND_PORT）
+  启动前端 Vite 开发服务器（端口 ${FRONTEND_PORT}，API 代理至 ${BACKEND_PORT}）
 
 选项:
   --install  启动前执行 npm install
@@ -51,9 +51,24 @@ fi
 
 cd "$ROOT_DIR/frontend"
 
-if [ "$INSTALL" = true ] || [ ! -d node_modules ]; then
-  log "安装前端依赖 ..."
-  npm install
+if [ "$INSTALL" = true ]; then
+  # 强制重新安装：优先用 npm ci（快，只读 lock 文件）
+  if [ -f package-lock.json ]; then
+    log "重新安装前端依赖 (npm ci) ..."
+    npm ci
+  else
+    log "重新安装前端依赖 (npm install) ..."
+    npm install
+  fi
+elif [ ! -d node_modules ]; then
+  # 首次启动，自动安装
+  if [ -f package-lock.json ]; then
+    log "安装前端依赖 (npm ci) ..."
+    npm ci
+  else
+    log "安装前端依赖 (npm install) ..."
+    npm install
+  fi
 fi
 
 log "启动前端 (http://localhost:$FRONTEND_PORT) ..."

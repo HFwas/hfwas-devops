@@ -24,7 +24,12 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0',
     port: 5173,
+    allowedHosts: true,
+    hmr: {
+      clientPort: 5173,
+    },
     proxy: {
       // Trailing slash so SPA route `/api-test` is NOT proxied (prefix `/api` would match it).
       '/api/': {

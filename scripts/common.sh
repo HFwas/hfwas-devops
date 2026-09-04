@@ -5,6 +5,12 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_DIR="$ROOT_DIR/logs"
 BACKEND_PORT="${BACKEND_PORT:-8089}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
+
+# Kong 网关
+KONG_COMPOSE_FILE="$ROOT_DIR/docker-compose.kong.yml"
+KONG_PORT="${KONG_PORT:-8000}"
+KONG_ADMIN_PORT="${KONG_ADMIN_PORT:-8001}"
+
 VENV_DIR="${PYTHON_VENV:-$ROOT_DIR/backend/scripts/.venv}"
 OCR_WORKER="$ROOT_DIR/backend/file-parser/src/main/resources/ocr/ocr_worker.py"
 OCR_MODEL_ROOT="$ROOT_DIR/backend/file-parser/src/main/resources/ocr/models"
@@ -43,28 +49,29 @@ wait_for_port() {
     sleep 1
     i=$((i + 1))
   done
-  die "$name 启动超时（端口 $port）"
+  die "${name} 启动超时（端口 ${port}）"
 }
 
 # Poll HTTP until Spring Boot responds (avoids false-positive when port is briefly held by a dying process).
+# 默认 240s：--build + 首次 pip + PP-OCRv6 冷启动经常超过 120s。
 wait_for_backend() {
   local name=${1:-后端}
-  local max=${2:-120}
-  local url="http://localhost:$BACKEND_PORT/health/check"
+  local max=${2:-240}
+  local url="http://localhost:${BACKEND_PORT}/health/check"
   local i=0
   while [ "$i" -lt "$max" ]; do
-    local code
+    local code=""
     code=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || true)
     case "$code" in
       200|204)
-        log "$name 已就绪 (HTTP $code)"
+        log "${name} 已就绪 (HTTP ${code})"
         return 0
         ;;
     esac
     sleep 1
     i=$((i + 1))
   done
-  die "$name 启动超时（$url），请查看 $RUN_DIR/backend.log"
+  die "${name} 启动超时（${url}），请查看 ${RUN_DIR}/backend.log"
 }
 
 # 准备文档生成 + PP-OCRv6 worker 共用的虚拟环境，并导出 Java 侧用到的路径。
@@ -100,6 +107,12 @@ ensure_python_env() {
     [ -f "$DOCGEN_REQUIREMENTS" ] && "$py" -m pip install -q -r "$DOCGEN_REQUIREMENTS"
     [ -f "$OCR_REQUIREMENTS" ] && "$py" -m pip install -q -r "$OCR_REQUIREMENTS"
     date >"$stamp"
+    # paddleocr 首次 import 会拉整棵 PaddleX + 可能重建 Matplotlib 字体缓存，可到 40s+。
+    # 放到 pip 之后预热，避免阻塞 Spring Boot @PostConstruct。
+    log "预热 PaddleOCR import（首次可能较慢）..."
+    MPLBACKEND=Agg PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True PADDLE_PDX_EAGER_INIT=0 \
+      HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
+      "$py" -c "from paddleocr import PaddleOCR" >/dev/null
   fi
   export PATH="$VENV_DIR/bin:$PATH"
   export FILE_PARSER_OCR_PYTHON="$py"
@@ -132,4 +145,72 @@ ensure_ocr_models() {
     die "OCR 模型准备失败，请检查网络或手动运行: $py $script"
   fi
   log "OCR 模型: $FILE_PARSER_OCR_DET_MODEL_DIR"
+}
+
+# ═══════════════════════════════════════════════
+# Kong 网关操作
+# ═══════════════════════════════════════════════
+
+require_docker() {
+  if ! docker info >/dev/null 2>&1; then
+    die "Docker 未运行，请先启动 Docker Desktop"
+  fi
+}
+
+start_kong() {
+  require_docker
+
+  if [ ! -f "$KONG_COMPOSE_FILE" ]; then
+    die "Kong 配置文件不存在: $KONG_COMPOSE_FILE"
+  fi
+
+  log "启动 Kong 网关 + Keycloak 认证服务 ..."
+  docker compose -f "$KONG_COMPOSE_FILE" up -d
+
+  log "等待 Kong 就绪 ..."
+  local i=0
+  while [ "$i" -lt 30 ]; do
+    if docker compose -f "$KONG_COMPOSE_FILE" exec kong kong health 2>/dev/null | grep -q "healthy"; then
+      log "Kong 就绪!"
+      echo ""
+      echo "==========================================="
+      echo "  Kong 网关 + Keycloak 已启动"
+      echo "==========================================="
+      echo ""
+      echo "  统一入口:   http://localhost:${KONG_PORT}"
+      echo "  Admin API:  http://localhost:${KONG_ADMIN_PORT}"
+      echo ""
+      echo "  Keycloak 管理控制台:"
+      echo "  ├─ 经 Kong:  http://localhost:${KONG_PORT}/auth/admin"
+      echo "  └─ 直连:     http://localhost:8081/auth/admin"
+      echo "     账号: admin / admin"
+      echo ""
+      echo "  测试路由:"
+      echo "  ┌───────────────┬──────────────────────────────────────────┐"
+      echo "  │ 前端 SPA      │ curl -s http://localhost:${KONG_PORT}      │"
+      echo "  │ 后端 API      │ curl -s http://localhost:${KONG_PORT}/api/health/check  │"
+      echo "  │ Keycloak      │ curl -s http://localhost:${KONG_PORT}/auth/health/ready  │"
+      echo "  └───────────────┴──────────────────────────────────────────┘"
+      echo ""
+      return 0
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+  die "Kong 启动超时，请查看日志: docker compose -f $KONG_COMPOSE_FILE logs kong"
+}
+
+stop_kong() {
+  if [ ! -f "$KONG_COMPOSE_FILE" ]; then
+    return 0
+  fi
+  # 检查是否有 Kong 容器在运行
+  if docker ps --filter "name=devops-kong" --format "{{.Names}}" 2>/dev/null | grep -q "devops-kong"; then
+    log "停止 Kong 网关 ..."
+    docker compose -f "$KONG_COMPOSE_FILE" down
+  fi
+}
+
+kong_is_running() {
+  docker ps --filter "name=devops-kong" --filter "status=running" --format "{{.Names}}" 2>/dev/null | grep -q "devops-kong"
 }

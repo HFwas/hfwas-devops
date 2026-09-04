@@ -1,0 +1,95 @@
+# ============================================================
+# Kong 统一入口网关 + Keycloak 认证服务（本地开发用）
+#
+# 依赖: 后端 (8089) 和前端 (5173) 已通过宿主机进程启动
+#   或: 通过 docker-compose.yml 中的 backend / frontend 容器启动
+#
+# 启动:
+#   docker compose -f docker-compose.kong.yml up -d
+#
+# 访问:
+#   http://localhost:8000            → 前端 SPA（经 Kong）
+#   http://localhost:8000/api/xxx    → 后端 API（经 Kong）
+#   http://localhost:8000/auth/      → Keycloak（经 Kong）
+#   http://localhost:8081            → Keycloak 管理控制台（直连）
+#   http://localhost:8001            → Kong Admin API
+# ============================================================
+
+services:
+  # ---------- Kong 网关 ----------
+  kong:
+    image: kong:3.9
+    container_name: devops-kong
+    restart: unless-stopped
+    ports:
+      - "8000:8000"        # 代理入口（HTTP）
+      - "8443:8443"        # 代理入口（HTTPS）
+      - "8001:8001"        # Admin API
+      - "8444:8444"        # Admin API (HTTPS)
+      - "8002:8002"        # Kong Manager (GUI)
+    environment:
+      KONG_DATABASE: off
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
+      KONG_PLUGINS: bundled,cors,key-auth,rate-limiting,ip-restriction
+      # 允许从宿主机访问后端/前端
+      KONG_DNS_ORDER: AAAA, A
+      KONG_LOG_LEVEL: debug
+    volumes:
+      - ./kong/kong.yml:/etc/kong/kong.yml:ro
+      - ./kong/logs:/usr/local/kong/logs
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ---------- (可选) Kong Manager UI ----------
+  # 如果要 GUI 管理界面，需要切换到 DB 模式（需要 PostgreSQL），
+  # 这里 DB-less 模式下只读配置，仅用于展示。
+  # 实际管理通过修改 kong/kong.yml 并 restart 生效。
+
+  # ---------- Keycloak 认证服务 ----------
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.3
+    container_name: devops-keycloak
+    restart: unless-stopped
+    ports:
+      - "8081:8080"        # 管理控制台（直连，避免与本机 8080 端口冲突）
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # 开发模式：使用嵌入式 H2 数据库，无需外接 PostgreSQL
+      # 生产环境应切换为 PostgreSQL: KC_DB=postgres KC_DB_URL=...
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_STRICT: "false"
+      KC_PROXY: edge
+      KC_HEALTH_ENABLED: "true"
+      # 日志级别（开发时调低）
+      KC_LOG_LEVEL: INFO
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e \"GET /auth/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n\" >&3 && head -1 <&3 | grep -q 200",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: start-dev
+
+# ---------- 网络 ----------
+# 让 Kong 与后端/前端容器在同一个网络
+# 如果后端/前端是用 docker-compose.yml 启动的容器，取消下面注释
+# networks:
+#   default:
+#     name: hfwas-devops_default
+#     external: true
