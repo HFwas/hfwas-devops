@@ -4,7 +4,7 @@ import { pmProjectApi } from '@/modules/pm/api'
 import type { ProjectAccessContext } from '@/modules/pm/types'
 import type { TenantOption, UserProfile } from '@/modules/user/types'
 import { TENANT_ID_KEY, TENANT_NAME_KEY } from '@/modules/user/types'
-import { getKeycloak, getToken, isAuthenticated, login as keycloakLogin, logout as keycloakLogout } from '@/shared/keycloak'
+import { appRedirectUri, getKeycloak, getToken, isAuthenticated, login as keycloakLogin, logout as keycloakLogout } from '@/shared/keycloak'
 
 function readStoredTenantId(): string | null {
   return localStorage.getItem(TENANT_ID_KEY)
@@ -73,10 +73,10 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function login() {
-    const redirect = window.location.origin + (window.location.pathname.startsWith('/user/login')
+    const path = window.location.pathname.startsWith('/user/login')
       ? '/workbench'
-      : window.location.pathname + window.location.search)
-    await keycloakLogin(redirect)
+      : window.location.pathname
+    await keycloakLogin(appRedirectUri(path))
   }
 
   async function fetchMyTenants() {
@@ -170,7 +170,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     myTenants.value = []
     token.value = null
-    await keycloakLogout(`${window.location.origin}/`)
+    await keycloakLogout(appRedirectUri('/workbench'))
   }
 
   return {

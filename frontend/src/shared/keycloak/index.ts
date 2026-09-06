@@ -16,6 +16,14 @@ export function isAuthenticated() {
   return !!keycloak.authenticated
 }
 
+export function appRedirectUri(path?: string) {
+  const origin = window.location.origin
+  if (!path || path === '/') {
+    return `${origin}/workbench`
+  }
+  return `${origin}${path.startsWith('/') ? path : `/${path}`}`
+}
+
 export async function initKeycloak() {
   if (initialized) {
     return keycloak.authenticated === true
@@ -24,6 +32,7 @@ export async function initKeycloak() {
     onLoad: 'check-sso',
     pkceMethod: 'S256',
     checkLoginIframe: false,
+    redirectUri: appRedirectUri(window.location.pathname),
   })
   initialized = true
   return ok
@@ -44,12 +53,12 @@ export async function getToken(): Promise<string | undefined> {
 
 export function login(redirectUri?: string) {
   return keycloak.login({
-    redirectUri: redirectUri ?? window.location.href,
+    redirectUri: redirectUri ?? appRedirectUri(window.location.pathname),
   })
 }
 
 export function logout(redirectUri?: string) {
   return keycloak.logout({
-    redirectUri: redirectUri ?? `${window.location.origin}/`,
+    redirectUri: redirectUri ?? appRedirectUri('/workbench'),
   })
 }
