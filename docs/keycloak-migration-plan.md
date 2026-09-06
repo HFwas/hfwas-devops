@@ -114,7 +114,7 @@ KC_HOSTNAME_ADMIN: http://localhost:8081
 KC_HOSTNAME_STRICT: "false"
 KC_PROXY_HEADERS: xforwarded
 KEYCLOAK_HTTP_LISTENER_URL: http://host.docker.internal:8089/internal/keycloak/events
-KEYCLOAK_HTTP_LISTENER_SECRET: ${KEYCLOAK_WEBHOOK_SECRET:dev-keycloak-webhook}
+KEYCLOAK_HTTP_LISTENER_SECRET: ${KEYCLOAK_WEBHOOK_SECRET:-dev-keycloak-webhook}
 ```
 
 - `command: start-dev --import-realm`

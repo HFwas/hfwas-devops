@@ -78,7 +78,7 @@ services:
       KC_PROXY_HEADERS: xforwarded
       KC_HEALTH_ENABLED: "true"
       KEYCLOAK_HTTP_LISTENER_URL: http://host.docker.internal:8089/internal/keycloak/events
-      KEYCLOAK_HTTP_LISTENER_SECRET: ${KEYCLOAK_WEBHOOK_SECRET:dev-keycloak-webhook}
+      KEYCLOAK_HTTP_LISTENER_SECRET: ${KEYCLOAK_WEBHOOK_SECRET:-dev-keycloak-webhook}
       # 日志级别（开发时调低）
       KC_LOG_LEVEL: INFO
     volumes:
