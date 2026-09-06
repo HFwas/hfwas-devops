@@ -6,6 +6,7 @@ import { fileParserRoutes } from '@/modules/file-parser/router/fileParserRoutes'
 import { docgenRoutes } from '@/modules/docgen/router/docgenRoutes'
 import { useAuthStore } from '@/modules/user/stores/auth'
 import { resolveRouteProjectId } from '@/modules/pm/utils/projectRoute'
+import { isAuthenticated, login as keycloakLogin } from '@/shared/keycloak'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -27,13 +28,16 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (to.meta.public) return true
   const auth = useAuthStore()
-  if (!auth.token) {
-    return { path: '/user/login', query: { redirect: to.fullPath } }
+  if (!isAuthenticated()) {
+    await keycloakLogin(`${window.location.origin}${to.fullPath}`)
+    return false
   }
+  await auth.syncToken()
   if (!auth.user) {
     const me = await auth.fetchMe()
     if (!me) {
-      return { path: '/user/login', query: { redirect: to.fullPath } }
+      await keycloakLogin(`${window.location.origin}${to.fullPath}`)
+      return false
     }
   }
   const projectId = resolveRouteProjectId(to)

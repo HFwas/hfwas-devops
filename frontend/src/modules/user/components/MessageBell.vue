@@ -2,8 +2,8 @@
 import { Bell } from '@lucide/vue'
 import { messageApi } from '@/modules/user/api'
 import type { UserMessage } from '@/modules/user/types'
-import { AUTH_TOKEN_KEY } from '@/modules/user/types'
 import { formatDateTime } from '@/modules/pm/utils/comment'
+import { useAuthStore } from '@/modules/user/stores/auth'
 
 const router = useRouter()
 const unreadCount = ref(0)
@@ -11,8 +11,10 @@ const recent = ref<UserMessage[]>([])
 const loading = ref(false)
 const showPopover = ref(false)
 
+const auth = useAuthStore()
+
 async function refresh() {
-  if (!localStorage.getItem(AUTH_TOKEN_KEY)) return
+  if (!auth.isLoggedIn) return
   loading.value = true
   try {
     const [count, list] = await Promise.all([messageApi.unreadCount(), messageApi.recent(5)])

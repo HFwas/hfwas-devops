@@ -53,33 +53,6 @@ export interface TenantOption {
   name: string
 }
 
-export interface LoginResponse {
-  token: string
-  user: UserProfile
-}
-
-export interface UserSessionStats {
-  onlineCount: number
-  idleCount: number
-  totalActive: number
-}
-
-export interface UserSession {
-  id: number | string
-  userId: number | string
-  username: string
-  displayName: string
-  role: string
-  loginIp: string
-  clientInfo: string
-  userAgent?: string
-  loginTime: string
-  lastActiveTime: string
-  expireTime: string
-  onlineStatus: 'online' | 'idle' | string
-  current?: boolean
-}
-
 export interface LoginLog {
   id: number | string
   userId?: number | string
@@ -112,7 +85,6 @@ export interface OperLog {
   createTime: string
 }
 
-export const AUTH_TOKEN_KEY = 'hfwas.auth.token'
 export const TENANT_ID_KEY = 'hfwas.auth.tenantId'
 export const TENANT_NAME_KEY = 'hfwas.auth.tenantName'
 

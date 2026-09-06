@@ -288,8 +288,7 @@ onMounted(async () => {
     />
 
     <n-alert type="info" :bordered="false">
-      同步会在平台创建/更新用户（auth_source=ldap），并按配置自动加入默认租户。本地 admin 账号不受影响。
-      后续可在登录流程接入 LDAP 认证，当前版本以目录同步为主。
+      同步会在平台创建/更新用户（auth_source=ldap），并按配置自动加入默认租户。登录仍走 Keycloak，连接器不能替代统一认证。
     </n-alert>
 
     <n-space>

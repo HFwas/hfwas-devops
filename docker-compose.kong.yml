@@ -5,7 +5,11 @@
 #   或: 通过 docker-compose.yml 中的 backend / frontend 容器启动
 #
 # 启动:
+#   先构建事件监听 JAR（只需一次）:
+#     mvn -f keycloak/http-event-listener/pom.xml package
 #   docker compose -f docker-compose.kong.yml up -d
+#   后端启动前须能访问 http://localhost:8000/auth/realms/hfwas-devops
+#   绿野可删 backend/server/data/hfwas-devops.db 后重启后端
 #
 # 访问:
 #   http://localhost:8000            → 前端 SPA（经 Kong）
@@ -68,12 +72,18 @@ services:
       # 开发模式：使用嵌入式 H2 数据库，无需外接 PostgreSQL
       # 生产环境应切换为 PostgreSQL: KC_DB=postgres KC_DB_URL=...
       KC_HTTP_RELATIVE_PATH: /auth
-      KC_HOSTNAME: localhost
+      KC_HOSTNAME: http://localhost:8000
+      KC_HOSTNAME_ADMIN: http://localhost:8081
       KC_HOSTNAME_STRICT: "false"
-      KC_PROXY: edge
+      KC_PROXY_HEADERS: xforwarded
       KC_HEALTH_ENABLED: "true"
+      KEYCLOAK_HTTP_LISTENER_URL: http://host.docker.internal:8089/internal/keycloak/events
+      KEYCLOAK_HTTP_LISTENER_SECRET: ${KEYCLOAK_WEBHOOK_SECRET:dev-keycloak-webhook}
       # 日志级别（开发时调低）
       KC_LOG_LEVEL: INFO
+    volumes:
+      - ./keycloak/hfwas-devops-realm.json:/opt/keycloak/data/import/hfwas-devops-realm.json:ro
+      - ./keycloak/http-event-listener/target/hfwas-keycloak-http-listener-1.0-SNAPSHOT.jar:/opt/keycloak/providers/hfwas-keycloak-http-listener.jar:ro
     healthcheck:
       test:
         [
@@ -84,7 +94,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    command: start-dev
+    command: start-dev --import-realm
 
 # ---------- 网络 ----------
 # 让 Kong 与后端/前端容器在同一个网络

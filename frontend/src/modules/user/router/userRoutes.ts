@@ -37,11 +37,6 @@ export const userRoutes: RouteRecordRaw[] = [
         component: () => import('@/modules/user/views/TenantManageView.vue'),
       },
       {
-        path: 'sessions',
-        name: 'user-sessions',
-        component: () => import('@/modules/user/views/UserSessionView.vue'),
-      },
-      {
         path: 'login-logs',
         name: 'user-login-logs',
         component: () => import('@/modules/user/views/LoginLogView.vue'),

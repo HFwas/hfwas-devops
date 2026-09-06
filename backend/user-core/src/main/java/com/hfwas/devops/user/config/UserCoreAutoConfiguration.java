@@ -19,7 +19,6 @@ import com.hfwas.devops.user.spi.UserIdentityResolver;
 import com.hfwas.devops.user.spi.TenantAccessValidator;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -36,7 +35,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
         "com.hfwas.devops.user.mapper",
         "com.hfwas.devops.user.operlog.mapper"
 }, markerInterface = BaseMapper.class)
-@EnableConfigurationProperties(UserJwtProperties.class)
 public class UserCoreAutoConfiguration {
 
     @Bean

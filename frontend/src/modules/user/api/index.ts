@@ -1,24 +1,14 @@
 import { get, post } from '@/shared/api/request'
-import type { LoginLog, LoginResponse, OperLog, PlatformUserOption, Tenant, TenantMember, TenantOption, UserProfile, UserSession, UserSessionStats, IdentityConnector, IdentityConnectorType, ConnectorTestResult, ConnectorSyncResult, UserMessage, NotifyChannel, NotifyTestResult } from '@/modules/user/types'
+import type { LoginLog, OperLog, PlatformUserOption, Tenant, TenantMember, TenantOption, UserProfile, IdentityConnector, IdentityConnectorType, ConnectorTestResult, ConnectorSyncResult, UserMessage, NotifyChannel, NotifyTestResult } from '@/modules/user/types'
 import type { PageResult } from '@/shared/types/common'
 import { asId } from '@/modules/pm/utils/id'
 
 export const userAuthApi = {
-  login: (username: string, password: string) =>
-    post<LoginResponse>('/user/auth/login', { username, password }),
   me: () => get<UserProfile>('/user/auth/me'),
   myTenants: () => get<TenantOption[]>('/user/auth/my-tenants'),
   switchTenant: (tenantId: number | string) =>
-    post<LoginResponse>('/user/auth/switch-tenant', { tenantId }),
-  logout: () => post<void>('/user/auth/logout', {}),
+    post<UserProfile>('/user/auth/switch-tenant', { tenantId }),
   userOptions: () => get<UserProfile[]>('/user/users/options'),
-}
-
-export const userSessionApi = {
-  stats: () => get<UserSessionStats>('/user/sessions/stats'),
-  page: (data: { pageNo?: number; pageSize?: number; keyword?: string; status?: string }) =>
-    post<PageResult<UserSession>>('/user/sessions/page', data),
-  revoke: (id: number | string) => post<void>(`/user/sessions/revoke?id=${asId(id)}`, {}),
 }
 
 export const loginLogApi = {

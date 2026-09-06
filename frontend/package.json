@@ -17,6 +17,7 @@
     "@vueuse/core": "^11.3.0",
     "axios": "^1.7.9",
     "dayjs": "^1.11.13",
+    "keycloak-js": "^26.2.4",
     "md-editor-v3": "^6.5.3",
     "naive-ui": "^2.40.3",
     "pinia": "^2.3.0",

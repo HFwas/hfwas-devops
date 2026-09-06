@@ -10,7 +10,7 @@ const router = useRouter()
  * 不作为项目管理的二级 Tab 存在。扩展点：往对应分组追加一项即可。
  */
 const menuGroups = [
-  { label: '成员与访问', items: ['/user/accounts', '/user/sessions', '/user/login-logs'] },
+  { label: '成员与访问', items: ['/user/accounts', '/user/login-logs'] },
   { label: '租户与集成', items: ['/user/tenants', '/user/integrations'] },
   { label: '消息', items: ['/user/messages', '/user/message-notify'] },
   { label: '审计', items: ['/user/oper-logs'] },
@@ -18,7 +18,6 @@ const menuGroups = [
 
 const MENU_LABELS: Record<string, string> = {
   '/user/accounts': '账号管理',
-  '/user/sessions': '在线会话',
   '/user/login-logs': '登录日志',
   '/user/tenants': '租户管理',
   '/user/integrations': '三方对接',

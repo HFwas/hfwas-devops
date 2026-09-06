@@ -123,6 +123,15 @@ plugins:
       max_age: 3600
       preflight_continue: false
 
+  - name: request-transformer
+    service: keycloak-service
+    config:
+      add:
+        headers:
+          - "X-Forwarded-Proto:http"
+          - "X-Forwarded-Host:localhost:8000"
+          - "X-Forwarded-Port:8000"
+
   - name: cors
     service: keycloak-service
     config:

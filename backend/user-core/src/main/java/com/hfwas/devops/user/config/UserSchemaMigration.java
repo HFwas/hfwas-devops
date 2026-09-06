@@ -6,7 +6,6 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -19,7 +18,6 @@ import java.util.Map;
 public class UserSchemaMigration implements ApplicationRunner {
 
     private final JdbcTemplate jdbcTemplate;
-    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -30,7 +28,8 @@ public class UserSchemaMigration implements ApplicationRunner {
         ensureTenantMemberTable();
         migrateToTenantMembers();
         ensureGlobalUsernameIndex();
-        ensureSessionTable();
+        dropSessionTable();
+        recreateLoginLogTable();
         ensureLoginLogTable();
         ensureOperLogTable();
         ensureIdentityConnectorTable();
@@ -66,7 +65,7 @@ public class UserSchemaMigration implements ApplicationRunner {
                     id              INTEGER      PRIMARY KEY AUTOINCREMENT,
                     tenant_id       INTEGER      NOT NULL DEFAULT 1,
                     username        TEXT         NOT NULL,
-                    password        TEXT         NOT NULL,
+                    password        TEXT,
                     display_name    TEXT         NOT NULL,
                     email           TEXT,
                     phone           TEXT,
@@ -130,30 +129,21 @@ public class UserSchemaMigration implements ApplicationRunner {
         jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_user_username_unique ON sys_user(username)");
     }
 
-    private void ensureSessionTable() {
-        jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS sys_user_session (
-                    id               INTEGER      PRIMARY KEY AUTOINCREMENT,
-                    user_id          INTEGER      NOT NULL,
-                    jti              TEXT         NOT NULL UNIQUE,
-                    login_ip         TEXT,
-                    user_agent       TEXT,
-                    login_time       TEXT         DEFAULT (datetime('now')),
-                    last_active_time TEXT         DEFAULT (datetime('now')),
-                    expire_time      TEXT         NOT NULL,
-                    revoked          INTEGER      DEFAULT 0
-                )
-                """);
-        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_user_session_user ON sys_user_session(user_id)");
-        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_user_session_jti ON sys_user_session(jti)");
-        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_user_session_active ON sys_user_session(revoked, expire_time)");
+    private void dropSessionTable() {
+        jdbcTemplate.execute("DROP TABLE IF EXISTS sys_user_session");
+    }
+
+    private void recreateLoginLogTable() {
+        jdbcTemplate.execute("DROP TABLE IF EXISTS sys_login_log");
     }
 
     private void ensureLoginLogTable() {
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS sys_login_log (
                     id            INTEGER      PRIMARY KEY AUTOINCREMENT,
+                    kc_event_id   TEXT         NOT NULL UNIQUE,
                     user_id       INTEGER,
+                    kc_user_id    TEXT,
                     username      TEXT         NOT NULL,
                     display_name  TEXT,
                     action        TEXT         NOT NULL,
@@ -224,6 +214,7 @@ public class UserSchemaMigration implements ApplicationRunner {
         addColumnIfMissing("sys_user", "connector_id", "INTEGER");
         jdbcTemplate.update("UPDATE sys_user SET auth_source = 'local' WHERE auth_source IS NULL");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_user_connector ON sys_user(connector_id, external_id)");
+        jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_user_external_id ON sys_user(external_id)");
     }
 
     private void ensureUserMessageTable() {
@@ -287,21 +278,7 @@ public class UserSchemaMigration implements ApplicationRunner {
                            COALESCE(enabled, 1)
                     FROM sys_user WHERE del_flag = 0
                     """);
-            return;
         }
-        String encoded = passwordEncoder.encode("admin123");
-        jdbcTemplate.update("""
-                INSERT INTO sys_user (username, password, display_name, role, enabled)
-                VALUES (?, ?, ?, 'admin', 1)
-                """, "admin", encoded, "系统管理员");
-        Long adminId = jdbcTemplate.queryForObject("SELECT id FROM sys_user WHERE username = 'admin'", Long.class);
-        if (adminId != null) {
-            jdbcTemplate.update("""
-                    INSERT OR IGNORE INTO sys_tenant_member (tenant_id, user_id, tenant_role, status)
-                    VALUES (1, ?, 'tenant_admin', 1)
-                    """, adminId);
-        }
-        log.info("Seeded default admin user: admin / admin123 (member of tenant=default)");
     }
 
     private void addColumnIfMissing(String table, String column, String definition) {

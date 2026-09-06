@@ -13,7 +13,12 @@ const rows = computed(() => [
   { label: '手机号', value: auth.user?.phone || '未填写' },
   {
     label: '认证来源',
-    value: auth.user?.authSource === 'ldap' ? auth.user.connectorName || 'LDAP' : '本地账号',
+    value:
+      auth.user?.authSource === 'ldap'
+        ? auth.user.connectorName || 'LDAP'
+        : auth.user?.authSource === 'keycloak'
+          ? '统一认证'
+          : '本地账号',
   },
   { label: '当前租户', value: auth.activeTenantName || auth.user?.tenantName || '未指定' },
 ])

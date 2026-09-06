@@ -20,16 +20,21 @@ CREATE INDEX IF NOT EXISTS idx_sys_tenant_status ON sys_tenant(status);
 CREATE TABLE IF NOT EXISTS sys_user (
     id              INTEGER      PRIMARY KEY AUTOINCREMENT,
     username        TEXT         NOT NULL UNIQUE,
-    password        TEXT         NOT NULL,
+    password        TEXT,
     display_name    TEXT         NOT NULL,
     email           TEXT,
     phone           TEXT,
     role            TEXT         NOT NULL DEFAULT 'user',
     enabled         INTEGER      DEFAULT 1,
+    auth_source     TEXT         DEFAULT 'keycloak',
+    external_id     TEXT,
+    connector_id    INTEGER,
     create_time     TEXT         DEFAULT (datetime('now')),
     update_time     TEXT         DEFAULT (datetime('now')),
     del_flag        INTEGER      DEFAULT 0
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_user_external_id ON sys_user(external_id);
 
 CREATE TABLE IF NOT EXISTS sys_tenant_member (
     id              INTEGER      PRIMARY KEY AUTOINCREMENT,
@@ -44,25 +49,11 @@ CREATE TABLE IF NOT EXISTS sys_tenant_member (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_tenant_member ON sys_tenant_member(tenant_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_sys_tenant_member_user ON sys_tenant_member(user_id);
 
-CREATE TABLE IF NOT EXISTS sys_user_session (
-    id               INTEGER      PRIMARY KEY AUTOINCREMENT,
-    user_id          INTEGER      NOT NULL,
-    jti              TEXT         NOT NULL UNIQUE,
-    login_ip         TEXT,
-    user_agent       TEXT,
-    login_time       TEXT         DEFAULT (datetime('now')),
-    last_active_time TEXT         DEFAULT (datetime('now')),
-    expire_time      TEXT         NOT NULL,
-    revoked          INTEGER      DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_sys_user_session_user ON sys_user_session(user_id);
-CREATE INDEX IF NOT EXISTS idx_sys_user_session_jti ON sys_user_session(jti);
-CREATE INDEX IF NOT EXISTS idx_sys_user_session_active ON sys_user_session(revoked, expire_time);
-
 CREATE TABLE IF NOT EXISTS sys_login_log (
     id            INTEGER      PRIMARY KEY AUTOINCREMENT,
+    kc_event_id   TEXT         NOT NULL UNIQUE,
     user_id       INTEGER,
+    kc_user_id    TEXT,
     username      TEXT         NOT NULL,
     display_name  TEXT,
     action        TEXT         NOT NULL,

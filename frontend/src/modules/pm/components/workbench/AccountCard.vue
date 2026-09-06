@@ -19,6 +19,7 @@ const tenantName = computed(() => auth.activeTenantName || auth.user?.tenantName
 const verified = computed(() => auth.user?.enabled !== 0)
 const authSourceLabel = computed(() => {
   if (auth.user?.authSource === 'ldap') return auth.user.connectorName || 'LDAP'
+  if (auth.user?.authSource === 'keycloak') return '统一认证'
   return '本地账号'
 })
 

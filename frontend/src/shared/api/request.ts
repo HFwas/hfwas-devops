@@ -2,7 +2,8 @@ import axios from 'axios'
 import type { BaseResult } from '@/shared/types/common'
 import { ApiError, isApiError, toApiError } from '@/shared/errors/apiError'
 import { ResultCode } from '@/shared/errors/resultCode'
-import { AUTH_TOKEN_KEY, TENANT_ID_KEY, TENANT_NAME_KEY } from '@/modules/user/types'
+import { TENANT_ID_KEY, TENANT_NAME_KEY } from '@/modules/user/types'
+import { getToken, login as keycloakLogin } from '@/shared/keycloak'
 
 const request = axios.create({
   baseURL: '/api',
@@ -15,18 +16,13 @@ function rejectResult(result: BaseResult<unknown>): Promise<never> {
 }
 
 function handleUnauthorized() {
-  localStorage.removeItem(AUTH_TOKEN_KEY)
   localStorage.removeItem(TENANT_ID_KEY)
   localStorage.removeItem(TENANT_NAME_KEY)
-  const path = window.location.pathname
-  if (!path.startsWith('/user/login')) {
-    const redirect = encodeURIComponent(path + window.location.search)
-    window.location.href = `/user/login?redirect=${redirect}`
-  }
+  void keycloakLogin(window.location.href)
 }
 
-request.interceptors.request.use((config) => {
-  const token = localStorage.getItem(AUTH_TOKEN_KEY)
+request.interceptors.request.use(async (config) => {
+  const token = await getToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }

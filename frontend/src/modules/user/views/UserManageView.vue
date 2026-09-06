@@ -113,7 +113,7 @@ const columns = [
     width: 90,
     render: (row: UserProfile) => {
       const src = row.authSource || 'local'
-      const label = src === 'ldap' ? 'LDAP' : src === 'local' ? '本地' : src
+      const label = src === 'ldap' ? 'LDAP' : src === 'keycloak' ? '统一认证' : src === 'local' ? '本地' : src
       return h(NTag, { size: 'small', bordered: false, type: src === 'local' ? 'default' : 'info' }, () => label)
     },
   },
@@ -198,7 +198,10 @@ onMounted(async () => {
         <n-form-item label="显示名称" required>
           <n-input v-model:value="form.displayName" placeholder="界面展示名称" />
         </n-form-item>
-        <n-form-item :label="editing ? '新密码（留空不改）' : '密码'" :required="!editing">
+        <n-form-item
+          v-if="!editing || editing.authSource !== 'keycloak'"
+          :label="editing ? '新密码（留空不改）' : '密码（可选，登录走统一认证）'"
+        >
           <n-input v-model:value="form.password" type="password" show-password-on="click" />
         </n-form-item>
         <n-form-item label="邮箱">
@@ -220,7 +223,7 @@ onMounted(async () => {
           <n-switch v-model:value="form.enabled" :checked-value="1" :unchecked-value="0" />
         </n-form-item>
         <n-alert v-if="!editing" type="info" :bordered="false">
-          新建用户为平台级账号，请在「租户管理 → 成员」中将用户加入租户。
+          登录账号在 Keycloak 创建。这里只维护资料与角色，请在「租户管理 → 成员」中加入租户。
         </n-alert>
       </n-form>
       <template #footer>

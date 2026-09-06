@@ -85,7 +85,7 @@ function onSearch() {
 }
 
 function logout() {
-  void auth.logout().then(() => router.push('/user/login'))
+  void auth.logout()
 }
 </script>
 

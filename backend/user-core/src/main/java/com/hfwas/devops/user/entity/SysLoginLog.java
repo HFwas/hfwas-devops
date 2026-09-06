@@ -12,7 +12,9 @@ import java.time.LocalDateTime;
 public class SysLoginLog {
     @TableId(type = IdType.AUTO)
     private Long id;
+    private String kcEventId;
     private Long userId;
+    private String kcUserId;
     private String username;
     private String displayName;
     /** login_success | login_fail | logout */

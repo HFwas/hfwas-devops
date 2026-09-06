@@ -9,6 +9,11 @@ spring:
   datasource:
     driver-class-name: org.sqlite.JDBC
     url: jdbc:sqlite:./data/hfwas-devops.db
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8000/auth/realms/hfwas-devops
 
 mybatis-plus:
   global-config:
@@ -19,10 +24,8 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
 
-user:
-  jwt:
-    secret: hfwas-devops-user-jwt-secret-key-change-in-production
-    expire-seconds: 86400
+keycloak:
+  webhook-secret: ${KEYCLOAK_WEBHOOK_SECRET:dev-keycloak-webhook}
 
 docgen:
   script-path: ../scripts/generate_doc.py

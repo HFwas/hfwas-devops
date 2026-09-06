@@ -3,7 +3,8 @@ import { userAuthApi } from '@/modules/user/api'
 import { pmProjectApi } from '@/modules/pm/api'
 import type { ProjectAccessContext } from '@/modules/pm/types'
 import type { TenantOption, UserProfile } from '@/modules/user/types'
-import { AUTH_TOKEN_KEY, TENANT_ID_KEY, TENANT_NAME_KEY } from '@/modules/user/types'
+import { TENANT_ID_KEY, TENANT_NAME_KEY } from '@/modules/user/types'
+import { getKeycloak, getToken, isAuthenticated, login as keycloakLogin, logout as keycloakLogout } from '@/shared/keycloak'
 
 function readStoredTenantId(): string | null {
   return localStorage.getItem(TENANT_ID_KEY)
@@ -14,7 +15,7 @@ function readStoredTenantName(): string | null {
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem(AUTH_TOKEN_KEY))
+  const token = ref<string | null>(getKeycloak().token ?? null)
   const user = ref<UserProfile | null>(null)
   const myTenants = ref<TenantOption[]>([])
   const loading = ref(false)
@@ -22,11 +23,10 @@ export const useAuthStore = defineStore('auth', () => {
   /** Increments on tenant switch so views can reload tenant-scoped data. */
   const tenantVersion = ref(0)
 
-  /** Reactive tenant context for header display and request header. */
   const activeTenantId = ref<string | null>(readStoredTenantId())
   const activeTenantName = ref<string | null>(readStoredTenantName())
 
-  const isLoggedIn = computed(() => !!token.value)
+  const isLoggedIn = computed(() => isAuthenticated() || !!token.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
 
   function resolveTenantName(tenantId: number | string, fallback?: string | null) {
@@ -68,27 +68,19 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem(TENANT_NAME_KEY)
   }
 
-  function setToken(value: string | null) {
-    token.value = value
-    if (value) {
-      localStorage.setItem(AUTH_TOKEN_KEY, value)
-    } else {
-      localStorage.removeItem(AUTH_TOKEN_KEY)
-    }
+  async function syncToken() {
+    token.value = (await getToken()) ?? null
   }
 
-  async function login(username: string, password: string) {
-    const res = await userAuthApi.login(username, password)
-    setToken(res.token)
-    user.value = res.user
-    persistTenant(res.user)
-    await fetchMyTenants()
-    refreshActiveTenantName()
-    return res.user
+  async function login() {
+    const redirect = window.location.origin + (window.location.pathname.startsWith('/user/login')
+      ? '/workbench'
+      : window.location.pathname + window.location.search)
+    await keycloakLogin(redirect)
   }
 
   async function fetchMyTenants() {
-    if (!token.value) {
+    if (!isLoggedIn.value) {
       myTenants.value = []
       return []
     }
@@ -110,13 +102,12 @@ export const useAuthStore = defineStore('auth', () => {
     switchingTenant.value = true
     try {
       const selected = myTenants.value.find((t) => String(t.id) === String(tenantId))
-      const res = await userAuthApi.switchTenant(tenantId)
-      setToken(res.token)
-      const resolvedId = res.user?.tenantId ?? tenantId
-      const resolvedName = res.user?.tenantName ?? selected?.name
-      user.value = res.user
-        ? { ...res.user, tenantId: resolvedId, tenantName: resolvedName ?? res.user.tenantName }
-        : res.user
+      const profile = await userAuthApi.switchTenant(tenantId)
+      const resolvedId = profile?.tenantId ?? tenantId
+      const resolvedName = profile?.tenantName ?? selected?.name
+      user.value = profile
+        ? { ...profile, tenantId: resolvedId, tenantName: resolvedName ?? profile.tenantName }
+        : profile
       applyActiveTenant(resolvedId, resolvedName)
       tenantVersion.value += 1
       return user.value
@@ -134,14 +125,12 @@ export const useAuthStore = defineStore('auth', () => {
     return true
   }
 
-  /** Align tenant context with a project (deep link / post-login redirect). */
   async function ensureTenantForProject(projectId: number | string): Promise<ProjectAccessContext> {
     try {
       const ctx = await pmProjectApi.accessContext(projectId)
       await ensureTenant(ctx.tenantId)
       return ctx
     } catch {
-      // Fallback when access-context unavailable: project list/detail under current tenant
       const project = await pmProjectApi.getById(projectId)
       if (project?.tenantId == null) {
         throw new Error('项目不存在或无权访问')
@@ -156,6 +145,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function fetchMe() {
+    await syncToken()
     if (!token.value) {
       user.value = null
       myTenants.value = []
@@ -168,7 +158,7 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchMyTenants()
       return user.value
     } catch {
-      logout()
+      user.value = null
       return null
     } finally {
       loading.value = false
@@ -176,18 +166,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
-    try {
-      if (token.value) {
-        await userAuthApi.logout()
-      }
-    } catch {
-      // ignore network errors on logout
-    } finally {
-      setToken(null)
-      clearStoredTenant()
-      user.value = null
-      myTenants.value = []
-    }
+    clearStoredTenant()
+    user.value = null
+    myTenants.value = []
+    token.value = null
+    await keycloakLogout(`${window.location.origin}/`)
   }
 
   return {
@@ -208,6 +191,6 @@ export const useAuthStore = defineStore('auth', () => {
     ensureTenantForProject,
     fetchMe,
     logout,
-    setToken,
+    syncToken,
   }
 })

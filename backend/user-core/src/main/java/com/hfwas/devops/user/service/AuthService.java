@@ -3,17 +3,19 @@ package com.hfwas.devops.user.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.hfwas.devops.user.context.UserContext;
+import com.hfwas.devops.user.context.UserContextHolder;
 import com.hfwas.devops.user.entity.SysTenant;
 import com.hfwas.devops.user.entity.SysUser;
 import com.hfwas.devops.user.mapper.SysTenantMapper;
 import com.hfwas.devops.user.mapper.SysUserMapper;
 import com.hfwas.devops.user.message.SiteMessageNotifier;
-import com.hfwas.devops.user.model.*;
-import com.hfwas.devops.user.context.UserContext;
-import com.hfwas.devops.user.context.UserContextHolder;
-import com.hfwas.devops.user.security.IssuedToken;
-import com.hfwas.devops.user.security.JwtTokenService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.hfwas.devops.user.model.SwitchTenantRequest;
+import com.hfwas.devops.user.model.TenantOptionVO;
+import com.hfwas.devops.user.model.UserPageRequest;
+import com.hfwas.devops.user.model.UserProfile;
+import com.hfwas.devops.user.model.UserSaveRequest;
+import com.hfwas.devops.user.security.KeycloakUserProvisioningService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,56 +32,9 @@ public class AuthService {
     private final SysUserMapper userMapper;
     private final SysTenantMapper tenantMapper;
     private final PasswordEncoder passwordEncoder;
-    private final JwtTokenService jwtTokenService;
-    private final UserSessionService userSessionService;
-    private final LoginLogService loginLogService;
     private final TenantService tenantService;
     private final TenantMemberService tenantMemberService;
     private final SiteMessageNotifier messageNotifier;
-
-    public LoginResponse login(LoginRequest request, HttpServletRequest httpRequest) {
-        String username = StringUtils.trimToEmpty(request.getUsername());
-        String tenantCode = StringUtils.defaultIfBlank(request.getTenantCode(), "default").trim().toLowerCase();
-        if (StringUtils.isBlank(username) || StringUtils.isBlank(request.getPassword())) {
-            loginLogService.recordLoginFail(username, "用户名和密码不能为空", httpRequest);
-            throw new IllegalArgumentException("用户名和密码不能为空");
-        }
-        SysTenant tenant = tenantService.findByCode(tenantCode);
-        if (tenant == null) {
-            loginLogService.recordLoginFail(username, "租户不存在", httpRequest);
-            throw new IllegalArgumentException("租户不存在");
-        }
-        if (tenant.getStatus() == null || tenant.getStatus() != 1) {
-            loginLogService.recordLoginFail(username, "租户已停用", httpRequest);
-            throw new IllegalArgumentException("租户已停用");
-        }
-        SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
-                .eq(SysUser::getUsername, username));
-        if (user == null || user.getEnabled() == null || user.getEnabled() != 1) {
-            loginLogService.recordLoginFail(username, "用户名或密码错误", httpRequest);
-            throw new IllegalArgumentException("用户名或密码错误");
-        }
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            loginLogService.recordLoginFail(username, "用户名或密码错误", httpRequest);
-            throw new IllegalArgumentException("用户名或密码错误");
-        }
-        if (!tenantMemberService.isActiveMember(tenant.getId(), user.getId())) {
-            loginLogService.recordLoginFail(username, "您尚未加入该租户", httpRequest);
-            throw new IllegalArgumentException("您尚未加入该租户，请联系管理员");
-        }
-        IssuedToken issued = jwtTokenService.issueToken(user, tenant.getId());
-        userSessionService.createSession(user, issued.jti(), issued.expireAt(), httpRequest);
-        loginLogService.recordLoginSuccess(user, httpRequest);
-        LoginResponse response = new LoginResponse();
-        response.setToken(issued.token());
-        response.setUser(toProfile(user, tenant));
-        return response;
-    }
-
-    public void logout(String token, HttpServletRequest httpRequest) {
-        userSessionService.revokeByJti(jwtTokenService.resolveSessionKey(token));
-        UserContextHolder.current().ifPresent(user -> loginLogService.recordLogout(user, httpRequest));
-    }
 
     public List<TenantOptionVO> listMyTenants() {
         UserContext ctx = UserContextHolder.require();
@@ -89,35 +44,22 @@ public class AuthService {
         return tenantMemberService.listEnabledTenantsByUser(ctx.getUserId());
     }
 
-    public LoginResponse switchTenant(SwitchTenantRequest request, String oldToken, HttpServletRequest httpRequest) {
+    public UserProfile switchTenant(SwitchTenantRequest request) {
         UserContext ctx = UserContextHolder.require();
         if (request.getTenantId() == null) {
             throw new IllegalArgumentException("租户 ID 不能为空");
         }
+        SysUser user = loadUser(ctx.getUserId());
         if (request.getTenantId().equals(ctx.getTenantId())) {
-            SysUser user = loadUser(ctx.getUserId());
             SysTenant tenant = tenantMapper.selectById(request.getTenantId());
-            LoginResponse response = new LoginResponse();
-            response.setToken(oldToken);
-            response.setUser(toProfile(user, tenant));
-            return response;
+            return toProfile(user, tenant);
         }
         SysTenant tenant = tenantService.requireEnabled(request.getTenantId());
         boolean platformAdmin = "admin".equalsIgnoreCase(ctx.getRole());
         if (!platformAdmin && !tenantMemberService.isActiveMember(tenant.getId(), ctx.getUserId())) {
             throw new IllegalArgumentException("您尚未加入该租户");
         }
-        SysUser user = loadUser(ctx.getUserId());
-        if (StringUtils.isNotBlank(oldToken)) {
-            userSessionService.revokeByJti(jwtTokenService.resolveSessionKey(oldToken));
-        }
-        IssuedToken issued = jwtTokenService.issueToken(user, tenant.getId());
-        userSessionService.createSession(user, issued.jti(), issued.expireAt(), httpRequest);
-        loginLogService.recordLoginSuccess(user, httpRequest);
-        LoginResponse response = new LoginResponse();
-        response.setToken(issued.token());
-        response.setUser(toProfile(user, tenant));
-        return response;
+        return toProfile(user, tenant);
     }
 
     public UserProfile me() {
@@ -194,20 +136,21 @@ public class AuthService {
         }
         SysUser user;
         if (request.getId() == null) {
-            if (StringUtils.isBlank(request.getPassword())) {
-                throw new IllegalArgumentException("新建用户必须设置密码");
-            }
             user = new SysUser();
             user.setUsername(username);
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
             user.setEnabled(request.getEnabled() == null ? 1 : request.getEnabled());
+            user.setAuthSource(KeycloakUserProvisioningService.AUTH_SOURCE);
+            if (StringUtils.isNotBlank(request.getPassword())) {
+                user.setPassword(passwordEncoder.encode(request.getPassword()));
+            }
         } else {
             user = userMapper.selectById(request.getId());
             if (user == null) {
                 throw new IllegalArgumentException("用户不存在");
             }
             user.setUsername(username);
-            if (StringUtils.isNotBlank(request.getPassword())) {
+            if (StringUtils.isNotBlank(request.getPassword())
+                    && !KeycloakUserProvisioningService.AUTH_SOURCE.equalsIgnoreCase(user.getAuthSource())) {
                 user.setPassword(passwordEncoder.encode(request.getPassword()));
             }
             if (request.getEnabled() != null) {
