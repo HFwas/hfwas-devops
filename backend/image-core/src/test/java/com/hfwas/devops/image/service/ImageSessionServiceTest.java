@@ -13,6 +13,7 @@ import com.hfwas.devops.image.service.metadata.MetadataExtractorReader;
 import com.hfwas.devops.image.service.transform.ImageIoTransformer;
 import com.hfwas.devops.image.service.transform.ImageMagickTransformer;
 import com.hfwas.devops.image.service.transform.ImageTransformService;
+import com.hfwas.devops.user.context.CurrentUserAccessor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -75,6 +76,9 @@ class ImageSessionServiceTest {
         var meta = sessionService.metadata(session.getSessionId());
         assertEquals(48, meta.getPixel().getWidth());
         assertFalse(meta.getPrivacy().isHasGps());
+        assertFalse(meta.getPixel().isHasAlpha());
+        assertEquals(48, session.getOrientedWidth());
+        assertEquals(32, session.getOrientedHeight());
 
         ImageConvertRequest request = new ImageConvertRequest();
         request.setTargetFormat("png");
@@ -156,5 +160,59 @@ class ImageSessionServiceTest {
         assertEquals("image/tiff", converted.getMimeType());
         assertTrue(converted.getResultFileName().endsWith(".tif"));
         assertTrue(converted.getResultSize() > 0);
+    }
+
+    @Test
+    void pngMetadataReportsAlpha() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "a.png", "image/png", TestImages.png(16, 12, true));
+        ImageSessionVO session = sessionService.create(file);
+        var meta = sessionService.metadata(session.getSessionId());
+        assertTrue(meta.getPixel().isHasAlpha());
+    }
+
+    @Test
+    void orientedSizeSwapsWhenPreviewAppliedExifOrientation() {
+        int[] swapped = ImageSessionService.orientedSize(4032, 3024, 6, true);
+        assertEquals(3024, swapped[0]);
+        assertEquals(4032, swapped[1]);
+        int[] same = ImageSessionService.orientedSize(4032, 3024, 1, true);
+        assertEquals(4032, same[0]);
+        assertEquals(3024, same[1]);
+    }
+
+    @Test
+    void requireRejectsOtherUser() throws Exception {
+        java.util.concurrent.atomic.AtomicLong uid = new java.util.concurrent.atomic.AtomicLong(1);
+        CurrentUserAccessor accessor = org.mockito.Mockito.mock(CurrentUserAccessor.class);
+        org.mockito.Mockito.when(accessor.currentUserId()).thenAnswer(inv -> uid.get());
+        org.mockito.Mockito.when(accessor.currentTenantId()).thenReturn(9L);
+        ImageProcessorConfig isolated = new ImageProcessorConfig();
+        isolated.setTempDir(tempDir.resolve("owned").toString());
+        isolated.setSessionTtl(Duration.ofMinutes(30));
+        EngineProbe probe = new EngineProbe(isolated);
+        NativeProcessRunner runner = new NativeProcessRunner(isolated);
+        ImageStorageService storage = new ImageStorageService(isolated);
+        storage.init();
+        MetadataExtractorReader extractor = new MetadataExtractorReader();
+        ExifToolReader exifTool = new ExifToolReader(isolated, probe, runner);
+        ImageSessionService owned = new ImageSessionService(
+                isolated,
+                storage,
+                new ImageIdentifyService(isolated, probe, runner),
+                new ImageMetadataService(exifTool, extractor),
+                new ImageTransformService(isolated, new ImageMagickTransformer(isolated, probe, runner), new ImageIoTransformer()),
+                extractor,
+                exifTool,
+                new ImageConvertJobService(isolated),
+                null,
+                accessor
+        );
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "a.jpg", "image/jpeg", TestImages.jpeg(8, 8));
+        ImageSessionVO session = owned.create(file);
+        uid.set(2);
+        BizException ex = assertThrows(BizException.class, () -> owned.get(session.getSessionId()));
+        assertEquals(10003, ex.getCode());
     }
 }

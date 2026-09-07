@@ -1,8 +1,14 @@
 <script setup lang="ts">
+/**
+ * Cropper 坐标是当前画布图（可能是服务端 2048 预览，或本地下采样）上的像素。
+ * 旋转/翻转先画进画布，crop 相对旋转后的图；提交转换前由 cropForConvert 映射到摆正后的原图像素。
+ */
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.css'
-import type { CropAspect, ImageCrop } from '@/modules/image/types/image'
+import type { CropAspect, ImageCropEvent } from '@/modules/image/types/image'
+
+const MAX_PAINT_SIDE = 2048
 
 const props = defineProps<{
   src: string | null
@@ -12,7 +18,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  crop: [crop: ImageCrop | null]
+  crop: [event: ImageCropEvent | null]
 }>()
 
 const imgRef = ref<HTMLImageElement | null>(null)
@@ -24,6 +30,16 @@ function aspectRatio(aspect: CropAspect): number {
   if (aspect === '4:3') return 4 / 3
   if (aspect === '16:9') return 16 / 9
   return NaN
+}
+
+function fitSize(width: number, height: number): { width: number; height: number; scale: number } {
+  const longest = Math.max(width, height)
+  const scale = longest > MAX_PAINT_SIDE ? MAX_PAINT_SIDE / longest : 1
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+    scale,
+  }
 }
 
 async function paint() {
@@ -45,11 +61,18 @@ async function paint() {
     return
   }
   const swapped = props.rotate % 180 !== 0
-  const width = swapped ? image.height : image.width
-  const height = swapped ? image.width : image.height
+  const unscaledW = swapped ? image.height : image.width
+  const unscaledH = swapped ? image.width : image.height
+  const fitted = fitSize(unscaledW, unscaledH)
+  if (props.rotate === 0 && !props.flipX && fitted.scale === 1) {
+    paintedSrc.value = props.src
+    await nextTick()
+    mountCropper()
+    return
+  }
   const canvas = document.createElement('canvas')
-  canvas.width = Math.max(1, width)
-  canvas.height = Math.max(1, height)
+  canvas.width = fitted.width
+  canvas.height = fitted.height
   const ctx = canvas.getContext('2d')
   if (!ctx) {
     paintedSrc.value = props.src
@@ -57,9 +80,9 @@ async function paint() {
     mountCropper()
     return
   }
-  ctx.translate(width / 2, height / 2)
+  ctx.translate(fitted.width / 2, fitted.height / 2)
   ctx.rotate((props.rotate * Math.PI) / 180)
-  ctx.scale(props.flipX ? -1 : 1, 1)
+  ctx.scale((props.flipX ? -1 : 1) * fitted.scale, fitted.scale)
   ctx.drawImage(image, -image.width / 2, -image.height / 2)
   paintedSrc.value = canvas.toDataURL('image/jpeg', 0.92)
   await nextTick()
@@ -91,11 +114,16 @@ function emitCrop() {
     return
   }
   const data = instance.getData(true)
+  const imageData = instance.getImageData()
   emit('crop', {
-    x: Math.max(0, Math.round(data.x)),
-    y: Math.max(0, Math.round(data.y)),
-    width: Math.max(1, Math.round(data.width)),
-    height: Math.max(1, Math.round(data.height)),
+    crop: {
+      x: Math.max(0, Math.round(data.x)),
+      y: Math.max(0, Math.round(data.y)),
+      width: Math.max(1, Math.round(data.width)),
+      height: Math.max(1, Math.round(data.height)),
+    },
+    displayedWidth: Math.max(1, Math.round(imageData.naturalWidth)),
+    displayedHeight: Math.max(1, Math.round(imageData.naturalHeight)),
   })
 }
 
@@ -166,3 +194,4 @@ defineExpose({ fit, oneToOne })
   max-width: 100%;
 }
 </style>
+

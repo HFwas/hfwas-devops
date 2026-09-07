@@ -37,34 +37,60 @@ public class ImageConvertJobService {
                 .status("queued")
                 .build();
         jobs.put(jobId, queued);
-        pool.execute(() -> {
-            jobs.put(jobId, ImageConvertVO.builder()
+        pool.execute(() -> runJob(sessionId, jobId, work));
+        return queued;
+    }
+
+    private void runJob(String sessionId, String jobId, Supplier<ImageConvertVO> work) {
+        boolean proceed = markRunning(jobId, sessionId);
+        if (!proceed) {
+            return;
+        }
+        try {
+            ImageConvertVO done = work.get();
+            jobs.compute(jobId, (id, current) -> {
+                if (isFailed(current)) {
+                    return current;
+                }
+                done.setJobId(jobId);
+                done.setStatus("completed");
+                return done;
+            });
+        } catch (BizException e) {
+            fail(jobId, sessionId, e.getMessage());
+        } catch (Exception e) {
+            fail(jobId, sessionId, e.getMessage() == null ? "转换失败" : e.getMessage());
+        }
+    }
+
+    private boolean markRunning(String jobId, String sessionId) {
+        boolean[] proceed = {true};
+        jobs.compute(jobId, (id, current) -> {
+            if (isFailed(current)) {
+                proceed[0] = false;
+                return current;
+            }
+            return ImageConvertVO.builder()
                     .sessionId(sessionId)
                     .jobId(jobId)
                     .status("running")
-                    .build());
-            try {
-                ImageConvertVO done = work.get();
-                done.setJobId(jobId);
-                done.setStatus("completed");
-                jobs.put(jobId, done);
-            } catch (BizException e) {
-                jobs.put(jobId, ImageConvertVO.builder()
-                        .sessionId(sessionId)
-                        .jobId(jobId)
-                        .status("failed")
-                        .errorMessage(e.getMessage())
-                        .build());
-            } catch (Exception e) {
-                jobs.put(jobId, ImageConvertVO.builder()
-                        .sessionId(sessionId)
-                        .jobId(jobId)
-                        .status("failed")
-                        .errorMessage(e.getMessage() == null ? "转换失败" : e.getMessage())
-                        .build());
-            }
+                    .build();
         });
-        return queued;
+        return proceed[0];
+    }
+
+    private void fail(String jobId, String sessionId, String message) {
+        jobs.compute(jobId, (id, current) -> {
+            if (isFailed(current)) {
+                return current;
+            }
+            return ImageConvertVO.builder()
+                    .sessionId(sessionId)
+                    .jobId(jobId)
+                    .status("failed")
+                    .errorMessage(message)
+                    .build();
+        });
     }
 
     public ImageConvertVO require(String sessionId, String jobId) {
@@ -76,7 +102,24 @@ public class ImageConvertJobService {
     }
 
     public void evictSession(String sessionId) {
-        jobs.entrySet().removeIf(e -> sessionId.equals(e.getValue().getSessionId()));
+        jobs.replaceAll((id, vo) -> {
+            if (!sessionId.equals(vo.getSessionId()) || isFailed(vo)) {
+                return vo;
+            }
+            if ("completed".equals(vo.getStatus())) {
+                return vo;
+            }
+            return ImageConvertVO.builder()
+                    .sessionId(sessionId)
+                    .jobId(vo.getJobId())
+                    .status("failed")
+                    .errorMessage("会话不存在或已过期")
+                    .build();
+        });
+    }
+
+    private static boolean isFailed(ImageConvertVO vo) {
+        return vo != null && "failed".equals(vo.getStatus());
     }
 
     @PreDestroy

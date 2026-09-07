@@ -5,6 +5,10 @@ export interface ImageSessionVO {
   mimeType: string
   width: number
   height: number
+  orientedWidth?: number
+  orientedHeight?: number
+  previewWidth?: number
+  previewHeight?: number
   needsServerPreview: boolean
   previewUrl: string
   expiresAt: string
@@ -50,6 +54,13 @@ export interface ImageCrop {
   y: number
   width: number
   height: number
+}
+
+/** Cropper 框在当前画布图上的像素；转换前要映射到摆正后的原图。 */
+export interface ImageCropEvent {
+  crop: ImageCrop
+  displayedWidth: number
+  displayedHeight: number
 }
 
 export interface ImageGeometry {

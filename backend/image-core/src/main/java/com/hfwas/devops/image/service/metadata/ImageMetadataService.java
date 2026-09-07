@@ -21,7 +21,7 @@ public class ImageMetadataService {
 
     public ImageMetadataVO read(ImageSession session) {
         return read(session.getOriginalPath(), session.getMimeType(), session.getExt(),
-                session.getWidth(), session.getHeight(), session.getFrames(), false);
+                session.getWidth(), session.getHeight(), session.getFrames(), session.isHasAlpha());
     }
 
     public ImageMetadataVO read(Path file, String mime, String ext, int width, int height, int frames, boolean hasAlpha) {

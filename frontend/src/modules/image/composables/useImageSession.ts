@@ -9,10 +9,11 @@ import {
   fetchImageMetadata,
   fetchImagePreviewBlob,
 } from '@/modules/image/api/image'
-import { formatFileSize, isPendingConvert, nextLocalId, waitForConvert } from '@/modules/image/composables/imageHelpers'
+import { formatFileSize, isPendingConvert, nextLocalId, waitForConvert, cropForConvert, mapPool } from '@/modules/image/composables/imageHelpers'
 import type {
   ImageConvertRequest,
   ImageConvertVO,
+  ImageCropEvent,
   ImageGeometry,
   ImageHistoryVO,
   ImageMetadataVO,
@@ -37,6 +38,8 @@ export interface QueueItem {
   result: ImageConvertVO | null
   resultPreviewUrl: string | null
   geometry: ImageGeometry
+  displayedWidth: number
+  displayedHeight: number
   probing: boolean
   converting: boolean
   error: string | null
@@ -139,6 +142,8 @@ export function useImageSession() {
         result: null,
         resultPreviewUrl: null,
         geometry: { rotate: 0, flipX: false, flipY: false, crop: null },
+        displayedWidth: 0,
+        displayedHeight: 0,
         probing: true,
         converting: false,
         error: null,
@@ -152,7 +157,7 @@ export function useImageSession() {
       previewMode.value = 'original'
     }
     error.value = null
-    await Promise.all(accepted.map((item) => probeItem(item)))
+    await mapPool(accepted, 2, (item) => probeItem(item))
     const firstError = items.value.find((item) => item.error)?.error
     if (firstError) error.value = firstError
   }
@@ -205,14 +210,30 @@ export function useImageSession() {
     active.value.geometry.crop = null
   }
 
-  function setCrop(crop: ImageGeometry['crop']) {
+  function setCrop(event: ImageCropEvent | null) {
     if (!active.value) return
-    active.value.geometry.crop = crop
+    if (!event) {
+      active.value.geometry.crop = null
+      active.value.displayedWidth = 0
+      active.value.displayedHeight = 0
+      return
+    }
+    active.value.geometry.crop = event.crop
+    active.value.displayedWidth = event.displayedWidth
+    active.value.displayedHeight = event.displayedHeight
   }
 
   function buildRequest(item: QueueItem): ImageConvertRequest {
-    const crop = item.geometry.crop
-    const hasCrop = crop && crop.width > 0 && crop.height > 0
+    const orientedWidth = item.session?.orientedWidth || item.session?.width || 0
+    const orientedHeight = item.session?.orientedHeight || item.session?.height || 0
+    const crop = cropForConvert({
+      crop: item.geometry.crop,
+      displayedWidth: item.displayedWidth,
+      displayedHeight: item.displayedHeight,
+      orientedWidth,
+      orientedHeight,
+      rotate: item.geometry.rotate,
+    })
     return {
       targetFormat: targetFormat.value,
       quality: targetFormat.value === 'png' ? undefined : quality.value,
@@ -223,7 +244,7 @@ export function useImageSession() {
         rotate: item.geometry.rotate,
         flipX: item.geometry.flipX,
         flipY: item.geometry.flipY,
-        crop: hasCrop ? { ...crop } : null,
+        crop,
       },
     }
   }

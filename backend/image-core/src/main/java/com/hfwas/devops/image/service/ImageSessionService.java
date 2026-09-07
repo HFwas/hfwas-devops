@@ -26,11 +26,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 图片会话：原图落临时目录，TTL 到期删除。identify / 预览 / 转换都围绕同一 sessionId。
+ * 转换串行化在 session 锁上，避免 result 与 native stdout 文件互相覆盖。
+ */
 @Slf4j
 @Service
 public class ImageSessionService {
@@ -46,6 +49,7 @@ public class ImageSessionService {
     private final ImageHistoryService historyService;
     private final CurrentUserAccessor currentUserAccessor;
     private final Map<String, ImageSession> sessions = new ConcurrentHashMap<>();
+    private final Map<String, Object> convertLocks = new ConcurrentHashMap<>();
 
     public ImageSessionService(ImageProcessorConfig config,
                                ImageStorageService storageService,
@@ -123,6 +127,7 @@ public class ImageSessionService {
                 .colorSpace(identified.getColorSpace())
                 .hasIcc(identified.isHasIcc())
                 .orientation(identified.getOrientation())
+                .hasAlpha(identified.isHasAlpha())
                 .needsServerPreview(identified.isNeedsServerPreview())
                 .userId(currentUserAccessor == null ? null : currentUserAccessor.currentUserId())
                 .tenantId(currentUserAccessor == null ? null : currentUserAccessor.currentTenantId())
@@ -193,7 +198,6 @@ public class ImageSessionService {
     }
 
     public ImageConvertVO job(String sessionId, String jobId) {
-        require(sessionId);
         return jobService.require(sessionId, jobId);
     }
 
@@ -230,37 +234,34 @@ public class ImageSessionService {
     }
 
     public void delete(String sessionId) {
-        ImageSession session = sessions.remove(sessionId);
+        ImageSession session = sessions.get(sessionId);
         if (session != null) {
-            jobService.evictSession(sessionId);
-            storageService.deleteSessionDir(session.getDirectory());
+            dropSession(session);
         }
     }
 
     @Scheduled(fixedDelay = 30_000)
     public void evictExpired() {
         Instant now = Instant.now();
-        Iterator<Map.Entry<String, ImageSession>> it = sessions.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<String, ImageSession> entry = it.next();
-            if (entry.getValue().getExpiresAt().isBefore(now)) {
-                jobService.evictSession(entry.getKey());
-                storageService.deleteSessionDir(entry.getValue().getDirectory());
-                it.remove();
+        for (ImageSession session : List.copyOf(sessions.values())) {
+            if (session.getExpiresAt().isBefore(now) || session.isCancelled()) {
+                dropSession(session);
             }
         }
     }
 
+    /**
+     * 存活且未过期的会话；绑定了 userId/tenantId 时拒绝越权访问。
+     */
     ImageSession require(String sessionId) {
         ImageSession session = sessions.get(sessionId);
-        if (session == null || session.getExpiresAt().isBefore(Instant.now())) {
+        if (session == null || session.isCancelled() || session.getExpiresAt().isBefore(Instant.now())) {
             if (session != null) {
-                jobService.evictSession(sessionId);
-                sessions.remove(sessionId);
-                storageService.deleteSessionDir(session.getDirectory());
+                dropSession(session);
             }
             throw new BizException(ResultCode.NOT_FOUND, "会话不存在或已过期");
         }
+        assertOwner(session);
         return session;
     }
 
@@ -268,12 +269,30 @@ public class ImageSessionService {
         return previewGenerated && orientation != null && orientation != 1;
     }
 
+    static int[] orientedSize(int width, int height, Integer orientation, boolean applied) {
+        if (applied && orientation != null && orientation >= 5 && orientation <= 8) {
+            return new int[]{height, width};
+        }
+        return new int[]{width, height};
+    }
+
+    /** 像素数达到 async-min-pixels 时走队列，避免大图占住 HTTP 线程。 */
     private boolean shouldAsync(ImageSession session) {
         long pixels = (long) session.getWidth() * (long) session.getHeight();
         return pixels >= config.getAsyncMinPixels();
     }
 
     private ImageConvertVO convertSync(ImageSession session, ImageConvertRequest request) {
+        Object lock = convertLocks.computeIfAbsent(session.getSessionId(), id -> new Object());
+        synchronized (lock) {
+            if (session.isCancelled() || !sessions.containsKey(session.getSessionId())) {
+                throw new BizException(ResultCode.NOT_FOUND, "会话不存在或已过期");
+            }
+            return convertLocked(session, request);
+        }
+    }
+
+    private ImageConvertVO convertLocked(ImageSession session, ImageConvertRequest request) {
         String mime = ImageIdentifyService.mimeForTarget(ImageTransformService.normalizeFormat(request.getTargetFormat()));
         if (mime == null) {
             throw new BizException(ResultCode.BAD_REQUEST, "不支持的导出格式");
@@ -312,14 +331,20 @@ public class ImageSessionService {
         if (historyService != null) {
             historyService.record(session, vo);
         }
+        if (session.isCancelled()) {
+            throw new BizException(ResultCode.NOT_FOUND, "会话不存在或已过期");
+        }
         return vo;
     }
 
+    /** HEIC/TIFF/Orientation≠1 等浏览器难解的图，写出最长边受限的 JPEG 供 Cropper 使用。 */
     private void generatePreview(ImageSession session) {
         try {
             Path preview = storageService.previewPath(session.getDirectory());
-            transformService.writePreviewJpeg(session.getOriginalPath(), preview);
+            ImageTransformService.Result size = transformService.writePreviewJpeg(session.getOriginalPath(), preview);
             session.setPreviewPath(preview);
+            session.setPreviewWidth(size.getWidth());
+            session.setPreviewHeight(size.getHeight());
         } catch (Exception e) {
             log.warn("Server preview generation failed for {}: {}", session.getSessionId(), e.getMessage());
         }
@@ -335,6 +360,7 @@ public class ImageSessionService {
                 vo.getPixel().setColorSpace(session.getColorSpace());
             }
             vo.getPixel().setHasIcc(session.isHasIcc());
+            vo.getPixel().setHasAlpha(session.isHasAlpha());
         }
         vo.setOrientationApplied(session.isOrientationApplied());
         return vo;
@@ -351,6 +377,8 @@ public class ImageSessionService {
     }
 
     private ImageSessionVO toVo(ImageSession session) {
+        int[] oriented = orientedSize(
+                session.getWidth(), session.getHeight(), session.getOrientation(), session.isOrientationApplied());
         return ImageSessionVO.builder()
                 .sessionId(session.getSessionId())
                 .fileName(session.getOriginalFileName())
@@ -358,10 +386,39 @@ public class ImageSessionService {
                 .mimeType(session.getMimeType())
                 .width(session.getWidth())
                 .height(session.getHeight())
+                .orientedWidth(oriented[0])
+                .orientedHeight(oriented[1])
+                .previewWidth(session.getPreviewWidth())
+                .previewHeight(session.getPreviewHeight())
                 .needsServerPreview(session.isNeedsServerPreview())
                 .previewUrl("/api/image/sessions/" + session.getSessionId() + "/preview")
                 .expiresAt(session.getExpiresAt())
                 .build();
+    }
+
+    private void dropSession(ImageSession session) {
+        session.setCancelled(true);
+        Object lock = convertLocks.computeIfAbsent(session.getSessionId(), id -> new Object());
+        synchronized (lock) {
+            sessions.remove(session.getSessionId(), session);
+            jobService.evictSession(session.getSessionId());
+            storageService.deleteSessionDir(session.getDirectory());
+            convertLocks.remove(session.getSessionId());
+        }
+    }
+
+    private void assertOwner(ImageSession session) {
+        if (currentUserAccessor == null) {
+            return;
+        }
+        Long uid = currentUserAccessor.currentUserId();
+        if (session.getUserId() != null && uid != null && !session.getUserId().equals(uid)) {
+            throw new BizException(ResultCode.NOT_FOUND, "会话不存在或已过期");
+        }
+        Long tenantId = currentUserAccessor.currentTenantId();
+        if (session.getTenantId() != null && tenantId != null && !session.getTenantId().equals(tenantId)) {
+            throw new BizException(ResultCode.NOT_FOUND, "会话不存在或已过期");
+        }
     }
 
     private boolean hasGps(Path file) {

@@ -21,6 +21,7 @@ public class ImageSession {
     private String colorSpace;
     private boolean hasIcc;
     private Integer orientation;
+    private boolean hasAlpha;
     private boolean needsServerPreview;
     private boolean orientationApplied;
     private Long userId;
@@ -29,6 +30,9 @@ public class ImageSession {
     private Path directory;
     private Path originalPath;
     private Path previewPath;
+    private int previewWidth;
+    private int previewHeight;
+    private boolean cancelled;
     private Path resultPath;
     private String resultMimeType;
     private String resultFileName;

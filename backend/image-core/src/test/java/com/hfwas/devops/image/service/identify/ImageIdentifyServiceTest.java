@@ -54,6 +54,7 @@ class ImageIdentifyServiceTest {
         assertEquals("image/png", result.getMimeType());
         assertEquals(32, result.getWidth());
         assertEquals(24, result.getHeight());
+        assertTrue(result.isHasAlpha());
     }
 
     @Test
@@ -93,6 +94,14 @@ class ImageIdentifyServiceTest {
         assertEquals("CMYK", dims.colorSpace());
         assertTrue(dims.hasIcc());
         assertEquals(6, dims.orientation());
+        assertFalse(dims.hasAlpha());
+    }
+
+    @Test
+    void magickIdentifyParsesAlphaChannel() {
+        ImageIdentifyService.Dimensions dims = ImageIdentifyService.parseMagickIdentify(
+                "32\t24\t1\tsRGB\t\t1\tTrue");
+        assertTrue(dims.hasAlpha());
     }
 
     @Test
@@ -109,6 +118,7 @@ class ImageIdentifyServiceTest {
         Path file = TestImages.writeJpeg(tempDir, "plain.jpg", 16, 12);
         ImageIdentifyService.IdentifyResult result = identifyService.identify(file);
         assertEquals("sRGB", result.getColorSpace());
+        assertFalse(result.isHasAlpha());
         assertFalse(result.isNeedsServerPreview());
     }
 }

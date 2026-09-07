@@ -6,7 +6,7 @@ import ImageToolbar from '@/modules/image/components/ImageToolbar.vue'
 import MetadataInspector from '@/modules/image/components/MetadataInspector.vue'
 import ConvertPanel from '@/modules/image/components/ConvertPanel.vue'
 import { formatFileSize, useImageSession } from '@/modules/image/composables/useImageSession'
-import type { CropAspect } from '@/modules/image/types/image'
+import type { CropAspect, ImageCropEvent } from '@/modules/image/types/image'
 
 const {
   ACCEPT,
@@ -44,8 +44,8 @@ const canvasRef = ref<InstanceType<typeof ImageCanvas> | null>(null)
 const inspectorTab = ref<'inspect' | 'convert'>('inspect')
 const hasGps = computed(() => !!metadata.value?.privacy?.hasGps)
 
-function onCrop(crop: { x: number; y: number; width: number; height: number } | null) {
-  setCrop(crop)
+function onCrop(event: ImageCropEvent | null) {
+  setCrop(event)
 }
 </script>
 

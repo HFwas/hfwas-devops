@@ -40,13 +40,6 @@ export async function fetchConvertJob(sessionId: string, jobId: string): Promise
   return get<ImageConvertVO>(`${PREFIX}/sessions/${sessionId}/jobs/${jobId}`)
 }
 
-export async function batchConvertImages(
-  sessionIds: string[],
-  convert: ImageConvertRequest,
-): Promise<ImageConvertVO[]> {
-  return post<ImageConvertVO[]>(`${PREFIX}/batch-convert`, { sessionIds, convert }, 180000)
-}
-
 export async function fetchImagePreviewBlob(id: string): Promise<Blob> {
   const { blob } = await getBlob(`${PREFIX}/sessions/${id}/preview`, 'preview.jpg')
   return blob

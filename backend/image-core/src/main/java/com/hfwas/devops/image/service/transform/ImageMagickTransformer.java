@@ -142,6 +142,10 @@ public class ImageMagickTransformer {
         cmd.add("40MP");
     }
 
+    /**
+     * 读取输出宽高。调用方已持有 {@link NativeProcessRunner#run} 的 limiter，
+     * 必须用 {@link NativeProcessRunner#runUnlocked}，Semaphore 不可重入。
+     */
     private Result readSize(Path target) {
         String out = processRunner.runUnlocked(List.of(
                 config.getEngines().getMagickPath(),

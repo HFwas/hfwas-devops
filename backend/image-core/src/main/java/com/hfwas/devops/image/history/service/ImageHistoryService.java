@@ -60,11 +60,14 @@ public class ImageHistoryService {
         if (userId == null) {
             return List.of();
         }
+        Long tenantId = currentUserAccessor.currentTenantId();
         int size = Math.min(Math.max(limit, 1), 100);
-        List<ImageConvertHistoryEntity> rows = mapper.selectList(new LambdaQueryWrapper<ImageConvertHistoryEntity>()
+        LambdaQueryWrapper<ImageConvertHistoryEntity> query = new LambdaQueryWrapper<ImageConvertHistoryEntity>()
                 .eq(ImageConvertHistoryEntity::getUserId, userId)
+                .eq(tenantId != null, ImageConvertHistoryEntity::getTenantId, tenantId)
                 .orderByDesc(ImageConvertHistoryEntity::getCreateTime)
-                .last("LIMIT " + size));
+                .last("LIMIT " + size);
+        List<ImageConvertHistoryEntity> rows = mapper.selectList(query);
         return rows.stream().map(this::toVo).toList();
     }
 

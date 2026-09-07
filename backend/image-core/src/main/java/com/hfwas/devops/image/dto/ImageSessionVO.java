@@ -18,6 +18,10 @@ public class ImageSessionVO {
     private String mimeType;
     private int width;
     private int height;
+    private int orientedWidth;
+    private int orientedHeight;
+    private int previewWidth;
+    private int previewHeight;
     private boolean needsServerPreview;
     private String previewUrl;
     private Instant expiresAt;

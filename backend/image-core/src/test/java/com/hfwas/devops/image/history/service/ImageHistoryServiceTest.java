@@ -65,6 +65,7 @@ class ImageHistoryServiceTest {
     @Test
     void listRecentFiltersByCurrentUser() {
         when(currentUserAccessor.currentUserId()).thenReturn(7L);
+        when(currentUserAccessor.currentTenantId()).thenReturn(3L);
         ImageConvertHistoryEntity row = new ImageConvertHistoryEntity();
         row.setId(1L);
         row.setSessionId("01ABC");

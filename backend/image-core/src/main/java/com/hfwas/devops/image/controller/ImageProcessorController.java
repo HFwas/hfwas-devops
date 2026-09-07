@@ -32,6 +32,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 
+/**
+ * 图片处理 HTTP 入口，前缀 {@code /api/image}。
+ * 会话在服务端临时目录，不落原图到历史表；转换结果通过 session 下载。
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/image")

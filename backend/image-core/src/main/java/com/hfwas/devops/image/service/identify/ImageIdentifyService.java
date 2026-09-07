@@ -86,6 +86,7 @@ public class ImageIdentifyService {
                 .colorSpace(dims.colorSpace())
                 .hasIcc(dims.hasIcc())
                 .orientation(dims.orientation())
+                .hasAlpha(dims.hasAlpha())
                 .needsServerPreview(needsServerPreview)
                 .build();
     }
@@ -141,8 +142,8 @@ public class ImageIdentifyService {
                 } catch (Exception ignored) {
                     frames = 1;
                 }
-                String colorSpace = colorSpaceFromReader(reader);
-                return new Dimensions(width, height, frames, colorSpace, false, null);
+                PixelHints hints = pixelHints(reader);
+                return new Dimensions(width, height, frames, hints.colorSpace(), false, null, hints.hasAlpha());
             } finally {
                 reader.dispose();
             }
@@ -152,31 +153,33 @@ public class ImageIdentifyService {
         }
     }
 
-    private static String colorSpaceFromReader(ImageReader reader) {
+    private static PixelHints pixelHints(ImageReader reader) {
         try {
             Iterator<ImageTypeSpecifier> types = reader.getImageTypes(0);
             if (!types.hasNext()) {
-                return null;
+                return new PixelHints(null, false);
             }
-            ColorSpace cs = types.next().getColorModel().getColorSpace();
-            if (cs == null) {
-                return null;
+            var model = types.next().getColorModel();
+            ColorSpace cs = model.getColorSpace();
+            String colorSpace = null;
+            if (cs != null) {
+                colorSpace = switch (cs.getType()) {
+                    case ColorSpace.TYPE_CMYK -> "CMYK";
+                    case ColorSpace.TYPE_GRAY -> "Gray";
+                    case ColorSpace.TYPE_RGB -> "sRGB";
+                    default -> cs.getType() == ColorSpace.TYPE_3CLR ? "Unknown" : null;
+                };
             }
-            return switch (cs.getType()) {
-                case ColorSpace.TYPE_CMYK -> "CMYK";
-                case ColorSpace.TYPE_GRAY -> "Gray";
-                case ColorSpace.TYPE_RGB -> "sRGB";
-                default -> cs.getType() == ColorSpace.TYPE_3CLR ? "Unknown" : null;
-            };
+            return new PixelHints(colorSpace, model.hasAlpha());
         } catch (Exception e) {
-            return null;
+            return new PixelHints(null, false);
         }
     }
 
     private Dimensions readWithMagick(Path file) {
         String out = processRunner.run(
                 List.of(config.getEngines().getMagickPath(), "identify", "-format",
-                        "%w\t%h\t%n\t%[colorspace]\t%[profiles]\t%[EXIF:Orientation]",
+                        "%w\t%h\t%n\t%[colorspace]\t%[profiles]\t%[EXIF:Orientation]\t%A",
                         file.getFileName().toString()),
                 file.getParent());
         return parseMagickIdentify(out);
@@ -195,7 +198,8 @@ public class ImageIdentifyService {
             String colorSpace = blankToNull(tabs[3]);
             boolean hasIcc = tabs.length > 4 && tabs[4].toLowerCase(Locale.ROOT).contains("icc");
             Integer orientation = tabs.length > 5 ? parseOrientation(tabs[5]) : null;
-            return new Dimensions(width, height, frames, colorSpace, hasIcc, orientation);
+            boolean hasAlpha = tabs.length > 6 && magickAlpha(tabs[6]);
+            return new Dimensions(width, height, frames, colorSpace, hasIcc, orientation, hasAlpha);
         }
         String[] parts = line.trim().split("\\s+");
         if (parts.length < 2) {
@@ -205,7 +209,7 @@ public class ImageIdentifyService {
         int height = Integer.parseInt(parts[1]);
         int frames = parts.length >= 3 ? Math.max(1, Integer.parseInt(parts[2])) : 1;
         String colorSpace = parts.length >= 4 ? parts[3] : null;
-        return new Dimensions(width, height, frames, colorSpace, false, null);
+        return new Dimensions(width, height, frames, colorSpace, false, null, false);
     }
 
     private static int parsePositive(String raw, int fallback) {
@@ -225,6 +229,14 @@ public class ImageIdentifyService {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    private static boolean magickAlpha(String raw) {
+        if (raw == null) {
+            return false;
+        }
+        String t = raw.trim().toLowerCase(Locale.ROOT);
+        return "true".equals(t) || "1".equals(t) || "yes".equals(t);
     }
 
     private static String blankToNull(String raw) {
@@ -292,7 +304,11 @@ public class ImageIdentifyService {
         };
     }
 
-    public record Dimensions(int width, int height, int frames, String colorSpace, boolean hasIcc, Integer orientation) {
+    private record PixelHints(String colorSpace, boolean hasAlpha) {
+    }
+
+    public record Dimensions(int width, int height, int frames, String colorSpace, boolean hasIcc,
+                             Integer orientation, boolean hasAlpha) {
     }
 
     @Value
@@ -306,6 +322,7 @@ public class ImageIdentifyService {
         String colorSpace;
         boolean hasIcc;
         Integer orientation;
+        boolean hasAlpha;
         boolean needsServerPreview;
     }
 }

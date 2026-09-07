@@ -34,5 +34,6 @@
   <policy domain="resource" name="disk" value="1GiB"/>
   <policy domain="resource" name="file" value="256"/>
   <policy domain="resource" name="thread" value="2"/>
-  <policy domain="resource" name="time" value="30"/>
+  <!-- 与 image-processor.engines.convert-timeout 对齐：60s -->
+  <policy domain="resource" name="time" value="60"/>
 </policymap>
