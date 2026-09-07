@@ -1,5 +1,9 @@
 import type { ApiDebugResultVO } from '@/modules/api-test/debug/types/debug'
 import type { DebugHistoryDetailVO } from '@/modules/api-test/debug/types/debugHistory'
+import { inferBodyMode } from '@/modules/api-test/debug/utils/bodyMode'
+import { mergePathParams } from '@/modules/api-test/debug/utils/urlParams'
+import { emptyPair } from '@/modules/api-test/shared/types/keyValue'
+import { recordToPairs } from '@/modules/api-test/shared/utils/keyValue'
 import type { RequestDraft } from '@/modules/api-test/shell/types/workspace'
 
 export function mapHistoryDetailToTab(detail: DebugHistoryDetailVO): {
@@ -8,16 +12,21 @@ export function mapHistoryDetailToTab(detail: DebugHistoryDetailVO): {
   draftPatch: Partial<RequestDraft>
   result: ApiDebugResultVO
 } {
+  const method = detail.requestMethod || 'GET'
+  const body = detail.requestBody ?? ''
+  const contentType = detail.requestContentType ?? 'application/json'
   return {
     title: detail.name,
-    method: detail.requestMethod || 'GET',
+    method,
     draftPatch: {
       url: detail.requestUrl,
-      method: detail.requestMethod || 'GET',
-      headers: detail.requestHeaders ?? {},
-      queryParams: detail.requestQuery ?? {},
-      body: detail.requestBody ?? '',
-      contentType: detail.requestContentType ?? 'application/json',
+      method,
+      headers: recordToPairs(detail.requestHeaders ?? {}),
+      queryParams: recordToPairs(detail.requestQuery ?? {}),
+      pathParams: mergePathParams(detail.requestUrl, [emptyPair()]),
+      body,
+      contentType,
+      bodyMode: inferBodyMode(method, body, contentType),
     },
     result: {
       historyId: detail.id,

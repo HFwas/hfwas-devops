@@ -37,9 +37,15 @@ describe('loadDefinitionIntoTab', () => {
     expect(draft.url).toBe('/users')
     expect(draft.method).toBe('POST')
     expect(draft.contentType).toBe('application/json')
-    expect(draft.queryParams).toEqual({ page: '1' })
-    expect(draft.headers).toEqual({ 'X-Token': 'abc' })
-    expect(draft.body).toBe('{"ok":true}')
+    expect(draft.queryParams.filter((p) => p.key)).toEqual([
+      { enabled: true, key: 'page', value: '1' },
+    ])
+    expect(draft.headers.filter((p) => p.key)).toEqual([
+      { enabled: true, key: 'X-Token', value: 'abc' },
+    ])
+    expect(draft.pathParams.filter((p) => p.key)).toEqual([
+      { enabled: true, key: 'id', value: '9' },
+    ])
   })
 
   it('defaults empty path and application/json contentType when missing', async () => {
@@ -55,8 +61,8 @@ describe('loadDefinitionIntoTab', () => {
     const { draft } = await loadDefinitionIntoTab(1)
     expect(draft.url).toBe('')
     expect(draft.contentType).toBe('application/json')
-    expect(draft.queryParams).toEqual({})
-    expect(draft.headers).toEqual({})
+    expect(draft.queryParams.filter((p) => p.key)).toEqual([])
+    expect(draft.headers.filter((p) => p.key)).toEqual([])
     expect(draft.body).toBe('')
   })
 
@@ -105,8 +111,12 @@ describe('loadDefinitionIntoTab', () => {
     })
 
     const { draft } = await loadDefinitionIntoTab(2)
-    expect(draft.queryParams).toEqual({ q: '' })
-    expect(draft.headers).toEqual({ Accept: '' })
+    expect(draft.queryParams.filter((p) => p.key)).toEqual([
+      { enabled: true, key: 'q', value: '' },
+    ])
+    expect(draft.headers.filter((p) => p.key)).toEqual([
+      { enabled: true, key: 'Accept', value: '' },
+    ])
     expect(draft.body).toBe('')
   })
 })

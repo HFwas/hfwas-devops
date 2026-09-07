@@ -54,8 +54,7 @@
 
       <!-- 响应内容 Tab -->
       <n-tabs type="line" default-value="body" size="small" class="workspace-response__tabs">
-        <!-- 响应体 -->
-        <n-tab-pane name="body" tab="响应体">
+        <n-tab-pane name="body" tab="Body">
           <response-body-renderer
             v-if="result"
             :content-type="result.responseContentType"
@@ -65,8 +64,7 @@
           <n-empty v-else description="暂无响应数据" />
         </n-tab-pane>
 
-        <!-- 响应头 -->
-        <n-tab-pane name="headers" tab="响应头">
+        <n-tab-pane name="headers" tab="Headers">
           <n-data-table
             v-if="headerData.length > 0"
             :columns="headerColumns"
@@ -78,8 +76,19 @@
           <n-empty v-else description="无响应头" />
         </n-tab-pane>
 
-        <!-- 断言结果 -->
-        <n-tab-pane v-if="result.assertionResults?.length" name="assertions" tab="断言结果">
+        <n-tab-pane name="cookies" tab="Cookies">
+          <n-data-table
+            v-if="cookieData.length > 0"
+            :columns="cookieColumns"
+            :data="cookieData"
+            :bordered="false"
+            size="small"
+            :max-height="300"
+          />
+          <n-empty v-else description="无 Set-Cookie" />
+        </n-tab-pane>
+
+        <n-tab-pane v-if="result.assertionResults?.length" name="tests" tab="Tests">
           <n-data-table
             :columns="assertionColumns"
             :data="result.assertionResults"
@@ -89,8 +98,7 @@
           />
         </n-tab-pane>
 
-        <!-- 提取变量 -->
-        <n-tab-pane v-if="extractData.length > 0" name="extracts" tab="提取变量">
+        <n-tab-pane v-if="extractData.length > 0" name="extracts" tab="Extracts">
           <n-data-table
             :columns="extractColumns"
             :data="extractData"
@@ -109,6 +117,7 @@ import { computed, h } from 'vue'
 import { NTag } from 'naive-ui'
 import type { ApiDebugResultVO } from '@/modules/api-test/debug/types/debug'
 import ResponseBodyRenderer from '@/modules/api-test/shared/components/ResponseBodyRenderer.vue'
+import { parseSetCookieHeaders } from '@/modules/api-test/debug/utils/cookies'
 
 const props = defineProps<{
   result: ApiDebugResultVO | null
@@ -133,6 +142,14 @@ const headerData = computed(() => {
   if (!headers) return []
   return Object.entries(headers).map(([key, value]) => ({ key, value }))
 })
+
+const cookieColumns = [
+  { title: 'Name', key: 'name', width: 140 },
+  { title: 'Value', key: 'value' },
+  { title: 'Attributes', key: 'extra' },
+]
+
+const cookieData = computed(() => parseSetCookieHeaders(props.result?.responseHeaders))
 
 const assertionColumns = [
   { title: '名称', key: 'name', width: 150 },

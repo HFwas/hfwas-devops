@@ -1,102 +1,115 @@
 <template>
-  <div class="key-value-editor">
-    <n-data-table
-      :columns="columns"
-      :data="pairList"
-      :bordered="false"
-      size="small"
-      :max-height="250"
-    />
-    <n-button size="tiny" class="key-value-editor__add" @click="handleAdd">
-      添加
-    </n-button>
+  <div class="key-value-editor" :class="{ 'key-value-editor--typed': showType }">
+    <div class="key-value-editor__head">
+      <span class="key-value-editor__check" />
+      <span>键</span>
+      <span>值</span>
+      <span v-if="showType">类型</span>
+      <span class="key-value-editor__action" />
+    </div>
+    <div
+      v-for="(row, index) in pairs"
+      :key="index"
+      class="key-value-editor__row"
+    >
+      <n-checkbox
+        :checked="row.enabled"
+        :disabled="readonly"
+        @update:checked="(v: boolean) => patch(index, { enabled: v })"
+      />
+      <n-input
+        :value="row.key"
+        size="tiny"
+        :placeholder="keyPlaceholder"
+        :disabled="readonly"
+        @update:value="(v: string) => patch(index, { key: v })"
+      />
+      <n-input
+        :value="row.value"
+        size="tiny"
+        :placeholder="valuePlaceholder"
+        :disabled="readonly"
+        @update:value="(v: string) => patch(index, { value: v })"
+      />
+      <n-select
+        v-if="showType"
+        :value="row.type || 'text'"
+        size="tiny"
+        :options="TYPE_OPTIONS"
+        :disabled="readonly"
+        style="width: 88px;"
+        @update:value="(v: string) => patch(index, { type: v as 'text' | 'file' })"
+      />
+      <n-button
+        size="tiny"
+        quaternary
+        type="error"
+        :disabled="readonly"
+        @click="remove(index)"
+      >
+        删除
+      </n-button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, h } from 'vue'
-import { NButton, NInput, NSwitch } from 'naive-ui'
+import type { KeyValuePair } from '@/modules/api-test/shared/types/keyValue'
+import { removePairAt, updatePairAt } from '@/modules/api-test/shared/utils/keyValue'
+
+const TYPE_OPTIONS = [
+  { label: 'Text', value: 'text' },
+  { label: 'File', value: 'file' },
+]
 
 const props = defineProps<{
-  pairs: Record<string, string>
+  pairs: KeyValuePair[]
   keyPlaceholder?: string
   valuePlaceholder?: string
+  showType?: boolean
+  readonly?: boolean
 }>()
 
 const emit = defineEmits<{
-  'update:pairs': [value: Record<string, string>]
+  'update:pairs': [value: KeyValuePair[]]
 }>()
 
-const pairList = computed(() => {
-  return Object.entries(props.pairs || {}).map(([key, value]) => ({ key, value }))
-})
-
-const columns = [
-  {
-    title: '键',
-    key: 'key',
-    width: 200,
-    render: (row: any, index: number) => h(NInput, {
-      value: row.key,
-      size: 'small',
-      placeholder: props.keyPlaceholder || '键',
-      onUpdateValue: (v: string) => updateKey(index, v),
-    }),
-  },
-  {
-    title: '值',
-    key: 'value',
-    render: (row: any, index: number) => h(NInput, {
-      value: row.value,
-      size: 'small',
-      placeholder: props.valuePlaceholder || '值',
-      onUpdateValue: (v: string) => updateValue(index, v),
-    }),
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 60,
-    render: (_row: any, index: number) => h(NButton, {
-      size: 'tiny',
-      type: 'error',
-      quaternary: true,
-      onClick: () => removeRow(index),
-    }, { default: () => '删除' }),
-  },
-]
-
-function updateKey(index: number, newKey: string) {
-  const entries = Object.entries(props.pairs || {})
-  const oldKey = entries[index][0]
-  const value = entries[index][1]
-  const newPairs = { ...props.pairs }
-  delete newPairs[oldKey]
-  newPairs[newKey] = value
-  emit('update:pairs', newPairs)
+function patch(index: number, partial: Partial<KeyValuePair>) {
+  emit('update:pairs', updatePairAt(props.pairs, index, partial))
 }
 
-function updateValue(index: number, newValue: string) {
-  const entries = Object.entries(props.pairs || {})
-  const key = entries[index][0]
-  emit('update:pairs', { ...props.pairs, [key]: newValue })
-}
-
-function handleAdd() {
-  emit('update:pairs', { ...props.pairs, ['']: '' })
-}
-
-function removeRow(index: number) {
-  const entries = Object.entries(props.pairs || {})
-  const key = entries[index][0]
-  const newPairs = { ...props.pairs }
-  delete newPairs[key]
-  emit('update:pairs', newPairs)
+function remove(index: number) {
+  emit('update:pairs', removePairAt(props.pairs, index))
 }
 </script>
 
 <style scoped>
-.key-value-editor__add {
-  margin-top: 2px;
+.key-value-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.key-value-editor__head,
+.key-value-editor__row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.key-value-editor--typed .key-value-editor__head,
+.key-value-editor--typed .key-value-editor__row {
+  grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1.2fr) 88px auto;
+}
+
+.key-value-editor__head {
+  font-size: 12px;
+  color: var(--wb-muted, #6b7280);
+}
+
+.key-value-editor__check,
+.key-value-editor__action {
+  width: 22px;
 }
 </style>

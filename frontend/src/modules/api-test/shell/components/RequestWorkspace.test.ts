@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import { emptyDraft } from '@/modules/api-test/shell/types/workspace'
+import { recordToPairs } from '@/modules/api-test/shared/utils/keyValue'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useDebugStore } from '@/modules/api-test/debug/stores/debug'
 import { useAuthStore } from '@/modules/user/stores/auth'
@@ -139,10 +140,10 @@ describe('RequestWorkspace', () => {
       draft: emptyDraft({
         url: '{{baseUrl}}/users',
         method: 'GET',
-        headers: { Accept: 'application/json' },
-        queryParams: { page: '1' },
+        headers: recordToPairs({ Accept: 'application/json' }),
+        queryParams: recordToPairs({ page: '1' }),
         body: '',
-        contentType: 'application/json',
+        bodyMode: 'none',
         preRequestScript: 'pm.environment.set("x", 1)',
         postResponseScript: 'console.log(1)',
         assertions: [{ source: 'RESPONSE_STATUS', compareType: 'EQUALS', expectedValue: '200' }],
@@ -160,7 +161,7 @@ describe('RequestWorkspace', () => {
     const wrapper = mount(RequestWorkspace)
     await (wrapper.vm as any).handleSend()
 
-    expect(executeMock).toHaveBeenCalledWith({
+    expect(executeMock).toHaveBeenCalledWith(expect.objectContaining({
       projectId: 1,
       definitionId: 9,
       environmentId: 7,
@@ -168,13 +169,13 @@ describe('RequestWorkspace', () => {
       method: 'GET',
       headers: { Accept: 'application/json' },
       queryParams: { page: '1' },
-      body: undefined,
-      contentType: 'application/json',
+      timeoutMs: 30000,
+      followRedirects: true,
       preRequestScript: 'pm.environment.set("x", 1)',
       postResponseScript: 'console.log(1)',
       assertions: tab.draft.assertions,
       extracts: tab.draft.extracts,
-    })
+    }))
     expect(workspace.tabs[0].result).toEqual(result)
     expect(messageSuccess).toHaveBeenCalledWith('调试完成')
   })
@@ -305,9 +306,10 @@ describe('RequestWorkspace', () => {
         url: '/login',
         method: 'POST',
         contentType: 'application/json',
-        queryParams: { q: '1' },
-        headers: { X: 'y' },
+        queryParams: recordToPairs({ q: '1' }),
+        headers: recordToPairs({ X: 'y' }),
         body: '{"ok":true}',
+        bodyMode: 'json',
       }),
     })
     workspace.patchDraft(tab.id, { url: '/login' })
@@ -407,7 +409,7 @@ describe('RequestWorkspace', () => {
       url: '/new',
       method: 'PUT',
       description: 'scratch docs',
-      headers: { X: '1' },
+      headers: recordToPairs({ X: '1' }),
     })
     createReqMock.mockResolvedValue({
       definitionId: 55,
@@ -456,7 +458,8 @@ describe('RequestWorkspace', () => {
     workspace.patchDraft(workspace.tabs[0].id, { description: 'API notes' })
 
     const wrapper = mount(RequestWorkspace)
-    ;(wrapper.vm as any).requestTab = 'docs'
+    ;(wrapper.vm as any).requestTab = 'more'
+    ;(wrapper.vm as any).moreTab = 'docs'
     await wrapper.vm.$nextTick()
 
     const docsInput = wrapper.find('[data-testid="docs-description"]')
@@ -534,9 +537,10 @@ describe('RequestWorkspace', () => {
     workspace.openScratchTab()
     const wrapper = mount(RequestWorkspace)
     const text = wrapper.text()
-    for (const label of ['Params', 'Auth', 'Headers', 'Body', 'Scripts', 'Tests', 'Docs', 'Settings', 'Visualize']) {
+    for (const label of ['Query', 'Path', 'Headers', 'Auth', 'Body', 'More']) {
       expect(text).toContain(label)
     }
+    expect(text).not.toContain('Visualize')
   })
 
   it('clamps response pane drag to 120–60vh', async () => {

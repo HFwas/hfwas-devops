@@ -257,8 +257,13 @@ describe('useWorkspaceStore', () => {
     expect(a.refId).toBe(9)
   })
 
-  it('emptyDraft includes description', () => {
-    expect(emptyDraft().description).toBe('')
+  it('emptyDraft includes description, auth and settings', () => {
+    const draft = emptyDraft()
+    expect(draft.description).toBe('')
+    expect(draft.auth.type).toBe('none')
+    expect(draft.timeoutMs).toBe(30000)
+    expect(draft.followRedirects).toBe(true)
+    expect(draft.bodyMode).toBe('none')
   })
 
   it('setTabTitle renames and marks dirty', () => {

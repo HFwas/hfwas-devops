@@ -110,6 +110,9 @@ import { HTTP_METHOD_OPTIONS } from '@/modules/api-test/define/types/definition'
 import { useApiDefinitionStore } from '@/modules/api-test/define/stores/definition'
 import type { ApiDefinitionDetailVO } from '@/modules/api-test/define/types/definition'
 import KeyValueEditor from '@/modules/api-test/shared/components/KeyValueEditor.vue'
+import { emptyPair } from '@/modules/api-test/shared/types/keyValue'
+import type { KeyValuePair } from '@/modules/api-test/shared/types/keyValue'
+import { pairsToRecord, recordToPairs } from '@/modules/api-test/shared/utils/keyValue'
 import ScriptEditor from '@/modules/api-test/debug/components/ScriptEditor.vue'
 import CurlImportDialog from '@/modules/api-test/debug/components/CurlImportDialog.vue'
 import type { CurlParseResultVO } from '@/modules/api-test/debug/types/curl'
@@ -152,8 +155,8 @@ const activeTab = ref('params')
 // 请求参数
 const url = ref('')
 const method = ref('GET')
-const headers = ref<Record<string, string>>({})
-const queryParams = ref<Record<string, string>>({})
+const headers = ref<KeyValuePair[]>([emptyPair()])
+const queryParams = ref<KeyValuePair[]>([emptyPair()])
 const body = ref('')
 const contentType = ref('application/json')
 const preRequestScript = ref('')
@@ -167,7 +170,7 @@ function onCurlImported(results: CurlParseResultVO[]) {
   if (!result) return
   url.value = result.url || ''
   method.value = result.method || 'GET'
-  headers.value = result.headers || {}
+  headers.value = recordToPairs(result.headers || {})
   body.value = result.body || ''
   contentType.value = result.contentType || 'application/json'
   activeTab.value = 'params'
@@ -193,32 +196,33 @@ watch(() => props.definitionId, async (newId) => {
 function applyDetail(detail: ApiDefinitionDetailVO) {
   url.value = detail.path || ''
   method.value = detail.method
-  headers.value = {}
-  queryParams.value = {}
+  const query: Record<string, string> = {}
+  const hdrs: Record<string, string> = {}
   body.value = ''
   contentType.value = detail.contentType || 'application/json'
   preRequestScript.value = ''
   postResponseScript.value = ''
 
-  // 解析参数
   if (detail.params) {
     for (const param of detail.params) {
       if (param.paramType === 'query') {
-        queryParams.value[param.name] = param.defaultValue || ''
+        query[param.name] = param.defaultValue || ''
       } else if (param.paramType === 'header') {
-        headers.value[param.name] = param.defaultValue || ''
+        hdrs[param.name] = param.defaultValue || ''
       } else if (param.paramType === 'body') {
         body.value = param.defaultValue || ''
       }
     }
   }
+  queryParams.value = recordToPairs(query)
+  headers.value = recordToPairs(hdrs)
 }
 
 function resetForm() {
   url.value = ''
   method.value = 'GET'
-  headers.value = {}
-  queryParams.value = {}
+  headers.value = [emptyPair()]
+  queryParams.value = [emptyPair()]
   body.value = ''
   contentType.value = 'application/json'
   preRequestScript.value = ''
@@ -229,8 +233,8 @@ function getRequestData() {
   return {
     url: url.value,
     method: method.value,
-    headers: { ...headers.value },
-    queryParams: { ...queryParams.value },
+    headers: pairsToRecord(headers.value),
+    queryParams: pairsToRecord(queryParams.value),
     body: body.value,
     contentType: contentType.value,
     preRequestScript: preRequestScript.value,
@@ -245,8 +249,10 @@ async function handleSave() {
   }
   try {
     // 构建参数列表
+    const queryRecord = pairsToRecord(queryParams.value)
+    const headerRecord = pairsToRecord(headers.value)
     const params: any[] = [
-      ...Object.entries(queryParams.value).map(([name, value]) => ({
+      ...Object.entries(queryRecord).map(([name, value]) => ({
         paramType: 'query' as const,
         name,
         defaultValue: value || '',
@@ -255,7 +261,7 @@ async function handleSave() {
         description: '',
         sortOrder: 0,
       })),
-      ...Object.entries(headers.value).map(([name, value]) => ({
+      ...Object.entries(headerRecord).map(([name, value]) => ({
         paramType: 'header' as const,
         name,
         defaultValue: value || '',

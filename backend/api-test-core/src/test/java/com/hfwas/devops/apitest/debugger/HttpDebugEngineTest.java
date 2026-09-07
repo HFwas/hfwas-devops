@@ -150,6 +150,25 @@ class HttpDebugEngineTest {
                 }
             });
 
+            server.createContext("/api/slow", exchange -> {
+                try {
+                    Thread.sleep(1500);
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+                String body = "slow";
+                exchange.sendResponseHeaders(200, body.length());
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(body.getBytes());
+                }
+            });
+
+            server.createContext("/api/redirect", exchange -> {
+                exchange.getResponseHeaders().add("Location", "/api/test");
+                exchange.sendResponseHeaders(302, -1);
+                exchange.close();
+            });
+
             // 404 端点
             server.createContext("/api/not-found", exchange -> {
                 String body = "{\"error\":\"not found\"}";
@@ -203,8 +222,8 @@ class HttpDebugEngineTest {
             request.setMethod("GET");
 
             DebugResult result = httpDebugEngine.execute(request);
-            assertThat(result.getResponse().getHeaders())
-                    .containsKey("content-type");
+            assertThat(result.getResponse().getHeaders().keySet())
+                    .anyMatch(k -> k.equalsIgnoreCase("content-type"));
         }
 
         @Test
@@ -270,6 +289,32 @@ class HttpDebugEngineTest {
             DebugResult result = httpDebugEngine.execute(request);
             assertThat(result.getStatus()).isEqualTo("SUCCESS");
             assertThat(result.getResponse().getBody()).contains("page=1");
+        }
+
+        @Test
+        @DisplayName("timeoutMs 过短时应 ERROR")
+        void timeoutMsIsHonored() {
+            DebugRequest request = new DebugRequest();
+            request.setUrl("http://localhost:" + port + "/api/slow");
+            request.setMethod("GET");
+            request.setTimeoutMs(200L);
+
+            DebugResult result = httpDebugEngine.execute(request);
+            assertThat(result.getStatus()).isEqualTo("ERROR");
+            assertThat(result.getDurationMs()).isLessThan(1200L);
+        }
+
+        @Test
+        @DisplayName("followRedirects=true 时应跟随 302")
+        void followRedirectsWhenEnabled() {
+            DebugRequest request = new DebugRequest();
+            request.setUrl("http://localhost:" + port + "/api/redirect");
+            request.setMethod("GET");
+            request.setFollowRedirects(true);
+
+            DebugResult result = httpDebugEngine.execute(request);
+            assertThat(result.getStatus()).isEqualTo("SUCCESS");
+            assertThat(result.getResponse().getStatusCode()).isEqualTo(200);
         }
     }
 }

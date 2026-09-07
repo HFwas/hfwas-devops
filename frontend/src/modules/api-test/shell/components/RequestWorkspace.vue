@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMessage } from 'naive-ui'
 import { useAuthStore } from '@/modules/user/stores/auth'
@@ -12,7 +12,9 @@ import KeyValueEditor from '@/modules/api-test/shared/components/KeyValueEditor.
 import ScriptEditor from '@/modules/api-test/debug/components/ScriptEditor.vue'
 import AssertionEditor from '@/modules/api-test/debug/components/AssertionEditor.vue'
 import ExtractEditor from '@/modules/api-test/debug/components/ExtractEditor.vue'
-import ComingSoonPane from '@/modules/api-test/shell/components/ComingSoonPane.vue'
+import AuthEditor from '@/modules/api-test/debug/components/AuthEditor.vue'
+import BodyEditor from '@/modules/api-test/debug/components/BodyEditor.vue'
+import RequestSettings from '@/modules/api-test/debug/components/RequestSettings.vue'
 import { useDebugStore } from '@/modules/api-test/debug/stores/debug'
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
@@ -23,6 +25,14 @@ import {
   buildBreadcrumbSegments,
   resolveFolderNames,
 } from '@/modules/api-test/shell/utils/breadcrumbPath'
+import { draftToCurl } from '@/modules/api-test/debug/utils/curlExport'
+import { buildExecutePayload } from '@/modules/api-test/debug/utils/draftExecute'
+import { interpolate } from '@/modules/api-test/debug/utils/interpolate'
+import { mergePathParams, replaceQuery, syncQueryPairsFromUrl } from '@/modules/api-test/debug/utils/urlParams'
+import { enabledNamedPairs } from '@/modules/api-test/shared/utils/keyValue'
+import type { KeyValuePair } from '@/modules/api-test/shared/types/keyValue'
+import type { AuthConfig } from '@/modules/api-test/debug/utils/auth'
+import type { BodyMode } from '@/modules/api-test/debug/utils/bodyMode'
 
 const PROJECT_ID = 1
 
@@ -48,17 +58,9 @@ function requireUserId(): number | null {
 }
 
 const METHOD_OPTIONS = HTTP_METHOD_OPTIONS.map((o) => ({ label: o.label, value: o.value }))
-const CONTENT_TYPE_OPTIONS = [
-  { label: 'application/json', value: 'application/json' },
-  { label: 'application/xml', value: 'application/xml' },
-  { label: 'application/x-www-form-urlencoded', value: 'application/x-www-form-urlencoded' },
-  { label: 'multipart/form-data', value: 'multipart/form-data' },
-  { label: 'text/plain', value: 'text/plain' },
-  { label: 'text/html', value: 'text/html' },
-]
 
-const requestTab = ref('params')
-const responseTab = ref('response')
+const requestTab = ref('query')
+const moreTab = ref('scripts')
 const showScratchDialog = ref(false)
 const scratchSaving = ref(false)
 const scratchName = ref('')
@@ -96,6 +98,39 @@ const breadcrumbSegments = computed(() => {
 
 const breadcrumbPrefix = computed(() => breadcrumbSegments.value.slice(0, -1))
 
+const previewUrl = computed(() => {
+  const tab = activeTab.value
+  if (!tab?.draft.url) return ''
+  const vars: Record<string, string> = {}
+  const secrets: Record<string, boolean> = {}
+  const detail = envStore.currentDetail
+  if (detail && detail.id === envStore.selectedEnvironmentId) {
+    for (const item of detail.variables || []) {
+      vars[item.name] = item.value
+      if (item.isSecret) secrets[item.name] = true
+    }
+  }
+  const payload = buildExecutePayload(tab.draft)
+  const search = payload.queryParams && Object.keys(payload.queryParams).length
+    ? `?${new URLSearchParams(payload.queryParams).toString()}`
+    : ''
+  return interpolate(`${payload.url}${search}`, vars, secrets)
+})
+
+watch(
+  () => envStore.selectedEnvironmentId,
+  async (id) => {
+    if (id != null && envStore.currentDetail?.id !== id) {
+      try {
+        await envStore.loadDetail(id)
+      } catch {
+        // preview stays unresolved
+      }
+    }
+  },
+  { immediate: true },
+)
+
 function patch(partial: Partial<RequestDraft>) {
   const tab = activeTab.value
   if (!tab) return
@@ -111,25 +146,34 @@ function onTitleChange(value: string) {
   workspace.setTabTitle(tab.id, value)
 }
 
+function onUrlChange(value: string) {
+  const tab = activeTab.value
+  if (!tab) return
+  workspace.patchDraft(tab.id, {
+    url: value,
+    queryParams: syncQueryPairsFromUrl(value, tab.draft.queryParams),
+    pathParams: mergePathParams(value, tab.draft.pathParams),
+  })
+}
+
+function onQueryChange(pairs: KeyValuePair[]) {
+  const tab = activeTab.value
+  if (!tab) return
+  workspace.patchDraft(tab.id, {
+    queryParams: pairs,
+    url: replaceQuery(tab.draft.url, pairs),
+  })
+}
+
 async function handleSend() {
   const tab = workspace.activeTab
   if (!tab?.draft.url) { message.warning('请输入请求 URL'); return }
   try {
-    const result = await debugStore.execute({
+    const result = await debugStore.execute(buildExecutePayload(tab.draft, {
       projectId: 1,
       definitionId: tab.definitionId,
       environmentId: envStore.selectedEnvironmentId ?? undefined,
-      url: tab.draft.url,
-      method: tab.draft.method,
-      headers: tab.draft.headers,
-      queryParams: tab.draft.queryParams,
-      body: tab.draft.body || undefined,
-      contentType: tab.draft.contentType,
-      preRequestScript: tab.draft.preRequestScript || undefined,
-      postResponseScript: tab.draft.postResponseScript || undefined,
-      assertions: tab.draft.assertions,
-      extracts: tab.draft.extracts,
-    })
+    }))
     workspace.setTabResult(tab.id, result)
     message.success('调试完成')
     debugStore.bumpHistoryEpoch()
@@ -138,32 +182,42 @@ async function handleSend() {
   }
 }
 
+async function copyCurl() {
+  const tab = workspace.activeTab
+  if (!tab) return
+  try {
+    await navigator.clipboard.writeText(draftToCurl(tab.draft))
+    message.success('已复制 cURL')
+  } catch {
+    message.error('复制失败')
+  }
+}
+
+function onSendHotkey(event: KeyboardEvent) {
+  if (!(event.ctrlKey || event.metaKey) || event.key !== 'Enter') return
+  event.preventDefault()
+  void handleSend()
+}
+
+function pairsToParams(pairs: KeyValuePair[], paramType: ApiDefinitionParamDTO['paramType']): ApiDefinitionParamDTO[] {
+  return enabledNamedPairs(pairs).map((row) => ({
+    paramType,
+    name: row.key,
+    defaultValue: row.value || '',
+    dataType: 'string' as const,
+    required: false,
+    description: '',
+    sortOrder: 0,
+  }))
+}
+
 function buildParamsFromDraft(draft: RequestDraft): ApiDefinitionParamDTO[] {
   const params: ApiDefinitionParamDTO[] = [
-    ...Object.entries(draft.queryParams)
-      .filter(([name]) => name)
-      .map(([name, value]) => ({
-        paramType: 'query' as const,
-        name,
-        defaultValue: value || '',
-        dataType: 'string' as const,
-        required: false,
-        description: '',
-        sortOrder: 0,
-      })),
-    ...Object.entries(draft.headers)
-      .filter(([name]) => name)
-      .map(([name, value]) => ({
-        paramType: 'header' as const,
-        name,
-        defaultValue: value || '',
-        dataType: 'string' as const,
-        required: false,
-        description: '',
-        sortOrder: 0,
-      })),
+    ...pairsToParams(draft.queryParams, 'query'),
+    ...pairsToParams(draft.headers, 'header'),
+    ...pairsToParams(draft.pathParams, 'path'),
   ]
-  if (draft.body) {
+  if (draft.bodyMode !== 'none' && draft.body) {
     params.push({
       paramType: 'body',
       name: 'body',
@@ -308,7 +362,14 @@ function onResponseResizeStart(event: PointerEvent) {
   stopResponseResize = onUp
 }
 
-onUnmounted(() => stopResponseResize?.())
+onUnmounted(() => {
+  stopResponseResize?.()
+  window.removeEventListener('keydown', onSendHotkey)
+})
+
+onMounted(() => {
+  window.addEventListener('keydown', onSendHotkey)
+})
 </script>
 
 <template>
@@ -355,7 +416,7 @@ onUnmounted(() => stopResponseResize?.())
         size="small"
         clearable
         style="flex: 1;"
-        @update:value="(v: string) => patch({ url: v })"
+        @update:value="onUrlChange"
       />
       <n-button
         type="primary"
@@ -365,11 +426,17 @@ onUnmounted(() => stopResponseResize?.())
         :disabled="!activeTab.draft.url"
         @click="handleSend"
       >
-        发送
+        Send
       </n-button>
       <n-button quaternary size="small" data-testid="request-save" @click="handleSave">
-        保存
+        Save
       </n-button>
+      <n-button quaternary size="small" data-testid="request-curl" @click="copyCurl">
+        cURL
+      </n-button>
+    </div>
+    <div v-if="previewUrl" class="request-workspace__preview" data-testid="url-preview">
+      {{ previewUrl }}
     </div>
 
     <n-tabs
@@ -378,18 +445,26 @@ onUnmounted(() => stopResponseResize?.())
       size="small"
       class="request-workspace__tabs"
     >
-      <n-tab-pane name="params" tab="Params">
+      <n-tab-pane name="query" tab="Query">
         <key-value-editor
           :pairs="activeTab.draft.queryParams"
           key-placeholder="参数名"
           value-placeholder="参数值（支持 {{ var }}）"
-          @update:pairs="(v) => patch({ queryParams: v })"
+          @update:pairs="onQueryChange"
         />
       </n-tab-pane>
-      <n-tab-pane name="auth" tab="Auth">
-        <ComingSoonPane title="Auth" />
+      <n-tab-pane name="path" tab="Path">
+        <key-value-editor
+          :pairs="activeTab.draft.pathParams"
+          key-placeholder="变量名"
+          value-placeholder="变量值"
+          @update:pairs="(v) => patch({ pathParams: v })"
+        />
       </n-tab-pane>
       <n-tab-pane name="headers" tab="Headers">
+        <p v-if="activeTab.draft.auth.type !== 'none'" class="request-workspace__hint">
+          认证头由 Auth 生成，发送时自动附加。
+        </p>
         <key-value-editor
           :pairs="activeTab.draft.headers"
           key-placeholder="Header 名称"
@@ -397,65 +472,73 @@ onUnmounted(() => stopResponseResize?.())
           @update:pairs="(v) => patch({ headers: v })"
         />
       </n-tab-pane>
+      <n-tab-pane name="auth" tab="Auth">
+        <auth-editor
+          :auth="activeTab.draft.auth"
+          @update:auth="(v: AuthConfig) => patch({ auth: v })"
+        />
+      </n-tab-pane>
       <n-tab-pane name="body" tab="Body">
-        <div class="request-workspace__body-header">
-          <n-select
-            :value="activeTab.draft.contentType"
-            :options="CONTENT_TYPE_OPTIONS"
-            size="small"
-            style="width: 200px;"
-            @update:value="(v: string) => patch({ contentType: v })"
-          />
-        </div>
-        <n-input
-          :value="activeTab.draft.body"
-          type="textarea"
-          :rows="10"
-          placeholder="请求体内容（支持 {{ var }} 变量占位符）"
-          style="font-family: monospace; font-size: 13px;"
-          @update:value="(v: string) => patch({ body: v })"
+        <body-editor
+          :body-mode="activeTab.draft.bodyMode"
+          :body="activeTab.draft.body"
+          :content-type="activeTab.draft.contentType"
+          :form-fields="activeTab.draft.formFields"
+          @update:body-mode="(v: BodyMode) => patch({ bodyMode: v })"
+          @update:body="(v: string) => patch({ body: v })"
+          @update:content-type="(v: string) => patch({ contentType: v })"
+          @update:form-fields="(v) => patch({ formFields: v })"
         />
       </n-tab-pane>
-      <n-tab-pane name="scripts" tab="Scripts">
-        <div class="request-workspace__script-section">
-          <div class="request-workspace__script-label">前置脚本（发送前执行）</div>
-          <script-editor
-            :model-value="activeTab.draft.preRequestScript"
-            @update:model-value="(v) => patch({ preRequestScript: v })"
-          />
-        </div>
-        <div class="request-workspace__script-section">
-          <div class="request-workspace__script-label">后置脚本（响应后执行）</div>
-          <script-editor
-            :model-value="activeTab.draft.postResponseScript"
-            @update:model-value="(v) => patch({ postResponseScript: v })"
-          />
-        </div>
-      </n-tab-pane>
-      <n-tab-pane name="tests" tab="Tests">
-        <div class="request-workspace__script-label">断言</div>
-        <assertion-editor
-          :assertions="activeTab.draft.assertions"
-          @update:assertions="(v) => patch({ assertions: v })"
-        />
-        <div class="request-workspace__script-label" style="margin-top: 16px;">变量提取</div>
-        <extract-editor
-          :extracts="activeTab.draft.extracts"
-          @update:extracts="(v) => patch({ extracts: v })"
-        />
-      </n-tab-pane>
-      <n-tab-pane name="docs" tab="Docs">
-        <n-input
-          data-testid="docs-description"
-          :value="activeTab.draft.description"
-          type="textarea"
-          :rows="12"
-          placeholder="接口描述 / 文档"
-          @update:value="(v: string) => patch({ description: v })"
-        />
-      </n-tab-pane>
-      <n-tab-pane name="settings" tab="Settings">
-        <ComingSoonPane title="Settings" />
+      <n-tab-pane name="more" tab="More">
+        <n-tabs v-model:value="moreTab" type="line" size="small">
+          <n-tab-pane name="scripts" tab="Scripts">
+            <div class="request-workspace__script-section">
+              <div class="request-workspace__script-label">前置脚本（发送前执行）</div>
+              <script-editor
+                :model-value="activeTab.draft.preRequestScript"
+                @update:model-value="(v) => patch({ preRequestScript: v })"
+              />
+            </div>
+            <div class="request-workspace__script-section">
+              <div class="request-workspace__script-label">后置脚本（响应后执行）</div>
+              <script-editor
+                :model-value="activeTab.draft.postResponseScript"
+                @update:model-value="(v) => patch({ postResponseScript: v })"
+              />
+            </div>
+          </n-tab-pane>
+          <n-tab-pane name="tests" tab="Tests">
+            <div class="request-workspace__script-label">断言</div>
+            <assertion-editor
+              :assertions="activeTab.draft.assertions"
+              @update:assertions="(v) => patch({ assertions: v })"
+            />
+            <div class="request-workspace__script-label" style="margin-top: 16px;">变量提取</div>
+            <extract-editor
+              :extracts="activeTab.draft.extracts"
+              @update:extracts="(v) => patch({ extracts: v })"
+            />
+          </n-tab-pane>
+          <n-tab-pane name="docs" tab="Docs">
+            <n-input
+              data-testid="docs-description"
+              :value="activeTab.draft.description"
+              type="textarea"
+              :rows="12"
+              placeholder="接口描述 / 文档"
+              @update:value="(v: string) => patch({ description: v })"
+            />
+          </n-tab-pane>
+          <n-tab-pane name="settings" tab="Settings">
+            <request-settings
+              :timeout-ms="activeTab.draft.timeoutMs"
+              :follow-redirects="activeTab.draft.followRedirects"
+              @update:timeout-ms="(v: number) => patch({ timeoutMs: v })"
+              @update:follow-redirects="(v: boolean) => patch({ followRedirects: v })"
+            />
+          </n-tab-pane>
+        </n-tabs>
       </n-tab-pane>
     </n-tabs>
 
@@ -467,14 +550,7 @@ onUnmounted(() => stopResponseResize?.())
     />
 
     <div class="request-workspace__response" :style="{ height: `${responseHeight}px` }">
-      <n-tabs v-model:value="responseTab" type="line" size="small" class="request-workspace__response-tabs">
-        <n-tab-pane name="response" tab="响应">
-          <ApiWorkspaceResponse :result="activeTab.result" />
-        </n-tab-pane>
-        <n-tab-pane name="visualize" tab="Visualize">
-          <ComingSoonPane title="Visualize" />
-        </n-tab-pane>
-      </n-tabs>
+      <ApiWorkspaceResponse :result="activeTab.result" />
     </div>
 
     <n-modal
@@ -561,6 +637,20 @@ onUnmounted(() => stopResponseResize?.())
   gap: 6px;
   align-items: center;
   padding: var(--api-density-pad-y, 6px) var(--api-density-pad-x, 10px) 0;
+}
+
+.request-workspace__preview {
+  padding: 2px var(--api-density-pad-x, 10px) 0;
+  font-size: 12px;
+  color: var(--wb-muted, #6b7280);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
+}
+
+.request-workspace__hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--wb-muted, #6b7280);
 }
 
 .request-workspace__tabs {

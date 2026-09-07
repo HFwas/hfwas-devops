@@ -9,6 +9,14 @@
         <n-tag :type="typeTagType" size="tiny" bordered>
           {{ detecedTypeLabel }}
         </n-tag>
+        <n-input
+          v-model:value="keyword"
+          size="tiny"
+          clearable
+          placeholder="搜索响应体"
+          style="width: 180px;"
+          data-testid="response-search"
+        />
         <n-button-group size="tiny">
           <n-button
             :type="activeTab === 'pretty' ? 'primary' : 'default'"
@@ -59,14 +67,14 @@
           图片加载失败，请在 Raw 视图查看原始数据
         </div>
         <!-- 纯文本 -->
-        <pre v-else class="response-body-renderer__text">{{ body }}</pre>
+        <pre v-else class="response-body-renderer__text">{{ filteredBody }}</pre>
       </div>
 
       <!-- Raw 视图（原始文本） -->
       <div v-show="activeTab === 'raw'" class="response-body-renderer__content">
         <n-input
           type="textarea"
-          :value="body"
+          :value="filteredBody"
           readonly
           :rows="12"
           class="response-body-renderer__raw-input"
@@ -107,6 +115,17 @@ const props = defineProps<{
 
 const activeTab = ref<'pretty' | 'raw' | 'preview'>('pretty')
 const imageError = ref(false)
+const keyword = ref('')
+
+const filteredBody = computed(() => {
+  const text = props.body || ''
+  const q = keyword.value.trim()
+  if (!q) return text
+  return text
+    .split('\n')
+    .filter((line) => line.toLowerCase().includes(q.toLowerCase()))
+    .join('\n')
+})
 
 // 检测内容类型
 const detecedType = computed<DetectedType>(() => {

@@ -14,6 +14,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -33,13 +34,6 @@ import java.util.stream.Collectors;
 @Component
 public class HttpDebugEngine {
 
-    private final RestClient restClient;
-
-    public HttpDebugEngine() {
-        this.restClient = RestClient.builder()
-                .build();
-    }
-
     /**
      * 执行 HTTP 请求
      */
@@ -49,35 +43,20 @@ public class HttpDebugEngine {
         long startTime = System.currentTimeMillis();
 
         try {
-            // 1. 构建完整 URL（含 Query 参数）
             String fullUrl = buildUrlWithQueryParams(request.getUrl(), request.getQueryParams());
+            RestClient client = buildClient(request);
 
-            // 2. 构建请求
-            RestClient.RequestBodySpec spec = restClient.method(HttpMethod.valueOf(request.getMethod().toUpperCase()))
+            RestClient.RequestBodySpec spec = client.method(HttpMethod.valueOf(request.getMethod().toUpperCase()))
                     .uri(URI.create(fullUrl));
 
-            // 3. 设置请求头
             if (request.getHeaders() != null) {
                 request.getHeaders().forEach(spec::header);
             }
 
-            // 4. 设置请求体
             if (request.getBody() != null) {
                 spec.body(request.getBody());
             }
 
-            // 5. 配置超时
-            if (request.getTimeoutMs() != null && request.getTimeoutMs() > 0) {
-                SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-                requestFactory.setConnectTimeout(Math.toIntExact(request.getTimeoutMs()));
-                requestFactory.setReadTimeout(Math.toIntExact(request.getTimeoutMs()));
-                // 注意：RestClient 的 timeout 设置需通过 requestFactory
-                // 重启 client 成本较高，此处采用另一种方式：使用 RestClient.builder().requestFactory(...)
-                // 但实际上 RestClient 通过 builder 构建后不可变，暂用默认超时
-                // TODO: 如需精确控制，可重构为每次创建新的 RestClient 实例
-            }
-
-            // 6. 执行请求
             DebugResponse debugResponse = new DebugResponse();
 
             spec.exchange((clientRequest, clientResponse) -> {
@@ -135,6 +114,31 @@ public class HttpDebugEngine {
         result.setDurationMs(System.currentTimeMillis() - startTime);
 
         return result;
+    }
+
+    private RestClient buildClient(DebugRequest request) {
+        boolean follow = request.getFollowRedirects() == null || Boolean.TRUE.equals(request.getFollowRedirects());
+        RedirectingRequestFactory factory = new RedirectingRequestFactory(follow);
+        long timeout = request.getTimeoutMs() != null && request.getTimeoutMs() > 0
+                ? request.getTimeoutMs()
+                : 30_000L;
+        factory.setConnectTimeout(Duration.ofMillis(timeout));
+        factory.setReadTimeout(Duration.ofMillis(timeout));
+        return RestClient.builder().requestFactory(factory).build();
+    }
+
+    private static final class RedirectingRequestFactory extends SimpleClientHttpRequestFactory {
+        private final boolean followRedirects;
+
+        private RedirectingRequestFactory(boolean followRedirects) {
+            this.followRedirects = followRedirects;
+        }
+
+        @Override
+        protected void prepareConnection(HttpURLConnection connection, String httpMethod) throws IOException {
+            super.prepareConnection(connection, httpMethod);
+            connection.setInstanceFollowRedirects(followRedirects);
+        }
     }
 
     /**

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DebugHistoryDetailVO } from '@/modules/api-test/debug/types/debugHistory'
+import { recordToPairs } from '@/modules/api-test/shared/utils/keyValue'
 import { mapHistoryDetailToTab } from './mapHistoryDetailToTab'
 
 const fullDetailFixture: DebugHistoryDetailVO = {
@@ -45,14 +46,12 @@ describe('mapHistoryDetailToTab', () => {
 
     expect(mapped.title).toBe('List Users')
     expect(mapped.method).toBe('GET')
-    expect(mapped.draftPatch).toEqual({
-      url: 'https://api.example.com/users?page=1',
-      method: 'GET',
-      headers: { Authorization: 'Bearer token' },
-      queryParams: { page: '1' },
-      body: '{"filter":"active"}',
-      contentType: 'application/json',
-    })
+    expect(mapped.draftPatch.headers).toEqual(recordToPairs({ Authorization: 'Bearer token' }))
+    expect(mapped.draftPatch.queryParams).toEqual(recordToPairs({ page: '1' }))
+    expect(mapped.draftPatch.body).toBe('{"filter":"active"}')
+    expect(mapped.draftPatch.contentType).toBe('application/json')
+    expect(mapped.draftPatch.method).toBe('GET')
+    expect(mapped.draftPatch.url).toBe('https://api.example.com/users?page=1')
     expect(mapped.result).toEqual({
       historyId: 42,
       requestUrl: 'https://api.example.com/users?page=1',
@@ -90,14 +89,11 @@ describe('mapHistoryDetailToTab', () => {
 
     expect(mapped.title).toBe('Minimal')
     expect(mapped.method).toBe('GET')
-    expect(mapped.draftPatch).toEqual({
-      url: 'https://api.example.com/users?page=1',
-      method: 'GET',
-      headers: {},
-      queryParams: {},
-      body: '',
-      contentType: 'application/json',
-    })
+    expect(mapped.draftPatch.headers).toEqual(recordToPairs({}))
+    expect(mapped.draftPatch.queryParams).toEqual(recordToPairs({}))
+    expect(mapped.draftPatch.body).toBe('')
+    expect(mapped.draftPatch.contentType).toBe('application/json')
+    expect(mapped.draftPatch.method).toBe('GET')
     expect(mapped.result.responseStatusCode).toBeUndefined()
     expect(mapped.result.responseSize).toBeUndefined()
   })

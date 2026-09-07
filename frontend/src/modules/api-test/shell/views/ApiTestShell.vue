@@ -16,6 +16,8 @@ import { useCollectionStore } from '@/modules/api-test/collection/stores/collect
 import { useEnvironmentStore } from '@/modules/api-test/environment/stores/environment'
 import { useWorkspaceStore } from '@/modules/api-test/shell/stores/workspace'
 import { loadDefinitionIntoTab } from '@/modules/api-test/shell/utils/loadDefinitionDraft'
+import { inferBodyMode } from '@/modules/api-test/debug/utils/bodyMode'
+import { recordToPairs } from '@/modules/api-test/shared/utils/keyValue'
 import {
   clampSidebarWidth,
   persistLayout,
@@ -188,9 +190,10 @@ function applyCurlResultToTab(tabId: string, result: CurlParseResultVO, options?
   workspace.patchDraft(tabId, {
     url: result.url || '',
     method,
-    headers: result.headers || {},
+    headers: recordToPairs(result.headers || {}),
     body: result.body || '',
     contentType: result.contentType || 'application/json',
+    bodyMode: inferBodyMode(method, result.body || '', result.contentType),
   })
   const meta: { method: string; title?: string } = { method }
   if (options?.setTitle) {
