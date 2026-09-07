@@ -1,6 +1,6 @@
 # ============================================================
 # Kong 声明式配置（DB-less 模式）
-# 修改后执行: docker compose -f docker-compose.kong.yml restart kong
+# 修改后执行: docker compose restart kong
 # ============================================================
 _format_version: "3.0"
 _transform: true
@@ -13,9 +13,7 @@ services:
 
   # ----- 后端 API 服务 -----
   - name: backend-service
-    url: http://host.docker.internal:8089
-    # 如果后端也是在 docker 容器中（使用 docker-compose.yml），改用:
-    # url: http://backend:8089
+    url: http://backend:8089
     connect_timeout: 30000
     write_timeout: 30000
     read_timeout: 60000
@@ -43,10 +41,7 @@ services:
 
   # ----- 前端 SPA 服务 -----
   - name: frontend-service
-    # 前端 Vite 开发服务器
-    url: http://host.docker.internal:5173
-    # 如果前端 nginx 容器（docker-compose.yml），改用:
-    # url: http://frontend:80
+    url: http://frontend:80
     connect_timeout: 10000
     write_timeout: 30000
     read_timeout: 30000
@@ -156,7 +151,7 @@ plugins:
   - name: file-log
     service: backend-service
     config:
-      path: /usr/local/kong/logs/access.log
+      path: /usr/local/kong/logs/request.log
       reopen: true
 
   # ----- 速率限制（开发环境较宽松） -----

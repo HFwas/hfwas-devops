@@ -22,10 +22,18 @@ RUN mvn dependency:go-offline -pl backend/server -am -B -q || true
 
 # Copy source and build
 COPY backend/ backend/
-RUN mvn clean package -pl backend/server -am -DskipTests -B -q
+RUN mvn clean package -pl backend/server -am -DskipTests -B -q \
+    && cp "$(ls backend/server/target/server-*.jar | grep -v original | head -1)" /build/server.jar
 
 # =============================================================================
-# Stage 2: Runtime image
+# Stage 2: Export fat JAR to host (compose backend-build)
+# =============================================================================
+FROM busybox:1.37 AS export
+COPY --from=builder /build/server.jar /out/server.jar
+CMD ["cp", "/out/server.jar", "/host/server.jar"]
+
+# =============================================================================
+# Stage 3: Runtime image
 # =============================================================================
 FROM eclipse-temurin:21-jre-alpine
 
@@ -56,7 +64,7 @@ RUN pip3 install --no-cache-dir \
     rm -rf /root/.cache/pip
 
 # Copy the fat JAR
-COPY --from=builder /build/backend/server/target/server-*.jar /app/server.jar
+COPY --from=builder /build/server.jar /app/server.jar
 
 WORKDIR /app
 

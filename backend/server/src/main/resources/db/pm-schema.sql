@@ -224,7 +224,7 @@ INSERT OR IGNORE INTO pm_status_definition (id, project_id, type_code, status_co
 CREATE TABLE IF NOT EXISTS sys_user (
     id              INTEGER      PRIMARY KEY AUTOINCREMENT,
     username        TEXT         NOT NULL UNIQUE,
-    password        TEXT         NOT NULL,
+    password        TEXT,
     display_name    TEXT         NOT NULL,
     email           TEXT,
     phone           TEXT,

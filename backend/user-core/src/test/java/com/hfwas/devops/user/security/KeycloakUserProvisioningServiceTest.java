@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -74,5 +75,25 @@ class KeycloakUserProvisioningServiceTest {
         assertEquals("user", created.getRole());
         assertEquals("jane-abcdef12", captor.getValue().getUsername());
         verify(tenantMemberService).ensureMember(eq(TenantService.DEFAULT_TENANT_ID), eq(8L), eq("member"));
+    }
+
+    @Test
+    void claimsExistingLocalUserWithSameUsername() {
+        SysUser local = new SysUser();
+        local.setId(1L);
+        local.setUsername("admin");
+        local.setRole("admin");
+        local.setDisplayName("系统管理员");
+        when(userMapper.selectOne(any(Wrapper.class))).thenReturn(null, local);
+        when(userMapper.updateById(any(SysUser.class))).thenReturn(1);
+
+        SysUser claimed = service.ensureUser("sub-admin", "admin", "admin@localhost", "系统管理员");
+
+        assertEquals(1L, claimed.getId());
+        assertEquals("keycloak", claimed.getAuthSource());
+        assertEquals("sub-admin", claimed.getExternalId());
+        verify(userMapper).updateById(local);
+        verify(userMapper, never()).insert(any(SysUser.class));
+        verify(tenantMemberService).ensureMember(TenantService.DEFAULT_TENANT_ID, 1L, "tenant_admin");
     }
 }

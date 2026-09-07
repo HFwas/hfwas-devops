@@ -2,7 +2,7 @@
 
 ## 背景
 
-当前项目使用自研 JWT（`JwtTokenService` + `JwtAuthFilter` + `UserAuthController`）。`docker-compose.kong.yml` 已引入 Keycloak 26，代码尚未对接。本计划把**认证 / 会话 / 密码**全部交给 Keycloak，后端只做 OAuth2 Resource Server；本地库只保留用户资料、租户成员，以及从 Keycloak 事件写入的登录日志。
+当前项目使用自研 JWT（`JwtTokenService` + `JwtAuthFilter` + `UserAuthController`）。`docker-compose.yml` 已引入 Keycloak 26，代码尚未对接。本计划把**认证 / 会话 / 密码**全部交给 Keycloak，后端只做 OAuth2 Resource Server；本地库只保留用户资料、租户成员，以及从 Keycloak 事件写入的登录日志。
 
 **绿野、本地开发、无存量用户。** 直接改 schema / API / 前端类型；本地库可删可重建。不写旧 JWT 兼容，不迁旧登录日志行，不保留 `AuthService.login()` 写入路径。
 
@@ -102,15 +102,15 @@ LoginLogService.ingest → sys_login_log → 现有 LoginLogView
 
 ### Step 0: Keycloak 主机名与 realm
 
-**修改:** `docker-compose.kong.yml`
+**修改:** `docker-compose.yml`
 
 - 删除 `KC_PROXY: edge`
 - 使用：
 
 ```yaml
 KC_HTTP_RELATIVE_PATH: /auth
-KC_HOSTNAME: http://localhost:8000
-KC_HOSTNAME_ADMIN: http://localhost:8081
+KC_HOSTNAME: http://localhost:8000/auth
+KC_HOSTNAME_ADMIN: http://localhost:8081/auth
 KC_HOSTNAME_STRICT: "false"
 KC_PROXY_HEADERS: xforwarded
 KEYCLOAK_HTTP_LISTENER_URL: http://host.docker.internal:8089/internal/keycloak/events

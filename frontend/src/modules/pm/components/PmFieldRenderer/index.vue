@@ -60,6 +60,14 @@ const value = computed({
   set: (v) => emit('update:modelValue', v),
 })
 
+type SelectValue = string | number | Array<string | number> | null
+const selectValue = computed({
+  get: (): SelectValue => (props.modelValue ?? null) as SelectValue,
+  set: (v: SelectValue) => emit('update:modelValue', v),
+})
+
+const datePickerSize = computed(() => (controlSize.value === 'tiny' ? 'small' : controlSize.value))
+
 const options = computed(() => {
   if (isStatusField.value) return statusOptions.value
   if (props.field.fieldType === 'MODULE') return moduleOptions.value
@@ -121,7 +129,7 @@ const displayText = computed(() => {
   />
   <n-space v-else-if="['SELECT', 'STATUS', 'PRIORITY', 'MODULE', 'USER'].includes(field.fieldType) && !isNullOp" vertical style="width: 100%">
     <n-select
-      v-model:value="value"
+      v-model:value="selectValue"
       :size="controlSize"
       :options="options"
       :loading="optionsLoading"
@@ -134,7 +142,7 @@ const displayText = computed(() => {
   </n-space>
   <n-space v-else-if="field.fieldType === 'MULTI_SELECT'" vertical style="width: 100%">
     <n-select
-      v-model:value="value"
+      v-model:value="selectValue"
       :size="controlSize"
       :options="options"
       :loading="optionsLoading"
@@ -147,7 +155,7 @@ const displayText = computed(() => {
   <n-date-picker
     v-else-if="field.fieldType === 'DATE'"
     v-model:value="value as number"
-    :size="controlSize"
+    :size="datePickerSize"
     type="date"
     style="width: 100%"
   />

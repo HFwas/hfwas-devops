@@ -2,8 +2,6 @@ import { pmModuleApi } from '@/modules/pm/api'
 import type { PmProjectModule } from '@/modules/pm/types'
 import { asId, type EntityId } from '@/modules/pm/utils/id'
 
-import type { EntityId } from '@/modules/pm/utils/id'
-
 const cache = new Map<string, { flat: PmProjectModule[]; labelMap: Record<string, string> }>()
 
 export function useProjectModules(projectId: Ref<EntityId | undefined>) {
@@ -44,7 +42,7 @@ export function useProjectModules(projectId: Ref<EntityId | undefined>) {
 
   function invalidate() {
     const id = projectId.value
-    if (id) cache.delete(id)
+    if (id) cache.delete(asId(id))
   }
 
   const selectOptions = computed(() =>

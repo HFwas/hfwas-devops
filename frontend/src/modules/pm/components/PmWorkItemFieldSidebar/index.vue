@@ -18,7 +18,7 @@ const sidebarFields = computed(() =>
 
 function systemValue(key: string) {
   const prop = systemFieldProp(key)
-  return (props.modelValue as Record<string, unknown>)[prop]
+  return (props.modelValue as unknown as Record<string, unknown>)[prop]
 }
 
 function customValue(key: string) {

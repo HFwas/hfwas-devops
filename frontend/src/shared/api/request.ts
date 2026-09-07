@@ -3,7 +3,7 @@ import type { BaseResult } from '@/shared/types/common'
 import { ApiError, isApiError, toApiError } from '@/shared/errors/apiError'
 import { ResultCode } from '@/shared/errors/resultCode'
 import { TENANT_ID_KEY, TENANT_NAME_KEY } from '@/modules/user/types'
-import { appRedirectUri, getToken, login as keycloakLogin } from '@/shared/keycloak'
+import { appRedirectUri, getToken, isAuthenticated, login as keycloakLogin } from '@/shared/keycloak'
 
 const request = axios.create({
   baseURL: '/api',
@@ -18,6 +18,9 @@ function rejectResult(result: BaseResult<unknown>): Promise<never> {
 function handleUnauthorized() {
   localStorage.removeItem(TENANT_ID_KEY)
   localStorage.removeItem(TENANT_NAME_KEY)
+  if (isAuthenticated()) {
+    return
+  }
   void keycloakLogin(appRedirectUri(window.location.pathname))
 }
 

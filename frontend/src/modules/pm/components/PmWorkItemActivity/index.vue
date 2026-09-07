@@ -141,7 +141,7 @@ async function load(silent = false) {
 
 defineExpose({ reload: () => load(true) })
 
-watch(() => props.workItemId, load, { immediate: true })
+watch(() => props.workItemId, () => { void load() }, { immediate: true })
 </script>
 
 <template>

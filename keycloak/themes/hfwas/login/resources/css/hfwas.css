@@ -1,0 +1,244 @@
+/* HFWAS DevOps login — Feishu-blue console, split board */
+
+:root {
+  --hf-blue: #3370ff;
+  --hf-blue-hover: #245bdb;
+  --hf-blue-pressed: #1c4fd6;
+  --hf-ink: #1f2329;
+  --hf-muted: #646a73;
+  --hf-line: #e5e7eb;
+  --hf-page: #f5f7fb;
+  --hf-card: #ffffff;
+  --hf-navy: #0c1424;
+  --hf-navy-2: #152238;
+  --hf-font: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+}
+
+html,
+body#keycloak-bg {
+  min-height: 100%;
+  margin: 0;
+  background: var(--hf-page) !important;
+  color: var(--hf-ink);
+  font-family: var(--hf-font);
+}
+
+html.pf-v5-theme-dark,
+html.pf-v5-theme-dark body#keycloak-bg {
+  background: var(--hf-page) !important;
+  color: var(--hf-ink);
+}
+
+body#keycloak-bg {
+  display: grid;
+  grid-template-columns: minmax(280px, 42vw) minmax(0, 1fr);
+}
+
+body#keycloak-bg::before {
+  content: "";
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 100vh;
+  background:
+    linear-gradient(rgba(51, 112, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(51, 112, 255, 0.06) 1px, transparent 1px),
+    radial-gradient(900px 420px at 12% -8%, rgba(51, 112, 255, 0.38), transparent 58%),
+    radial-gradient(700px 380px at 90% 110%, rgba(36, 91, 219, 0.28), transparent 52%),
+    linear-gradient(165deg, var(--hf-navy) 0%, var(--hf-navy-2) 58%, #0a101c 100%);
+  background-size: 48px 48px, 48px 48px, auto, auto, auto;
+}
+
+.pf-v5-c-login {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  background: transparent !important;
+}
+
+.pf-v5-c-login__container {
+  width: min(420px, 100%);
+  margin: 0;
+  background: transparent;
+}
+
+.pf-v5-c-login__header {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 42vw;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0 48px 64px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.pf-v5-c-login__header::before {
+  content: "ENGINEERING  ·  DELIVERY";
+  display: block;
+  margin-bottom: 18px;
+  color: rgba(180, 205, 255, 0.72);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+}
+
+.pf-v5-c-brand,
+#kc-header-wrapper {
+  color: #f4f7ff !important;
+  font-size: 36px !important;
+  font-weight: 640;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  text-transform: none;
+}
+
+.pf-v5-c-login__header::after {
+  content: "问题、流水线、接口与文档，一个入口协作交付。";
+  display: block;
+  max-width: 22em;
+  margin-top: 14px;
+  color: rgba(214, 226, 255, 0.72);
+  font-size: 14px;
+  line-height: 1.7;
+  font-weight: 400;
+}
+
+.pf-v5-c-login__main {
+  width: 100%;
+  padding: 36px 36px 28px;
+  background: var(--hf-card);
+  border: 1px solid var(--hf-line);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 2px rgba(31, 35, 41, 0.04),
+    0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.pf-v5-c-login__main-header {
+  margin-bottom: 8px;
+}
+
+.pf-v5-c-title,
+#kc-page-title {
+  color: var(--hf-ink) !important;
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em;
+}
+
+.pf-v5-c-form {
+  --pf-v5-c-form--GridGap: 1rem;
+}
+
+.pf-v5-c-form__label-text,
+.pf-v5-c-form__label {
+  color: var(--hf-muted) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+.pf-v5-c-form-control,
+.pf-v5-c-form-control > input,
+input.pf-v5-c-form-control {
+  border-radius: 8px !important;
+  border-color: var(--hf-line) !important;
+  min-height: 40px;
+  font-size: 14px !important;
+  color: var(--hf-ink) !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.pf-v5-c-form-control:hover,
+.pf-v5-c-form-control:focus-within {
+  border-color: var(--hf-blue) !important;
+}
+
+.pf-v5-c-button.pf-m-primary,
+#kc-login {
+  --pf-v5-c-button--m-primary--BackgroundColor: var(--hf-blue);
+  --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--hf-blue-hover);
+  --pf-v5-c-button--m-primary--active--BackgroundColor: var(--hf-blue-pressed);
+  --pf-v5-c-button--m-primary--Color: #fff;
+  border: none !important;
+  border-radius: 8px !important;
+  min-height: 40px;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+  background: var(--hf-blue) !important;
+  color: #fff !important;
+}
+
+.pf-v5-c-button.pf-m-primary:hover,
+#kc-login:hover {
+  background: var(--hf-blue-hover) !important;
+}
+
+.pf-v5-c-login__main-footer,
+.pf-v5-c-helper-text a {
+  color: var(--hf-blue) !important;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.pf-v5-c-helper-text a:hover {
+  color: var(--hf-blue-hover) !important;
+}
+
+.pf-v5-c-alert {
+  border-radius: 8px;
+}
+
+#kc-info-wrapper,
+#kc-registration-container {
+  color: var(--hf-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 860px) {
+  body#keycloak-bg {
+    display: block;
+    background:
+      radial-gradient(800px 240px at 8% -10%, rgba(51, 112, 255, 0.16), transparent 60%),
+      var(--hf-page) !important;
+  }
+
+  body#keycloak-bg::before {
+    display: none;
+  }
+
+  .pf-v5-c-login__header {
+    position: static;
+    width: auto;
+    min-width: 0;
+    padding: 0 0 20px;
+    pointer-events: auto;
+  }
+
+  .pf-v5-c-login__header::before,
+  .pf-v5-c-login__header::after {
+    display: none;
+  }
+
+  .pf-v5-c-brand,
+  #kc-header-wrapper {
+    color: var(--hf-ink) !important;
+    font-size: 22px !important;
+  }
+
+  .pf-v5-c-login {
+    min-height: 100vh;
+    padding: 32px 16px;
+  }
+
+  .pf-v5-c-login__main {
+    padding: 28px 22px 22px;
+  }
+}

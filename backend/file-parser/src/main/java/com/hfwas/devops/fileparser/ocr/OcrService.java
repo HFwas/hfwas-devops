@@ -426,6 +426,23 @@ public class OcrService {
             return imageFile;
         }
 
+        // 诊断：ImageIO 读取后的 BufferedImage 实际内存占用
+        java.awt.image.DataBuffer buf = originalImage.getRaster().getDataBuffer();
+        int bytesPerElement;
+        switch (buf.getDataType()) {
+            case java.awt.image.DataBuffer.TYPE_BYTE: bytesPerElement = 1; break;
+            case java.awt.image.DataBuffer.TYPE_USHORT: bytesPerElement = 2; break;
+            case java.awt.image.DataBuffer.TYPE_INT: bytesPerElement = 4; break;
+            case java.awt.image.DataBuffer.TYPE_FLOAT: bytesPerElement = 4; break;
+            case java.awt.image.DataBuffer.TYPE_DOUBLE: bytesPerElement = 8; break;
+            default: bytesPerElement = 4;
+        }
+        long heapBytes = (long) buf.getSize() * bytesPerElement;
+        log.info("ImageIO read: file={} ({} bytes), BufferedImage: type={}, size={}x{}, dataBuffer={} elements*{}byte={}MB",
+                imageFile.getName(), imageFile.length(),
+                originalImage.getType(), originalImage.getWidth(), originalImage.getHeight(),
+                buf.getSize(), bytesPerElement, String.format("%.1f", heapBytes / 1024.0 / 1024.0));
+
         BufferedImage processedImage = preprocessor.preprocess(originalImage);
         if (processedImage == null) {
             log.warn("Preprocessing returned null, using original: {}", imageFile.getName());
@@ -435,6 +452,11 @@ public class OcrService {
         // 写入临时文件
         File tempFile = File.createTempFile("ocr-preprocessed-", ".png");
         ImageIO.write(processedImage, "png", tempFile);
+
+        // 诊断：PNG 临时文件大小
+        log.info("Preprocessed PNG temp file: {} ({} bytes, {}MB)",
+                tempFile.getName(), tempFile.length(),
+                String.format("%.1f", tempFile.length() / 1024.0 / 1024.0));
 
         log.debug("Preprocessed {} -> {} ({}x{} -> {}x{})",
                 imageFile.getName(), tempFile.getName(),

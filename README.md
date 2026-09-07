@@ -107,7 +107,7 @@ hfwas-devops/
 │           ├── hpa.yaml
 │           ├── ingress.yaml            # 入口配置
 │           └── service.yaml
-├── docker-compose.yml     # 本地 Docker Compose 编排
+├── docker-compose.yml     # 本地 Docker Compose 编排（backend / frontend / Kong / Keycloak）
 ├── scripts/               # 本地开发启动脚本
 └── docs/                  # 设计文档与 API 说明
 ```
@@ -140,13 +140,14 @@ hfwas-devops/
 ./scripts/start-dev.sh
 ```
 
-脚本会后台启动后端、前台启动前端；`Ctrl+C` 退出时会自动停止后端。
-首次启动后端会在 `backend/scripts/.venv` 创建虚拟环境，安装文档生成与 PP-OCRv6 worker 依赖；ONNX 模型放在 `backend/file-parser/src/main/resources/ocr/models/`（首次缺失时下载进去，之后离线读取）。
+脚本会通过 Docker Compose 启动后端、前端、Kong 与 Keycloak。构建产物在 `artifacts/`，日志在 `logs/`。`Ctrl+C` 退出时会停止全部容器。Docker Desktop 需已启动。宿主机热更新请用 `scripts/start-backend.sh` / `scripts/start-frontend.sh`。
 
 | 服务 | 地址 |
 |------|------|
-| 前端 | http://localhost:5173 |
+| 统一入口（Kong） | http://localhost:8000 |
+| 前端（nginx） | http://localhost:80 |
 | 后端 API | http://localhost:8089 |
+| Keycloak 管理台 | http://localhost:8081/auth/admin |
 | 健康检查 | http://localhost:8089/health/check |
 
 停止服务：
@@ -173,7 +174,7 @@ hfwas-devops/
 |--------|------|------|
 | `admin` | `admin123` | 平台管理员 |
 
-登录页：http://localhost:5173/user/login
+登录页：http://localhost:8000/user/login
 
 > 生产环境务必修改 JWT Secret 与默认密码。本地开发库可随时删除 `./data/hfwas-devops.db` 重建。
 
@@ -361,12 +362,20 @@ docker build -t hfwas/devops-frontend:latest -f frontend/Dockerfile .
 ### Docker Compose 启动
 
 ```bash
-# 从项目根目录启动
-docker compose up -d
+# 全部服务（backend / frontend / Kong / Keycloak）
+docker compose up -d --build
+./scripts/start-dev.sh --build
+
+# 只起应用容器
+docker compose up -d backend frontend
+./scripts/start-dev.sh --no-kong
 
 # 查看日志
 docker compose logs -f
+tail -f logs/backend/devops.log logs/frontend/access.log logs/kong/error.log logs/keycloak/keycloak.log
 ```
+
+产物：`artifacts/backend/server.jar`、`artifacts/frontend/`。
 
 ### Helm 部署（Kubernetes）
 

@@ -46,10 +46,6 @@ const deleting = ref(false)
 const commentCount = ref(0)
 const activityRef = ref<InstanceType<typeof PmWorkItemActivity> | null>(null)
 
-function bindActivityRef(el: InstanceType<typeof PmWorkItemActivity> | null) {
-  activityRef.value = el
-}
-
 function reloadActivity() {
   activityRef.value?.reload?.()
 }
@@ -382,7 +378,7 @@ watch(itemId, load, { immediate: true })
                   </section>
                 </template>
 
-                <PmWorkItemActivity v-else-if="tab.id === 'activity'" :ref="bindActivityRef" :work-item-id="itemId" />
+                <PmWorkItemActivity v-else-if="tab.id === 'activity'" ref="activityRef" :work-item-id="itemId" />
 
                 <PmWorkItemComments
                   v-else-if="tab.id === 'comments'"

@@ -34,6 +34,7 @@ public class UserSchemaMigration implements ApplicationRunner {
         ensureOperLogTable();
         ensureIdentityConnectorTable();
         migrateUserAuthSourceColumns();
+        rebuildUserTableIfPasswordRequired();
         ensureUserMessageTable();
         ensureNotifyChannelTable();
         seedDefaultTenant();
@@ -217,6 +218,50 @@ public class UserSchemaMigration implements ApplicationRunner {
         jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_user_external_id ON sys_user(external_id)");
     }
 
+    /** Existing DBs were created with password NOT NULL; Keycloak users must insert null. */
+    private void rebuildUserTableIfPasswordRequired() {
+        if (!columnNotNull("sys_user", "password")) {
+            return;
+        }
+        log.info("Rebuilding sys_user so password can be null");
+        jdbcTemplate.execute("PRAGMA foreign_keys = OFF");
+        jdbcTemplate.execute("""
+                CREATE TABLE sys_user_new (
+                    id              INTEGER      PRIMARY KEY AUTOINCREMENT,
+                    tenant_id       INTEGER      NOT NULL DEFAULT 1,
+                    username        TEXT         NOT NULL,
+                    password        TEXT,
+                    display_name    TEXT         NOT NULL,
+                    email           TEXT,
+                    phone           TEXT,
+                    role            TEXT         NOT NULL DEFAULT 'user',
+                    enabled         INTEGER      DEFAULT 1,
+                    auth_source     TEXT         DEFAULT 'local',
+                    external_id     TEXT,
+                    connector_id    INTEGER,
+                    create_time     TEXT         DEFAULT (datetime('now')),
+                    update_time     TEXT         DEFAULT (datetime('now')),
+                    del_flag        INTEGER      DEFAULT 0
+                )
+                """);
+        jdbcTemplate.execute("""
+                INSERT INTO sys_user_new (
+                    id, tenant_id, username, password, display_name, email, phone, role, enabled,
+                    auth_source, external_id, connector_id, create_time, update_time, del_flag)
+                SELECT id, COALESCE(tenant_id, 1), username, password, display_name, email, phone, role,
+                       enabled, COALESCE(auth_source, 'local'), external_id, connector_id,
+                       create_time, update_time, del_flag
+                FROM sys_user
+                """);
+        jdbcTemplate.execute("DROP TABLE sys_user");
+        jdbcTemplate.execute("ALTER TABLE sys_user_new RENAME TO sys_user");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_user_username ON sys_user(username)");
+        jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_user_username_unique ON sys_user(username)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_sys_user_connector ON sys_user(connector_id, external_id)");
+        jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sys_user_external_id ON sys_user(external_id)");
+        jdbcTemplate.execute("PRAGMA foreign_keys = ON");
+    }
+
     private void ensureUserMessageTable() {
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS sys_user_message (
@@ -290,12 +335,25 @@ public class UserSchemaMigration implements ApplicationRunner {
     }
 
     private boolean columnExists(String table, String column) {
+        return findColumn(table, column) != null;
+    }
+
+    private boolean columnNotNull(String table, String column) {
+        Map<String, Object> col = findColumn(table, column);
+        if (col == null) {
+            return false;
+        }
+        Object notnull = col.get("notnull");
+        return notnull instanceof Number n && n.intValue() == 1;
+    }
+
+    private Map<String, Object> findColumn(String table, String column) {
         List<Map<String, Object>> cols = jdbcTemplate.queryForList("PRAGMA table_info(" + table + ")");
         for (Map<String, Object> col : cols) {
             if (column.equalsIgnoreCase(String.valueOf(col.get("name")))) {
-                return true;
+                return col;
             }
         }
-        return false;
+        return null;
     }
 }

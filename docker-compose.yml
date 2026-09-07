@@ -1,6 +1,74 @@
-version: "3.9"
+# ============================================================
+# hfwas-devops 统一编排
+#
+# 全部服务（推荐）:
+#   ./scripts/start-dev.sh
+#   docker compose up -d --build
+#
+# 仅网关（宿主机另起前后端时）:
+#   ./scripts/start-kong.sh
+#
+# 构建产物写出到 artifacts/，日志写出到 logs/
+#
+# 访问:
+#   http://localhost:8000            → 前端 SPA（经 Kong）
+#   http://localhost:8000/api/xxx    → 后端 API（经 Kong）
+#   http://localhost:8000/auth/      → Keycloak（经 Kong）
+#   http://localhost:80              → 前端 nginx 直连
+#   http://localhost:8089            → 后端直连
+#   http://localhost:8081            → Keycloak 管理控制台（直连）
+#   http://localhost:8001            → Kong Admin API
+# ============================================================
 
 services:
+  gateway-init:
+    image: busybox:1.37
+    container_name: devops-gateway-init
+    restart: "no"
+    volumes:
+      - ./logs/kong:/mnt/kong-logs
+      - ./logs/keycloak:/mnt/keycloak-logs
+      - ./logs/backend:/mnt/backend-logs
+      - ./logs/frontend:/mnt/frontend-logs
+      - ./logs/dumps:/mnt/dumps
+      - ./keycloak/providers:/mnt/providers
+      - ./artifacts/backend:/mnt/backend-artifacts
+      - ./artifacts/frontend:/mnt/frontend-artifacts
+    command:
+      [
+        "sh",
+        "-c",
+        "chmod 0777 /mnt/kong-logs /mnt/keycloak-logs /mnt/backend-logs /mnt/frontend-logs /mnt/dumps /mnt/providers /mnt/backend-artifacts /mnt/frontend-artifacts && touch /mnt/kong-logs/access.log /mnt/kong-logs/error.log /mnt/kong-logs/admin-access.log /mnt/kong-logs/admin-error.log /mnt/kong-logs/request.log /mnt/keycloak-logs/keycloak.log /mnt/backend-logs/devops.log /mnt/frontend-logs/access.log /mnt/frontend-logs/error.log && chmod 0666 /mnt/kong-logs/* /mnt/keycloak-logs/* /mnt/backend-logs/* /mnt/frontend-logs/*",
+      ]
+
+  backend-build:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: export
+    image: hfwas/devops-backend-export:latest
+    container_name: devops-backend-build
+    restart: "no"
+    volumes:
+      - ./artifacts/backend:/host
+    depends_on:
+      gateway-init:
+        condition: service_completed_successfully
+
+  frontend-build:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: export
+    image: hfwas/devops-frontend-export:latest
+    container_name: devops-frontend-build
+    restart: "no"
+    volumes:
+      - ./artifacts/frontend:/host
+    depends_on:
+      gateway-init:
+        condition: service_completed_successfully
+
   backend:
     build:
       context: .
@@ -15,16 +83,21 @@ services:
       USER_JWT_EXPIRE_SECONDS: "86400"
       DOCGEN_OUTPUT_DIR: /app/files
       MALLOC_ARENA_MAX: "2"
-      JAVA_TOOL_OPTIONS: "-Xms512m -Xmx1g -XX:MaxDirectMemorySize=512m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/dumps"
+      JAVA_TOOL_OPTIONS: "-DLOG_DIR=/app/logs"
     volumes:
       - devops-data:/app/data
       - devops-files:/app/files
+      - ./logs/backend:/app/logs
+      - ./logs/dumps:/app/dumps
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8089/health/check"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 60s
+    depends_on:
+      backend-build:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   frontend:
@@ -35,10 +108,118 @@ services:
     container_name: devops-frontend
     ports:
       - "80:80"
+    volumes:
+      - ./artifacts/frontend:/usr/share/nginx/html:ro
+      - ./logs/frontend:/var/log/nginx
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /var/run/nginx.pid"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     depends_on:
+      frontend-build:
+        condition: service_completed_successfully
       backend:
         condition: service_healthy
     restart: unless-stopped
+
+  keycloak-spi:
+    build:
+      context: ./keycloak/http-event-listener
+      dockerfile: Dockerfile
+    image: hfwas/keycloak-http-listener:latest
+    container_name: devops-keycloak-spi
+    restart: "no"
+    volumes:
+      - ./keycloak/providers:/out
+    depends_on:
+      gateway-init:
+        condition: service_completed_successfully
+
+  kong:
+    image: kong:3.9
+    container_name: devops-kong
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8443:8443"
+      - "8001:8001"
+      - "8444:8444"
+      - "8002:8002"
+    environment:
+      KONG_DATABASE: off
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /usr/local/kong/logs/access.log
+      KONG_ADMIN_ACCESS_LOG: /usr/local/kong/logs/admin-access.log
+      KONG_PROXY_ERROR_LOG: /usr/local/kong/logs/error.log
+      KONG_ADMIN_ERROR_LOG: /usr/local/kong/logs/admin-error.log
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
+      KONG_PLUGINS: bundled,cors,key-auth,rate-limiting,ip-restriction
+      KONG_DNS_ORDER: LAST, A, CNAME
+      KONG_DNS_STALE_TTL: 5
+      KONG_DNS_NOT_FOUND_TTL: 1
+      KONG_DNS_ERROR_TTL: 1
+      KONG_NGINX_HTTP_RESOLVER: 127.0.0.11 ipv6=off valid=5s
+      KONG_LOG_LEVEL: debug
+    volumes:
+      - ./kong/kong.yml:/etc/kong/kong.yml:ro
+      - ./logs/kong:/usr/local/kong/logs
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      gateway-init:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.3
+    container_name: devops-keycloak
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: http://localhost:8000/auth
+      KC_HOSTNAME_ADMIN: http://localhost:8081/auth
+      KC_HOSTNAME_STRICT: "false"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KEYCLOAK_HTTP_LISTENER_URL: http://backend:8089/internal/keycloak/events
+      KEYCLOAK_HTTP_LISTENER_SECRET: ${KEYCLOAK_WEBHOOK_SECRET:-dev-keycloak-webhook}
+      KC_LOG: console,file
+      KC_LOG_FILE: /opt/keycloak/data/log/keycloak.log
+      KC_LOG_LEVEL: INFO
+    volumes:
+      - ./keycloak/hfwas-devops-realm.json:/opt/keycloak/data/import/hfwas-devops-realm.json:ro
+      - ./keycloak/themes/hfwas:/opt/keycloak/themes/hfwas:ro
+      - ./keycloak/providers:/opt/keycloak/providers:ro
+      - ./logs/keycloak:/opt/keycloak/data/log
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e \"GET /auth/health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n\" >&3 && head -1 <&3 | grep -q 200",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      keycloak-spi:
+        condition: service_completed_successfully
+    command: start-dev --import-realm
 
 volumes:
   devops-data:

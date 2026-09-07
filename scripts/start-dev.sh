@@ -6,36 +6,41 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 BUILD=false
-INSTALL=false
 FORCE=false
-SKIP_PYTHON=false
-KONG=false
+KONG=true
 
 usage() {
   cat <<EOF
 用法: $(basename "$0") [选项]
 
-  后台启动后端 + 前台启动前端（开发常用）
+  用 Docker Compose 启动后端、前端、Kong、Keycloak。
+  构建产物写出到 artifacts/，日志写出到 logs/。
 
 选项:
-  --build         后端启动前先编译
-  --install       前端启动前先 npm install
-  --force         端口占用时先结束旧进程
-  --skip-python   跳过 Python 虚拟环境
-  --kong          启动 Kong 统一网关（需先启动 Docker）
+  --build         强制重建镜像（后端 JAR / 前端 dist / SPI）
+  --install       同 --build（前端依赖在镜像内安装）
+  --force         先停掉旧容器和占用端口的进程
+  --kong          同时启动 Kong + Keycloak（默认开启）
+  --no-kong       只启动 backend / frontend
+  --skip-python   已忽略（Python 在后端镜像内）
   -h, --help      显示帮助
 
 停止: scripts/stop-dev.sh
+
+本地热更新（不走 Compose）:
+  scripts/start-backend.sh
+  scripts/start-frontend.sh
 EOF
 }
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --build) BUILD=true ;;
-    --install) INSTALL=true ;;
+    --install) BUILD=true ;;
     --force) FORCE=true ;;
-    --skip-python) SKIP_PYTHON=true ;;
+    --skip-python) ;;
     --kong) KONG=true ;;
+    --no-kong) KONG=false ;;
     -h | --help)
       usage
       exit 0
@@ -46,13 +51,6 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-
-BACKEND_ARGS=()
-FRONTEND_ARGS=()
-[ "$BUILD" = true ] && BACKEND_ARGS+=(--build)
-[ "$INSTALL" = true ] && FRONTEND_ARGS+=(--install)
-[ "$FORCE" = true ] && BACKEND_ARGS+=(--force) && FRONTEND_ARGS+=(--force)
-[ "$SKIP_PYTHON" = true ] && BACKEND_ARGS+=(--skip-python)
 
 cleanup() {
   log "停止开发服务 ..."
@@ -66,22 +64,15 @@ fi
 
 trap cleanup EXIT INT TERM
 
-# 后台启动后端
-log "后台启动后端 ..."
-nohup "$SCRIPT_DIR/start-backend.sh" "${BACKEND_ARGS[@]}" >"$RUN_DIR/backend.log" 2>&1 &
-echo $! >"$RUN_DIR/backend.pid"
-wait_for_backend "后端" 240
+STACK_ARGS=()
+[ "$BUILD" = true ] && STACK_ARGS+=(--build)
+[ "$KONG" = false ] && STACK_ARGS+=(--no-kong)
 
-# 可选启动 Kong 网关
+start_stack "${STACK_ARGS[@]}"
+
+log "跟随容器日志（Ctrl+C 停止全部服务）..."
 if [ "$KONG" = true ]; then
-  start_kong
+  compose logs -f backend frontend kong keycloak
+else
+  compose logs -f backend frontend
 fi
-
-log "后端日志: $RUN_DIR/backend.log"
-log "API: http://localhost:$BACKEND_PORT"
-log "前端: http://localhost:$FRONTEND_PORT （启动中）"
-[ "$KONG" = true ] && log "Kong: http://localhost:${KONG_PORT}"
-echo ""
-
-# 前台启动前端（Ctrl+C 会触发 cleanup 停止后端 + Kong）
-exec "$SCRIPT_DIR/start-frontend.sh" "${FRONTEND_ARGS[@]}"

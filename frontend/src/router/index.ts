@@ -36,8 +36,7 @@ router.beforeEach(async (to) => {
   if (!auth.user) {
     const me = await auth.fetchMe()
     if (!me) {
-      await keycloakLogin(appRedirectUri(to.fullPath))
-      return false
+      return true
     }
   }
   const projectId = resolveRouteProjectId(to)

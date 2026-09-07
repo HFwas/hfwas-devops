@@ -6,8 +6,8 @@ RUN_DIR="$ROOT_DIR/logs"
 BACKEND_PORT="${BACKEND_PORT:-8089}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 
-# Kong 网关
-KONG_COMPOSE_FILE="$ROOT_DIR/docker-compose.kong.yml"
+# Kong 网关（与 backend/frontend 同属 docker-compose.yml）
+COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
 KONG_PORT="${KONG_PORT:-8000}"
 KONG_ADMIN_PORT="${KONG_ADMIN_PORT:-8001}"
 
@@ -148,7 +148,7 @@ ensure_ocr_models() {
 }
 
 # ═══════════════════════════════════════════════
-# Kong 网关操作
+# Docker Compose
 # ═══════════════════════════════════════════════
 
 require_docker() {
@@ -157,57 +157,144 @@ require_docker() {
   fi
 }
 
-start_kong() {
-  require_docker
+ensure_compose_dirs() {
+  mkdir -p \
+    "$ROOT_DIR/logs/kong" \
+    "$ROOT_DIR/logs/keycloak" \
+    "$ROOT_DIR/logs/backend" \
+    "$ROOT_DIR/logs/frontend" \
+    "$ROOT_DIR/logs/dumps" \
+    "$ROOT_DIR/keycloak/providers" \
+    "$ROOT_DIR/artifacts/backend" \
+    "$ROOT_DIR/artifacts/frontend"
+}
 
-  if [ ! -f "$KONG_COMPOSE_FILE" ]; then
-    die "Kong 配置文件不存在: $KONG_COMPOSE_FILE"
-  fi
+compose() {
+  docker compose -f "$COMPOSE_FILE" "$@"
+}
 
-  log "启动 Kong 网关 + Keycloak 认证服务 ..."
-  docker compose -f "$KONG_COMPOSE_FILE" up -d
+print_stack_banner() {
+  echo ""
+  echo "==========================================="
+  echo "  hfwas-devops 已启动"
+  echo "==========================================="
+  echo ""
+  echo "  统一入口:   http://localhost:${KONG_PORT}"
+  echo "  前端直连:   http://localhost:80"
+  echo "  后端直连:   http://localhost:${BACKEND_PORT}"
+  echo "  Admin API:  http://localhost:${KONG_ADMIN_PORT}"
+  echo ""
+  echo "  Keycloak 管理控制台:"
+  echo "  ├─ 经 Kong:  http://localhost:${KONG_PORT}/auth/admin"
+  echo "  └─ 直连:     http://localhost:8081/auth/admin"
+  echo "     账号: admin / admin"
+  echo ""
+  echo "  日志:        $ROOT_DIR/logs/{backend,frontend,kong,keycloak}/"
+  echo "  后端 JAR:    $ROOT_DIR/artifacts/backend/server.jar"
+  echo "  前端 dist:   $ROOT_DIR/artifacts/frontend/"
+  echo "  SPI JAR:     $ROOT_DIR/keycloak/providers/hfwas-keycloak-http-listener.jar"
+  echo ""
+}
 
-  log "等待 Kong 就绪 ..."
+wait_for_kong() {
+  local max=${1:-180}
   local i=0
-  while [ "$i" -lt 30 ]; do
-    if docker compose -f "$KONG_COMPOSE_FILE" exec kong kong health 2>/dev/null | grep -q "healthy"; then
-      log "Kong 就绪!"
-      echo ""
-      echo "==========================================="
-      echo "  Kong 网关 + Keycloak 已启动"
-      echo "==========================================="
-      echo ""
-      echo "  统一入口:   http://localhost:${KONG_PORT}"
-      echo "  Admin API:  http://localhost:${KONG_ADMIN_PORT}"
-      echo ""
-      echo "  Keycloak 管理控制台:"
-      echo "  ├─ 经 Kong:  http://localhost:${KONG_PORT}/auth/admin"
-      echo "  └─ 直连:     http://localhost:8081/auth/admin"
-      echo "     账号: admin / admin"
-      echo ""
-      echo "  测试路由:"
-      echo "  ┌───────────────┬──────────────────────────────────────────┐"
-      echo "  │ 前端 SPA      │ curl -s http://localhost:${KONG_PORT}      │"
-      echo "  │ 后端 API      │ curl -s http://localhost:${KONG_PORT}/api/health/check  │"
-      echo "  │ Keycloak      │ curl -s http://localhost:${KONG_PORT}/auth/health/ready  │"
-      echo "  └───────────────┴──────────────────────────────────────────┘"
-      echo ""
+  while [ "$i" -lt "$max" ]; do
+    if compose exec -T kong kong health 2>/dev/null | grep -q "healthy"; then
       return 0
     fi
     sleep 1
     i=$((i + 1))
   done
-  die "Kong 启动超时，请查看日志: docker compose -f $KONG_COMPOSE_FILE logs kong"
+  return 1
+}
+
+start_stack() {
+  require_docker
+  if [ ! -f "$COMPOSE_FILE" ]; then
+    die "Compose 配置文件不存在: $COMPOSE_FILE"
+  fi
+  ensure_compose_dirs
+
+  local extra=()
+  local with_gateway=true
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --build) extra+=(--build) ;;
+      --no-kong) with_gateway=false ;;
+      *) die "start_stack 未知参数: $1" ;;
+    esac
+    shift
+  done
+
+  local services=(backend frontend)
+  if [ "$with_gateway" = true ]; then
+    services+=(kong keycloak)
+  fi
+
+  log "启动 Compose: ${services[*]} ..."
+  compose up -d "${extra[@]}" "${services[@]}"
+
+  log "等待后端就绪 ..."
+  wait_for_backend "后端" 420
+
+  if [ "$with_gateway" = true ]; then
+    log "等待 Kong 就绪 ..."
+    wait_for_kong 180 || die "Kong 启动超时，请查看 logs/kong/ 或: docker compose -f $COMPOSE_FILE logs --tail=80"
+  fi
+
+  if [ ! -f "$ROOT_DIR/artifacts/backend/server.jar" ]; then
+    log "WARN: 后端 JAR 未写出到 artifacts/backend/"
+  fi
+  if [ ! -f "$ROOT_DIR/artifacts/frontend/index.html" ]; then
+    log "WARN: 前端 dist 未写出到 artifacts/frontend/"
+  fi
+
+  print_stack_banner
+}
+
+start_kong() {
+  require_docker
+  if [ ! -f "$COMPOSE_FILE" ]; then
+    die "Compose 配置文件不存在: $COMPOSE_FILE"
+  fi
+  ensure_compose_dirs
+
+  log "构建 Keycloak SPI JAR ..."
+  compose up --build keycloak-spi
+  if [ ! -f "$ROOT_DIR/keycloak/providers/hfwas-keycloak-http-listener.jar" ]; then
+    die "SPI JAR 未写出: $ROOT_DIR/keycloak/providers/hfwas-keycloak-http-listener.jar"
+  fi
+
+  log "启动 Kong 网关 + Keycloak（将同时拉起 backend / frontend）..."
+  compose up -d kong keycloak
+
+  log "等待 Kong 就绪 ..."
+  if ! wait_for_kong 300; then
+    die "Kong 启动超时，请查看 logs/kong/ 或: docker compose -f $COMPOSE_FILE logs --tail=80 kong keycloak"
+  fi
+  print_stack_banner
+}
+
+stop_stack() {
+  if [ ! -f "$COMPOSE_FILE" ]; then
+    return 0
+  fi
+  if docker ps -a --format "{{.Names}}" 2>/dev/null | grep -qE '^devops-(backend|frontend|kong|keycloak)'; then
+    log "停止 Docker Compose 服务 ..."
+    compose down --remove-orphans
+  fi
 }
 
 stop_kong() {
-  if [ ! -f "$KONG_COMPOSE_FILE" ]; then
+  if [ ! -f "$COMPOSE_FILE" ]; then
     return 0
   fi
-  # 检查是否有 Kong 容器在运行
-  if docker ps --filter "name=devops-kong" --format "{{.Names}}" 2>/dev/null | grep -q "devops-kong"; then
-    log "停止 Kong 网关 ..."
-    docker compose -f "$KONG_COMPOSE_FILE" down
+  if docker ps --filter "name=devops-kong" --format "{{.Names}}" 2>/dev/null | grep -q "devops-kong" \
+    || docker ps --filter "name=devops-keycloak" --format "{{.Names}}" 2>/dev/null | grep -q "devops-keycloak"; then
+    log "停止 Kong 网关 + Keycloak ..."
+    compose stop kong keycloak
+    compose rm -f kong keycloak
   fi
 }
 

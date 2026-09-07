@@ -33,7 +33,6 @@ for port in "$BACKEND_PORT" "$FRONTEND_PORT"; do
   fi
 done
 
-# 停止 Kong 网关
-stop_kong
+stop_stack
 
 log "开发服务已停止"

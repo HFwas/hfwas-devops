@@ -39,6 +39,29 @@ public class KeycloakUserProvisioningService {
             return refreshProfile(existing, email, displayName);
         }
 
+        String preferred = StringUtils.trimToNull(preferredUsername);
+        if (preferred != null) {
+            SysUser byName = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
+                    .eq(SysUser::getUsername, preferred));
+            if (byName != null && StringUtils.isBlank(byName.getExternalId())) {
+                byName.setExternalId(externalId);
+                byName.setAuthSource(AUTH_SOURCE);
+                byName.setPassword(null);
+                if (StringUtils.isBlank(byName.getEmail()) && StringUtils.isNotBlank(email)) {
+                    byName.setEmail(email.trim());
+                }
+                if (StringUtils.isBlank(byName.getDisplayName()) && StringUtils.isNotBlank(displayName)) {
+                    byName.setDisplayName(displayName.trim());
+                }
+                userMapper.updateById(byName);
+                tenantMemberService.ensureMember(
+                        TenantService.DEFAULT_TENANT_ID,
+                        byName.getId(),
+                        "admin".equalsIgnoreCase(byName.getRole()) ? "tenant_admin" : "member");
+                return byName;
+            }
+        }
+
         Long existingCount = userMapper.selectCount(Wrappers.<SysUser>lambdaQuery());
         boolean firstUser = existingCount == null || existingCount == 0;
         String username = uniqueUsername(preferredUsername, externalId);

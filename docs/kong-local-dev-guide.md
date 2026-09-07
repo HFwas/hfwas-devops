@@ -82,7 +82,7 @@
 
 | 文件 | 用途 |
 |------|------|
-| `docker-compose.kong.yml` | Kong 容器定义（DB-less 模式） |
+| `docker-compose.yml` | 后端 / 前端 / Kong / Keycloak 与构建产物导出 |
 | `kong/kong.yml` | Kong 声明式路由配置 |
 | `scripts/start-kong.sh` | 一键启动 Kong（独立使用） |
 | `scripts/stop-kong.sh` | 停止 Kong（独立使用） |
@@ -104,14 +104,13 @@
 ### 前提
 
 - Docker Desktop 已启动
-- 项目后端和前端已按原有方式启动
 
 ### 步骤
 
 ```bash
-# 1. 启动后端 + 前端 + Kong（一键完成）
+# 1. 启动全部服务
 cd /path/to/hfwas-devops
-scripts/start-dev.sh --build --kong
+scripts/start-dev.sh --build
 
 # 2. 验证
 curl -s http://localhost:8000/api/health/check
@@ -132,10 +131,11 @@ scripts/stop-dev.sh
 
 ```bash
 # Kong 日志
-docker compose -f docker-compose.kong.yml logs -f kong
+tail -f logs/kong/error.log
+docker compose logs -f kong
 
-# 后端日志
-tail -f logs/backend.log
+# 后端 / 前端日志
+tail -f logs/backend/devops.log logs/frontend/access.log
 ```
 
 ---
@@ -296,13 +296,13 @@ curl http://localhost:8000/ → 403 Forbidden
 ### 重启 Kong（修改 `kong.yml` 后）
 
 ```bash
-docker compose -f docker-compose.kong.yml restart kong
+docker compose restart kong
 ```
 
 ### 重载配置（不重启容器）
 
 ```bash
-docker compose -f docker-compose.kong.yml exec kong kong reload
+docker compose exec kong kong reload
 ```
 
 ### 停止全部服务
@@ -341,26 +341,9 @@ cd frontend && npm run dev
 
 ## 8. 进阶配置
 
-### 同时使用 Docker 容器（后端/前端也在容器中）
+### 后端 / 前端上游
 
-如果后端/前端通过 `docker-compose.yml` 启动，修改 `kong.yml`：
-
-```yaml
-services:
-  - name: backend-service
-    url: http://backend:8089    # 容器名，而非 host.docker.internal
-  - name: frontend-service
-    url: http://frontend:80      # 前端 nginx 容器
-```
-
-并在 `docker-compose.kong.yml` 中加网络配置：
-
-```yaml
-networks:
-  default:
-    name: hfwas-devops_default
-    external: true
-```
+`kong.yml` 已指向同一 Compose 网络里的服务名：`http://backend:8089`、`http://frontend:80`。宿主机 Vite / `mvn spring-boot:run` 热更新请用 `scripts/start-backend.sh` 与 `scripts/start-frontend.sh`，不要与 Compose 应用容器同时占用 8089 / 80。
 
 ### 启用 HTTPS
 
