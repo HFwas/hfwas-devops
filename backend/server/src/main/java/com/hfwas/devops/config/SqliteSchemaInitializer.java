@@ -30,6 +30,7 @@ public class SqliteSchemaInitializer implements ApplicationRunner {
         populator.addScript(new ClassPathResource("db/pm-schema.sql"));
         populator.addScript(new ClassPathResource("db/api-test-schema.sql"));
         populator.addScript(new ClassPathResource("db/image-schema.sql"));
+        populator.addScript(new ClassPathResource("db/pipeline-schema.sql"));
         populator.setSeparator(";");
         populator.setContinueOnError(true);
         populator.execute(dataSource);

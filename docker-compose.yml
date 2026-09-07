@@ -18,6 +18,10 @@
 #   http://localhost:8089            → 后端直连
 #   http://localhost:8081            → Keycloak 管理控制台（直连）
 #   http://localhost:8001            → Kong Admin API
+#
+# 流水线执行集群（可选）:
+#   ./scripts/start-pipeline-cluster.sh
+#   docker compose --profile pipeline up -d
 # ============================================================
 
 services:
@@ -221,8 +225,53 @@ services:
         condition: service_completed_successfully
     command: start-dev --import-realm
 
+  k3s:
+    profiles: ["pipeline"]
+    image: rancher/k3s:v1.31.4-k3s1
+    container_name: devops-k3s
+    privileged: true
+    tmpfs:
+      - /run
+      - /var/run
+    environment:
+      K3S_KUBECONFIG_OUTPUT: /output/kubeconfig.yaml
+      K3S_KUBECONFIG_MODE: "644"
+    command:
+      - server
+      - --disable=traefik
+      - --tls-san=127.0.0.1
+      - --tls-san=localhost
+      - --tls-san=k3s
+    volumes:
+      - k3s-server:/var/lib/rancher/k3s
+      - ./data/pipeline:/output
+    ports:
+      - "6443:6443"
+    healthcheck:
+      test: ["CMD-SHELL", "k3s kubectl get --raw=/readyz >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  tekton-install:
+    profiles: ["pipeline"]
+    image: rancher/k3s:v1.31.4-k3s1
+    container_name: devops-tekton-install
+    restart: "no"
+    entrypoint: ["/bin/sh", "/install-tekton.sh"]
+    volumes:
+      - ./data/pipeline:/kube
+      - ./scripts/install-tekton.sh:/install-tekton.sh:ro
+    depends_on:
+      k3s:
+        condition: service_healthy
+
 volumes:
   devops-data:
     driver: local
   devops-files:
+    driver: local
+  k3s-server:
     driver: local

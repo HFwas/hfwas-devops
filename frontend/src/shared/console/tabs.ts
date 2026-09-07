@@ -1,3 +1,4 @@
+import { GitBranch, KeyRound } from '@lucide/vue'
 import type { Component } from 'vue'
 
 /**
@@ -19,7 +20,22 @@ export interface ConsoleTab {
   matchPrefixes?: string[]
 }
 
-export const CONSOLE_TABS: ConsoleTab[] = []
+export const CONSOLE_TABS: ConsoleTab[] = [
+  {
+    key: 'pipeline-list',
+    label: '流水线',
+    icon: GitBranch,
+    path: '/pipeline/pipelines',
+    matchPrefixes: ['/pipeline/pipelines'],
+  },
+  {
+    key: 'pipeline-credentials',
+    label: '凭证',
+    icon: KeyRound,
+    path: '/pipeline/credentials',
+    matchPrefixes: ['/pipeline/credentials'],
+  },
+]
 
 export const DEFAULT_TAB_KEY = 'projects'
 

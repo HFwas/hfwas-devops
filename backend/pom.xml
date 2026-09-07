@@ -20,6 +20,7 @@
         <module>api-test-core</module>
         <module>file-parser</module>
         <module>image-core</module>
+        <module>pipeline-core</module>
         <module>server</module>
     </modules>
 

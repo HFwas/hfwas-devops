@@ -65,6 +65,13 @@ else
   ensure_python_env
 fi
 
+BOOT_ARGS="--docgen.python-path=$VENV_DIR/bin/python3"
+PIPELINE_KUBECONFIG_FILE="$ROOT_DIR/data/pipeline/kubeconfig.yaml"
+if [ -f "$PIPELINE_KUBECONFIG_FILE" ]; then
+  BOOT_ARGS="$BOOT_ARGS --pipeline.kubeconfig=$PIPELINE_KUBECONFIG_FILE"
+  log "已启用流水线执行集群: $PIPELINE_KUBECONFIG_FILE"
+fi
+
 log "启动后端 (http://localhost:$BACKEND_PORT) ..."
 cd "$ROOT_DIR/backend/server"
 exec mvn spring-boot:run -DskipTests \
@@ -74,5 +81,4 @@ exec mvn spring-boot:run -DskipTests \
     -XX:+ExitOnOutOfMemoryError \
     -XX:+HeapDumpOnOutOfMemoryError \
     -XX:HeapDumpPath=$RUN_DIR/dumps" \
-  -Dspring-boot.run.arguments="\
-    --docgen.python-path=$VENV_DIR/bin/python3"
+  -Dspring-boot.run.arguments="$BOOT_ARGS"

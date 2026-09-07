@@ -50,3 +50,8 @@ image-processor:
     convert-timeout: 60s
     preview-timeout: 15s
     max-concurrent: 2
+
+pipeline:
+  credential-key: ${PIPELINE_CREDENTIAL_KEY:hfwas-dev-pipeline-key-32b!!}
+  kubeconfig: ${PIPELINE_KUBECONFIG:}
+  namespace: ${PIPELINE_NAMESPACE:hfwas-pipeline}

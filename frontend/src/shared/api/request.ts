@@ -68,6 +68,11 @@ export async function post<T>(url: string, data?: unknown, timeout?: number): Pr
   return res.data.data
 }
 
+export async function put<T>(url: string, data?: unknown): Promise<T> {
+  const res = await request.put<BaseResult<T>>(url, data)
+  return res.data.data
+}
+
 export async function get<T>(url: string, params?: unknown): Promise<T> {
   const res = await request.get<BaseResult<T>>(url, { params })
   return res.data.data

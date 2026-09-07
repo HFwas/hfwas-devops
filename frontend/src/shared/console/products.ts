@@ -62,9 +62,8 @@ export const CONSOLE_PRODUCTS: ConsoleProduct[] = [
     name: '流水线',
     description: '持续集成与持续交付',
     icon: GitBranch,
-    path: '/pipeline/overview',
+    path: '/pipeline/pipelines',
     group: '研发协同',
-    comingSoon: true,
   },
   {
     key: 'resource',
