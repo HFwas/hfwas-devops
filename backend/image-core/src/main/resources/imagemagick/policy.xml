@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policymap [
+  <!ELEMENT policymap (policy)+>
+  <!ATTLIST policymap xmlns CDATA #FIXED ''>
+  <!ELEMENT policy EMPTY>
+  <!ATTLIST policy xmlns CDATA #FIXED '' domain NMTOKEN #REQUIRED
+    name NMTOKEN #IMPLIED pattern CDATA #IMPLIED rights NMTOKEN #IMPLIED
+    stealth NMTOKEN #IMPLIED value CDATA #IMPLIED>
+]>
+<policymap>
+  <!-- 拒绝网络与脚本委托，缩小 ImageMagick 攻击面 -->
+  <policy domain="coder" rights="none" pattern="HTTPS" />
+  <policy domain="coder" rights="none" pattern="HTTP" />
+  <policy domain="coder" rights="none" pattern="URL" />
+  <policy domain="coder" rights="none" pattern="FTP" />
+  <policy domain="coder" rights="none" pattern="MVG" />
+  <policy domain="coder" rights="none" pattern="MSL" />
+  <policy domain="coder" rights="none" pattern="TEXT" />
+  <policy domain="coder" rights="none" pattern="LABEL" />
+  <policy domain="coder" rights="none" pattern="PDF" />
+  <policy domain="coder" rights="none" pattern="PS" />
+  <policy domain="coder" rights="none" pattern="EPS" />
+  <policy domain="coder" rights="none" pattern="XPS" />
+  <policy domain="delegate" rights="none" pattern="URL" />
+  <policy domain="delegate" rights="none" pattern="HTTPS" />
+  <policy domain="delegate" rights="none" pattern="HTTP" />
+  <policy domain="path" rights="none" pattern="@*" />
+  <!-- 与 image-processor.max-pixels 同量级：约 40MP，宽高各 16384 -->
+  <policy domain="resource" name="width" value="16KP"/>
+  <policy domain="resource" name="height" value="16KP"/>
+  <policy domain="resource" name="area" value="40MP"/>
+  <policy domain="resource" name="memory" value="256MiB"/>
+  <policy domain="resource" name="map" value="512MiB"/>
+  <policy domain="resource" name="disk" value="1GiB"/>
+  <policy domain="resource" name="file" value="256"/>
+  <policy domain="resource" name="thread" value="2"/>
+  <policy domain="resource" name="time" value="30"/>
+</policymap>

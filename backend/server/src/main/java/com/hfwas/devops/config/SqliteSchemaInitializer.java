@@ -29,6 +29,7 @@ public class SqliteSchemaInitializer implements ApplicationRunner {
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
         populator.addScript(new ClassPathResource("db/pm-schema.sql"));
         populator.addScript(new ClassPathResource("db/api-test-schema.sql"));
+        populator.addScript(new ClassPathResource("db/image-schema.sql"));
         populator.setSeparator(";");
         populator.setContinueOnError(true);
         populator.execute(dataSource);

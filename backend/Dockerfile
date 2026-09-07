@@ -43,14 +43,41 @@ RUN pip3 install --no-cache-dir --break-system-packages \
     reportlab>=4.1.0 \
     && rm -rf /root/.cache/pip
 
+# 图片处理：Magick 改像素，ExifTool 读标签（Perl 是 ExifTool 运行时）
+# 不装 imagemagick-pdf，降低 Magick 攻击面
+RUN apk add --no-cache \
+    imagemagick \
+    imagemagick-jpeg \
+    imagemagick-tiff \
+    imagemagick-webp \
+    imagemagick-heic \
+    libheif \
+    perl \
+    exiftool \
+    && rm -rf /var/cache/apk/*
+
+RUN mkdir -p /etc/ImageMagick-7
+COPY backend/image-core/src/main/resources/imagemagick/policy.xml \
+     /etc/ImageMagick-7/policy.xml
+
+RUN magick -version \
+    && magick -list format | grep -Ei 'HEIC|HEIF' \
+    && exiftool -ver \
+    && perl -v >/dev/null
+
 # Copy the fat JAR
 COPY --from=builder /build/server.jar /app/server.jar
 
 WORKDIR /app
 
-# glibc MALLOC_ARENA_MAX: 限制 malloc arena 数，防止多核容器 RSS 膨胀
-# 默认 8*cores，每个 arena ~64MB，多核场景浪费严重
-ENV MALLOC_ARENA_MAX=2
+ENV MALLOC_ARENA_MAX=2 \
+    MAGICK_CONFIGURE_PATH=/etc/ImageMagick-7 \
+    MAGICK_TEMPORARY_PATH=/tmp \
+    MAGICK_MEMORY_LIMIT=256MiB \
+    MAGICK_MAP_LIMIT=512MiB \
+    MAGICK_DISK_LIMIT=1GiB \
+    MAGICK_AREA_LIMIT=40MP \
+    MAGICK_THREAD_LIMIT=2
 
 # 创建数据目录并设置权限
 RUN mkdir -p /app/data /app/files /app/dumps /app/logs /app/config && \

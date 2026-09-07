@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { Beaker, Boxes, FileText, FileDown, GitBranch, ServerCog, ShieldCheck, SquareKanban } from '@lucide/vue'
+import { Beaker, Boxes, FileText, FileDown, GitBranch, Image, ServerCog, ShieldCheck, SquareKanban } from '@lucide/vue'
 
 /**
  * 控制台产品目录（顶栏左侧下拉切换）
@@ -47,6 +47,14 @@ export const CONSOLE_PRODUCTS: ConsoleProduct[] = [
     description: '一键生成 Word / Excel / PPT / 图片 / PDF',
     icon: FileDown,
     path: '/docgen',
+    group: '效率工具',
+  },
+  {
+    key: 'image',
+    name: '图片处理',
+    description: '预览、转换格式并查看图片元数据',
+    icon: Image,
+    path: '/image',
     group: '效率工具',
   },
   {

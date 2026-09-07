@@ -4,6 +4,7 @@ import { userRoutes } from '@/modules/user/router/userRoutes'
 import { apiTestRoutes } from '@/modules/api-test/define/router/apiTestRoutes'
 import { fileParserRoutes } from '@/modules/file-parser/router/fileParserRoutes'
 import { docgenRoutes } from '@/modules/docgen/router/docgenRoutes'
+import { imageRoutes } from '@/modules/image/router/imageRoutes'
 import { useAuthStore } from '@/modules/user/stores/auth'
 import { resolveRouteProjectId } from '@/modules/pm/utils/projectRoute'
 import { appRedirectUri, isAuthenticated, login as keycloakLogin } from '@/shared/keycloak'
@@ -22,6 +23,7 @@ const router = createRouter({
     ...apiTestRoutes,
     ...fileParserRoutes,
     ...docgenRoutes,
+    ...imageRoutes,
   ],
 })
 

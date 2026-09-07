@@ -31,3 +31,22 @@ docgen:
   script-path: ../scripts/generate_doc.py
   python-path: ${DOCGEN_PYTHON_PATH:python3}
   output-dir: ../../files    # 默认输出目录，相对路径基于 backend/server/
+
+image-processor:
+  max-file-size: 50MB
+  session-ttl: 30m
+  temp-dir: ${java.io.tmpdir}/hfwas-image
+  max-pixels: 40000000
+  async-min-pixels: 16000000
+  preview:
+    max-side: 2048
+    quality: 85
+  engines:
+    magick-enabled: true
+    magick-path: magick
+    exiftool-enabled: true
+    exiftool-path: exiftool
+    process-timeout: 30s
+    convert-timeout: 60s
+    preview-timeout: 15s
+    max-concurrent: 2
