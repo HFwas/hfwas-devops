@@ -356,7 +356,7 @@ npm run build
 docker build -t hfwas/devops-backend:latest -f backend/Dockerfile .
 
 # 前端镜像（从项目根目录构建）
-docker build -t hfwas/devops-frontend:latest -f frontend/Dockerfile .
+docker build -t hfwas/devops-frontend:latest ./frontend
 ```
 
 ### Docker Compose 启动

@@ -1,28 +1,14 @@
 # =============================================================================
 # Stage 1: Build Spring Boot fat JAR
 # =============================================================================
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM maven:3.9.9-eclipse-temurin-21 AS builder
 
 WORKDIR /build
 
-# Install Maven
-RUN apk add --no-cache maven
-
-# Cache dependencies first (layer 1)
-# Build context is project root, so pom.xml is the parent POM
+COPY backend/docker/maven-settings.xml /root/.m2/settings.xml
 COPY pom.xml .
-COPY backend/pom.xml backend/pom.xml
-COPY backend/user-api/pom.xml backend/user-api/pom.xml
-COPY backend/user-core/pom.xml backend/user-core/pom.xml
-COPY backend/pm-core/pom.xml backend/pm-core/pom.xml
-COPY backend/api-test-core/pom.xml backend/api-test-core/pom.xml
-COPY backend/file-parser/pom.xml backend/file-parser/pom.xml
-COPY backend/server/pom.xml backend/server/pom.xml
-RUN mvn dependency:go-offline -pl backend/server -am -B -q || true
-
-# Copy source and build
 COPY backend/ backend/
-RUN mvn clean package -pl backend/server -am -DskipTests -B -q \
+RUN mvn -B -pl backend/server -am -DskipTests package \
     && cp "$(ls backend/server/target/server-*.jar | grep -v original | head -1)" /build/server.jar
 
 # =============================================================================
@@ -37,31 +23,25 @@ CMD ["cp", "/out/server.jar", "/host/server.jar"]
 # =============================================================================
 FROM eclipse-temurin:21-jre-alpine
 
-# 创建非 root 用户
-# 使用固定 UID/GID 以兼容 Helm PodSecurityContext runAsUser
 RUN addgroup -S devops -g 1000 && \
     adduser -S devops -u 1000 -G devops -h /app -s /sbin/nologin
 
-# 安装运行时依赖
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    py3-pillow \
-    py3-matplotlib \
+# Alpine 官方源在国内很慢；matplotlib/Pillow 用 apk 预编译包，避免 pip 源码编译
+RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.aliyun.com#g' /etc/apk/repositories \
+    && apk add --no-cache python3 py3-pip py3-pillow py3-matplotlib \
     && rm -rf /var/cache/apk/*
 
-# Install Python dependencies for docgen
 COPY --from=builder /build/backend/scripts /app/scripts
-RUN pip3 install --no-cache-dir \
+RUN pip3 install --no-cache-dir --break-system-packages \
+    -i https://mirrors.aliyun.com/pypi/simple/ \
+    --trusted-host mirrors.aliyun.com \
     python-docx>=1.1.2 \
     openpyxl>=3.1.2 \
     python-pptx>=1.0.0 \
-    matplotlib>=3.8.0 \
     fpdf2 \
     markdown \
-    Pillow>=10.0.0 \
-    -q && \
-    rm -rf /root/.cache/pip
+    reportlab>=4.1.0 \
+    && rm -rf /root/.cache/pip
 
 # Copy the fat JAR
 COPY --from=builder /build/server.jar /app/server.jar

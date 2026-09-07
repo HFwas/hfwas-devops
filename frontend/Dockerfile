@@ -5,11 +5,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /build
 
-# Build context is project root, so frontend files are in frontend/
-COPY frontend/package.json frontend/package-lock.json* ./
+COPY package.json package-lock.json* ./
 RUN npm ci --no-audit --no-fund
 
-COPY frontend/ .
+COPY . .
 RUN npm run build
 
 # =============================================================================
@@ -28,7 +27,7 @@ FROM nginx:1.27-alpine
 COPY --from=builder /build/dist /usr/share/nginx/html
 
 # Copy Nginx config
-COPY frontend/docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

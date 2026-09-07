@@ -1,0 +1,31 @@
+.git
+.idea
+.vscode
+.DS_Store
+**/.DS_Store
+
+# local deps & build output
+**/node_modules
+**/dist
+**/.venv
+**/venv
+**/target
+**/__pycache__
+**/*.pyc
+**/*.tsbuildinfo
+
+# 仅排除仓库根目录，不要写成 scripts/data/files（会误伤 backend/scripts 等）
+/logs
+/artifacts
+/data
+/files
+/docs
+/charts
+/scripts
+/kong
+/keycloak
+*.db
+*.md
+.env
+.env.*
+backend/server/data/
