@@ -36,6 +36,8 @@ class TektonCompilerTest {
         assertFalse(steps.get(0).script().contains("ghp_secret"));
         assertTrue(steps.get(0).script().contains("GIT_USERNAME"));
         assertTrue(steps.get(0).script().contains("${GIT_SCHEME}://"));
+        assertTrue(steps.get(0).script().contains("http.version HTTP/1.1"));
+        assertTrue(steps.get(0).script().contains("HFWAS_COMMIT"));
         assertEquals("https", steps.get(0).env().get("GIT_SCHEME"));
         assertEquals(IMAGE, steps.get(1).image());
         assertTrue(steps.get(1).script().contains("mvn -B -DskipTests package"));
@@ -43,6 +45,18 @@ class TektonCompilerTest {
         assertEquals(IMAGE, steps.get(2).image());
         assertTrue(steps.get(2).env().containsKey("GOTOOLCHAIN"));
         assertEquals("local", steps.get(2).env().get("GOTOOLCHAIN"));
+    }
+
+    @Test
+    void cloneInjectsGitHttpProxy() {
+        PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
+                stage("clone", 0, List.of(job("clone", PipelineJobKind.CLONE, "", 0)))
+        ));
+        CompiledStep step = TektonCompiler.compile(new CompileRequest(
+                6L, 8L, "https://github.com/acme/demo.git", "main", IMAGE, false, graph,
+                "http://192.168.5.2:7890"
+        )).tasks().getFirst().steps().getFirst();
+        assertEquals("http://192.168.5.2:7890", step.env().get("GIT_HTTP_PROXY"));
     }
 
     @Test
@@ -76,7 +90,8 @@ class TektonCompilerTest {
     @Test
     void objectNameIsDnsLabel() {
         assertEquals("hfwas-1234567890123456789", DnsNames.objectName(1234567890123456789L));
-        assertTrue(DnsNames.stepName("Build Job!") .matches("[a-z0-9]([-a-z0-9]*[a-z0-9])?"));
+        assertTrue(DnsNames.stepName("Build Job!").matches("[a-z0-9]([-a-z0-9]*[a-z0-9])?"));
+        assertEquals("clone", DnsNames.stepName("代码克隆", "CLONE"));
     }
 
     @Test
@@ -92,7 +107,7 @@ class TektonCompilerTest {
                 stage("run", 0, List.of(job("echo", PipelineJobKind.CUSTOM, "echo ok", 0)))
         ));
         CompiledTekton compiled = TektonCompiler.compile(new CompileRequest(
-                1L, 8L, "", "main", IMAGE, false, graph));
+                1L, 8L, "", "main", IMAGE, false, graph, ""));
         assertEquals(1, compiled.tasks().getFirst().steps().size());
         assertEquals(IMAGE, compiled.tasks().getFirst().steps().getFirst().image());
         assertTrue(compiled.tasks().getFirst().steps().getFirst().script().contains("mkdir -p"));
@@ -159,7 +174,8 @@ class TektonCompilerTest {
                 "main",
                 IMAGE,
                 credential,
-                graph
+                graph,
+                ""
         );
     }
 

@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest'
+import { JOB_KIND_GROUPS, JOB_KIND_OPTIONS } from './jobCatalog'
 import {
-  canDeleteJob,
-  canDeleteStage,
-  createDefaultGraph,
+  addParallelJob,
+  canAddKindToStage,
+  canChangeJobKind,
+  createEditorJob,
+  createTemplateStages,
+  groupRunJobs,
   hasClone,
-  JOB_KIND_OPTIONS,
+  insertStageAt,
   kindSelectOptions,
-  refreshDefaultCommands,
+  removeEditorJob,
   repoShortName,
   stackSummary,
+  toEditorStages,
+  toSaveStages,
 } from './pipelineGraph'
 import type { ToolchainOption } from '@/modules/pipeline/types/pipeline'
 
@@ -21,40 +27,16 @@ const java21: ToolchainOption = {
   testCommand: 'mvn -B test',
 }
 
-const node22: ToolchainOption = {
-  stack: 'NODE',
-  runtimeVersion: '22',
-  toolVersion: 'NPM',
-  image: 'node:22-bookworm',
-  buildCommand: 'npm ci',
-  testCommand: 'npm test',
-}
-
-describe('pipeline default graph', () => {
-  it('creates clone / build / test columns with clone first', () => {
-    const graph = createDefaultGraph(java21)
-    expect(graph).toHaveLength(3)
-    expect(graph[0].name).toBe('clone')
-    expect(graph[0].jobs[0].kind).toBe('CLONE')
-    expect(graph[1].jobs[0].command).toBe(java21.buildCommand)
-    expect(graph[2].jobs[0].command).toBe(java21.testCommand)
-    expect(canDeleteJob(graph[0].jobs[0])).toBe(true)
-    expect(canDeleteStage(graph[0])).toBe(true)
-    expect(canDeleteStage(graph[1])).toBe(true)
-  })
-
-  it('refreshes build/test defaults when switching stack', () => {
-    const graph = createDefaultGraph(java21)
-    const next = refreshDefaultCommands(graph, java21, node22)
-    expect(next[1].jobs[0].command).toBe('npm ci')
-    expect(next[2].jobs[0].command).toBe('npm test')
-  })
-
-  it('keeps custom commands when they are no longer the old default', () => {
-    const graph = createDefaultGraph(java21)
-    graph[1].jobs[0].command = 'mvn -B package -DskipTests=false'
-    const next = refreshDefaultCommands(graph, java21, node22)
-    expect(next[1].jobs[0].command).toBe('mvn -B package -DskipTests=false')
+describe('pipeline helpers', () => {
+  it('exposes 13 job kinds in 云效-style groups and a clone/build/test template', () => {
+    expect(JOB_KIND_OPTIONS).toHaveLength(13)
+    expect([...JOB_KIND_GROUPS]).toEqual(['代码', '构建', '质量控制', '制品', '部署', '测试', '命令', '流程'])
+    const graph = createTemplateStages(java21)
+    expect(graph.map((stage) => stage.jobs[0].kind)).toEqual(['CLONE', 'BUILD', 'TEST'])
+    expect(hasClone(graph)).toBe(true)
+    const jobs = graph.flatMap((stage) => stage.jobs.map((job) => ({ kind: job.kind, id: job.name })))
+    expect(kindSelectOptions(jobs, '构建').some((item) => item.value === 'CLONE')).toBe(false)
+    expect(kindSelectOptions(jobs, '代码克隆').some((item) => item.value === 'CLONE')).toBe(true)
   })
 
   it('summarizes repo and stack', () => {
@@ -63,13 +45,66 @@ describe('pipeline default graph', () => {
     expect(stackSummary('JAVA_MAVEN', '21', '3.9')).toBe('Java 21 / Maven 3.9')
   })
 
-  it('lists 13 kinds and hides clone when another clone exists', () => {
-    expect(JOB_KIND_OPTIONS).toHaveLength(13)
-    const graph = createDefaultGraph(java21)
-    expect(hasClone(graph)).toBe(true)
-    expect(kindSelectOptions(graph, graph[1].jobs[0].clientKey).some((item) => item.value === 'CLONE')).toBe(false)
-    expect(kindSelectOptions(graph, graph[0].jobs[0].clientKey).some((item) => item.value === 'CLONE')).toBe(true)
-    graph[0].jobs[0].kind = 'CUSTOM'
-    expect(kindSelectOptions(graph).some((item) => item.value === 'CLONE')).toBe(true)
+  it('inserts sequential stages and parallel jobs, then serializes without client keys', () => {
+    let stages = toEditorStages([])
+    const clone = createEditorJob('CLONE', java21)
+    stages = insertStageAt(stages, -1, clone)
+    stages = insertStageAt(stages, 0, createEditorJob('BUILD', java21))
+    stages = addParallelJob(stages, stages[1].clientKey, createEditorJob('TEST', java21))
+    expect(stages).toHaveLength(2)
+    expect(stages[0].jobs.map((job) => job.kind)).toEqual(['CLONE'])
+    expect(stages[1].jobs.map((job) => job.kind)).toEqual(['BUILD', 'TEST'])
+
+    const saved = toSaveStages(stages)
+    expect(saved[0].sortOrder).toBe(0)
+    expect(saved[1].jobs.map((job) => job.sortOrder)).toEqual([0, 1])
+    expect(saved[0]).not.toHaveProperty('clientKey')
+
+    stages = removeEditorJob(stages, stages[1].jobs[0].clientKey)
+    expect(stages[1].jobs.map((job) => job.kind)).toEqual(['TEST'])
+    stages = removeEditorJob(stages, stages[1].jobs[0].clientKey)
+    expect(stages).toHaveLength(1)
+  })
+
+  it('blocks clone / approval / image constraints when adding or changing kinds', () => {
+    let stages = insertStageAt(toEditorStages([]), -1, createEditorJob('CLONE', java21))
+    expect(canAddKindToStage(stages, null, 'CLONE')).toBe('流水线至多一个克隆任务')
+    expect(canAddKindToStage(stages, stages[0].clientKey, 'BUILD')).toBeNull()
+
+    stages = insertStageAt(stages, 0, createEditorJob('APPROVAL'))
+    expect(canAddKindToStage(stages, stages[1].clientKey, 'TEST')).toBe('审批任务必须独占一列')
+    expect(canAddKindToStage(stages, null, 'TEST')).toBeNull()
+
+    stages = insertStageAt(stages, 1, createEditorJob('IMAGE', java21))
+    const imageStage = stages[2]
+    expect(canAddKindToStage(stages, imageStage.clientKey, 'IMAGE')).toBe('镜像构建不能与其它镜像构建并行')
+    expect(canAddKindToStage(stages, imageStage.clientKey, 'DEPLOY')).toBeNull()
+    expect(canChangeJobKind(stages, imageStage.jobs[0].clientKey, 'CLONE')).toBe('流水线至多一个克隆任务')
+  })
+
+  it('maps run job status onto editor nodes for success chrome', () => {
+    const stages = groupRunJobs([
+      {
+        id: 1,
+        jobId: 11,
+        stageName: '代码克隆',
+        jobName: '代码克隆',
+        kind: 'CLONE',
+        status: 'SUCCEEDED',
+        startedAt: '2026-09-08T09:37:00',
+        finishedAt: '2026-09-08T09:37:15',
+      },
+      {
+        id: 2,
+        jobId: 12,
+        stageName: '构建',
+        jobName: '代码构建',
+        kind: 'BUILD',
+        status: 'RUNNING',
+      },
+    ])
+    expect(stages[0].jobs[0].status).toBe('SUCCEEDED')
+    expect(stages[1].jobs[0].status).toBe('RUNNING')
+    expect(stages[0].jobs[0].runJobId).toBe(1)
   })
 })

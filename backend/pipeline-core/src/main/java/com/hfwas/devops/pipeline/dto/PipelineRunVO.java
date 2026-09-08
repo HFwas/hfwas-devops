@@ -14,6 +14,7 @@ public class PipelineRunVO {
     private String trigger;
     private String gitRef;
     private String commitSha;
+    private String triggeredByName;
     private String stack;
     private String runtimeVersion;
     private String toolVersion;

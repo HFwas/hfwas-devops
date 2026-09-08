@@ -67,7 +67,7 @@ public final class TektonCompiler {
                     continue;
                 }
                 cache = cache || steps.stream().anyMatch(CompiledStep::usesKanikoCache);
-                String taskName = uniqueName(DnsNames.stepName(job.name()), tasks.stream().map(CompiledTask::name).toList());
+                String taskName = DnsNames.uniqueName(DnsNames.stepName(job.name(), job.kind().name()), tasks.stream().map(CompiledTask::name).toList());
                 tasks.add(new CompiledTask(taskName, steps));
                 pipeline.add(new CompiledPipelineTask(taskName, taskName, previous));
                 current.add(taskName);
@@ -102,7 +102,7 @@ public final class TektonCompiler {
         }
         Map<String, String> env = new LinkedHashMap<>();
         env.put("GOTOOLCHAIN", "local");
-        String base = uniqueName(DnsNames.stepName(job.name()), usedNames);
+        String base = DnsNames.uniqueName(DnsNames.stepName(job.name(), job.kind().name()), usedNames);
         if (job.kind() == PipelineJobKind.CLONE) {
             if (remote == null) {
                 throw BizException.of(ResultCode.BAD_REQUEST, "仓库地址不能为空");
@@ -111,15 +111,36 @@ public final class TektonCompiler {
             env.put("GIT_HOST", remote.host());
             env.put("GIT_PATH", remote.path());
             env.put("GIT_REF", request.gitRef() == null || request.gitRef().isBlank() ? "main" : request.gitRef());
+            if (request.gitHttpProxy() != null && !request.gitHttpProxy().isBlank()) {
+                env.put("GIT_HTTP_PROXY", request.gitHttpProxy().trim());
+            }
             String script = """
                     set -eu
                     cd "$(workspaces.source.path)"
+                    git config --global http.version HTTP/1.1
+                    git config --global http.postBuffer 524288000
+                    if [ -n "${GIT_HTTP_PROXY:-}" ]; then
+                      git config --global http.proxy "${GIT_HTTP_PROXY}"
+                      git config --global https.proxy "${GIT_HTTP_PROXY}"
+                    fi
                     AUTH=""
                     if [ -n "${GIT_USERNAME:-}" ]; then
                       AUTH="${GIT_USERNAME}:${GIT_PASSWORD}@"
                     fi
-                    git clone "${GIT_SCHEME}://${AUTH}${GIT_HOST}/${GIT_PATH}" src
-                    git -C src checkout "${GIT_REF}"
+                    URL="${GIT_SCHEME}://${AUTH}${GIT_HOST}/${GIT_PATH}"
+                    attempt=1
+                    until git clone --depth 1 --branch "${GIT_REF}" "$URL" src; do
+                      attempt=$((attempt + 1))
+                      if [ "$attempt" -gt 3 ]; then
+                        echo "git clone failed after 3 attempts"
+                        exit 1
+                      fi
+                      echo "git clone retry ${attempt}/3 ..."
+                      rm -rf src
+                      sleep $((attempt * 2))
+                    done
+                    echo "HFWAS_GIT_REF=${GIT_REF}"
+                    echo "HFWAS_COMMIT=$(git -C src rev-parse HEAD)"
                     """.stripIndent();
             return List.of(new CompiledStep(base, CLONE_IMAGE, script, env, request.hasCredential(), false));
         }
@@ -256,16 +277,5 @@ public final class TektonCompiler {
 
     private static List<String> uniqueStepNames(List<CompiledStep> steps) {
         return steps.stream().map(CompiledStep::name).toList();
-    }
-
-    private static String uniqueName(String base, List<String> used) {
-        if (!used.contains(base)) {
-            return base;
-        }
-        int i = 2;
-        while (used.contains(base + "-" + i)) {
-            i++;
-        }
-        return base + "-" + i;
     }
 }

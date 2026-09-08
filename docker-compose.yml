@@ -88,11 +88,19 @@ services:
       DOCGEN_OUTPUT_DIR: /app/files
       MALLOC_ARENA_MAX: "2"
       JAVA_TOOL_OPTIONS: "-DLOG_DIR=/app/logs"
+      # 容器内 localhost:8000 是 backend 自己；JWT 公钥直接打 Keycloak
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/auth/realms/hfwas-devops/protocol/openid-connect/certs
+      # 由 start-pipeline-cluster.sh 写出；文件不存在时后端仍可启动，运行记「未配置执行集群」
+      PIPELINE_KUBECONFIG: /app/pipeline/kubeconfig.compose.yaml
+      PIPELINE_NAMESPACE: hfwas-pipeline
+      # 宿主机 git http.proxy（常为 127.0.0.1:7890）由启动脚本写入；后端会改成 Pod 可达地址
+      PIPELINE_GIT_HTTP_PROXY: ${PIPELINE_GIT_HTTP_PROXY:-}
     volumes:
       - devops-data:/app/data
       - devops-files:/app/files
       - ./logs/backend:/app/logs
       - ./logs/dumps:/app/dumps
+      - ./data/pipeline:/app/pipeline:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8089/health/check"]
       interval: 30s
@@ -102,6 +110,8 @@ services:
     depends_on:
       backend-build:
         condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -250,7 +260,8 @@ services:
     ports:
       - "6443:6443"
     healthcheck:
-      test: ["CMD-SHELL", "k3s kubectl get --raw=/readyz >/dev/null || exit 1"]
+      # rancher/k3s 里 /bin/kubectl 是 k3s 的 symlink；写 `k3s kubectl` 会变成 `kubectl kubectl`。
+      test: ["CMD", "kubectl", "get", "--raw=/readyz"]
       interval: 5s
       timeout: 5s
       retries: 30

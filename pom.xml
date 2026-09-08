@@ -59,10 +59,19 @@
         <spring-context.version>6.1.19</spring-context.version>
         <jasypt.version>3.0.5</jasypt.version>
         <hutool.version>5.8.35</hutool.version>
+        <fabric8.version>7.8.0</fabric8.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!-- 必须排在 spring-boot-dependencies 之前：Boot 3.4 把 kubernetes-client 钉在 6.9.2，没有 io.fabric8.tekton.v1.* -->
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-client-bom</artifactId>
+                <version>${fabric8.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>

@@ -16,6 +16,7 @@ public class PipelineVO {
     private String runtimeVersion;
     private String toolVersion;
     private LocalDateTime updateTime;
+    private Long lastRunId;
     private String lastRunStatus;
     private LocalDateTime lastRunTime;
     private List<PipelineStageDTO> stages;

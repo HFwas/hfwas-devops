@@ -16,11 +16,11 @@ function rejectResult(result: BaseResult<unknown>): Promise<never> {
 }
 
 function handleUnauthorized() {
-  localStorage.removeItem(TENANT_ID_KEY)
-  localStorage.removeItem(TENANT_NAME_KEY)
   if (isAuthenticated()) {
     return
   }
+  localStorage.removeItem(TENANT_ID_KEY)
+  localStorage.removeItem(TENANT_NAME_KEY)
   void keycloakLogin(appRedirectUri(window.location.pathname))
 }
 

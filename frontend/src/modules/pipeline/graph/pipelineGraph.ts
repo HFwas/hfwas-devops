@@ -1,106 +1,24 @@
-import type { EditorJob, EditorStage, JobKind, PipelineStage, ToolchainOption } from '@/modules/pipeline/types/pipeline'
+import { JOB_KIND_OPTIONS, jobKindLabel, jobKindMeta, requiresCommand } from '@/modules/pipeline/graph/jobCatalog'
+import { nextClientKey } from '@/modules/pipeline/graph/ids'
+import type {
+  EditorJob,
+  EditorStage,
+  JobKind,
+  PipelineRunJob,
+  PipelineStage,
+  ToolchainOption,
+} from '@/modules/pipeline/types/pipeline'
 
-export const JOB_KIND_OPTIONS: Array<{
-  value: JobKind
-  label: string
-  requiresCommand: boolean
-  defaultCommand: string
-}> = [
-  { value: 'CLONE', label: '克隆', requiresCommand: false, defaultCommand: '' },
-  {
-    value: 'LINT',
-    label: '代码检查',
-    requiresCommand: true,
-    defaultCommand: `export LINT_SEMGREP_ARGS="scan --error --config=auto ."
-# export SONAR_HOST_URL=https://sonar.example.com
-# export SONAR_TOKEN=
-# export SONAR_PROJECT_KEY=app`,
-  },
-  { value: 'BUILD', label: '构建', requiresCommand: true, defaultCommand: '' },
-  { value: 'TEST', label: '测试', requiresCommand: true, defaultCommand: '' },
-  {
-    value: 'SCAN',
-    label: '安全扫描',
-    requiresCommand: true,
-    defaultCommand: 'trivy fs --exit-code 1 --scanners vuln,secret,misconfig .',
-  },
-  { value: 'PACKAGE', label: '打包', requiresCommand: true, defaultCommand: '' },
-  { value: 'CUSTOM', label: '自定义', requiresCommand: true, defaultCommand: 'echo ok' },
-  {
-    value: 'IMAGE',
-    label: '镜像构建',
-    requiresCommand: true,
-    defaultCommand: `export DEST=registry.example.com/app:tag
-export IMAGE_PLATFORMS=linux/amd64
-export DOCKERFILE=Dockerfile`,
-  },
-  { value: 'PUBLISH', label: '发布制品', requiresCommand: true, defaultCommand: '' },
-  {
-    value: 'UPLOAD',
-    label: '上传对象存储',
-    requiresCommand: true,
-    defaultCommand:
-      'rclone copy ./ :s3:bucket/prefix --s3-provider=Minio --s3-endpoint="${S3_ENDPOINT}" --s3-access-key-id="${S3_ACCESS_KEY}" --s3-secret-access-key="${S3_SECRET_KEY}"',
-  },
-  { value: 'DEPLOY', label: '部署', requiresCommand: true, defaultCommand: 'kubectl apply -f k8s/' },
-  { value: 'APPROVAL', label: '人工卡点', requiresCommand: false, defaultCommand: '' },
-  {
-    value: 'NOTIFY',
-    label: '通知',
-    requiresCommand: true,
-    defaultCommand:
-      `curl -fsS -X POST 'https://example.com/hook' -H 'Content-Type: application/json' -d '{"status":"done"}'`,
-  },
-]
+export { JOB_KIND_OPTIONS, jobKindLabel, requiresCommand, nextClientKey }
 
-let seq = 0
+export type StageInsertTarget =
+  | { type: 'stage'; afterIndex: number }
+  | { type: 'parallel'; stageKey: string }
 
-export function nextClientKey(prefix = 'k'): string {
-  seq += 1
-  return `${prefix}-${seq}-${Math.random().toString(36).slice(2, 8)}`
-}
-
-export function createDefaultGraph(option: ToolchainOption): EditorStage[] {
-  return [
-    stage('clone', 0, [job('clone', 'CLONE', '', 0)]),
-    stage('build', 1, [job('build', 'BUILD', option.buildCommand, 0)]),
-    stage('test', 2, [job('test', 'TEST', option.testCommand, 0)]),
-  ]
-}
-
-export function toEditorStages(stages: PipelineStage[] | undefined, option?: ToolchainOption): EditorStage[] {
-  if (!stages?.length) {
-    return option ? createDefaultGraph(option) : []
-  }
-  return stages.map((item, index) => ({
-    id: item.id,
-    clientKey: nextClientKey('stage'),
-    name: item.name,
-    sortOrder: item.sortOrder ?? index,
-    jobs: (item.jobs ?? []).map((jobItem, jobIndex) => ({
-      id: jobItem.id,
-      clientKey: nextClientKey('job'),
-      name: jobItem.name,
-      kind: jobItem.kind,
-      command: jobItem.command ?? '',
-      sortOrder: jobItem.sortOrder ?? jobIndex,
-    })),
-  }))
-}
-
-export function toSaveStages(stages: EditorStage[]): PipelineStage[] {
-  return stages.map((stage, index) => ({
-    id: stage.id,
-    name: stage.name,
-    sortOrder: index,
-    jobs: stage.jobs.map((jobItem, jobIndex) => ({
-      id: jobItem.id,
-      name: jobItem.name,
-      kind: jobItem.kind,
-      command: jobItem.kind === 'CLONE' || jobItem.kind === 'APPROVAL' ? '' : jobItem.command,
-      sortOrder: jobIndex,
-    })),
-  }))
+export function defaultCommandForKind(kind: string, option?: ToolchainOption | null): string {
+  if (kind === 'BUILD') return option?.buildCommand ?? ''
+  if (kind === 'TEST') return option?.testCommand ?? ''
+  return jobKindMeta(kind)?.defaultCommand ?? ''
 }
 
 export function isCloneJob(job: { kind?: string }): boolean {
@@ -111,87 +29,18 @@ export function hasClone(stages: Array<{ jobs: Array<{ kind?: string }> }>): boo
   return stages.some((stage) => stage.jobs.some(isCloneJob))
 }
 
-export function jobKindLabel(kind?: string | null): string {
-  return JOB_KIND_OPTIONS.find((item) => item.value === kind)?.label ?? kind ?? ''
-}
-
-export function requiresCommand(kind?: string | null): boolean {
-  return kind !== 'CLONE' && kind !== 'APPROVAL'
-}
-
-export function defaultCommandForKind(kind: string, option?: ToolchainOption | null): string {
-  if (kind === 'BUILD') return option?.buildCommand ?? ''
-  if (kind === 'TEST') return option?.testCommand ?? ''
-  return JOB_KIND_OPTIONS.find((item) => item.value === kind)?.defaultCommand ?? ''
+export function allEditorJobs(stages: EditorStage[]): EditorJob[] {
+  return stages.flatMap((stage) => stage.jobs)
 }
 
 export function kindSelectOptions(
-  stages: Array<{ jobs: Array<{ kind?: string; clientKey?: string }> }>,
-  editingClientKey?: string,
+  jobs: Array<{ kind?: string; clientKey?: string; id?: string | number }>,
+  editingKey?: string,
 ): Array<{ label: string; value: JobKind }> {
-  const cloneTaken = stages.some((stage) =>
-    stage.jobs.some((job) => job.kind === 'CLONE' && job.clientKey !== editingClientKey),
-  )
+  const cloneTaken = jobs.some((job) => job.kind === 'CLONE' && (job.clientKey ?? job.id) !== editingKey)
   return JOB_KIND_OPTIONS.filter((item) => item.value !== 'CLONE' || !cloneTaken).map((item) => ({
     label: item.label,
     value: item.value,
-  }))
-}
-
-export function canDeleteJob(_job?: { kind?: string }): boolean {
-  return true
-}
-
-export function canDeleteStage(_stage?: { jobs: Array<{ kind?: string }> }): boolean {
-  return true
-}
-
-export function addStage(stages: EditorStage[], name?: string): EditorStage[] {
-  const next = [...stages]
-  next.push(stage(name ?? `阶段 ${next.length + 1}`, next.length, [job('任务 1', 'CUSTOM', 'echo ok', 0)]))
-  return next
-}
-
-export function addJob(stages: EditorStage[], stageKey: string): EditorStage[] {
-  return stages.map((item) => {
-    if (item.clientKey !== stageKey) return item
-    const jobs = [...item.jobs, job(`任务 ${item.jobs.length + 1}`, 'CUSTOM', 'echo ok', item.jobs.length)]
-    return { ...item, jobs }
-  })
-}
-
-export function removeJob(stages: EditorStage[], stageKey: string, jobKey: string): EditorStage[] {
-  return stages.map((item) => {
-    if (item.clientKey !== stageKey) return item
-    const target = item.jobs.find((jobItem) => jobItem.clientKey === jobKey)
-    if (!target || !canDeleteJob(target)) return item
-    return { ...item, jobs: item.jobs.filter((jobItem) => jobItem.clientKey !== jobKey) }
-  })
-}
-
-export function removeStage(stages: EditorStage[], stageKey: string): EditorStage[] {
-  const target = stages.find((item) => item.clientKey === stageKey)
-  if (!target || !canDeleteStage(target)) return stages
-  return stages.filter((item) => item.clientKey !== stageKey)
-}
-
-/** 换栈时，若 build/test 命令仍是旧默认值，则换成新栈默认命令。 */
-export function refreshDefaultCommands(
-  stages: EditorStage[],
-  previous: ToolchainOption | null,
-  next: ToolchainOption,
-): EditorStage[] {
-  return stages.map((item) => ({
-    ...item,
-    jobs: item.jobs.map((jobItem) => {
-      if (jobItem.kind === 'BUILD' && (!previous || jobItem.command === previous.buildCommand)) {
-        return { ...jobItem, command: next.buildCommand }
-      }
-      if (jobItem.kind === 'TEST' && (!previous || jobItem.command === previous.testCommand)) {
-        return { ...jobItem, command: next.testCommand }
-      }
-      return jobItem
-    }),
   }))
 }
 
@@ -218,10 +67,179 @@ export function stackSummary(stack: string, runtime: string, tool?: string | nul
   return [stack, runtime, tool].filter(Boolean).join(' ')
 }
 
-function stage(name: string, sortOrder: number, jobs: EditorJob[]): EditorStage {
-  return { clientKey: nextClientKey('stage'), name, sortOrder, jobs }
+/** 仅用于「插入常用模板」；新建流水线默认是空画布。 */
+export function createTemplateStages(option: ToolchainOption): PipelineStage[] {
+  return [
+    { name: '代码克隆', sortOrder: 0, jobs: [{ name: '代码克隆', kind: 'CLONE', command: '', sortOrder: 0 }] },
+    { name: '构建', sortOrder: 1, jobs: [{ name: '构建', kind: 'BUILD', command: option.buildCommand, sortOrder: 0 }] },
+    { name: '测试', sortOrder: 2, jobs: [{ name: '测试', kind: 'TEST', command: option.testCommand, sortOrder: 0 }] },
+  ]
 }
 
-function job(name: string, kind: JobKind, command: string, sortOrder: number): EditorJob {
-  return { clientKey: nextClientKey('job'), name, kind, command, sortOrder }
+export function createEditorJob(
+  kind: JobKind,
+  option?: ToolchainOption | null,
+  extras?: Partial<EditorJob>,
+): EditorJob {
+  return {
+    clientKey: extras?.clientKey ?? nextClientKey('job'),
+    id: extras?.id,
+    name: extras?.name ?? jobKindLabel(kind),
+    kind,
+    command: extras?.command ?? defaultCommandForKind(kind, option),
+    sortOrder: extras?.sortOrder ?? 0,
+    status: extras?.status,
+    runJobId: extras?.runJobId,
+  }
+}
+
+export function toEditorStages(stages?: PipelineStage[] | null): EditorStage[] {
+  return (stages ?? []).map((stage, index) => ({
+    id: stage.id,
+    clientKey: nextClientKey('stage'),
+    name: stage.name,
+    sortOrder: index,
+    jobs: (stage.jobs ?? []).map((job, jobIndex) => ({
+      ...job,
+      clientKey: nextClientKey('job'),
+      command: job.command ?? '',
+      sortOrder: jobIndex,
+    })),
+  }))
+}
+
+export function toSaveStages(stages: EditorStage[]): PipelineStage[] {
+  return stages.map((stage, index) => ({
+    id: stage.id,
+    name: stage.name.trim() || stage.jobs[0]?.name || `阶段 ${index + 1}`,
+    sortOrder: index,
+    jobs: stage.jobs.map((job, jobIndex) => ({
+      id: job.id,
+      name: job.name,
+      kind: job.kind,
+      command: job.command ?? '',
+      sortOrder: jobIndex,
+    })),
+  }))
+}
+
+export function insertStageAt(stages: EditorStage[], afterIndex: number, job: EditorJob): EditorStage[] {
+  const stage: EditorStage = {
+    clientKey: nextClientKey('stage'),
+    name: job.name,
+    sortOrder: 0,
+    jobs: [{ ...job, sortOrder: 0 }],
+  }
+  const next = [...stages]
+  next.splice(afterIndex + 1, 0, stage)
+  return reindexStages(next)
+}
+
+export function addParallelJob(stages: EditorStage[], stageKey: string, job: EditorJob): EditorStage[] {
+  return stages.map((stage) => {
+    if (stage.clientKey !== stageKey) return stage
+    return {
+      ...stage,
+      jobs: [...stage.jobs, { ...job, sortOrder: stage.jobs.length }],
+    }
+  })
+}
+
+export function patchEditorJob(stages: EditorStage[], jobKey: string, patch: Partial<EditorJob>): EditorStage[] {
+  return stages.map((stage) => {
+    const jobs = stage.jobs.map((job) => (job.clientKey === jobKey ? { ...job, ...patch } : job))
+    const renamed = jobs.length === 1 && jobs[0]?.clientKey === jobKey && patch.name != null
+    return {
+      ...stage,
+      name: renamed ? String(patch.name) : stage.name,
+      jobs,
+    }
+  })
+}
+
+export function removeEditorJob(stages: EditorStage[], jobKey: string): EditorStage[] {
+  return reindexStages(
+    stages
+      .map((stage) => ({
+        ...stage,
+        jobs: stage.jobs.filter((job) => job.clientKey !== jobKey).map((job, index) => ({ ...job, sortOrder: index })),
+      }))
+      .filter((stage) => stage.jobs.length > 0),
+  )
+}
+
+export function findEditorJob(stages: EditorStage[], jobKey: string | null | undefined): EditorJob | null {
+  if (!jobKey) return null
+  return allEditorJobs(stages).find((job) => job.clientKey === jobKey) ?? null
+}
+
+export function stageOfJob(stages: EditorStage[], jobKey: string): EditorStage | undefined {
+  return stages.find((stage) => stage.jobs.some((job) => job.clientKey === jobKey))
+}
+
+/**
+ * 新增任务约束：clone 全局唯一；审批独占阶段；同一阶段不能两个镜像构建。
+ * `stageKey` 为空表示插入新的顺序阶段。
+ */
+export function canAddKindToStage(stages: EditorStage[], stageKey: string | null, kind: JobKind): string | null {
+  if (kind === 'CLONE' && hasClone(stages)) return '流水线至多一个克隆任务'
+  if (!stageKey) return null
+  const stage = stages.find((item) => item.clientKey === stageKey)
+  if (!stage) return '阶段不存在'
+  if (kind === 'APPROVAL' || stage.jobs.some((job) => job.kind === 'APPROVAL')) {
+    return '审批任务必须独占一列'
+  }
+  if (kind === 'IMAGE' && stage.jobs.some((job) => job.kind === 'IMAGE')) {
+    return '镜像构建不能与其它镜像构建并行'
+  }
+  return null
+}
+
+export function canChangeJobKind(stages: EditorStage[], jobKey: string, kind: JobKind): string | null {
+  const stage = stageOfJob(stages, jobKey)
+  if (!stage) return '任务不存在'
+  const others = stage.jobs.filter((job) => job.clientKey !== jobKey)
+  if (kind === 'CLONE' && stages.some((item) => item.jobs.some((job) => job.kind === 'CLONE' && job.clientKey !== jobKey))) {
+    return '流水线至多一个克隆任务'
+  }
+  if (kind === 'APPROVAL' && others.length > 0) return '审批任务必须独占一列'
+  if (others.some((job) => job.kind === 'APPROVAL')) return '审批任务必须独占一列'
+  if (kind === 'IMAGE' && others.some((job) => job.kind === 'IMAGE')) {
+    return '镜像构建不能与其它镜像构建并行'
+  }
+  return null
+}
+
+export function groupRunJobs(jobs: PipelineRunJob[]): EditorStage[] {
+  const names: string[] = []
+  const map = new Map<string, PipelineRunJob[]>()
+  for (const job of jobs) {
+    const key = job.stageName || '未命名'
+    if (!map.has(key)) {
+      names.push(key)
+      map.set(key, [])
+    }
+    map.get(key)!.push(job)
+  }
+  return names.map((name, index) => ({
+    clientKey: `stage-${index}`,
+    name,
+    sortOrder: index,
+    jobs: (map.get(name) ?? []).map((job, jobIndex) => ({
+      id: job.jobId ?? job.id,
+      clientKey: `job-${job.id}`,
+      name: job.jobName,
+      kind: job.kind,
+      command: job.command,
+      sortOrder: jobIndex,
+      status: job.status,
+      runJobId: job.id,
+      startedAt: job.startedAt,
+      finishedAt: job.finishedAt,
+    })),
+  }))
+}
+
+function reindexStages(stages: EditorStage[]): EditorStage[] {
+  return stages.map((stage, index) => ({ ...stage, sortOrder: index }))
 }

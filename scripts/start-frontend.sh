@@ -40,11 +40,10 @@ require_cmd npm
 
 if [ -n "$(port_pids "$FRONTEND_PORT")" ]; then
   if [ "$FORCE" = true ]; then
-    log "释放端口 $FRONTEND_PORT ..."
-    # shellcheck disable=SC2046
-    kill $(port_pids "$FRONTEND_PORT") 2>/dev/null || true
+    free_host_port "$FRONTEND_PORT"
     sleep 1
-  else
+  fi
+  if [ -n "$(port_pids "$FRONTEND_PORT")" ]; then
     die "端口 $FRONTEND_PORT 已被占用。使用 --force 强制重启，或先运行 scripts/stop-dev.sh"
   fi
 fi

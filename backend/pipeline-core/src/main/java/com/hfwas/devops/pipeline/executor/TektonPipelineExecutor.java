@@ -21,6 +21,7 @@ import com.hfwas.devops.pipeline.service.PipelineCredentialService;
 import com.hfwas.devops.pipeline.tekton.CompileRequest;
 import com.hfwas.devops.pipeline.tekton.CompiledTekton;
 import com.hfwas.devops.pipeline.tekton.DnsNames;
+import com.hfwas.devops.pipeline.tekton.GitHttpProxy;
 import com.hfwas.devops.pipeline.tekton.LogMasker;
 import com.hfwas.devops.pipeline.tekton.TektonCompiler;
 import com.hfwas.devops.pipeline.tekton.TektonManifests;
@@ -59,6 +60,8 @@ public class TektonPipelineExecutor implements PipelineExecutor {
     private final PipelineRunMapper runMapper;
     private final PipelineRunJobMapper runJobMapper;
     private final PipelineCredentialService credentialService;
+    private final String gitHttpProxy;
+    private final String gitDockerHost;
     private final ExecutorService watchPool = Executors.newCachedThreadPool(r -> {
         Thread thread = new Thread(r, "pipeline-tekton-watch");
         thread.setDaemon(true);
@@ -74,7 +77,9 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             PipelineJobMapper jobMapper,
             PipelineRunMapper runMapper,
             PipelineRunJobMapper runJobMapper,
-            PipelineCredentialService credentialService
+            PipelineCredentialService credentialService,
+            String gitHttpProxy,
+            String gitDockerHost
     ) {
         this.client = client;
         this.tekton = client.adapt(TektonClient.class);
@@ -85,6 +90,8 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         this.runMapper = runMapper;
         this.runJobMapper = runJobMapper;
         this.credentialService = credentialService;
+        this.gitHttpProxy = gitHttpProxy;
+        this.gitDockerHost = gitDockerHost;
     }
 
     @Override
@@ -118,6 +125,10 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             username = meta.getUsername();
             secret = credentialService.decryptSecret(pipeline.getCredentialId());
         }
+        String proxy = GitHttpProxy.rewrite(gitHttpProxy, GitHttpProxy.dockerHostAddress(gitDockerHost));
+        if (proxy != null && !proxy.isBlank()) {
+            log.info("clone 使用 git HTTP 代理 {}", proxy);
+        }
         CompiledTekton compiled = TektonCompiler.compile(new CompileRequest(
                 run.getId(),
                 pipeline.getId(),
@@ -125,7 +136,8 @@ public class TektonPipelineExecutor implements PipelineExecutor {
                 run.getGitRef(),
                 run.getImage(),
                 secret != null,
-                segment
+                segment,
+                proxy
         ));
         ensureNamespace();
         String gitSecretName = compiled.name() + "-git";
@@ -230,10 +242,25 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         List<StepState> steps = taskRun.getStatus() == null ? List.of() : taskRun.getStatus().getSteps();
         String pod = taskRun.getStatus() == null ? null : taskRun.getStatus().getPodName();
         List<String> extraMask = extraSecrets(runId);
-        for (PipelineRunJobEntity job : loadJobs(runId)) {
-            List<StepState> matched = matchSteps(job, steps);
+        List<PipelineRunJobEntity> jobs = loadJobs(runId);
+        List<String> assigned = assignedStepNames(jobs);
+        boolean priorOpen = false;
+        for (int i = 0; i < jobs.size(); i++) {
+            PipelineRunJobEntity job = jobs.get(i);
+            String assignedName = assigned.get(i);
+            if (assignedName == null || assignedName.isBlank()) {
+                continue;
+            }
+            if (priorOpen) {
+                keepQueued(job);
+                continue;
+            }
+            List<StepState> matched = matchSteps(assignedName, assigned, steps);
             if (!matched.isEmpty()) {
                 updateJob(job, matched, pod, secret, extraMask);
+            }
+            if (!isTerminal(job.getStatus())) {
+                priorOpen = true;
             }
         }
         String overall = conditionStatus(taskRun.getStatus() == null ? null : taskRun.getStatus().getConditions());
@@ -254,8 +281,14 @@ public class TektonPipelineExecutor implements PipelineExecutor {
                 .list()
                 .getItems();
         List<String> extraMask = extraSecrets(runId);
-        for (PipelineRunJobEntity job : loadJobs(runId)) {
-            String taskName = DnsNames.stepName(job.getJobName());
+        List<PipelineRunJobEntity> jobs = loadJobs(runId);
+        List<String> assigned = assignedStepNames(jobs);
+        for (int i = 0; i < jobs.size(); i++) {
+            PipelineRunJobEntity job = jobs.get(i);
+            String taskName = assigned.get(i);
+            if (taskName == null || taskName.isBlank()) {
+                continue;
+            }
             TaskRun child = children.stream()
                     .filter(item -> taskName.equals(label(item, "tekton.dev/pipelineTask")))
                     .findFirst()
@@ -277,23 +310,39 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         return false;
     }
 
-    private List<StepState> matchSteps(PipelineRunJobEntity job, List<StepState> steps) {
-        if (steps == null || steps.isEmpty()) {
+    private static List<String> assignedStepNames(List<PipelineRunJobEntity> jobs) {
+        return DnsNames.assignJobStepNames(
+                jobs.stream().map(PipelineRunJobEntity::getJobName).toList(),
+                jobs.stream().map(PipelineRunJobEntity::getKind).toList());
+    }
+
+    private static List<StepState> matchSteps(String assigned, List<String> allAssigned, List<StepState> steps) {
+        if (steps == null || steps.isEmpty() || assigned == null || assigned.isBlank()) {
             return List.of();
         }
-        String prefix = DnsNames.stepName(job.getJobName());
         return steps.stream()
-                .filter(step -> step.getName() != null
-                        && (step.getName().equals(prefix) || step.getName().startsWith(prefix + "-")))
+                .filter(step -> DnsNames.stepBelongsTo(step.getName(), assigned, allAssigned))
                 .toList();
     }
 
+    private void keepQueued(PipelineRunJobEntity job) {
+        if ("QUEUED".equals(job.getStatus()) && job.getStartedAt() == null && job.getFinishedAt() == null) {
+            return;
+        }
+        job.setStatus("QUEUED");
+        job.setStartedAt(null);
+        job.setFinishedAt(null);
+        runJobMapper.updateById(job);
+    }
+
     private void updateJob(PipelineRunJobEntity job, List<StepState> steps, String pod, String secret, List<String> extraSecrets) {
-        job.setStatus(mergeStepStatus(steps));
-        boolean anyRunning = steps.stream().anyMatch(step -> step.getRunning() != null);
-        boolean anyTerminated = steps.stream().anyMatch(step -> step.getTerminated() != null);
+        String status = mergeStepStatus(steps);
+        job.setStatus(status);
         boolean allTerminated = !steps.isEmpty() && steps.stream().allMatch(step -> step.getTerminated() != null);
-        if ((anyRunning || anyTerminated) && job.getStartedAt() == null) {
+        if ("QUEUED".equals(status)) {
+            job.setStartedAt(null);
+            job.setFinishedAt(null);
+        } else if (job.getStartedAt() == null) {
             job.setStartedAt(LocalDateTime.now());
         }
         if (allTerminated) {
@@ -315,7 +364,16 @@ public class TektonPipelineExecutor implements PipelineExecutor {
                         logs.append(raw);
                     }
                 } catch (Exception ignored) {
-                    // container may not have started
+                    // 容器可能还没起来；下面用 waiting/terminated 诊断补日志
+                }
+            }
+            if (logs.isEmpty()) {
+                String diagnostics = stepDiagnostics(steps);
+                if (diagnostics.isBlank()) {
+                    diagnostics = podWaitingMessage(pod);
+                }
+                if (!diagnostics.isBlank()) {
+                    logs.append(diagnostics);
                 }
             }
             if (!logs.isEmpty()) {
@@ -327,20 +385,46 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             }
         }
         runJobMapper.updateById(job);
+        captureCloneCommit(job);
     }
 
-    private static String mergeStepStatus(List<StepState> steps) {
+    private void captureCloneCommit(PipelineRunJobEntity job) {
+        if (!"CLONE".equals(job.getKind())) {
+            return;
+        }
+        String sha = DnsNames.parseCommitSha(job.getLogText());
+        if (sha == null || job.getRunId() == null) {
+            return;
+        }
+        PipelineRunEntity run = runMapper.selectById(job.getRunId());
+        if (run == null) {
+            return;
+        }
+        if (run.getCommitSha() != null && !run.getCommitSha().isBlank()) {
+            return;
+        }
+        run.setCommitSha(sha);
+        runMapper.updateById(run);
+    }
+
+    static String mergeStepStatus(List<StepState> steps) {
+        if (steps == null || steps.isEmpty()) {
+            return "QUEUED";
+        }
         boolean anyFailed = false;
         boolean anyRunning = false;
-        boolean allSucceeded = true;
+        boolean anyQueued = false;
+        boolean anySucceeded = false;
         for (StepState step : steps) {
             String status = stepStatus(step);
             if ("FAILED".equals(status)) {
                 anyFailed = true;
-                allSucceeded = false;
-            } else if ("RUNNING".equals(status) || "QUEUED".equals(status)) {
+            } else if ("RUNNING".equals(status)) {
                 anyRunning = true;
-                allSucceeded = false;
+            } else if ("SUCCEEDED".equals(status)) {
+                anySucceeded = true;
+            } else {
+                anyQueued = true;
             }
         }
         if (anyFailed) {
@@ -349,10 +433,13 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         if (anyRunning) {
             return "RUNNING";
         }
-        if (allSucceeded) {
+        if (anyQueued) {
+            return "QUEUED";
+        }
+        if (anySucceeded) {
             return "SUCCEEDED";
         }
-        return "RUNNING";
+        return "QUEUED";
     }
 
     private List<String> extraSecrets(Long runId) {
@@ -537,12 +624,17 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         if ("FAILED".equals(status) || "CANCELLED".equals(status)) {
             List<PipelineRunJobEntity> jobs = loadJobs(runId);
             for (PipelineRunJobEntity job : jobs) {
+                boolean changed = false;
                 if (!isTerminal(job.getStatus())) {
                     job.setStatus(status);
                     job.setFinishedAt(LocalDateTime.now());
-                    if (job.getLogText() == null && error != null) {
-                        job.setLogText(error);
-                    }
+                    changed = true;
+                }
+                if ((job.getLogText() == null || job.getLogText().isBlank()) && error != null) {
+                    job.setLogText(error);
+                    changed = true;
+                }
+                if (changed) {
                     runJobMapper.updateById(job);
                 }
             }
@@ -553,6 +645,68 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         return runJobMapper.selectList(new LambdaQueryWrapper<PipelineRunJobEntity>()
                 .eq(PipelineRunJobEntity::getRunId, runId)
                 .orderByAsc(PipelineRunJobEntity::getId));
+    }
+
+    private String podWaitingMessage(String pod) {
+        try {
+            var resource = client.pods().inNamespace(namespace).withName(pod).get();
+            if (resource == null || resource.getStatus() == null || resource.getStatus().getContainerStatuses() == null) {
+                return "";
+            }
+            StringBuilder out = new StringBuilder();
+            for (var status : resource.getStatus().getContainerStatuses()) {
+                var waiting = status.getState() == null ? null : status.getState().getWaiting();
+                if (waiting == null) {
+                    continue;
+                }
+                out.append(status.getName()).append(": ");
+                if (waiting.getReason() != null) {
+                    out.append(waiting.getReason()).append(' ');
+                }
+                if (waiting.getMessage() != null) {
+                    out.append(waiting.getMessage());
+                }
+                out.append('\n');
+            }
+            return out.toString().trim();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    static String stepDiagnostics(List<StepState> steps) {
+        if (steps == null || steps.isEmpty()) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        for (StepState step : steps) {
+            String name = step.getName() == null ? "step" : step.getName();
+            if (step.getWaiting() != null) {
+                out.append(name).append(": waiting");
+                if (step.getWaiting().getReason() != null) {
+                    out.append(' ').append(step.getWaiting().getReason());
+                }
+                if (step.getWaiting().getMessage() != null) {
+                    out.append('\n').append(step.getWaiting().getMessage());
+                }
+                out.append('\n');
+            }
+            if (step.getTerminated() != null) {
+                var terminated = step.getTerminated();
+                out.append(name).append(": terminated");
+                if (terminated.getReason() != null) {
+                    out.append(' ').append(terminated.getReason());
+                }
+                if (terminated.getExitCode() != null) {
+                    out.append(" exit=").append(terminated.getExitCode());
+                }
+                if (terminated.getMessage() != null) {
+                    out.append('\n').append(terminated.getMessage());
+                }
+                out.append('\n');
+            }
+        }
+        return out.toString().trim();
     }
 
     private void ensureNamespace() {

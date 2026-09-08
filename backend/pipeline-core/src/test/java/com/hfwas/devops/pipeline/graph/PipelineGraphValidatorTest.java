@@ -14,6 +14,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PipelineGraphValidatorTest {
 
     @Test
+    void rejectsEmptyGraph() {
+        BizException ex = assertThrows(BizException.class, () -> PipelineGraphValidator.validate(new PipelineGraphSpec(List.of())));
+        assertEquals("流水线至少需要一个阶段", ex.getMessage());
+    }
+
+    @Test
     void defaultGraphIsValidAndHasCloneFirst() {
         PipelineGraphSpec graph = DefaultPipelineGraph.create(com.hfwas.devops.pipeline.toolchain.PipelineStack.JAVA_MAVEN, "21", "3.9");
         PipelineGraphValidator.validate(graph);

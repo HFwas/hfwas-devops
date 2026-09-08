@@ -24,15 +24,10 @@ stop_pid_file() {
 stop_pid_file "$RUN_DIR/backend.pid" "后端"
 stop_pid_file "$RUN_DIR/frontend.pid" "前端"
 
-for port in "$BACKEND_PORT" "$FRONTEND_PORT"; do
-  pids="$(port_pids "$port")"
-  if [ -n "$pids" ]; then
-    log "释放端口 $port ..."
-    # shellcheck disable=SC2046
-    kill $pids 2>/dev/null || true
-  fi
-done
-
+# 先停容器，让 Colima/Lima 自己拆端口转发；再杀残留的宿主机 Java/Node。
 stop_stack
+
+free_host_port "$BACKEND_PORT"
+free_host_port "$FRONTEND_PORT"
 
 log "开发服务已停止"

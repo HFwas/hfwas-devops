@@ -14,7 +14,6 @@ import com.hfwas.devops.pipeline.entity.PipelineEntity;
 import com.hfwas.devops.pipeline.entity.PipelineJobEntity;
 import com.hfwas.devops.pipeline.entity.PipelineRunEntity;
 import com.hfwas.devops.pipeline.entity.PipelineStageEntity;
-import com.hfwas.devops.pipeline.graph.DefaultPipelineGraph;
 import com.hfwas.devops.pipeline.graph.PipelineGraphSpec;
 import com.hfwas.devops.pipeline.graph.PipelineGraphValidator;
 import com.hfwas.devops.pipeline.graph.PipelineJobKind;
@@ -90,7 +89,7 @@ public class PipelineDefinitionService {
         }
         PipelineStack stack = parseStack(dto.getStack());
         toolchainCatalog.resolve(stack, dto.getRuntimeVersion(), dto.getToolVersion());
-        PipelineGraphSpec graph = toGraph(dto, stack);
+        PipelineGraphSpec graph = toGraph(dto);
         PipelineGraphValidator.validate(graph);
         boolean hasClone = graph.stages().stream()
                 .flatMap(stage -> stage.jobs() == null ? java.util.stream.Stream.empty() : stage.jobs().stream())
@@ -184,9 +183,9 @@ public class PipelineDefinitionService {
         }
     }
 
-    private PipelineGraphSpec toGraph(PipelineSaveDTO dto, PipelineStack stack) {
+    private PipelineGraphSpec toGraph(PipelineSaveDTO dto) {
         if (dto.getStages() == null || dto.getStages().isEmpty()) {
-            return DefaultPipelineGraph.create(stack, dto.getRuntimeVersion(), dto.getToolVersion());
+            return new PipelineGraphSpec(List.of());
         }
         List<PipelineStageSpec> stages = new ArrayList<>();
         int index = 0;
@@ -257,6 +256,7 @@ public class PipelineDefinitionService {
                 .orderByDesc(PipelineRunEntity::getCreateTime)
                 .last("LIMIT 1"));
         if (last != null) {
+            vo.setLastRunId(last.getId());
             vo.setLastRunStatus(last.getStatus());
             vo.setLastRunTime(last.getCreateTime());
         }

@@ -52,6 +52,7 @@ export interface PipelineSummary {
   runtimeVersion: string
   toolVersion?: string | null
   updateTime?: string | null
+  lastRunId?: EntityId | null
   lastRunStatus?: RunStatus | string | null
   lastRunTime?: string | null
   stages?: PipelineStage[]
@@ -90,6 +91,7 @@ export interface PipelineRun {
   trigger: string
   gitRef?: string | null
   commitSha?: string | null
+  triggeredByName?: string | null
   stack: string
   runtimeVersion: string
   toolVersion?: string | null
@@ -118,6 +120,10 @@ export interface CredentialSavePayload {
 
 export interface EditorJob extends PipelineJob {
   clientKey: string
+  status?: string | null
+  runJobId?: EntityId
+  startedAt?: string | null
+  finishedAt?: string | null
 }
 
 export interface EditorStage extends Omit<PipelineStage, 'jobs'> {

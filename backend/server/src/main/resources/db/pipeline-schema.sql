@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS pipeline_run (
     trigger         TEXT         NOT NULL DEFAULT 'MANUAL',
     git_ref         TEXT,
     commit_sha      TEXT,
+    triggered_by_name TEXT,
     stack           TEXT,
     runtime_version TEXT,
     tool_version    TEXT,
@@ -85,3 +86,5 @@ CREATE TABLE IF NOT EXISTS pipeline_run_job (
 
 CREATE INDEX IF NOT EXISTS idx_pipeline_tenant ON pipeline (tenant_id, deleted);
 CREATE INDEX IF NOT EXISTS idx_pipeline_run_pipeline ON pipeline_run (pipeline_id, create_time);
+
+ALTER TABLE pipeline_run ADD COLUMN triggered_by_name TEXT;

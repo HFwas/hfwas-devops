@@ -38,7 +38,8 @@ import_k3s() {
   local name
   name="$(basename "$host_path")"
   docker cp "$host_path" "$K3S_CONTAINER:/tmp/$name"
-  docker exec "$K3S_CONTAINER" k3s ctr images import "/tmp/$name"
+  # 容器内 `k3s ctr` 不可用（symlink 多路调用）；k3s 的 kubelet 读 k8s.io namespace。
+  docker exec "$K3S_CONTAINER" ctr -n k8s.io images import "/tmp/$name"
 }
 
 import_host() {

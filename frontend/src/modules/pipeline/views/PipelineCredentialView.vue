@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { h } from 'vue'
-import { NButton, NSpace, useDialog, useMessage } from 'naive-ui'
-import type { DataTableColumns } from 'naive-ui'
+import { KeyRound, Plus } from '@lucide/vue'
+import { useDialog, useMessage } from 'naive-ui'
 import { pipelineCredentialApi } from '@/modules/pipeline/api/pipeline'
+import { formatDateTime } from '@/modules/pipeline/status'
 import type { CredentialKind, PipelineCredential } from '@/modules/pipeline/types/pipeline'
 import { isApiError } from '@/shared/errors/apiError'
 import { useAuthStore } from '@/modules/user/stores/auth'
+import '@/modules/pipeline/styles/pipeline-theme.css'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -25,31 +26,9 @@ function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : '操作失败'
 }
 
-function formatTime(value?: string | null): string {
-  if (!value) return '—'
-  return String(value).replace('T', ' ').slice(0, 19)
+function kindLabel(kind: string): string {
+  return kind === 'TOKEN' ? 'Token' : '用户名密码'
 }
-
-const columns: DataTableColumns<PipelineCredential> = [
-  { title: '名称', key: 'name' },
-  {
-    title: '类型',
-    key: 'kind',
-    render: (row) => (row.kind === 'TOKEN' ? 'Token' : '用户名密码'),
-  },
-  { title: '用户名', key: 'username', render: (row) => row.username || '—' },
-  { title: '密钥', key: 'secret', render: () => '••••' },
-  { title: '更新时间', key: 'updateTime', render: (row) => formatTime(row.updateTime) },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 100,
-    render: (row) =>
-      h(NSpace, () => [
-        h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => confirmDelete(row) }, () => '删除'),
-      ]),
-  },
-]
 
 async function load() {
   loading.value = true
@@ -117,14 +96,47 @@ watch(
 </script>
 
 <template>
-  <n-space vertical size="large" style="padding: 20px 24px 28px">
-    <n-page-header title="凭证" subtitle="GitHub HTTPS 克隆使用的用户名密码或 Token，密钥不会回传">
-      <template #extra>
-        <n-button type="primary" @click="openCreate">新建</n-button>
-      </template>
-    </n-page-header>
-    <n-data-table :columns="columns" :data="rows" :loading="loading" :bordered="false" />
-  </n-space>
+  <div class="pl-page">
+    <header class="pl-hero">
+      <div class="pl-hero-main">
+        <h1 class="pl-hero-title">凭证</h1>
+        <p class="pl-hero-desc">GitHub HTTPS 克隆使用的用户名密码或 Token，密钥不会回传</p>
+      </div>
+      <div class="pl-hero-extra">
+        <n-button type="primary" @click="openCreate">
+          <template #icon><Plus :size="14" /></template>
+          新建凭证
+        </n-button>
+      </div>
+    </header>
+
+    <n-spin :show="loading">
+      <n-empty v-if="!loading && rows.length === 0" description="暂无凭证" />
+      <div v-else class="pl-grid">
+        <article v-for="row in rows" :key="String(row.id)" class="pl-tile">
+          <div class="pl-tile-top">
+            <span class="pl-tile-icon" :class="row.kind === 'TOKEN' ? 'tone-token' : 'tone-password'">
+              <KeyRound :size="18" />
+            </span>
+            <n-tag size="small" :bordered="false">{{ kindLabel(row.kind) }}</n-tag>
+          </div>
+          <div class="pl-tile-body">
+            <div class="pl-tile-name">{{ row.name }}</div>
+            <div class="pl-tile-meta">
+              <span>{{ row.username || '—' }}</span>
+              <span>密钥 ••••</span>
+            </div>
+          </div>
+          <div class="pl-tile-actions">
+            <span>{{ formatDateTime(row.updateTime) }}</span>
+            <n-button size="tiny" text type="error" style="margin-left: auto" @click="confirmDelete(row)">
+              删除
+            </n-button>
+          </div>
+        </article>
+      </div>
+    </n-spin>
+  </div>
 
   <n-modal v-model:show="showModal" preset="card" title="新建凭证" style="width: 480px">
     <n-form label-placement="top">

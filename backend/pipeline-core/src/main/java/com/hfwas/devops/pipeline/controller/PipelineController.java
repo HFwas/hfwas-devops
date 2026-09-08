@@ -57,6 +57,14 @@ public class PipelineController {
         return BaseResult.ok(null);
     }
 
+    @GetMapping("/{id}/runs")
+    public BaseResult<IPage<PipelineRunVO>> pageRuns(
+            @PathVariable("id") Long id,
+            PipelinePageQuery query
+    ) {
+        return BaseResult.ok(runService.pageRuns(id, query));
+    }
+
     @PostMapping("/{id}/runs")
     public BaseResult<PipelineRunVO> start(@PathVariable("id") Long id) {
         return BaseResult.ok(runService.start(id));

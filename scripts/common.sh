@@ -28,12 +28,67 @@ die() {
   exit 1
 }
 
+# 宿主机 git 能 clone GitHub，执行集群 Pod 默认不能（直连 443 超时）。
+# 把 git http.proxy 传给 Compose backend；127.0.0.1 由 Java 改写成 Pod 可达地址。
+export_pipeline_git_http_proxy() {
+  if [ -z "${PIPELINE_GIT_HTTP_PROXY:-}" ]; then
+    local p=""
+    p=$(git config --global --get https.proxy 2>/dev/null || true)
+    if [ -z "$p" ]; then
+      p=$(git config --global --get http.proxy 2>/dev/null || true)
+    fi
+    if [ -n "$p" ]; then
+      export PIPELINE_GIT_HTTP_PROXY="$p"
+    fi
+  else
+    export PIPELINE_GIT_HTTP_PROXY
+  fi
+  if [ -n "${PIPELINE_GIT_HTTP_PROXY:-}" ]; then
+    log "流水线 git 代理: $PIPELINE_GIT_HTTP_PROXY"
+  fi
+}
+
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "未找到命令: $1"
 }
 
 port_pids() {
   lsof -ti:"$1" 2>/dev/null || true
+}
+
+# 宿主机热更新进程（start-backend.sh / start-frontend.sh）。
+# Colima/Lima 用 SSH/gvproxy 转发 compose 端口；误杀会拆掉 VM，docker.sock 立刻失效。
+is_host_dev_process() {
+  local pid=$1
+  local blob
+  blob=$(ps -p "$pid" -o comm= -o args= 2>/dev/null | tr '[:upper:]' '[:lower:]')
+  [ -n "$blob" ] || return 1
+  case "$blob" in
+    *lima*|*colima*|*docker*|*qemu*|*gvproxy*|*vpnkit*|*vmnet*|*krunkit*|*vfkit*)
+      return 1
+      ;;
+    *java*|*node*|*vite*|*python*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+# 释放端口上的宿主机 Java/Node，不动 Docker/Colima 端口转发。
+free_host_port() {
+  local port=$1
+  local pid comm
+  local pids
+  pids="$(port_pids "$port")"
+  [ -n "$pids" ] || return 0
+  for pid in $pids; do
+    if ! is_host_dev_process "$pid"; then
+      continue
+    fi
+    comm=$(ps -p "$pid" -o comm= 2>/dev/null | awk '{print $1}')
+    log "释放端口 $port (${comm:-pid} $pid) ..."
+    kill "$pid" 2>/dev/null || true
+  done
 }
 
 wait_for_port() {
@@ -153,7 +208,7 @@ ensure_ocr_models() {
 
 require_docker() {
   if ! docker info >/dev/null 2>&1; then
-    die "Docker 未运行，请先启动 Docker Desktop"
+    die "Docker 未运行，请先启动 Colima（colima start）或 Docker Desktop"
   fi
 }
 
@@ -166,7 +221,9 @@ ensure_compose_dirs() {
     "$ROOT_DIR/logs/dumps" \
     "$ROOT_DIR/keycloak/providers" \
     "$ROOT_DIR/artifacts/backend" \
-    "$ROOT_DIR/artifacts/frontend"
+    "$ROOT_DIR/artifacts/frontend" \
+    "$ROOT_DIR/data/pipeline" \
+    "$ROOT_DIR/data/tekton-offline"
 }
 
 compose() {
@@ -194,6 +251,8 @@ print_stack_banner() {
   echo "  前端 dist:   $ROOT_DIR/artifacts/frontend/"
   echo "  SPI JAR:     $ROOT_DIR/keycloak/providers/hfwas-keycloak-http-listener.jar"
   echo ""
+  echo "  流水线执行集群: ./scripts/start-pipeline-cluster.sh"
+  echo ""
 }
 
 wait_for_kong() {
@@ -215,6 +274,7 @@ start_stack() {
     die "Compose 配置文件不存在: $COMPOSE_FILE"
   fi
   ensure_compose_dirs
+  export_pipeline_git_http_proxy
 
   local extra=()
   local with_gateway=true
@@ -282,7 +342,9 @@ stop_stack() {
   fi
   if docker ps -a --format "{{.Names}}" 2>/dev/null | grep -qE '^devops-(backend|frontend|kong|keycloak)'; then
     log "停止 Docker Compose 服务 ..."
-    compose down --remove-orphans
+    # 只停开发栈，不动 k3s，也不 compose down（会误伤同项目其它容器）。
+    compose stop backend frontend kong keycloak 2>/dev/null || true
+    compose rm -f backend frontend kong keycloak 2>/dev/null || true
   fi
 }
 

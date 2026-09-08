@@ -30,6 +30,7 @@ scripts/pack-tekton-offline.sh --with-jobs --with-toolchain
 
 产物在 `data/tekton-offline/`（已 gitignore）：
 
+- `k3s-system-images.tar`（pause / coredns / local-path / metrics-server）
 - `pipeline-images.tar`
 - `job-images.tar`（可选）
 - `toolchain-images.tar`（可选）
@@ -45,7 +46,8 @@ scripts/pack-tekton-offline.sh --with-jobs --with-toolchain
 scripts/start-pipeline-cluster.sh
 ```
 
-脚本会先 `k3s ctr images import`，再 `kubectl apply` 本地 yaml，不再下载。
+脚本会先把 tar `ctr -n k8s.io images import` 进 compose 里的 k3s，再 `kubectl apply` 本地 yaml，不再下载。
+rancher/k3s 容器内请用 `kubectl` / `ctr`，不要写 `k3s kubectl`（symlink 会变成 `kubectl kubectl`）。
 
 **已有 Kubernetes 节点（containerd）：**
 

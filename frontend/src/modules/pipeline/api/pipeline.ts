@@ -25,6 +25,8 @@ export const pipelineApi = {
   start: (id: EntityId) => post<PipelineRun>(`/pipeline/pipelines/${asId(id)}/runs`),
   getRun: (id: EntityId, runId: EntityId) =>
     get<PipelineRun>(`/pipeline/pipelines/${asId(id)}/runs/${asId(runId)}`),
+  pageRuns: (id: EntityId, params?: { pageNo?: number; pageSize?: number }) =>
+    get<PageResult<PipelineRun>>(`/pipeline/pipelines/${asId(id)}/runs`, params),
   cancel: (id: EntityId, runId: EntityId) =>
     post<PipelineRun>(`/pipeline/pipelines/${asId(id)}/runs/${asId(runId)}/cancel`),
   approve: (id: EntityId, runId: EntityId) =>

@@ -55,3 +55,5 @@ pipeline:
   credential-key: ${PIPELINE_CREDENTIAL_KEY:hfwas-dev-pipeline-key-32b!!}
   kubeconfig: ${PIPELINE_KUBECONFIG:}
   namespace: ${PIPELINE_NAMESPACE:hfwas-pipeline}
+  git-http-proxy: ${PIPELINE_GIT_HTTP_PROXY:}
+  git-docker-host: ${PIPELINE_GIT_DOCKER_HOST:}

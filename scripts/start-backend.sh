@@ -44,11 +44,10 @@ require_cmd java
 
 if [ -n "$(port_pids "$BACKEND_PORT")" ]; then
   if [ "$FORCE" = true ]; then
-    log "释放端口 $BACKEND_PORT ..."
-    # shellcheck disable=SC2046
-    kill $(port_pids "$BACKEND_PORT") 2>/dev/null || true
+    free_host_port "$BACKEND_PORT"
     sleep 1
-  else
+  fi
+  if [ -n "$(port_pids "$BACKEND_PORT")" ]; then
     die "端口 $BACKEND_PORT 已被占用。使用 --force 强制重启，或先运行 scripts/stop-dev.sh"
   fi
 fi
@@ -70,6 +69,16 @@ PIPELINE_KUBECONFIG_FILE="$ROOT_DIR/data/pipeline/kubeconfig.yaml"
 if [ -f "$PIPELINE_KUBECONFIG_FILE" ]; then
   BOOT_ARGS="$BOOT_ARGS --pipeline.kubeconfig=$PIPELINE_KUBECONFIG_FILE"
   log "已启用流水线执行集群: $PIPELINE_KUBECONFIG_FILE"
+fi
+export_pipeline_git_http_proxy
+if [ -n "${PIPELINE_GIT_HTTP_PROXY:-}" ]; then
+  BOOT_ARGS="$BOOT_ARGS --pipeline.git-http-proxy=$PIPELINE_GIT_HTTP_PROXY"
+fi
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx 'devops-k3s'; then
+  host_ip=$(docker exec devops-k3s sh -c 'ping -c 1 -W 1 host.docker.internal' 2>/dev/null | sed -n 's/PING host.docker.internal (\([0-9.]*\)).*/\1/p' | head -1 || true)
+  if [ -n "${host_ip:-}" ]; then
+    BOOT_ARGS="$BOOT_ARGS --pipeline.git-docker-host=$host_ip"
+  fi
 fi
 
 log "启动后端 (http://localhost:$BACKEND_PORT) ..."

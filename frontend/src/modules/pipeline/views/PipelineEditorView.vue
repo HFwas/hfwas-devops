@@ -1,30 +1,30 @@
 <script setup lang="ts">
+import { ArrowLeft, LayoutTemplate, Play, Save } from '@lucide/vue'
 import { useMessage } from 'naive-ui'
 import { pipelineApi, pipelineCredentialApi } from '@/modules/pipeline/api/pipeline'
-import StageColumnDag from '@/modules/pipeline/components/StageColumnDag.vue'
+import JobInspector from '@/modules/pipeline/components/JobInspector.vue'
+import TaskPickerDrawer from '@/modules/pipeline/components/TaskPickerDrawer.vue'
+import YunxiaoFlowCanvas from '@/modules/pipeline/components/YunxiaoFlowCanvas.vue'
+import { requiresCommand } from '@/modules/pipeline/graph/jobCatalog'
 import {
-  addJob,
-  addStage,
-  createDefaultGraph,
-  defaultCommandForKind,
+  addParallelJob,
+  allEditorJobs,
+  canAddKindToStage,
+  createEditorJob,
+  createTemplateStages,
+  findEditorJob,
   hasClone,
-  kindSelectOptions,
-  refreshDefaultCommands,
-  removeJob,
-  removeStage,
-  requiresCommand,
+  insertStageAt,
+  patchEditorJob,
+  removeEditorJob,
   toEditorStages,
   toSaveStages,
+  type StageInsertTarget,
 } from '@/modules/pipeline/graph/pipelineGraph'
-import { coerceToolchain, runtimesFor, stackLabel, toolsFor, uniqueStacks } from '@/modules/pipeline/graph/toolchainCascade'
-import type {
-  EditorJob,
-  EditorStage,
-  JobKind,
-  PipelineCredential,
-  ToolchainOption,
-} from '@/modules/pipeline/types/pipeline'
+import { coerceToolchain } from '@/modules/pipeline/graph/toolchainCascade'
+import type { EditorJob, EditorStage, JobKind, PipelineCredential, ToolchainOption } from '@/modules/pipeline/types/pipeline'
 import { isApiError } from '@/shared/errors/apiError'
+import '@/modules/pipeline/styles/pipeline-theme.css'
 
 const router = useRouter()
 const route = useRoute()
@@ -41,127 +41,121 @@ const stack = ref('JAVA_MAVEN')
 const runtimeVersion = ref('21')
 const toolVersion = ref<string | null>('3.9')
 const stages = ref<EditorStage[]>([])
+const selectedJobKey = ref<string | null>(null)
+const startSelected = ref(false)
+const pickerShow = ref(false)
+const pickerTarget = ref<StageInsertTarget | null>(null)
+const configShow = ref(false)
 const currentOption = ref<ToolchainOption | null>(null)
-const showJobModal = ref(false)
-const editingJob = ref<{ stageKey: string; job: EditorJob } | null>(null)
-const jobForm = ref({ name: '', kind: 'CUSTOM' as JobKind, command: '' })
 
 const pipelineId = computed(() => {
   const id = route.params.id
   return typeof id === 'string' && id !== 'new' ? id : ''
 })
 const isNew = computed(() => !pipelineId.value)
-
-const stackOptions = computed(() => uniqueStacks(toolchains.value).map((value) => ({ label: stackLabel(value), value })))
-const runtimeOptions = computed(() =>
-  runtimesFor(toolchains.value, stack.value).map((value) => ({ label: value, value })),
-)
-const toolOptions = computed(() =>
-  toolsFor(toolchains.value, stack.value, runtimeVersion.value).map((value) => ({ label: value, value })),
-)
-const showTool = computed(() => toolOptions.value.length > 0)
-const credentialOptions = computed(() =>
-  credentials.value.map((item) => ({ label: `${item.name}（${item.kind}）`, value: String(item.id) })),
-)
-const jobKindOptions = computed(() => kindSelectOptions(stages.value, editingJob.value?.job.clientKey))
-const showJobCommand = computed(() => requiresCommand(jobForm.value.kind))
-const jobCommandHint = computed(() => {
-  if (jobForm.value.kind === 'LINT') return '填写 Semgrep 参数；要跑 Sonar 时取消注释并填写 Host 与 Token。'
-  if (jobForm.value.kind === 'IMAGE') return '填写 DEST / IMAGE_PLATFORMS / DOCKERFILE；可选 COSIGN_PRIVATE_KEY。'
-  if (jobForm.value.kind === 'APPROVAL') return '运行到此处会暂停，需在运行页点通过。'
-  if (jobForm.value.kind === 'CLONE') return 'Clone 命令由平台生成，不需要填写。'
-  return ''
-})
+const selectedJob = computed(() => findEditorJob(stages.value, selectedJobKey.value))
+const configTitle = computed(() => (startSelected.value || !selectedJob.value ? '流水线设置' : '任务配置'))
+const inspectorMode = computed(() => (selectedJob.value && !startSelected.value ? 'job' : 'pipeline'))
 
 function errorMessage(e: unknown): string {
   if (isApiError(e)) return e.message
   return e instanceof Error ? e.message : '操作失败'
 }
 
-function applyOption(option: ToolchainOption, refreshCommands: boolean) {
-  const previous = currentOption.value
+function applyToolchain(option: ToolchainOption) {
   stack.value = option.stack
   runtimeVersion.value = option.runtimeVersion
   toolVersion.value = option.toolVersion ?? null
-  if (!stages.value.length) {
-    stages.value = createDefaultGraph(option)
-  } else if (refreshCommands) {
-    stages.value = refreshDefaultCommands(stages.value, previous, option)
-  }
   currentOption.value = option
 }
 
 function onStackChange(value: string) {
   const option = coerceToolchain(toolchains.value, value, runtimeVersion.value, toolVersion.value)
-  if (option) applyOption(option, true)
+  if (option) applyToolchain(option)
 }
 
 function onRuntimeChange(value: string) {
   const option = coerceToolchain(toolchains.value, stack.value, value, toolVersion.value)
-  if (option) applyOption(option, true)
+  if (option) applyToolchain(option)
 }
 
-function onToolChange(value: string) {
+function onToolChange(value: string | null) {
   const option = coerceToolchain(toolchains.value, stack.value, runtimeVersion.value, value)
-  if (option) applyOption(option, true)
+  if (option) applyToolchain(option)
 }
 
-function openJob(stageKey: string, jobKey: string) {
-  const stage = stages.value.find((item) => item.clientKey === stageKey)
-  const job = stage?.jobs.find((item) => item.clientKey === jobKey)
-  if (!job) return
-  editingJob.value = { stageKey, job }
-  jobForm.value = {
-    name: job.name,
-    kind: (job.kind as JobKind) || 'CUSTOM',
-    command: job.command ?? '',
-  }
-  showJobModal.value = true
-}
-
-function onKindChange(kind: JobKind) {
-  const previous = jobForm.value.kind
-  const previousDefault = defaultCommandForKind(previous, currentOption.value)
-  const nextDefault = defaultCommandForKind(kind, currentOption.value)
-  const command = jobForm.value.command
-  jobForm.value.kind = kind
-  if (!requiresCommand(kind)) {
-    jobForm.value.command = ''
-    return
-  }
-  if (!command.trim() || command === previousDefault) {
-    jobForm.value.command = nextDefault
-  }
-}
-
-function saveJob() {
-  const editing = editingJob.value
-  if (!editing) return
-  if (!jobForm.value.name.trim()) {
-    message.warning('任务名称不能为空')
-    return
-  }
-  if (requiresCommand(jobForm.value.kind) && !jobForm.value.command.trim()) {
-    message.warning('任务需要命令')
-    return
-  }
-  stages.value = stages.value.map((stage) => {
-    if (stage.clientKey !== editing.stageKey) return stage
-    return {
-      ...stage,
-      jobs: stage.jobs.map((job) =>
-        job.clientKey === editing.job.clientKey
-          ? {
-              ...job,
-              name: jobForm.value.name.trim(),
-              kind: jobForm.value.kind,
-              command: requiresCommand(jobForm.value.kind) ? jobForm.value.command : '',
-            }
-          : job,
-      ),
+function openPicker(target: StageInsertTarget) {
+  if (target.type === 'parallel') {
+    const stage = stages.value.find((item) => item.clientKey === target.stageKey)
+    if (stage?.jobs.some((job) => job.kind === 'APPROVAL')) {
+      message.warning('审批任务必须独占一列')
+      return
     }
-  })
-  showJobModal.value = false
+  }
+  pickerTarget.value = target
+  pickerShow.value = true
+  configShow.value = false
+}
+
+function openConfig() {
+  pickerShow.value = false
+  configShow.value = true
+}
+
+function selectStart() {
+  selectedJobKey.value = null
+  startSelected.value = true
+  openConfig()
+}
+
+function selectJob(jobKey: string) {
+  selectedJobKey.value = jobKey
+  startSelected.value = false
+  openConfig()
+}
+
+function onPick(kind: JobKind) {
+  const target = pickerTarget.value
+  if (!target) return
+  const stageKey = target.type === 'parallel' ? target.stageKey : null
+  const blocked = canAddKindToStage(stages.value, stageKey, kind)
+  if (blocked) {
+    message.warning(blocked)
+    return
+  }
+  const job = createEditorJob(kind, currentOption.value)
+  if (target.type === 'stage') {
+    stages.value = insertStageAt(stages.value, target.afterIndex, job)
+  } else {
+    stages.value = addParallelJob(stages.value, target.stageKey, job)
+  }
+  pickerShow.value = false
+  pickerTarget.value = null
+  selectJob(job.clientKey)
+}
+
+function patchJob(patch: Partial<EditorJob>) {
+  if (!selectedJobKey.value) return
+  stages.value = patchEditorJob(stages.value, selectedJobKey.value, patch)
+}
+
+function removeJob(jobKey: string) {
+  stages.value = removeEditorJob(stages.value, jobKey)
+  if (selectedJobKey.value === jobKey) {
+    selectedJobKey.value = null
+    startSelected.value = true
+  }
+}
+
+function applyTemplate() {
+  if (!currentOption.value) return
+  if (stages.value.length) {
+    message.warning('画布已有阶段，请先清空或继续手动编排')
+    return
+  }
+  stages.value = toEditorStages(createTemplateStages(currentOption.value))
+  selectedJobKey.value = null
+  startSelected.value = false
 }
 
 async function save(thenRun = false) {
@@ -169,8 +163,22 @@ async function save(thenRun = false) {
     message.warning('名称不能为空')
     return
   }
+  if (!stages.value.length) {
+    message.warning('请至少添加一个阶段')
+    return
+  }
+  for (const job of allEditorJobs(stages.value)) {
+    if (!job.name.trim()) {
+      message.warning('任务名称不能为空')
+      return
+    }
+    if (requiresCommand(job.kind) && !String(job.command ?? '').trim()) {
+      message.warning(`任务「${job.name}」需要命令`)
+      return
+    }
+  }
   if (hasClone(stages.value) && !repoUrl.value.trim()) {
-    message.warning('有 clone 任务时仓库地址不能为空')
+    message.warning('有克隆任务时仓库地址不能为空')
     return
   }
   saving.value = true
@@ -195,7 +203,7 @@ async function save(thenRun = false) {
       return
     }
     if (isNew.value) {
-      await router.replace(`/pipeline/pipelines/${id}`)
+      await router.replace(`/pipeline/pipelines/${id}/edit`)
     }
   } catch (e) {
     message.error(errorMessage(e))
@@ -216,13 +224,13 @@ async function load() {
       repoUrl.value = row.repoUrl
       gitRef.value = row.gitRef || 'main'
       credentialId.value = row.credentialId != null ? String(row.credentialId) : null
-      const option =
-        coerceToolchain(matrix, row.stack, row.runtimeVersion, row.toolVersion) ?? matrix[0]
-      stages.value = toEditorStages(row.stages, option)
-      if (option) applyOption(option, false)
+      const option = coerceToolchain(matrix, row.stack, row.runtimeVersion, row.toolVersion) ?? matrix[0]
+      stages.value = toEditorStages(row.stages)
+      if (option) applyToolchain(option)
     } else {
+      stages.value = []
       const option = coerceToolchain(matrix, 'JAVA_MAVEN', '21', '3.9') ?? matrix[0]
-      if (option) applyOption(option, false)
+      if (option) applyToolchain(option)
     }
   } catch (e) {
     message.error(errorMessage(e))
@@ -235,102 +243,100 @@ onMounted(load)
 </script>
 
 <template>
-  <n-spin :show="loading">
-    <n-space vertical size="large" style="padding: 20px 24px 28px">
-      <n-page-header :title="isNew ? '新建流水线' : '编辑流水线'" @back="router.push('/pipeline/pipelines')">
-        <template #extra>
-          <n-space>
-            <n-button :loading="saving" @click="save(false)">保存</n-button>
-            <n-button type="primary" :loading="saving" @click="save(true)">保存并运行</n-button>
-          </n-space>
-        </template>
-      </n-page-header>
-
-      <n-form label-placement="left" label-width="96" class="meta-form">
-        <n-grid :cols="2" :x-gap="16">
-          <n-gi>
-            <n-form-item label="名称">
-              <n-input v-model:value="name" placeholder="例如 checkout-ci" />
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item label="仓库 HTTPS">
-              <n-input v-model:value="repoUrl" placeholder="有 clone 时必填，例如 https://github.com/org/repo.git" />
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item label="分支 / SHA">
-              <n-input v-model:value="gitRef" placeholder="main" />
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item label="克隆凭证">
-              <n-select v-model:value="credentialId" clearable :options="credentialOptions" placeholder="可选" />
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item label="技术栈">
-              <n-select :value="stack" :options="stackOptions" @update:value="onStackChange" />
-            </n-form-item>
-          </n-gi>
-          <n-gi>
-            <n-form-item label="运行时">
-              <n-select :value="runtimeVersion" :options="runtimeOptions" @update:value="onRuntimeChange" />
-            </n-form-item>
-          </n-gi>
-          <n-gi v-if="showTool">
-            <n-form-item label="工具版本">
-              <n-select :value="toolVersion" :options="toolOptions" @update:value="onToolChange" />
-            </n-form-item>
-          </n-gi>
-        </n-grid>
-      </n-form>
-
-      <StageColumnDag
+  <n-spin :show="loading" class="pl-editor-spin">
+    <div class="pl-editor">
+      <header class="pl-editor-bar">
+        <n-button text size="small" class="pl-back" @click="router.push('/pipeline/pipelines')">
+          <template #icon><ArrowLeft :size="14" /></template>
+          流水线
+        </n-button>
+        <n-input v-model:value="name" placeholder="流水线名称" size="small" style="width: 220px" />
+        <n-button size="small" quaternary @click="applyTemplate">
+          <template #icon><LayoutTemplate :size="14" /></template>
+          插入常用模板
+        </n-button>
+        <span class="pl-editor-spacer" />
+        <n-button size="small" :loading="saving" @click="save(false)">
+          <template #icon><Save :size="14" /></template>
+          保存
+        </n-button>
+        <n-button size="small" type="primary" :loading="saving" @click="save(true)">
+          <template #icon><Play :size="14" /></template>
+          保存并运行
+        </n-button>
+      </header>
+      <YunxiaoFlowCanvas
         :stages="stages"
-        mode="edit"
-        @add-stage="stages = addStage(stages)"
-        @add-job="(key) => (stages = addJob(stages, key))"
-        @remove-stage="(key) => (stages = removeStage(stages, key))"
-        @remove-job="(stageKey, jobKey) => (stages = removeJob(stages, stageKey, jobKey))"
-        @edit-job="openJob"
-        @rename-stage="(key, value) => (stages = stages.map((item) => (item.clientKey === key ? { ...item, name: value } : item)))"
+        :selected-job-key="selectedJobKey"
+        :start-selected="startSelected"
+        @insert-stage="(afterIndex) => openPicker({ type: 'stage', afterIndex })"
+        @add-parallel="(stageKey) => openPicker({ type: 'parallel', stageKey })"
+        @select-job="selectJob"
+        @select-start="selectStart"
+        @remove="removeJob"
       />
-
-      <p class="hint">使用镜像内工具执行命令，不跑 mvnw / nvm / pyenv / Go auto-toolchain。</p>
-    </n-space>
+    </div>
   </n-spin>
-
-  <n-modal v-model:show="showJobModal" preset="card" title="编辑任务" style="width: 480px">
-    <n-form label-placement="top">
-      <n-form-item label="名称">
-        <n-input v-model:value="jobForm.name" />
-      </n-form-item>
-      <n-form-item label="类型">
-        <n-select :value="jobForm.kind" :options="jobKindOptions" @update:value="onKindChange" />
-      </n-form-item>
-      <n-form-item v-if="showJobCommand" label="命令">
-        <n-input v-model:value="jobForm.command" type="textarea" :rows="6" />
-      </n-form-item>
-      <p v-if="jobCommandHint" class="hint">{{ jobCommandHint }}</p>
-    </n-form>
-    <template #footer>
-      <n-space justify="end">
-        <n-button @click="showJobModal = false">取消</n-button>
-        <n-button type="primary" @click="saveJob">确定</n-button>
-      </n-space>
-    </template>
-  </n-modal>
+  <TaskPickerDrawer v-model:show="pickerShow" :stages="stages" :target="pickerTarget" @pick="onPick" />
+  <n-drawer v-model:show="configShow" :width="400" placement="right">
+    <n-drawer-content :title="configTitle" closable>
+      <JobInspector
+        :mode="inspectorMode"
+        :job="selectedJob"
+        :stages="stages"
+        :selected-job-key="selectedJobKey"
+        :name="name"
+        :repo-url="repoUrl"
+        :git-ref="gitRef"
+        :credential-id="credentialId"
+        :stack="stack"
+        :runtime-version="runtimeVersion"
+        :tool-version="toolVersion"
+        :toolchains="toolchains"
+        :credentials="credentials"
+        @update:name="name = $event"
+        @update:repo-url="repoUrl = $event"
+        @update:git-ref="gitRef = $event"
+        @update:credential-id="credentialId = $event"
+        @update:stack="onStackChange"
+        @update:runtime-version="onRuntimeChange"
+        @update:tool-version="onToolChange"
+        @update:job="patchJob"
+        @kind-blocked="message.warning($event)"
+        @remove="selectedJobKey && removeJob(selectedJobKey)"
+      />
+    </n-drawer-content>
+  </n-drawer>
 </template>
 
 <style scoped>
-.hint {
-  margin: 0;
-  color: var(--wb-muted, #6b7280);
-  font-size: 12px;
+.pl-editor-spin {
+  height: calc(100vh - 56px);
 }
 
-.meta-form {
-  padding: 8px 4px 0;
+.pl-editor-spin :deep(.n-spin-content) {
+  height: 100%;
+}
+
+.pl-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--wb-page-bg, #f5f7fb);
+}
+
+.pl-editor-bar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 12px 0 8px;
+  border-bottom: 1px solid var(--wb-border, #e5e7eb);
+  background: var(--wb-card-bg, #fff);
+}
+
+.pl-editor-spacer {
+  flex: 1;
 }
 </style>

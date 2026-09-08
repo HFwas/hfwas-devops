@@ -52,7 +52,13 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+CLEANED=false
 cleanup() {
+  if [ "$CLEANED" = true ]; then
+    return
+  fi
+  CLEANED=true
+  trap - EXIT INT TERM
   log "停止开发服务 ..."
   "$SCRIPT_DIR/stop-dev.sh" 2>/dev/null || true
 }

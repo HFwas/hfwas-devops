@@ -1,0 +1,6 @@
+# k3s v1.31.4-k3s1 系统镜像（compose profile=pipeline）
+# rancher/k3s 内嵌 containerd 经常访问不了 docker.io，由宿主机 pull 再 ctr import。
+rancher/mirrored-pause:3.6
+rancher/mirrored-coredns-coredns:1.12.0
+rancher/local-path-provisioner:v0.0.30
+rancher/mirrored-metrics-server:v0.7.2

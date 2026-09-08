@@ -54,6 +54,9 @@ pull_and_save() {
   docker save -o "$dest" "${images[@]}"
 }
 
+if [ -f "$ROOT_DIR/deploy/k3s/images.txt" ]; then
+  pull_and_save "$ROOT_DIR/deploy/k3s/images.txt" "$OUT_DIR/k3s-system-images.tar"
+fi
 pull_and_save "$TEKTON_DIR/pipeline/v1.15.1/images.txt" "$OUT_DIR/pipeline-images.tar"
 if [ "$WITH_JOBS" -eq 1 ]; then
   pull_and_save "$TEKTON_DIR/jobs/images.txt" "$OUT_DIR/job-images.tar"

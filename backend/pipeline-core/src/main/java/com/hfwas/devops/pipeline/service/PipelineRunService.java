@@ -1,8 +1,11 @@
 package com.hfwas.devops.pipeline.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ResultCode;
+import com.hfwas.devops.pipeline.dto.PipelinePageQuery;
 import com.hfwas.devops.pipeline.dto.PipelineRunJobVO;
 import com.hfwas.devops.pipeline.dto.PipelineRunVO;
 import com.hfwas.devops.pipeline.entity.PipelineEntity;
@@ -87,6 +90,7 @@ public class PipelineRunService {
         run.setStatus(status);
         run.setTrigger("MANUAL");
         run.setGitRef(pipeline.getGitRef());
+        run.setTriggeredByName(currentUserAccessor.currentDisplayName());
         run.setStack(pipeline.getStack());
         run.setRuntimeVersion(pipeline.getRuntimeVersion());
         run.setToolVersion(pipeline.getToolVersion());
@@ -99,25 +103,27 @@ public class PipelineRunService {
         run.setCreateBy(currentUserAccessor.currentUserId());
         runMapper.insert(run);
 
-        for (PipelineJobEntity job : jobs) {
-            PipelineStageEntity stage = stages.stream()
-                    .filter(item -> item.getId().equals(job.getStageId()))
-                    .findFirst()
-                    .orElse(null);
-            String command = job.getKind().equals(PipelineJobKind.CLONE.name())
-                    ? "git clone"
-                    : job.getCommand();
-            PipelineRunJobEntity runJob = new PipelineRunJobEntity();
-            runJob.setRunId(run.getId());
-            runJob.setJobId(job.getId());
-            runJob.setStageName(stage == null ? "" : stage.getName());
-            runJob.setJobName(job.getName());
-            runJob.setKind(job.getKind());
-            runJob.setCommand(command);
-            runJob.setStatus(clusterReady ? (waitFirst && isSameApproval(plan.firstApproval(), job)
-                    ? "WAITING_APPROVAL" : "QUEUED") : "FAILED");
-            runJob.setLogText(clusterReady ? null : error);
-            runJobMapper.insert(runJob);
+        for (PipelineStageEntity stage : stages) {
+            List<PipelineJobEntity> stageJobs = jobs.stream()
+                    .filter(item -> stage.getId().equals(item.getStageId()))
+                    .sorted(java.util.Comparator.comparingInt(PipelineJobEntity::getSortOrder))
+                    .toList();
+            for (PipelineJobEntity job : stageJobs) {
+                String command = job.getKind().equals(PipelineJobKind.CLONE.name())
+                        ? "git clone"
+                        : job.getCommand();
+                PipelineRunJobEntity runJob = new PipelineRunJobEntity();
+                runJob.setRunId(run.getId());
+                runJob.setJobId(job.getId());
+                runJob.setStageName(stage.getName());
+                runJob.setJobName(job.getName());
+                runJob.setKind(job.getKind());
+                runJob.setCommand(command);
+                runJob.setStatus(clusterReady ? (waitFirst && isSameApproval(plan.firstApproval(), job)
+                        ? "WAITING_APPROVAL" : "QUEUED") : "FAILED");
+                runJob.setLogText(clusterReady ? null : error);
+                runJobMapper.insert(runJob);
+            }
         }
         if (clusterReady && !waitFirst && !plan.segments().isEmpty()) {
             run.setSegmentIndex(0);
@@ -133,28 +139,16 @@ public class PipelineRunService {
         if (run == null || !pipelineId.equals(run.getPipelineId())) {
             throw BizException.of(ResultCode.NOT_FOUND, "运行记录不存在");
         }
-        PipelineRunVO vo = new PipelineRunVO();
-        vo.setId(run.getId());
-        vo.setPipelineId(run.getPipelineId());
-        vo.setPipelineName(definitionService.requireOwned(pipelineId).getName());
-        vo.setStatus(run.getStatus());
-        vo.setTrigger(run.getTrigger());
-        vo.setGitRef(run.getGitRef());
-        vo.setCommitSha(run.getCommitSha());
-        vo.setStack(run.getStack());
-        vo.setRuntimeVersion(run.getRuntimeVersion());
-        vo.setToolVersion(run.getToolVersion());
-        vo.setImage(run.getImage());
-        vo.setErrorMessage(run.getErrorMessage());
-        vo.setStartedAt(run.getStartedAt());
-        vo.setFinishedAt(run.getFinishedAt());
-        vo.setJobs(runJobMapper.selectList(new LambdaQueryWrapper<PipelineRunJobEntity>()
-                        .eq(PipelineRunJobEntity::getRunId, runId)
-                        .orderByAsc(PipelineRunJobEntity::getId))
-                .stream()
-                .map(this::toJobVo)
-                .toList());
-        return vo;
+        return toVo(pipelineId, run, true);
+    }
+
+    public IPage<PipelineRunVO> pageRuns(Long pipelineId, PipelinePageQuery query) {
+        definitionService.requireOwned(pipelineId);
+        Page<PipelineRunEntity> page = new Page<>(query.resolvePageNo(), query.resolvePageSize());
+        IPage<PipelineRunEntity> rows = runMapper.selectPage(page, new LambdaQueryWrapper<PipelineRunEntity>()
+                .eq(PipelineRunEntity::getPipelineId, pipelineId)
+                .orderByDesc(PipelineRunEntity::getId));
+        return rows.convert(run -> toVo(pipelineId, run, false));
     }
 
     @Transactional
@@ -306,6 +300,36 @@ public class PipelineRunService {
             runJob.setLogText(message);
             runJobMapper.updateById(runJob);
         }
+    }
+
+    private PipelineRunVO toVo(Long pipelineId, PipelineRunEntity run, boolean includeJobs) {
+        PipelineRunVO vo = new PipelineRunVO();
+        vo.setId(run.getId());
+        vo.setPipelineId(run.getPipelineId());
+        vo.setPipelineName(definitionService.requireOwned(pipelineId).getName());
+        vo.setStatus(run.getStatus());
+        vo.setTrigger(run.getTrigger());
+        vo.setGitRef(run.getGitRef());
+        vo.setCommitSha(run.getCommitSha());
+        vo.setTriggeredByName(run.getTriggeredByName());
+        vo.setStack(run.getStack());
+        vo.setRuntimeVersion(run.getRuntimeVersion());
+        vo.setToolVersion(run.getToolVersion());
+        vo.setImage(run.getImage());
+        vo.setErrorMessage(run.getErrorMessage());
+        vo.setStartedAt(run.getStartedAt());
+        vo.setFinishedAt(run.getFinishedAt());
+        if (includeJobs) {
+            vo.setJobs(runJobMapper.selectList(new LambdaQueryWrapper<PipelineRunJobEntity>()
+                            .eq(PipelineRunJobEntity::getRunId, run.getId())
+                            .orderByAsc(PipelineRunJobEntity::getId))
+                    .stream()
+                    .map(this::toJobVo)
+                    .toList());
+        } else {
+            vo.setJobs(List.of());
+        }
+        return vo;
     }
 
     private PipelineRunJobVO toJobVo(PipelineRunJobEntity row) {

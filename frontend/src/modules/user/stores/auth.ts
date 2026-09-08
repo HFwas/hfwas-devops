@@ -79,6 +79,18 @@ export const useAuthStore = defineStore('auth', () => {
     await keycloakLogin(appRedirectUri(path))
   }
 
+  function ensureStoredTenant(tenants: TenantOption[]) {
+    if (!tenants.length) return
+    const current = activeTenantId.value
+    if (current && tenants.some((t) => String(t.id) === String(current))) {
+      refreshActiveTenantName()
+      return
+    }
+    const pick = tenants.find((t) => String(t.id) === '1') ?? tenants[0]
+    applyActiveTenant(pick.id, pick.name)
+    tenantVersion.value += 1
+  }
+
   async function fetchMyTenants() {
     if (!isLoggedIn.value) {
       myTenants.value = []
@@ -86,7 +98,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
     try {
       myTenants.value = await userAuthApi.myTenants()
-      refreshActiveTenantName()
+      ensureStoredTenant(myTenants.value)
       return myTenants.value
     } catch {
       myTenants.value = []

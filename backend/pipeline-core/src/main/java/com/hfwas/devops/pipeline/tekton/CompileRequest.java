@@ -9,6 +9,7 @@ public record CompileRequest(
         String gitRef,
         String stackImage,
         boolean hasCredential,
-        PipelineGraphSpec graph
+        PipelineGraphSpec graph,
+        String gitHttpProxy
 ) {
 }

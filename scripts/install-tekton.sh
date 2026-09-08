@@ -3,7 +3,8 @@ set -eu
 
 KUBE_SRC=/kube/kubeconfig.yaml
 KUBE=/tmp/kubeconfig.yaml
-KUBECTL="k3s kubectl --kubeconfig=$KUBE"
+# rancher/k3s 镜像里 kubectl 是 k3s 的 symlink；`k3s kubectl` 会变成 `kubectl kubectl`。
+KUBECTL="kubectl --kubeconfig=$KUBE"
 TEKTON_VERSION="${TEKTON_VERSION:-v1.15.1}"
 LOCAL_RELEASE="/tekton/pipeline/${TEKTON_VERSION}/release.yaml"
 DEFAULT_URL="https://infra.tekton.dev/tekton-releases/pipeline/previous/${TEKTON_VERSION}/release.yaml"
@@ -50,7 +51,7 @@ if ! $KUBECTL apply --filename "$RELEASE_FILE"; then
   echo "apply 失败。离线环境请确认已挂载 deploy/tekton，且 data/tekton-offline/*.tar 已导入 k3s。" >&2
   exit 1
 fi
-$KUBECTL wait --for=condition=Available -n tekton-pipelines --timeout=180s deploy/tekton-pipelines-controller
-$KUBECTL wait --for=condition=Available -n tekton-pipelines --timeout=180s deploy/tekton-pipelines-webhook
+$KUBECTL wait --for=condition=Available -n tekton-pipelines --timeout=360s deploy/tekton-pipelines-controller
+$KUBECTL wait --for=condition=Available -n tekton-pipelines --timeout=360s deploy/tekton-pipelines-webhook
 $KUBECTL create namespace hfwas-pipeline --dry-run=client -o yaml | $KUBECTL apply -f -
 echo "Tekton is ready"
