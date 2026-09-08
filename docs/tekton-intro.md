@@ -181,3 +181,5 @@ Argo Workflows 更能干动态 fan-out 和数据作业；**纯 CI**（clone、�
 | 镜像签名 | 制品仓库上线时接 Chains |
 
 当前仓库「零外部依赖可启动」只覆盖 PM / 接口测试等现有模块。流水线模块 **执行引擎即 Tekton**：控制面编译 Stage/Job 为 PipelineRun，不把 CRD 暴露给业务用户。本地开发用可选的 k3d/kind + Tekton（compose profile），不要再做一层 Docker Agent 双后端。
+
+离线 / 隔离网：官方包已落在 `deploy/tekton/`（Pipelines `v1.15.1` 的 `release.yaml` + 镜像清单）。有网机 `scripts/pack-tekton-offline.sh` 打 tar，离线机 `scripts/load-tekton-offline.sh` 导入后再 apply，不访问 `infra.tekton.dev` / `ghcr.io`。说明见 [deploy/tekton/README.md](../deploy/tekton/README.md)。

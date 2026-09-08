@@ -245,6 +245,8 @@ services:
     volumes:
       - k3s-server:/var/lib/rancher/k3s
       - ./data/pipeline:/output
+      - ./data/tekton-offline:/offline:ro
+      - ./deploy/tekton:/tekton:ro
     ports:
       - "6443:6443"
     healthcheck:
@@ -264,6 +266,7 @@ services:
     volumes:
       - ./data/pipeline:/kube
       - ./scripts/install-tekton.sh:/install-tekton.sh:ro
+      - ./deploy/tekton:/tekton:ro
     depends_on:
       k3s:
         condition: service_healthy

@@ -1,0 +1,10 @@
+# Tekton Pipelines v1.15.1 — controller + TaskRun sidecars
+# Pull/save these on a networked host; import on air-gapped nodes.
+ghcr.io/tektoncd/pipeline/controller-10a3e32792f33651396d02b6855a6e36:v1.15.1@sha256:89633d2774dab0497d30cb2ca73e7c2fff94687a38e2652c3c47075ac7890c40
+ghcr.io/tektoncd/pipeline/webhook-d4749e605405422fd87700164e31b2d1:v1.15.1@sha256:8eb820ac797ac7a2efe1bf99f2c548f3ef208d28ac5c97ee51d36ae3181b6040
+ghcr.io/tektoncd/pipeline/events-a9042f7efb0cbade2a868a1ee5ddd52c:v1.15.1@sha256:a816daf2107b5c10dd17c14d125989d5d109f7d928aaf8c88b1c189c34846376
+ghcr.io/tektoncd/pipeline/resolvers-ff86b24f130c42b88983d3c13993056d:v1.15.1@sha256:b525f8a04d7a299e5e68c9d774a98b25c50357e802303a6fe6810b52d7f4daca
+ghcr.io/tektoncd/pipeline/entrypoint-bff0a22da108bc2f16c818c97641a296:v1.15.1@sha256:84e497833db4d2d7201153784928428dd7139d6968281b73f032d860c0133618
+ghcr.io/tektoncd/pipeline/nop-8eac7c133edad5df719dc37b36b62482:v1.15.1@sha256:b233f4ef22a62268ae89c6d54b3cb2be9c903f229742a480e4abe5497d6aab5d
+ghcr.io/tektoncd/pipeline/workingdirinit-0c558922ec6a1b739e550e349f2d5fc1:v1.15.1@sha256:3fa8a3f41c0828807e969dd376881656097d53308274caac6145c0a4b4d110bb
+ghcr.io/tektoncd/pipeline/sidecarlogresults-7501c6a20d741631510a448b48ab098f:v1.15.1@sha256:0dda297d99e2d67eaab16484cb984f545b429f000750950e63c9eaf6fbad3dfa
