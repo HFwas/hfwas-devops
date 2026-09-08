@@ -123,15 +123,32 @@ class TektonCompilerTest {
     }
 
     @Test
-    void lintExpandsToSemgrepAndSonar() {
+    void lintSemgrepUsesSemgrepImageAndUserCli() {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
-                stage("lint", 0, List.of(job("lint", PipelineJobKind.LINT, PipelineJobKind.LINT.defaultCommand(), 0)))
+                stage("lint", 0, List.of(job("sg", PipelineJobKind.LINT_SEMGREP,
+                        PipelineJobKind.LINT_SEMGREP.defaultCommand(), 0)))
         ));
         List<CompiledStep> steps = TektonCompiler.compile(request(3L, graph, false)).tasks().getFirst().steps();
-        assertEquals(2, steps.size());
-        assertEquals(TektonCompiler.SEMGREP_IMAGE, steps.get(0).image());
-        assertEquals(TektonCompiler.SONAR_IMAGE, steps.get(1).image());
-        assertTrue(steps.get(1).script().contains("skip sonar"));
+        assertEquals(1, steps.size());
+        assertEquals(TektonCompiler.SEMGREP_IMAGE, steps.getFirst().image());
+        assertTrue(steps.getFirst().script().contains("semgrep scan --error --config=auto ."));
+        assertFalse(steps.getFirst().script().contains("LINT_SKIP_SEMGREP"));
+        assertFalse(steps.getFirst().script().contains("sonar-scanner"));
+    }
+
+    @Test
+    void lintSonarUsesSonarImageAndFailsWhenTokenEmpty() {
+        PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
+                stage("lint", 0, List.of(job("sn", PipelineJobKind.LINT_SONAR,
+                        PipelineJobKind.LINT_SONAR.defaultCommand(), 0)))
+        ));
+        List<CompiledStep> steps = TektonCompiler.compile(request(3L, graph, false)).tasks().getFirst().steps();
+        assertEquals(1, steps.size());
+        assertEquals(TektonCompiler.SONAR_IMAGE, steps.getFirst().image());
+        assertTrue(steps.getFirst().script().contains("SONAR_HOST_URL:?SONAR_HOST_URL is required"));
+        assertTrue(steps.getFirst().script().contains("SONAR_TOKEN:?SONAR_TOKEN is required"));
+        assertTrue(steps.getFirst().script().contains("sonar-scanner"));
+        assertFalse(steps.getFirst().script().contains("skip sonar"));
     }
 
     @Test

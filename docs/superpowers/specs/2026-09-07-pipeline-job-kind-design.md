@@ -1,6 +1,6 @@
 # 流水线任务类型目录
 
-> 日期：2026-09-07  
+> 日期：2026-09-07；2026-09-08 修订：删除 `LINT`，拆为 `LINT_SEMGREP` / `LINT_SONAR`  
 > 状态：已拍板  
 > 父文档：[2026-09-07-pipeline-design.md](./2026-09-07-pipeline-design.md)
 
@@ -12,7 +12,7 @@
 
 ## 1. 目标
 
-- 编辑器列出完整目录，13 种均可保存（校验通过即可）。
+- 编辑器列出完整目录，14 种均可保存（校验通过即可）。
 - 不新增 ResultCode；参数错误一律 `BizException.of(ResultCode.BAD_REQUEST, 具体原因)`。
 - 不新增 `GET /pipeline/job-kinds`。Java 枚举与前端 `JobKind` 对齐。
 - `CLONE` 可选（0 或 1）。有 clone 才解析 `repo_url`。
@@ -27,7 +27,8 @@
 | kind | 中文 | 需要命令 | 镜像 | 默认命令 / 行为 |
 |------|------|----------|------|-----------------|
 | `CLONE` | 克隆 | 否 | `alpine/git:2.45.2` | 平台生成 clone；**0 或 1 个**，列不限 |
-| `LINT` | 代码检查 | 是 | Semgrep + Sonar Scanner，见 §4.7 | 不跑技术栈镜像。默认 Semgrep；配了 Sonar 地址与 Token 再跑 Sonar |
+| `LINT_SEMGREP` | Semgrep 检查 | 是 | `semgrep/semgrep:1.97.0` | `semgrep scan --error --config=auto .`。用户命令即 CLI，与 `SCAN` 相同编译路径 |
+| `LINT_SONAR` | Sonar 检查 | 是 | `sonarsource/sonar-scanner-cli:11.2` | 见 §4.7。命令里写 Host / Token / ProjectKey；平台跑 `sonar-scanner` |
 | `BUILD` | 构建 | 是 | 技术栈镜像 | 默认图用工具链 `buildCommand` |
 | `TEST` | 测试 | 是 | 技术栈镜像 | 默认图用工具链 `testCommand` |
 | `SCAN` | 安全扫描 | 是 | `aquasec/trivy:0.66.0` | `trivy fs --exit-code 1 --scanners vuln,secret,misconfig .` |
@@ -45,7 +46,7 @@
 `PUBLISH`：发到 Maven/npm 等包仓库（栈镜像里的客户端）。  
 `UPLOAD`：传到对象存储（rclone）。二者不合并。
 
-选成带默认命令的 kind 且当前命令为空时，填入该默认命令（`LINT` / `SCAN` / `IMAGE` / `UPLOAD` / `DEPLOY` / `NOTIFY`）。
+选成带默认命令的 kind 且当前命令为空时，填入该默认命令（`LINT_SEMGREP` / `LINT_SONAR` / `SCAN` / `IMAGE` / `UPLOAD` / `DEPLOY` / `NOTIFY`）。
 
 ---
 
@@ -81,9 +82,9 @@ cd "$(workspaces.source.path)/src"
 <用户命令>
 ```
 
-`CLONE` / `IMAGE` / `LINT` / `APPROVAL` 不套上面这段「只跑用户命令」的单 step（见各节；APPROVAL 无容器）。无 clone 时命令类任务 `mkdir -p` 保证纯 shell / 扫描 / 上传也能 `cd`。
+`CLONE` / `IMAGE` / `LINT_SONAR` / `APPROVAL` 不套上面这段「只跑用户命令」的单 step（见各节；APPROVAL 无容器）。`LINT_SEMGREP` 与 `SCAN` 一样走这段脚本。无 clone 时命令类任务 `mkdir -p` 保证纯 shell / 扫描 / 上传也能 `cd`。
 
-镜像：`LINT` 见 §4.7；`SCAN` Trivy、`UPLOAD` rclone、`DEPLOY` kubectl、`NOTIFY` curl；`IMAGE` 见 §4.1（多 step）；其余用运行冻结的技术栈镜像。
+镜像：`LINT_SEMGREP` Semgrep、`LINT_SONAR` 见 §4.7；`SCAN` Trivy、`UPLOAD` rclone、`DEPLOY` kubectl、`NOTIFY` curl；`IMAGE` 见 §4.1（多 step）；其余用运行冻结的技术栈镜像。
 
 图中含 `APPROVAL` 时：**不要**把整图打成单 Pod 多 Step（即使每列只有一个任务）。按审批点切段，每段单独提交 TaskRun 或 PipelineRun。
 
@@ -171,29 +172,34 @@ curl 镜像执行用户命令。Webhook URL 写在命令里。失败则该 step 
 
 与 `BUILD` 相同编译路径（栈镜像 + 用户命令）。只是产品分类不同。
 
-### 4.7 `LINT`（Semgrep + Sonar）
+### 4.7 `LINT_SEMGREP` / `LINT_SONAR`
 
-不使用技术栈镜像。一个 `LINT` 任务编译为同一 Task 内 **两个顺序 Step**。每个 step 开头：`mkdir -p src && cd src`，再 `eval` 用户命令，然后跑平台脚本。
+删除 `LINT`。两个独立 kind，各编译为 **一个** step，不使用技术栈镜像。不要 skip 开关（`LINT_SKIP_SEMGREP` 不再存在）。要跑哪个就加哪个；同列并行，分列则按列顺序。编译器不把相邻的两个检查捏成顺序 step。
 
-默认命令：
+**`LINT_SEMGREP`**：与 `SCAN` 相同路径（`mkdir -p src && cd src` 后执行用户命令）。镜像 `semgrep/semgrep:1.97.0`。默认命令：
 
 ```
-export LINT_SEMGREP_ARGS="scan --error --config=auto ."
-# 要跑 Sonar 时取消注释并填写：
-# export SONAR_HOST_URL=https://sonar.example.com
-# export SONAR_TOKEN=
-# export SONAR_PROJECT_KEY=app
+semgrep scan --error --config=auto .
 ```
 
-| step | 镜像 | 行为 |
-|------|------|------|
-| Semgrep | `semgrep/semgrep:1.97.0` | `LINT_SKIP_SEMGREP` 非空则 skip 成功；否则 `semgrep $LINT_SEMGREP_ARGS`（参数默认同上） |
-| Sonar | `sonarsource/sonar-scanner-cli:11.2` | `SONAR_HOST_URL` 与 `SONAR_TOKEN` 都非空时 `sonar-scanner -Dsonar.host.url=... -Dsonar.token=... -Dsonar.projectKey=${SONAR_PROJECT_KEY:-app} -Dsonar.sources=.`；否则打印 skip 并以 0 退出 |
+**`LINT_SONAR`**：step 开头 `eval` 用户命令（导出 Host / Token / ProjectKey），再跑平台脚本。镜像 `sonarsource/sonar-scanner-cli:11.2`。默认命令：
 
-- 仍是一个 kind，不拆 `LINT_SEMGREP` / `LINT_SONAR`。
-- 只跑 Semgrep：默认即可（不配 Sonar 变量）。
-- 只跑 Sonar：`export LINT_SKIP_SEMGREP=1` 并填写 Host/Token。
-- 两者都跑：填 Sonar 变量且不要 skip Semgrep。
+```
+export SONAR_HOST_URL=https://sonar.example.com
+export SONAR_TOKEN=
+export SONAR_PROJECT_KEY=app
+```
+
+平台脚本：
+
+```
+: "${SONAR_HOST_URL:?SONAR_HOST_URL is required}"
+: "${SONAR_TOKEN:?SONAR_TOKEN is required}"
+: "${SONAR_PROJECT_KEY:=app}"
+sonar-scanner -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.token="$SONAR_TOKEN" -Dsonar.projectKey="$SONAR_PROJECT_KEY" -Dsonar.sources=.
+```
+
+- Host 或 Token 为空 → **失败**（`:?` 非空检查），不再 skip 成功。保存期不解析命令字符串。
 - Token 日志打码，与 git 密码相同。不新增 Sonar 凭证表。
 - 不做 SonarQube 服务端安装；Host 由用户自备。Semgrep `--config=auto` 需要出网拉规则，内网失败用 Semgrep 原文。
 
@@ -201,9 +207,9 @@ export LINT_SEMGREP_ARGS="scan --error --config=auto ."
 
 ## 5. 前端
 
-- `JobKind` 与上表 13 值一致；`RunStatus` 含 `WAITING_APPROVAL`。
-- 类型下拉 13 项，**无「未支持」禁用**。
-- `CLONE`：无命令框。`LINT`：命令框提示 Semgrep 参数与可选 Sonar 变量。`IMAGE`：命令框提示填写 `DEST` / `IMAGE_PLATFORMS` / 可选 `COSIGN_PRIVATE_KEY`。`APPROVAL`：无命令框，文案说明运行到此处会暂停，需在运行页点通过。
+- `JobKind` 与上表 14 值一致；`RunStatus` 含 `WAITING_APPROVAL`。无 `LINT`。
+- 类型下拉 14 项，**无「未支持」禁用**。
+- `CLONE`：无命令框。`LINT_SEMGREP`：命令框提示填写 Semgrep CLI。`LINT_SONAR`：命令框提示填写 `SONAR_HOST_URL` / `SONAR_TOKEN` / `SONAR_PROJECT_KEY`。`IMAGE`：命令框提示填写 `DEST` / `IMAGE_PLATFORMS` / 可选 `COSIGN_PRIVATE_KEY`。`APPROVAL`：无命令框，文案说明运行到此处会暂停，需在运行页点通过。
 - 「+ 任务」默认 `CUSTOM`。无 clone 时选项含 `CLONE`。
 - clone 可删。无 clone 时仓库地址可空。
 - 运行页：`WAITING_APPROVAL` 可点「通过」。
@@ -219,6 +225,7 @@ export LINT_SEMGREP_ARGS="scan --error --config=auto ."
 - Kaniko 缓存盘动态扩容、按租户共享一块盘、cache-repo（仓库缓存）双写
 - Cosign keyless / Fulcio / 签名策略强制（无密钥时跳过）
 - 自建 Semgrep 规则包托管、SonarQube 服务端
+- 保留 `LINT` 枚举别名或 `LINT_SKIP_SEMGREP` 等 skip 变量
 - Argo CD / GitOps、Helm 专用镜像（DEPLOY 只用 kubectl）
 - 审批「拒绝」API、审批意见、多人会签、超时自动失败
 - 为每种 kind 单独 ResultCode
@@ -230,11 +237,11 @@ export LINT_SEMGREP_ARGS="scan --error --config=auto ."
 
 1. 默认新建 clone / build / test，可保存、可编译。
 2. 只留一个 `CUSTOM`（`echo ok`）、无 `repo_url`，可保存；编译无 git step，有 `mkdir -p src`。
-3. `SCAN` step 镜像为 `aquasec/trivy:0.66.0`。`LINT` 编译两个 step：`semgrep/semgrep:1.97.0` 与 `sonarsource/sonar-scanner-cli:11.2`；未配 `SONAR_HOST_URL`/`SONAR_TOKEN` 时 Sonar step skip 成功。
+3. `SCAN` step 镜像为 `aquasec/trivy:0.66.0`。`LINT_SEMGREP` 编译一个 step：`semgrep/semgrep:1.97.0`，脚本含用户 CLI。`LINT_SONAR` 编译一个 step：`sonarsource/sonar-scanner-cli:11.2`；未配 `SONAR_HOST_URL`/`SONAR_TOKEN` 时该 step **失败**（不 skip）。未知 `LINT` 字符串 → `未知任务类型`。
 4. `IMAGE` 可保存。同列两个 IMAGE 拒绝。编译三个 step：Kaniko 挂 `hfwas-kc-{pipelineId}` → `/cache` 且 `--cache=true`；crane、cosign 在单平台 / 无密钥时 skip 且成功。
 5. `UPLOAD` / `DEPLOY` / `NOTIFY` / `PUBLISH` 可保存；编译使用 §2 对应镜像（`PUBLISH` 用栈镜像）。
 6. `APPROVAL` 与其他任务同列时保存失败「审批任务必须独占一列」。独占列可保存。
 7. 含审批的流水线：前半段成功后状态 `WAITING_APPROVAL`；点通过后续段才提交；取消后不再提交。
 8. 第二个 `CLONE` 保存失败。有 clone 但 URL 非法走 `GitRemote` 错误。
 9. 未知 kind → `未知任务类型`。
-10. 前端 13 种均可选；无 clone 时可改为 `CLONE`。
+10. 前端 14 种均可选；无 clone 时可改为 `CLONE`。

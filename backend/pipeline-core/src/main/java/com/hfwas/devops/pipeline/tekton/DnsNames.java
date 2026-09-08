@@ -63,7 +63,7 @@ public final class DnsNames {
     }
 
     /**
-     * IMAGE/LINT 会生成 {@code base-crane} 这类后缀 step；不能用 {@code startsWith(base + "-")}
+     * IMAGE 会生成 {@code base-crane} 这类后缀 step；不能用 {@code startsWith(base + "-")}
      * 直接匹配，否则 {@code step} 会吞掉 {@code step-2}。
      */
     public static boolean stepBelongsTo(String stepName, String assigned, List<String> allAssigned) {

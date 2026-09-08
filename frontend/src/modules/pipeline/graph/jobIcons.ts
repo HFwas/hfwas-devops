@@ -17,7 +17,8 @@ import type { JobKind } from '@/modules/pipeline/types/pipeline'
 
 export const JOB_KIND_ICONS: Record<JobKind, Component> = {
   CLONE: GitBranch,
-  LINT: Search,
+  LINT_SEMGREP: Search,
+  LINT_SONAR: Search,
   BUILD: Hammer,
   TEST: CheckCircle,
   SCAN: Shield,

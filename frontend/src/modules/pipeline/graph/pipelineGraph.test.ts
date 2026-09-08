@@ -28,8 +28,12 @@ const java21: ToolchainOption = {
 }
 
 describe('pipeline helpers', () => {
-  it('exposes 13 job kinds in 云效-style groups and a clone/build/test template', () => {
-    expect(JOB_KIND_OPTIONS).toHaveLength(13)
+  it('exposes 14 job kinds in 云效-style groups and a clone/build/test template', () => {
+    expect(JOB_KIND_OPTIONS).toHaveLength(14)
+    expect(JOB_KIND_OPTIONS.map((item) => item.value)).toEqual(
+      expect.arrayContaining(['LINT_SEMGREP', 'LINT_SONAR']),
+    )
+    expect(JOB_KIND_OPTIONS.map((item) => item.value)).not.toContain('LINT')
     expect([...JOB_KIND_GROUPS]).toEqual(['代码', '构建', '质量控制', '制品', '部署', '测试', '命令', '流程'])
     const graph = createTemplateStages(java21)
     expect(graph.map((stage) => stage.jobs[0].kind)).toEqual(['CLONE', 'BUILD', 'TEST'])

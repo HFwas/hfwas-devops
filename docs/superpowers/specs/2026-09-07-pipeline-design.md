@@ -204,7 +204,7 @@ Java 发行版钉死 Eclipse Temurin。`GOTOOLCHAIN=local`。clone 步骤镜像�
 1. 拓扑：阶段升序；同列 jobs 并行。
 2. 无 `APPROVAL` 且每列恰好 1 个 job → 单个 `Task`/`TaskRun`。有 `APPROVAL` 则按审批切段提交，见任务类型目录 §4.3。
 3. 否则该段用 `Pipeline`：每列一个并行组。共享 PVC workspace。
-4. step 镜像：`CLONE` git、`LINT` 为 Semgrep + Sonar Scanner（无 Token 则 Sonar skip）、`SCAN` Trivy、`IMAGE` 为 Kaniko + crane + cosign（缓存 PVC `hfwas-kc-{pipelineId}` 挂 `/cache`）、`UPLOAD` rclone、`DEPLOY` kubectl、`NOTIFY` curl，其余栈镜像。
+4. step 镜像：`CLONE` git、`LINT_SEMGREP` Semgrep、`LINT_SONAR` Sonar Scanner（Host/Token 为空则失败）、`SCAN` Trivy、`IMAGE` 为 Kaniko + crane + cosign（缓存 PVC `hfwas-kc-{pipelineId}` 挂 `/cache`）、`UPLOAD` rclone、`DEPLOY` kubectl、`NOTIFY` curl，其余栈镜像。
 5. 仅当存在 `CLONE` 时 git clone；日志打码（git 密码、Cosign 私钥、Sonar Token）。命令类 step `mkdir -p` 后进入 `src`。
 6. 对象名：`hfwas-{runId}` 截断符合 DNS 标签。不挂 docker.sock。开发 compose 可选装 binfmt 以便 `linux/arm64`。
 

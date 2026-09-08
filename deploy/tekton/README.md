@@ -68,4 +68,4 @@ kubectl create namespace hfwas-pipeline --dry-run=client -o yaml | kubectl apply
 ## 两层离线
 
 1. **引擎离线**：没有 `pipeline-images.tar`，controller/webhook 会 ImagePullBackOff，集群装不上。
-2. **作业离线**：引擎起来了，跑 CLONE/LINT/IMAGE 等仍会拉任务镜像。需要 `--with-jobs` / `--with-toolchain`，或集群能访问对应 Registry。
+2. **作业离线**：引擎起来了，跑 CLONE/LINT_SEMGREP/LINT_SONAR/IMAGE 等仍会拉任务镜像。需要 `--with-jobs` / `--with-toolchain`，或集群能访问对应 Registry。

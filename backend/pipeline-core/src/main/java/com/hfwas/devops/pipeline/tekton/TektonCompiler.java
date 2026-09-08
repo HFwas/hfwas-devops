@@ -152,13 +152,11 @@ public final class TektonCompiler {
                     new CompiledStep(base + "-cosign", COSIGN_IMAGE, imageCosignScript(command), env, false, false)
             );
         }
-        if (job.kind() == PipelineJobKind.LINT) {
-            return List.of(
-                    new CompiledStep(base, SEMGREP_IMAGE, lintSemgrepScript(command), env, false, false),
-                    new CompiledStep(base + "-sonar", SONAR_IMAGE, lintSonarScript(command), env, false, false)
-            );
+        if (job.kind() == PipelineJobKind.LINT_SONAR) {
+            return List.of(new CompiledStep(base, SONAR_IMAGE, lintSonarScript(command), env, false, false));
         }
         String image = switch (job.kind()) {
+            case LINT_SEMGREP -> SEMGREP_IMAGE;
             case SCAN -> SCAN_IMAGE;
             case UPLOAD -> UPLOAD_IMAGE;
             case DEPLOY -> DEPLOY_IMAGE;
@@ -251,25 +249,11 @@ public final class TektonCompiler {
                 """.stripIndent();
     }
 
-    private static String lintSemgrepScript(String command) {
-        return evalPrefix(command) + """
-                
-                if [ -n "${LINT_SKIP_SEMGREP:-}" ]; then
-                  echo skip semgrep
-                  exit 0
-                fi
-                : "${LINT_SEMGREP_ARGS:=scan --error --config=auto .}"
-                semgrep $LINT_SEMGREP_ARGS
-                """.stripIndent();
-    }
-
     private static String lintSonarScript(String command) {
         return evalPrefix(command) + """
                 
-                if [ -z "${SONAR_HOST_URL:-}" ] || [ -z "${SONAR_TOKEN:-}" ]; then
-                  echo skip sonar: SONAR_HOST_URL or SONAR_TOKEN empty
-                  exit 0
-                fi
+                : "${SONAR_HOST_URL:?SONAR_HOST_URL is required}"
+                : "${SONAR_TOKEN:?SONAR_TOKEN is required}"
                 : "${SONAR_PROJECT_KEY:=app}"
                 sonar-scanner -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.token="$SONAR_TOKEN" -Dsonar.projectKey="$SONAR_PROJECT_KEY" -Dsonar.sources=.
                 """.stripIndent();

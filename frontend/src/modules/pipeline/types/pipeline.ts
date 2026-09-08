@@ -2,7 +2,8 @@ export type EntityId = number | string
 
 export type JobKind =
   | 'CLONE'
-  | 'LINT'
+  | 'LINT_SEMGREP'
+  | 'LINT_SONAR'
   | 'BUILD'
   | 'TEST'
   | 'SCAN'

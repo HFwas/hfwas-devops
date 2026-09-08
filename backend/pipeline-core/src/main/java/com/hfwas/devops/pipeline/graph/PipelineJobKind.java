@@ -2,11 +2,11 @@ package com.hfwas.devops.pipeline.graph;
 
 public enum PipelineJobKind {
     CLONE("克隆", false, null),
-    LINT("代码检查", true, """
-            export LINT_SEMGREP_ARGS="scan --error --config=auto ."
-            # export SONAR_HOST_URL=https://sonar.example.com
-            # export SONAR_TOKEN=
-            # export SONAR_PROJECT_KEY=app
+    LINT_SEMGREP("Semgrep 检查", true, "semgrep scan --error --config=auto ."),
+    LINT_SONAR("Sonar 检查", true, """
+            export SONAR_HOST_URL=https://sonar.example.com
+            export SONAR_TOKEN=
+            export SONAR_PROJECT_KEY=app
             """),
     BUILD("构建", true, null),
     TEST("测试", true, null),

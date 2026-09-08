@@ -31,7 +31,7 @@ export function jobKindTone(kind?: string | null): string {
   if (kind === 'CLONE') return 'cyan'
   if (kind === 'BUILD' || kind === 'PACKAGE') return 'blue'
   if (kind === 'TEST') return 'green'
-  if (kind === 'LINT' || kind === 'SCAN') return 'amber'
+  if (kind === 'LINT_SEMGREP' || kind === 'LINT_SONAR' || kind === 'SCAN') return 'amber'
   if (kind === 'APPROVAL' || kind === 'NOTIFY') return 'violet'
   if (kind === 'IMAGE' || kind === 'DEPLOY' || kind === 'PUBLISH' || kind === 'UPLOAD') return 'rose'
   return 'blue'

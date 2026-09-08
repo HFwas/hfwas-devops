@@ -4,7 +4,7 @@
 
 **Goal:** Expand `PipelineJobKind` to 13 executable types per `2026-09-07-pipeline-job-kind-design.md`.
 
-**Architecture:** Enum metadata drives UI and compiler images. Clone is optional. IMAGE/LINT expand to multiple Tekton steps. APPROVAL splits the graph; control plane pauses at `WAITING_APPROVAL`.
+**Architecture:** Enum metadata drives UI and compiler images. Clone is optional. IMAGE expands to multiple Tekton steps. LINT_SEMGREP / LINT_SONAR are single steps. APPROVAL splits the graph; control plane pauses at `WAITING_APPROVAL`.
 
 **Tech Stack:** Java 21, pipeline-core, Vue 3 + Naive UI, Tekton via fabric8.
 

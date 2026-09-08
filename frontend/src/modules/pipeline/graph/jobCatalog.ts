@@ -41,16 +41,24 @@ export IMAGE_PLATFORMS=linux/amd64
 export DOCKERFILE=Dockerfile`,
   },
   {
-    value: 'LINT',
-    label: '代码检查',
+    value: 'LINT_SEMGREP',
+    label: 'Semgrep 检查',
     group: '质量控制',
-    description: 'Semgrep / Sonar 静态检查',
-    hint: '填写 Semgrep 参数；要跑 Sonar 时取消注释并填写 Host 与 Token。',
+    description: 'Semgrep 静态检查',
+    hint: '填写 Semgrep CLI。',
     requiresCommand: true,
-    defaultCommand: `export LINT_SEMGREP_ARGS="scan --error --config=auto ."
-# export SONAR_HOST_URL=https://sonar.example.com
-# export SONAR_TOKEN=
-# export SONAR_PROJECT_KEY=app`,
+    defaultCommand: 'semgrep scan --error --config=auto .',
+  },
+  {
+    value: 'LINT_SONAR',
+    label: 'Sonar 检查',
+    group: '质量控制',
+    description: 'SonarScanner 静态检查',
+    hint: '填写 SONAR_HOST_URL / SONAR_TOKEN / SONAR_PROJECT_KEY。',
+    requiresCommand: true,
+    defaultCommand: `export SONAR_HOST_URL=https://sonar.example.com
+export SONAR_TOKEN=
+export SONAR_PROJECT_KEY=app`,
   },
   {
     value: 'SCAN',
