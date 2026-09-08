@@ -20,16 +20,8 @@ public final class PipelineGraphValidator {
                 .flatMap(stage -> stage.jobs() == null ? java.util.stream.Stream.empty() : stage.jobs().stream())
                 .toList();
         long cloneCount = jobs.stream().filter(job -> job.kind() == PipelineJobKind.CLONE).count();
-        if (cloneCount != 1) {
-            throw BizException.of(ResultCode.BAD_REQUEST, "流水线必须恰好有一个 clone 任务");
-        }
-        PipelineStageSpec first = graph.stages().stream()
-                .min(Comparator.comparingInt(PipelineStageSpec::sortOrder))
-                .orElseThrow();
-        boolean cloneInFirst = first.jobs() != null && first.jobs().stream()
-                .anyMatch(job -> job.kind() == PipelineJobKind.CLONE);
-        if (!cloneInFirst) {
-            throw BizException.of(ResultCode.BAD_REQUEST, "clone 任务必须在第一列");
+        if (cloneCount > 1) {
+            throw BizException.of(ResultCode.BAD_REQUEST, "流水线至多一个 clone 任务");
         }
         for (PipelineStageSpec stage : graph.stages()) {
             if (stage.name() == null || stage.name().isBlank()) {
@@ -38,11 +30,20 @@ public final class PipelineGraphValidator {
             if (stage.jobs() == null || stage.jobs().isEmpty()) {
                 throw BizException.of(ResultCode.BAD_REQUEST, "阶段「" + stage.name() + "」至少需要一个任务");
             }
+            long approvals = stage.jobs().stream().filter(job -> job.kind() == PipelineJobKind.APPROVAL).count();
+            if (approvals > 0 && stage.jobs().size() != 1) {
+                throw BizException.of(ResultCode.BAD_REQUEST, "审批任务必须独占一列");
+            }
+            long images = stage.jobs().stream().filter(job -> job.kind() == PipelineJobKind.IMAGE).count();
+            if (images > 1) {
+                throw BizException.of(ResultCode.BAD_REQUEST, "镜像构建不能与其它镜像构建并行（缓存盘为 RWO）");
+            }
             for (PipelineJobSpec job : stage.jobs()) {
                 if (job.name() == null || job.name().isBlank()) {
                     throw BizException.of(ResultCode.BAD_REQUEST, "任务名称不能为空");
                 }
-                if (job.kind() != PipelineJobKind.CLONE && (job.command() == null || job.command().isBlank())) {
+                if (job.kind() != null && job.kind().requiresCommand()
+                        && (job.command() == null || job.command().isBlank())) {
                     throw BizException.of(ResultCode.BAD_REQUEST, "任务「" + job.name() + "」需要命令");
                 }
             }

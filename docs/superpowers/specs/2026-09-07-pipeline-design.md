@@ -22,7 +22,7 @@
 | 生产执行 | 外接 Kubernetes |
 | SCM | 第一期只接 GitHub HTTPS URL |
 | 对象 | 租户业务仓库；本平台自身发布仍用 GitHub Actions |
-| MVP 范围 | clone + 构建 + 测试。不推镜像、不部署、不回写 GitHub Check、无 webhook、无定时 |
+| MVP 范围 | clone / 构建 / 测试为默认图；目录内其余 kind 均可保存并执行（见 [任务类型目录](./2026-09-07-pipeline-job-kind-design.md)）。触发仍仅控制台「运行」。不回写 GitHub Check、无 webhook 触发、无定时 |
 | 触发 | 仅控制台「运行」 |
 | 克隆认证 | 用户名+密码 或 Token（HTTPS Basic）。GitHub PAT 走 Token。不做 GitHub App、不做 SSH |
 | 工具链 | 先选技术栈（Java/Maven、Node、Go、Python），再选版本，映射到镜像。用镜像内二进制，忽略 `mvnw` / nvm / pyenv / Go auto-toolchain |
@@ -30,11 +30,12 @@
 
 ### 1.2 非目标（第一期）
 
-- GitLab / Gitea、GitHub App、SSH、webhook、Check Run
-- 推镜像、GitOps、Argo CD、制品仓库、对象存储上传的真实执行（kind 可出现在目录，保存拒绝，见任务类型目录 spec）
+- GitLab / Gitea、GitHub App、SSH、webhook 触发、Check Run
+- 任务级 JSON 表单、Registry/OSS 凭证表、第二套部署 kubeconfig
 - 自定义镜像名、Gradle、Poetry/uv、每任务不同技术栈
 - 跨列跳步、节点级取消、YAML 编辑器
 - 封装 Jenkins、Docker Agent 双后端
+- docker.sock（镜像构建用 Kaniko）
 
 ---
 
@@ -124,7 +125,7 @@ Java 发行版钉死 Eclipse Temurin。`GOTOOLCHAIN=local`。clone 步骤镜像�
 
 ### 4.4 `pipeline_run` / `pipeline_run_job`
 
-| `pipeline_run` | pipeline_id, status (`QUEUED`/`RUNNING`/`SUCCEEDED`/`FAILED`/`CANCELLED`), trigger=`MANUAL`, git_ref, commit_sha, stack, runtime_version, tool_version, image, tekton_name, error_message, started_at, finished_at |
+| `pipeline_run` | pipeline_id, status（`QUEUED`/`RUNNING`/`WAITING_APPROVAL`/`SUCCEEDED`/`FAILED`/`CANCELLED`）, trigger=`MANUAL`, git_ref, commit_sha, stack, runtime_version, tool_version, image, tekton_name, error_message, started_at, finished_at |
 | `pipeline_run_job` | run_id, job_id, stage_name, job_name, kind, command, status, log_text, started_at, finished_at |
 
 日志第一期截断写入 `log_text`（上限 512KiB/任务）。
@@ -146,6 +147,7 @@ Java 发行版钉死 Eclipse Temurin。`GOTOOLCHAIN=local`。clone 步骤镜像�
 | POST | `/pipeline/pipelines/{id}/runs` | 手动运行 |
 | GET | `/pipeline/pipelines/{id}/runs/{runId}` | 含 jobs + 日志 |
 | POST | `/pipeline/pipelines/{id}/runs/{runId}/cancel` | 取消 |
+| POST | `/pipeline/pipelines/{id}/runs/{runId}/approve` | 待审批时通过，提交下一段 |
 
 凭证创建 body：`{ name, kind, username, secret }`。`kind=TOKEN` 且 username 空则存 `x-access-token`。
 
@@ -179,6 +181,7 @@ Java 发行版钉死 Eclipse Temurin。`GOTOOLCHAIN=local`。clone 步骤镜像�
 - 列头阶段名，列内任务卡片
 - 「+ 阶段」「+ 任务」
 - 卡片菜单：改名、改命令、删除（clone 也可删）
+- 运行页待审批时「通过」
 - 列间 SVG 连线（前列全部 → 后列全部，视觉上即可）
 - 保存写 stages/jobs
 
@@ -199,10 +202,11 @@ Java 发行版钉死 Eclipse Temurin。`GOTOOLCHAIN=local`。clone 步骤镜像�
 输入：pipeline + stages/jobs + 解析出的 image + clone URL/凭证。
 
 1. 拓扑：阶段升序；同列 jobs 并行。
-2. 全图每列恰好 1 个 job → 单个 `Task`/`TaskRun`：steps 按列顺序；有 `CLONE` 则该步用 git 镜像，其余用栈镜像。无 clone 则全部用栈镜像。workspace `emptyDir`。
-3. 否则 `Pipeline`：每列一个并行组。有 clone 时 clone 所在列为 git Task。共享 PVC workspace。
-4. 仅当存在 `CLONE` 时执行 git clone（`{scheme}://{user}:{secret}@host/path`），日志与 args 中打码。
-5. 对象名：`hfwas-{runId}` 截断符合 DNS 标签。
+2. 无 `APPROVAL` 且每列恰好 1 个 job → 单个 `Task`/`TaskRun`。有 `APPROVAL` 则按审批切段提交，见任务类型目录 §4.3。
+3. 否则该段用 `Pipeline`：每列一个并行组。共享 PVC workspace。
+4. step 镜像：`CLONE` git、`LINT` 为 Semgrep + Sonar Scanner（无 Token 则 Sonar skip）、`SCAN` Trivy、`IMAGE` 为 Kaniko + crane + cosign（缓存 PVC `hfwas-kc-{pipelineId}` 挂 `/cache`）、`UPLOAD` rclone、`DEPLOY` kubectl、`NOTIFY` curl，其余栈镜像。
+5. 仅当存在 `CLONE` 时 git clone；日志打码（git 密码、Cosign 私钥、Sonar Token）。命令类 step `mkdir -p` 后进入 `src`。
+6. 对象名：`hfwas-{runId}` 截断符合 DNS 标签。不挂 docker.sock。开发 compose 可选装 binfmt 以便 `linux/arm64`。
 
 开发 compose profile `pipeline`：k3s/k3d + 安装 Tekton Pipelines。`application.yml`：`pipeline.kubeconfig` 或 in-cluster。
 
@@ -214,7 +218,7 @@ Java 发行版钉死 Eclipse Temurin。`GOTOOLCHAIN=local`。clone 步骤镜像�
 - 列表/详情 VO 无 `secret` / `secretEnc`
 - clone URL 日志打码
 - 租户隔离：查改删均校验 `tenant_id`
-- 不把 docker.sock 挂进构建 Pod；第一期不打镜像故无 Kaniko
+- 不把 docker.sock 挂进构建 Pod；镜像用 Kaniko
 
 ---
 

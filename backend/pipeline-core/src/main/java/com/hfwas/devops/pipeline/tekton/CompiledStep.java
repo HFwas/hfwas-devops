@@ -7,6 +7,10 @@ public record CompiledStep(
         String image,
         String script,
         Map<String, String> env,
-        boolean usesGitSecret
+        boolean usesGitSecret,
+        boolean usesKanikoCache
 ) {
+    public CompiledStep(String name, String image, String script, Map<String, String> env, boolean usesGitSecret) {
+        this(name, image, script, env, usesGitSecret, false);
+    }
 }

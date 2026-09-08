@@ -10,6 +10,10 @@ public final class DnsNames {
         return clip(raw);
     }
 
+    public static String kanikoCache(long pipelineId) {
+        return clip("hfwas-kc-" + Long.toUnsignedString(pipelineId));
+    }
+
     public static String stepName(String raw) {
         String value = raw == null ? "step" : raw.toLowerCase().replaceAll("[^a-z0-9]+", "-");
         value = value.replaceAll("^-+", "").replaceAll("-+$", "");

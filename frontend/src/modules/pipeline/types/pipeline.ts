@@ -1,7 +1,20 @@
 export type EntityId = number | string
 
-export type JobKind = 'CLONE' | 'BUILD' | 'TEST' | 'CUSTOM'
-export type RunStatus = 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
+export type JobKind =
+  | 'CLONE'
+  | 'LINT'
+  | 'BUILD'
+  | 'TEST'
+  | 'SCAN'
+  | 'PACKAGE'
+  | 'CUSTOM'
+  | 'IMAGE'
+  | 'PUBLISH'
+  | 'UPLOAD'
+  | 'DEPLOY'
+  | 'APPROVAL'
+  | 'NOTIFY'
+export type RunStatus = 'QUEUED' | 'RUNNING' | 'WAITING_APPROVAL' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
 export type CredentialKind = 'PASSWORD' | 'TOKEN'
 export type PipelineStack = 'JAVA_MAVEN' | 'NODE' | 'GO' | 'PYTHON'
 

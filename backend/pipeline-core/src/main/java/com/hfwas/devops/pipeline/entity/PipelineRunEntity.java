@@ -25,6 +25,7 @@ public class PipelineRunEntity {
     private String toolVersion;
     private String image;
     private String tektonName;
+    private Integer segmentIndex;
     private String errorMessage;
     private LocalDateTime startedAt;
     private LocalDateTime finishedAt;

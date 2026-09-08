@@ -11,7 +11,9 @@ import com.hfwas.devops.pipeline.entity.PipelineRunEntity;
 import com.hfwas.devops.pipeline.entity.PipelineRunJobEntity;
 import com.hfwas.devops.pipeline.entity.PipelineStageEntity;
 import com.hfwas.devops.pipeline.executor.PipelineExecutor;
+import com.hfwas.devops.pipeline.graph.ApprovalPlan;
 import com.hfwas.devops.pipeline.graph.PipelineJobKind;
+import com.hfwas.devops.pipeline.graph.PipelineGraphSpec;
 import com.hfwas.devops.pipeline.mapper.PipelineJobMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunJobMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
@@ -73,7 +75,10 @@ public class PipelineRunService {
                 .orderByAsc(PipelineJobEntity::getSortOrder));
 
         boolean clusterReady = pipelineExecutor.isReady();
-        String status = clusterReady ? "QUEUED" : "FAILED";
+        PipelineGraphSpec graph = definitionService.loadGraph(pipelineId);
+        ApprovalPlan plan = ApprovalPlan.of(graph);
+        boolean waitFirst = clusterReady && plan.waitBeforeFirst();
+        String status = !clusterReady ? "FAILED" : (waitFirst ? "WAITING_APPROVAL" : "QUEUED");
         String error = clusterReady ? null : "未配置执行集群（pipeline.kubeconfig），定义已保存，暂不能真正执行";
 
         PipelineRunEntity run = new PipelineRunEntity();
@@ -109,29 +114,15 @@ public class PipelineRunService {
             runJob.setJobName(job.getName());
             runJob.setKind(job.getKind());
             runJob.setCommand(command);
-            runJob.setStatus(clusterReady ? "QUEUED" : "FAILED");
+            runJob.setStatus(clusterReady ? (waitFirst && isSameApproval(plan.firstApproval(), job)
+                    ? "WAITING_APPROVAL" : "QUEUED") : "FAILED");
             runJob.setLogText(clusterReady ? null : error);
             runJobMapper.insert(runJob);
         }
-        if (clusterReady) {
-            Long runId = run.getId();
-            Runnable submit = () -> {
-                try {
-                    pipelineExecutor.submit(runId);
-                } catch (Exception e) {
-                    failRun(runId, e.getMessage());
-                }
-            };
-            if (TransactionSynchronizationManager.isSynchronizationActive()) {
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        submit.run();
-                    }
-                });
-            } else {
-                submit.run();
-            }
+        if (clusterReady && !waitFirst && !plan.segments().isEmpty()) {
+            run.setSegmentIndex(0);
+            runMapper.updateById(run);
+            submitAfterCommit(run.getId());
         }
         return get(pipelineId, run.getId());
     }
@@ -183,6 +174,120 @@ public class PipelineRunService {
             // cluster cancel is best-effort
         }
         return get(pipelineId, runId);
+    }
+
+    @Transactional
+    public PipelineRunVO approve(Long pipelineId, Long runId) {
+        PipelineRunVO current = get(pipelineId, runId);
+        if (!"WAITING_APPROVAL".equals(current.getStatus())) {
+            throw BizException.of(ResultCode.BAD_REQUEST, "当前运行不在待审批");
+        }
+        ApprovalPlan plan = ApprovalPlan.of(definitionService.loadGraph(pipelineId));
+        PipelineRunEntity run = runMapper.selectById(runId);
+        List<PipelineRunJobEntity> runJobs = runJobMapper.selectList(new LambdaQueryWrapper<PipelineRunJobEntity>()
+                .eq(PipelineRunJobEntity::getRunId, runId)
+                .orderByAsc(PipelineRunJobEntity::getId));
+        runJobs.stream()
+                .filter(job -> "WAITING_APPROVAL".equals(job.getStatus())
+                        && PipelineJobKind.APPROVAL.name().equals(job.getKind()))
+                .findFirst()
+                .ifPresent(job -> {
+                    job.setStatus("SUCCEEDED");
+                    job.setFinishedAt(LocalDateTime.now());
+                    runJobMapper.updateById(job);
+                });
+        int succeeded = (int) runJobMapper.selectList(new LambdaQueryWrapper<PipelineRunJobEntity>()
+                        .eq(PipelineRunJobEntity::getRunId, runId))
+                .stream()
+                .filter(job -> PipelineJobKind.APPROVAL.name().equals(job.getKind()) && "SUCCEEDED".equals(job.getStatus()))
+                .count();
+        ApprovalPlan.Resume resume = plan.afterApprovalCount(succeeded);
+        if (resume == ApprovalPlan.Resume.WAIT) {
+            markApprovalWaiting(runJobs, plan.nextApprovalAfterCount(succeeded));
+            persistWaiting(runJobs);
+            run.setStatus("WAITING_APPROVAL");
+            run.setFinishedAt(null);
+            run.setErrorMessage(null);
+            runMapper.updateById(run);
+            return get(pipelineId, runId);
+        }
+        if (resume == ApprovalPlan.Resume.DONE) {
+            run.setStatus("SUCCEEDED");
+            run.setFinishedAt(LocalDateTime.now());
+            runMapper.updateById(run);
+            return get(pipelineId, runId);
+        }
+        Integer next = plan.nextSegmentIndex(succeeded);
+        if (next == null) {
+            run.setStatus("SUCCEEDED");
+            run.setFinishedAt(LocalDateTime.now());
+            runMapper.updateById(run);
+            return get(pipelineId, runId);
+        }
+        run.setSegmentIndex(next);
+        run.setStatus("QUEUED");
+        run.setFinishedAt(null);
+        runMapper.updateById(run);
+        Long id = run.getId();
+        submitAfterCommit(id);
+        return get(pipelineId, runId);
+    }
+
+    private void submitAfterCommit(Long runId) {
+        Runnable submit = () -> {
+            try {
+                pipelineExecutor.submit(runId);
+            } catch (Exception e) {
+                failRun(runId, e.getMessage());
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    submit.run();
+                }
+            });
+        } else {
+            submit.run();
+        }
+    }
+
+    private static boolean isSameApproval(ApprovalPlan.Item item, PipelineJobEntity job) {
+        if (item == null || job == null || !PipelineJobKind.APPROVAL.name().equals(job.getKind())) {
+            return false;
+        }
+        if (item.approvalJobId() != null && job.getId() != null) {
+            return item.approvalJobId().equals(job.getId());
+        }
+        return item.approvalJobName() != null && item.approvalJobName().equals(job.getName());
+    }
+
+    private static void markApprovalWaiting(List<PipelineRunJobEntity> runJobs, ApprovalPlan.Item item) {
+        if (item == null) {
+            return;
+        }
+        for (PipelineRunJobEntity job : runJobs) {
+            if (!PipelineJobKind.APPROVAL.name().equals(job.getKind())) {
+                continue;
+            }
+            boolean idMatch = item.approvalJobId() != null && item.approvalJobId().equals(job.getJobId());
+            boolean nameMatch = item.approvalJobId() == null
+                    && item.approvalJobName() != null
+                    && item.approvalJobName().equals(job.getJobName());
+            if (idMatch || nameMatch) {
+                job.setStatus("WAITING_APPROVAL");
+                job.setFinishedAt(null);
+            }
+        }
+    }
+
+    private void persistWaiting(List<PipelineRunJobEntity> runJobs) {
+        for (PipelineRunJobEntity job : runJobs) {
+            if ("WAITING_APPROVAL".equals(job.getStatus())) {
+                runJobMapper.updateById(job);
+            }
+        }
     }
 
     private void failRun(Long runId, String message) {

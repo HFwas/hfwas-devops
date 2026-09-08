@@ -6,9 +6,13 @@ import {
   addJob,
   addStage,
   createDefaultGraph,
+  defaultCommandForKind,
+  hasClone,
+  kindSelectOptions,
   refreshDefaultCommands,
   removeJob,
   removeStage,
+  requiresCommand,
   toEditorStages,
   toSaveStages,
 } from '@/modules/pipeline/graph/pipelineGraph'
@@ -59,6 +63,15 @@ const showTool = computed(() => toolOptions.value.length > 0)
 const credentialOptions = computed(() =>
   credentials.value.map((item) => ({ label: `${item.name}（${item.kind}）`, value: String(item.id) })),
 )
+const jobKindOptions = computed(() => kindSelectOptions(stages.value, editingJob.value?.job.clientKey))
+const showJobCommand = computed(() => requiresCommand(jobForm.value.kind))
+const jobCommandHint = computed(() => {
+  if (jobForm.value.kind === 'LINT') return '填写 Semgrep 参数；要跑 Sonar 时取消注释并填写 Host 与 Token。'
+  if (jobForm.value.kind === 'IMAGE') return '填写 DEST / IMAGE_PLATFORMS / DOCKERFILE；可选 COSIGN_PRIVATE_KEY。'
+  if (jobForm.value.kind === 'APPROVAL') return '运行到此处会暂停，需在运行页点通过。'
+  if (jobForm.value.kind === 'CLONE') return 'Clone 命令由平台生成，不需要填写。'
+  return ''
+})
 
 function errorMessage(e: unknown): string {
   if (isApiError(e)) return e.message
@@ -106,6 +119,21 @@ function openJob(stageKey: string, jobKey: string) {
   showJobModal.value = true
 }
 
+function onKindChange(kind: JobKind) {
+  const previous = jobForm.value.kind
+  const previousDefault = defaultCommandForKind(previous, currentOption.value)
+  const nextDefault = defaultCommandForKind(kind, currentOption.value)
+  const command = jobForm.value.command
+  jobForm.value.kind = kind
+  if (!requiresCommand(kind)) {
+    jobForm.value.command = ''
+    return
+  }
+  if (!command.trim() || command === previousDefault) {
+    jobForm.value.command = nextDefault
+  }
+}
+
 function saveJob() {
   const editing = editingJob.value
   if (!editing) return
@@ -113,7 +141,7 @@ function saveJob() {
     message.warning('任务名称不能为空')
     return
   }
-  if (jobForm.value.kind !== 'CLONE' && !jobForm.value.command.trim()) {
+  if (requiresCommand(jobForm.value.kind) && !jobForm.value.command.trim()) {
     message.warning('任务需要命令')
     return
   }
@@ -123,7 +151,12 @@ function saveJob() {
       ...stage,
       jobs: stage.jobs.map((job) =>
         job.clientKey === editing.job.clientKey
-          ? { ...job, name: jobForm.value.name.trim(), command: jobForm.value.command }
+          ? {
+              ...job,
+              name: jobForm.value.name.trim(),
+              kind: jobForm.value.kind,
+              command: requiresCommand(jobForm.value.kind) ? jobForm.value.command : '',
+            }
           : job,
       ),
     }
@@ -132,8 +165,12 @@ function saveJob() {
 }
 
 async function save(thenRun = false) {
-  if (!name.value.trim() || !repoUrl.value.trim()) {
-    message.warning('名称和仓库地址不能为空')
+  if (!name.value.trim()) {
+    message.warning('名称不能为空')
+    return
+  }
+  if (hasClone(stages.value) && !repoUrl.value.trim()) {
+    message.warning('有 clone 任务时仓库地址不能为空')
     return
   }
   saving.value = true
@@ -218,7 +255,7 @@ onMounted(load)
           </n-gi>
           <n-gi>
             <n-form-item label="仓库 HTTPS">
-              <n-input v-model:value="repoUrl" placeholder="https://github.com/org/repo.git" />
+              <n-input v-model:value="repoUrl" placeholder="有 clone 时必填，例如 https://github.com/org/repo.git" />
             </n-form-item>
           </n-gi>
           <n-gi>
@@ -270,12 +307,12 @@ onMounted(load)
         <n-input v-model:value="jobForm.name" />
       </n-form-item>
       <n-form-item label="类型">
-        <n-input :value="jobForm.kind" disabled />
+        <n-select :value="jobForm.kind" :options="jobKindOptions" @update:value="onKindChange" />
       </n-form-item>
-      <n-form-item v-if="jobForm.kind !== 'CLONE'" label="命令">
-        <n-input v-model:value="jobForm.command" type="textarea" :rows="4" />
+      <n-form-item v-if="showJobCommand" label="命令">
+        <n-input v-model:value="jobForm.command" type="textarea" :rows="6" />
       </n-form-item>
-      <p v-else class="hint">Clone 命令由平台生成，不需要填写。</p>
+      <p v-if="jobCommandHint" class="hint">{{ jobCommandHint }}</p>
     </n-form>
     <template #footer>
       <n-space justify="end">

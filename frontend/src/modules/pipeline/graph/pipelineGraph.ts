@@ -1,5 +1,58 @@
 import type { EditorJob, EditorStage, JobKind, PipelineStage, ToolchainOption } from '@/modules/pipeline/types/pipeline'
 
+export const JOB_KIND_OPTIONS: Array<{
+  value: JobKind
+  label: string
+  requiresCommand: boolean
+  defaultCommand: string
+}> = [
+  { value: 'CLONE', label: '克隆', requiresCommand: false, defaultCommand: '' },
+  {
+    value: 'LINT',
+    label: '代码检查',
+    requiresCommand: true,
+    defaultCommand: `export LINT_SEMGREP_ARGS="scan --error --config=auto ."
+# export SONAR_HOST_URL=https://sonar.example.com
+# export SONAR_TOKEN=
+# export SONAR_PROJECT_KEY=app`,
+  },
+  { value: 'BUILD', label: '构建', requiresCommand: true, defaultCommand: '' },
+  { value: 'TEST', label: '测试', requiresCommand: true, defaultCommand: '' },
+  {
+    value: 'SCAN',
+    label: '安全扫描',
+    requiresCommand: true,
+    defaultCommand: 'trivy fs --exit-code 1 --scanners vuln,secret,misconfig .',
+  },
+  { value: 'PACKAGE', label: '打包', requiresCommand: true, defaultCommand: '' },
+  { value: 'CUSTOM', label: '自定义', requiresCommand: true, defaultCommand: 'echo ok' },
+  {
+    value: 'IMAGE',
+    label: '镜像构建',
+    requiresCommand: true,
+    defaultCommand: `export DEST=registry.example.com/app:tag
+export IMAGE_PLATFORMS=linux/amd64
+export DOCKERFILE=Dockerfile`,
+  },
+  { value: 'PUBLISH', label: '发布制品', requiresCommand: true, defaultCommand: '' },
+  {
+    value: 'UPLOAD',
+    label: '上传对象存储',
+    requiresCommand: true,
+    defaultCommand:
+      'rclone copy ./ :s3:bucket/prefix --s3-provider=Minio --s3-endpoint="${S3_ENDPOINT}" --s3-access-key-id="${S3_ACCESS_KEY}" --s3-secret-access-key="${S3_SECRET_KEY}"',
+  },
+  { value: 'DEPLOY', label: '部署', requiresCommand: true, defaultCommand: 'kubectl apply -f k8s/' },
+  { value: 'APPROVAL', label: '人工卡点', requiresCommand: false, defaultCommand: '' },
+  {
+    value: 'NOTIFY',
+    label: '通知',
+    requiresCommand: true,
+    defaultCommand:
+      `curl -fsS -X POST 'https://example.com/hook' -H 'Content-Type: application/json' -d '{"status":"done"}'`,
+  },
+]
+
 let seq = 0
 
 export function nextClientKey(prefix = 'k'): string {
@@ -44,7 +97,7 @@ export function toSaveStages(stages: EditorStage[]): PipelineStage[] {
       id: jobItem.id,
       name: jobItem.name,
       kind: jobItem.kind,
-      command: jobItem.kind === 'CLONE' ? '' : jobItem.command,
+      command: jobItem.kind === 'CLONE' || jobItem.kind === 'APPROVAL' ? '' : jobItem.command,
       sortOrder: jobIndex,
     })),
   }))
@@ -54,12 +107,43 @@ export function isCloneJob(job: { kind?: string }): boolean {
   return job.kind === 'CLONE'
 }
 
-export function canDeleteJob(job: { kind?: string }): boolean {
-  return !isCloneJob(job)
+export function hasClone(stages: Array<{ jobs: Array<{ kind?: string }> }>): boolean {
+  return stages.some((stage) => stage.jobs.some(isCloneJob))
 }
 
-export function canDeleteStage(stage: { jobs: Array<{ kind?: string }> }): boolean {
-  return !stage.jobs.some(isCloneJob)
+export function jobKindLabel(kind?: string | null): string {
+  return JOB_KIND_OPTIONS.find((item) => item.value === kind)?.label ?? kind ?? ''
+}
+
+export function requiresCommand(kind?: string | null): boolean {
+  return kind !== 'CLONE' && kind !== 'APPROVAL'
+}
+
+export function defaultCommandForKind(kind: string, option?: ToolchainOption | null): string {
+  if (kind === 'BUILD') return option?.buildCommand ?? ''
+  if (kind === 'TEST') return option?.testCommand ?? ''
+  return JOB_KIND_OPTIONS.find((item) => item.value === kind)?.defaultCommand ?? ''
+}
+
+export function kindSelectOptions(
+  stages: Array<{ jobs: Array<{ kind?: string; clientKey?: string }> }>,
+  editingClientKey?: string,
+): Array<{ label: string; value: JobKind }> {
+  const cloneTaken = stages.some((stage) =>
+    stage.jobs.some((job) => job.kind === 'CLONE' && job.clientKey !== editingClientKey),
+  )
+  return JOB_KIND_OPTIONS.filter((item) => item.value !== 'CLONE' || !cloneTaken).map((item) => ({
+    label: item.label,
+    value: item.value,
+  }))
+}
+
+export function canDeleteJob(_job?: { kind?: string }): boolean {
+  return true
+}
+
+export function canDeleteStage(_stage?: { jobs: Array<{ kind?: string }> }): boolean {
+  return true
 }
 
 export function addStage(stages: EditorStage[], name?: string): EditorStage[] {

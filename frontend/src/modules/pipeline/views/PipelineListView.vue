@@ -29,6 +29,7 @@ function statusType(status?: string | null) {
   if (status === 'SUCCEEDED') return 'success'
   if (status === 'FAILED') return 'error'
   if (status === 'RUNNING') return 'info'
+  if (status === 'WAITING_APPROVAL') return 'warning'
   if (status === 'CANCELLED') return 'warning'
   return 'default'
 }

@@ -27,6 +27,8 @@ export const pipelineApi = {
     get<PipelineRun>(`/pipeline/pipelines/${asId(id)}/runs/${asId(runId)}`),
   cancel: (id: EntityId, runId: EntityId) =>
     post<PipelineRun>(`/pipeline/pipelines/${asId(id)}/runs/${asId(runId)}/cancel`),
+  approve: (id: EntityId, runId: EntityId) =>
+    post<PipelineRun>(`/pipeline/pipelines/${asId(id)}/runs/${asId(runId)}/approve`),
 }
 
 export const pipelineCredentialApi = {

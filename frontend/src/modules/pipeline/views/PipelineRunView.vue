@@ -27,6 +27,7 @@ function statusType(status?: string | null) {
   if (status === 'SUCCEEDED') return 'success'
   if (status === 'FAILED') return 'error'
   if (status === 'RUNNING') return 'info'
+  if (status === 'WAITING_APPROVAL') return 'warning'
   if (status === 'CANCELLED') return 'warning'
   return 'default'
 }
@@ -88,6 +89,16 @@ async function cancel() {
   }
 }
 
+async function approve() {
+  try {
+    run.value = await pipelineApi.approve(pipelineId.value, runId.value)
+    stages.value = groupStages(run.value.jobs ?? [])
+    message.success('已通过')
+  } catch (e) {
+    message.error(errorMessage(e))
+  }
+}
+
 function stopTimer() {
   if (timer != null) {
     window.clearInterval(timer)
@@ -115,6 +126,7 @@ onBeforeUnmount(stopTimer)
       <template #extra>
         <n-space align="center">
           <n-tag v-if="run" :type="statusType(run.status)" :bordered="false">{{ run.status }}</n-tag>
+          <n-button v-if="run?.status === 'WAITING_APPROVAL'" type="primary" @click="approve">通过</n-button>
           <n-button v-if="run && !isTerminal(run.status)" @click="cancel">取消</n-button>
         </n-space>
       </template>

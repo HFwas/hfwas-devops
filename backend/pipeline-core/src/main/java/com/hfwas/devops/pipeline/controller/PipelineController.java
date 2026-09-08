@@ -71,4 +71,9 @@ public class PipelineController {
     public BaseResult<PipelineRunVO> cancel(@PathVariable("id") Long id, @PathVariable("runId") Long runId) {
         return BaseResult.ok(runService.cancel(id, runId));
     }
+
+    @PostMapping("/{id}/runs/{runId}/approve")
+    public BaseResult<PipelineRunVO> approve(@PathVariable("id") Long id, @PathVariable("runId") Long runId) {
+        return BaseResult.ok(runService.approve(id, runId));
+    }
 }

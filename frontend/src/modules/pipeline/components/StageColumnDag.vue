@@ -2,7 +2,7 @@
 import { MoreHorizontal, Plus } from '@lucide/vue'
 import type { DropdownOption } from 'naive-ui'
 import type { EditorStage, PipelineRunJob } from '@/modules/pipeline/types/pipeline'
-import { canDeleteJob, canDeleteStage } from '@/modules/pipeline/graph/pipelineGraph'
+import { canDeleteJob, canDeleteStage, jobKindLabel, requiresCommand } from '@/modules/pipeline/graph/pipelineGraph'
 
 const props = withDefaults(
   defineProps<{
@@ -65,6 +65,7 @@ function statusClass(status: string): string {
   if (value === 'running') return 'is-running'
   if (value === 'cancelled') return 'is-cancelled'
   if (value === 'queued') return 'is-queued'
+  if (value === 'waiting_approval') return 'is-waiting'
   return ''
 }
 
@@ -147,7 +148,7 @@ watch(
             @click="onCardClick(stage, job.name, job.id)"
           >
             <div class="job-card-top">
-              <span class="job-kind">{{ job.kind }}</span>
+              <span class="job-kind">{{ jobKindLabel(job.kind) }}</span>
               <n-dropdown
                 v-if="mode === 'edit'"
                 trigger="click"
@@ -160,8 +161,9 @@ watch(
               </n-dropdown>
             </div>
             <div class="job-name">{{ job.name }}</div>
-            <div v-if="job.kind !== 'CLONE'" class="job-cmd">{{ job.command || '（未填写命令）' }}</div>
-            <div v-else class="job-cmd">平台生成 git clone</div>
+            <div v-if="requiresCommand(job.kind)" class="job-cmd">{{ job.command || '（未填写命令）' }}</div>
+            <div v-else-if="job.kind === 'CLONE'" class="job-cmd">平台生成 git clone</div>
+            <div v-else class="job-cmd">运行到此处暂停，需在运行页点通过</div>
           </div>
           <n-button
             v-if="mode === 'edit'"
@@ -273,6 +275,10 @@ watch(
 .job-card.is-cancelled,
 .job-card.is-queued {
   border-color: #94a3b8;
+}
+
+.job-card.is-waiting {
+  border-color: #d97706;
 }
 
 .job-card.is-selected {

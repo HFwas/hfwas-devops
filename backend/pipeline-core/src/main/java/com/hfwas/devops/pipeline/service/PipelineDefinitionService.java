@@ -85,19 +85,24 @@ public class PipelineDefinitionService {
     @Transactional
     public Long save(PipelineSaveDTO dto) {
         Long tenantId = requireTenant();
-        if (!StringUtils.hasText(dto.getName()) || !StringUtils.hasText(dto.getRepoUrl())) {
-            throw BizException.of(ResultCode.BAD_REQUEST, "名称和仓库地址不能为空");
+        if (!StringUtils.hasText(dto.getName())) {
+            throw BizException.of(ResultCode.BAD_REQUEST, "名称不能为空");
         }
-        GitRemote.parse(dto.getRepoUrl());
         PipelineStack stack = parseStack(dto.getStack());
         toolchainCatalog.resolve(stack, dto.getRuntimeVersion(), dto.getToolVersion());
         PipelineGraphSpec graph = toGraph(dto, stack);
         PipelineGraphValidator.validate(graph);
+        boolean hasClone = graph.stages().stream()
+                .flatMap(stage -> stage.jobs() == null ? java.util.stream.Stream.empty() : stage.jobs().stream())
+                .anyMatch(job -> job.kind() == PipelineJobKind.CLONE);
+        if (hasClone) {
+            GitRemote.parse(dto.getRepoUrl());
+        }
 
         PipelineEntity row = dto.getId() == null ? new PipelineEntity() : requireOwned(dto.getId());
         row.setTenantId(tenantId);
         row.setName(dto.getName().trim());
-        row.setRepoUrl(dto.getRepoUrl().trim());
+        row.setRepoUrl(StringUtils.hasText(dto.getRepoUrl()) ? dto.getRepoUrl().trim() : "");
         row.setGitRef(StringUtils.hasText(dto.getGitRef()) ? dto.getGitRef().trim() : "main");
         row.setCredentialId(dto.getCredentialId());
         row.setStack(stack.name());

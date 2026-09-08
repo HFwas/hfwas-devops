@@ -3,6 +3,9 @@ import {
   canDeleteJob,
   canDeleteStage,
   createDefaultGraph,
+  hasClone,
+  JOB_KIND_OPTIONS,
+  kindSelectOptions,
   refreshDefaultCommands,
   repoShortName,
   stackSummary,
@@ -35,8 +38,8 @@ describe('pipeline default graph', () => {
     expect(graph[0].jobs[0].kind).toBe('CLONE')
     expect(graph[1].jobs[0].command).toBe(java21.buildCommand)
     expect(graph[2].jobs[0].command).toBe(java21.testCommand)
-    expect(canDeleteJob(graph[0].jobs[0])).toBe(false)
-    expect(canDeleteStage(graph[0])).toBe(false)
+    expect(canDeleteJob(graph[0].jobs[0])).toBe(true)
+    expect(canDeleteStage(graph[0])).toBe(true)
     expect(canDeleteStage(graph[1])).toBe(true)
   })
 
@@ -58,5 +61,15 @@ describe('pipeline default graph', () => {
     expect(repoShortName('https://github.com/acme/demo.git')).toBe('acme/demo')
     expect(repoShortName('https://gitlab.example.com/group/proj.git')).toBe('group/proj')
     expect(stackSummary('JAVA_MAVEN', '21', '3.9')).toBe('Java 21 / Maven 3.9')
+  })
+
+  it('lists 13 kinds and hides clone when another clone exists', () => {
+    expect(JOB_KIND_OPTIONS).toHaveLength(13)
+    const graph = createDefaultGraph(java21)
+    expect(hasClone(graph)).toBe(true)
+    expect(kindSelectOptions(graph, graph[1].jobs[0].clientKey).some((item) => item.value === 'CLONE')).toBe(false)
+    expect(kindSelectOptions(graph, graph[0].jobs[0].clientKey).some((item) => item.value === 'CLONE')).toBe(true)
+    graph[0].jobs[0].kind = 'CUSTOM'
+    expect(kindSelectOptions(graph).some((item) => item.value === 'CLONE')).toBe(true)
   })
 })
