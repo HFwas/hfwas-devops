@@ -40,6 +40,11 @@ export const pipelineRoutes: RouteRecordRaw[] = [
         name: 'pipeline-credentials',
         component: () => import('@/modules/pipeline/views/PipelineCredentialView.vue'),
       },
+      {
+        path: 'task-kinds',
+        name: 'pipeline-task-kinds',
+        component: () => import('@/modules/pipeline/views/TaskMarketView.vue'),
+      },
     ],
   },
 ]

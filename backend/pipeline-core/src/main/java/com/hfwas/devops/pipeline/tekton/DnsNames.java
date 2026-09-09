@@ -14,10 +14,6 @@ public final class DnsNames {
         return clip(raw);
     }
 
-    public static String kanikoCache(long pipelineId) {
-        return clip("hfwas-kc-" + Long.toUnsignedString(pipelineId));
-    }
-
     public static String stepName(String raw) {
         return stepName(raw, null);
     }

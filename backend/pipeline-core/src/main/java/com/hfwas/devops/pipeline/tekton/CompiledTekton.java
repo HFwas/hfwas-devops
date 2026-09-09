@@ -22,8 +22,6 @@ public record CompiledTekton(
     }
 
     public boolean anyKanikoCache() {
-        return needsKanikoCache || tasks.stream()
-                .flatMap(task -> task.steps().stream())
-                .anyMatch(CompiledStep::usesKanikoCache);
+        return false;
     }
 }

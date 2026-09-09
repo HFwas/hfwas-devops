@@ -33,12 +33,13 @@ export const JOB_KIND_CATALOG: JobKindMeta[] = [
     value: 'IMAGE',
     label: '镜像构建',
     group: '构建',
-    description: 'Kaniko 构建并签名镜像',
-    hint: '填写 DEST / IMAGE_PLATFORMS / DOCKERFILE；可选 COSIGN_PRIVATE_KEY。',
+    description: 'Buildah 多架构构建并推送镜像',
+    hint: '填写 DEST / IMAGE_PLATFORMS / DOCKERFILE；可选 COSIGN_PRIVATE_KEY。支持 linux/amd64,linux/arm64 等多架构。',
     requiresCommand: true,
-    defaultCommand: `export DEST=registry.example.com/app:tag
-export IMAGE_PLATFORMS=linux/amd64
-export DOCKERFILE=Dockerfile`,
+    defaultCommand:
+      'export DEST=registry.example.com/app:tag\n'
+      + 'export IMAGE_PLATFORMS=linux/amd64,linux/arm64\n'
+      + 'export DOCKERFILE=Dockerfile',
   },
   {
     value: 'LINT_SEMGREP',

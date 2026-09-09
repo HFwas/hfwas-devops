@@ -759,7 +759,7 @@ public static final String KANIKO_IMAGE = "gcr.io/kaniko-project/executor:v1.23.
 public static final String CRANE_IMAGE = "gcr.io/go-containerregistry/crane:v0.20.3";
 
 // 新增
-public static final String BUILDAH_IMAGE = "quay.io/buildah/stable:v1.37.6";
+public static final String BUILDAH_IMAGE = "quay.io/buildah/stable:v1.37.0";
 // Cosign 保留
 public static final String COSIGN_IMAGE = "ghcr.io/sigstore/cosign:v2.4.3";
 ```

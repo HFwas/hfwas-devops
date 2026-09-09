@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { GitBranch, KeyRound } from '@lucide/vue'
+import { GitBranch, KeyRound, Package } from '@lucide/vue'
 import type { MenuOption } from 'naive-ui'
 
 const route = useRoute()
@@ -7,11 +7,13 @@ const router = useRouter()
 
 const menuOptions: MenuOption[] = [
   { label: '流水线', key: '/pipeline/pipelines', icon: () => h(GitBranch, { size: 16 }) },
+  { label: '任务市场', key: '/pipeline/task-kinds', icon: () => h(Package, { size: 16 }) },
   { label: '凭证', key: '/pipeline/credentials', icon: () => h(KeyRound, { size: 16 }) },
 ]
 
 const activeKey = computed(() => {
   if (route.path.startsWith('/pipeline/credentials')) return '/pipeline/credentials'
+  if (route.path.startsWith('/pipeline/task-kinds')) return '/pipeline/task-kinds'
   return '/pipeline/pipelines'
 })
 

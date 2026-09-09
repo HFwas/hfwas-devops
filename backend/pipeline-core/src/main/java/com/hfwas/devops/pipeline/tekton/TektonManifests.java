@@ -51,10 +51,6 @@ public final class TektonManifests {
         return claim(namespace, name, "2Gi");
     }
 
-    public static PersistentVolumeClaim kanikoCacheClaim(String namespace, String name) {
-        return claim(namespace, name, "10Gi");
-    }
-
     private static PersistentVolumeClaim claim(String namespace, String name, String size) {
         return new PersistentVolumeClaimBuilder()
                 .withNewMetadata().withNamespace(namespace).withName(name).endMetadata()
@@ -87,12 +83,6 @@ public final class TektonManifests {
         }
         List<io.fabric8.tekton.v1.WorkspaceDeclaration> workspaces = new ArrayList<>();
         workspaces.add(new WorkspaceDeclarationBuilder().withName(TektonCompiler.WORKSPACE).build());
-        if (compiled.steps().stream().anyMatch(CompiledStep::usesKanikoCache)) {
-            workspaces.add(new WorkspaceDeclarationBuilder()
-                    .withName(TektonCompiler.CACHE_WORKSPACE)
-                    .withMountPath("/cache")
-                    .build());
-        }
         return new TaskBuilder()
                 .withNewMetadata().withNamespace(namespace).withName(compiled.name()).endMetadata()
                 .withNewSpec()
@@ -102,20 +92,12 @@ public final class TektonManifests {
                 .build();
     }
 
-    public static TaskRun taskRun(String namespace, String name, String taskName, String cacheClaim) {
+    public static TaskRun taskRun(String namespace, String name, String taskName) {
         List<io.fabric8.tekton.v1.WorkspaceBinding> bindings = new ArrayList<>();
         bindings.add(new WorkspaceBindingBuilder()
                 .withName(TektonCompiler.WORKSPACE)
                 .withEmptyDir(new EmptyDirVolumeSource())
                 .build());
-        if (cacheClaim != null) {
-            bindings.add(new WorkspaceBindingBuilder()
-                    .withName(TektonCompiler.CACHE_WORKSPACE)
-                    .withPersistentVolumeClaim(new PersistentVolumeClaimVolumeSourceBuilder()
-                            .withClaimName(cacheClaim)
-                            .build())
-                    .build());
-        }
         return new TaskRunBuilder()
                 .withNewMetadata().withNamespace(namespace).withName(name).endMetadata()
                 .withNewSpec()
@@ -132,18 +114,11 @@ public final class TektonManifests {
                     .filter(row -> row.name().equals(item.taskRef()))
                     .findFirst()
                     .orElse(null);
-            boolean cache = task != null && task.steps().stream().anyMatch(CompiledStep::usesKanikoCache);
             List<io.fabric8.tekton.v1.WorkspacePipelineTaskBinding> ws = new ArrayList<>();
             ws.add(new WorkspacePipelineTaskBindingBuilder()
                     .withName(TektonCompiler.WORKSPACE)
                     .withWorkspace(TektonCompiler.WORKSPACE)
                     .build());
-            if (cache) {
-                ws.add(new WorkspacePipelineTaskBindingBuilder()
-                        .withName(TektonCompiler.CACHE_WORKSPACE)
-                        .withWorkspace(TektonCompiler.CACHE_WORKSPACE)
-                        .build());
-            }
             PipelineTaskBuilder builder = new PipelineTaskBuilder()
                     .withName(item.name())
                     .withTaskRef(new TaskRefBuilder().withName(item.taskRef()).build())
@@ -155,9 +130,6 @@ public final class TektonManifests {
         }
         List<io.fabric8.tekton.v1.PipelineWorkspaceDeclaration> pws = new ArrayList<>();
         pws.add(new PipelineWorkspaceDeclarationBuilder().withName(TektonCompiler.WORKSPACE).build());
-        if (compiled.anyKanikoCache()) {
-            pws.add(new PipelineWorkspaceDeclarationBuilder().withName(TektonCompiler.CACHE_WORKSPACE).build());
-        }
         return new PipelineBuilder()
                 .withNewMetadata().withNamespace(namespace).withName(compiled.name()).endMetadata()
                 .withNewSpec()
@@ -171,8 +143,7 @@ public final class TektonManifests {
             String namespace,
             String name,
             String pipelineName,
-            String claimName,
-            String cacheClaim
+            String claimName
     ) {
         List<io.fabric8.tekton.v1.WorkspaceBinding> bindings = new ArrayList<>();
         bindings.add(new WorkspaceBindingBuilder()
@@ -181,14 +152,6 @@ public final class TektonManifests {
                         .withClaimName(claimName)
                         .build())
                 .build());
-        if (cacheClaim != null) {
-            bindings.add(new WorkspaceBindingBuilder()
-                    .withName(TektonCompiler.CACHE_WORKSPACE)
-                    .withPersistentVolumeClaim(new PersistentVolumeClaimVolumeSourceBuilder()
-                            .withClaimName(cacheClaim)
-                            .build())
-                    .build());
-        }
         return new PipelineRunBuilder()
                 .withNewMetadata().withNamespace(namespace).withName(name).endMetadata()
                 .withNewSpec()
