@@ -8,6 +8,7 @@ import com.hfwas.devops.pipeline.mapper.PipelineMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunJobMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineStageMapper;
+import com.hfwas.devops.pipeline.mapper.PipelineTaskKindMapper;
 import com.hfwas.devops.pipeline.service.PipelineCredentialService;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -38,7 +39,8 @@ public class PipelineExecutorConfiguration {
             PipelineJobMapper jobMapper,
             PipelineRunMapper runMapper,
             PipelineRunJobMapper runJobMapper,
-            PipelineCredentialService credentialService
+            PipelineCredentialService credentialService,
+            PipelineTaskKindMapper taskKindMapper
     ) {
         Path path = StringUtils.hasText(kubeconfig) ? Path.of(kubeconfig) : null;
         if (path == null || !Files.isRegularFile(path)) {
@@ -56,6 +58,7 @@ public class PipelineExecutorConfiguration {
                     runMapper,
                     runJobMapper,
                     credentialService,
+                    taskKindMapper,
                     gitHttpProxy,
                     gitDockerHost
             );

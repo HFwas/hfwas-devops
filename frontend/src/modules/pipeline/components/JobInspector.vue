@@ -50,7 +50,7 @@ const showTool = computed(() => toolOptions.value.length > 0)
 
 /** 需要语言/版本/工具选择的 job 类型：代码构建类 */
 function requiresToolchain(kind?: string | null): boolean {
-  return kind === 'BUILD' || kind === 'TEST' || kind === 'CUSTOM' || kind === 'PACKAGE' || kind === 'PUBLISH'
+  return kind === 'BUILD' || kind === 'TEST' || kind === 'PACKAGE' || kind === 'PUBLISH'
 }
 
 const showToolchain = computed(() => props.job != null && requiresToolchain(props.job.kind))

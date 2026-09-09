@@ -23,8 +23,7 @@ public final class TektonCompiler {
     public static final String UPLOAD_IMAGE = "rclone/rclone:1.68.2";
     public static final String DEPLOY_IMAGE = "bitnami/kubectl:1.31.4";
     public static final String NOTIFY_IMAGE = "curlimages/curl:8.11.1";
-    public static final String KANIKO_IMAGE = "gcr.io/kaniko-project/executor:v1.23.2-debug";
-    public static final String CRANE_IMAGE = "gcr.io/go-containerregistry/crane:v0.20.3";
+    public static final String BUILDAH_IMAGE = "quay.io/containers/buildah:v1.37.0";
     public static final String COSIGN_IMAGE = "ghcr.io/sigstore/cosign:v2.4.3";
     public static final String SEMGREP_IMAGE = "semgrep/semgrep:1.97.0";
     public static final String SONAR_IMAGE = "sonarsource/sonar-scanner-cli:11.2";
@@ -152,29 +151,41 @@ public final class TektonCompiler {
                     echo "HFWAS_GIT_REF=${GIT_REF}"
                     echo "HFWAS_COMMIT=$(git -C src rev-parse HEAD)"
                     """.stripIndent();
-            return List.of(new CompiledStep(base, CLONE_IMAGE, script, env, request.hasCredential(), false));
+            return List.of(new CompiledStep(base, resolveImage("CLONE", request.taskImages(), CLONE_IMAGE), script, env, request.hasCredential(), false));
         }
         String command = job.command() == null ? "" : job.command();
         if (job.kind() == PipelineJobKind.IMAGE) {
             return List.of(
-                    new CompiledStep(base, KANIKO_IMAGE, imageKanikoScript(command), env, false, true),
-                    new CompiledStep(base + "-crane", CRANE_IMAGE, imageCraneScript(command), env, false, false),
-                    new CompiledStep(base + "-cosign", COSIGN_IMAGE, imageCosignScript(command), env, false, false)
+                    new CompiledStep(base, resolveImage("IMAGE", request.taskImages(), BUILDAH_IMAGE), imageBuildahScript(command), env, false, false),
+                    new CompiledStep(base + "-cosign", resolveImage("IMAGE", request.taskImages(), COSIGN_IMAGE), imageCosignScript(command), env, false, false)
             );
         }
         if (job.kind() == PipelineJobKind.LINT_SONAR) {
-            return List.of(new CompiledStep(base, SONAR_IMAGE, lintSonarScript(command), env, false, false));
+            return List.of(new CompiledStep(base, resolveImage("LINT_SONAR", request.taskImages(), SONAR_IMAGE), lintSonarScript(command), env, false, false));
         }
         String image = switch (job.kind()) {
-            case LINT_SEMGREP -> SEMGREP_IMAGE;
-            case SCAN -> SCAN_IMAGE;
-            case UPLOAD -> UPLOAD_IMAGE;
-            case DEPLOY -> DEPLOY_IMAGE;
-            case NOTIFY -> NOTIFY_IMAGE;
+            case LINT_SEMGREP -> resolveImage("LINT_SEMGREP", request.taskImages(), SEMGREP_IMAGE);
+            case SCAN -> resolveImage("SCAN", request.taskImages(), SCAN_IMAGE);
+            case UPLOAD -> resolveImage("UPLOAD", request.taskImages(), UPLOAD_IMAGE);
+            case DEPLOY -> resolveImage("DEPLOY", request.taskImages(), DEPLOY_IMAGE);
+            case NOTIFY -> resolveImage("NOTIFY", request.taskImages(), NOTIFY_IMAGE);
             default -> toolchainImageForJob(job);
         };
         String script = commandScript(command);
         return List.of(new CompiledStep(base, image, script, env, false, false));
+    }
+
+    /**
+     * 解析任务的最终镜像地址，优先级：toolImage &gt; defaultImage &gt; 硬编码默认值
+     */
+    private static String resolveImage(String kindValue, Map<String, String> taskImages, String fallback) {
+        if (taskImages != null) {
+            String effective = taskImages.get(kindValue);
+            if (effective != null && !effective.isBlank()) {
+                return effective;
+            }
+        }
+        return fallback;
     }
 
     private static String toolchainImageForJob(PipelineJobSpec job) {
@@ -213,51 +224,36 @@ public final class TektonCompiler {
                 """.formatted(command).stripIndent();
     }
 
-    private static String imageKanikoScript(String command) {
+    private static String imageBuildahScript(String command) {
         return evalPrefix(command) + """
-                
-                : "${DEST:?DEST is required}"
-                : "${IMAGE_PLATFORMS:=linux/amd64}"
-                : "${DOCKERFILE:=Dockerfile}"
-                n=0
-                for p in $(echo "$IMAGE_PLATFORMS" | tr ',' ' '); do
-                  n=$((n + 1))
-                done
-                for p in $(echo "$IMAGE_PLATFORMS" | tr ',' ' '); do
-                  p=$(echo "$p" | tr -d ' ')
-                  [ -n "$p" ] || continue
-                  arch="${p##*/}"
-                  if [ "$n" -eq 1 ]; then
-                    dest="$DEST"
-                  else
-                    dest="${DEST}-${arch}"
-                  fi
-                  /kaniko/executor --context=dir://. --dockerfile="$DOCKERFILE" --custom-platform="$p" --destination="$dest" --cache=true --cache-dir=/cache
-                done
-                """.stripIndent();
-    }
 
-    private static String imageCraneScript(String command) {
-        return evalPrefix(command) + """
-                
                 : "${DEST:?DEST is required}"
-                : "${IMAGE_PLATFORMS:=linux/amd64}"
+                : "${IMAGE_PLATFORMS:=linux/amd64,linux/arm64}"
+                : "${DOCKERFILE:=Dockerfile}"
+
                 n=0
-                for p in $(echo "$IMAGE_PLATFORMS" | tr ',' ' '); do
-                  n=$((n + 1))
-                done
-                if [ "$n" -le 1 ]; then
-                  echo skip crane: single platform
-                  exit 0
-                fi
-                args=""
                 for p in $(echo "$IMAGE_PLATFORMS" | tr ',' ' '); do
                   p=$(echo "$p" | tr -d ' ')
                   [ -n "$p" ] || continue
-                  arch="${p##*/}"
-                  args="$args ${DEST}-${arch}"
+                  n=$((n + 1))
                 done
-                crane index append -t "$DEST" $args
+
+                if [ "$n" -eq 1 ]; then
+                  buildah build --file "$DOCKERFILE" --platform "$IMAGE_PLATFORMS" -t "$DEST" .
+                  buildah push "$DEST"
+                else
+                  buildah manifest create "$DEST"
+                  for p in $(echo "$IMAGE_PLATFORMS" | tr ',' ' '); do
+                    p=$(echo "$p" | tr -d ' ')
+                    [ -n "$p" ] || continue
+                    buildah build \\\\
+                      --manifest "$DEST" \\\\
+                      --platform "$p" \\\\
+                      --file "$DOCKERFILE" \\\\
+                      .
+                  done
+                  buildah manifest push --all "$DEST" "docker://$DEST"
+                fi
                 """.stripIndent();
     }
 

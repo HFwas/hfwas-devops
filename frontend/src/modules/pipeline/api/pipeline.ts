@@ -7,6 +7,7 @@ import type {
   PipelineRun,
   PipelineSavePayload,
   PipelineSummary,
+  TaskKindVO,
   ToolchainOption,
 } from '@/modules/pipeline/types/pipeline'
 
@@ -38,4 +39,13 @@ export const pipelineCredentialApi = {
   get: (id: EntityId) => get<PipelineCredential>(`/pipeline/credentials/${asId(id)}`),
   save: (data: CredentialSavePayload) => post<EntityId>('/pipeline/credentials', data),
   delete: (id: EntityId) => del<void>(`/pipeline/credentials/${asId(id)}`),
+}
+
+export const pipelineTaskKindApi = {
+  list: () => get<TaskKindVO[]>('/pipeline/task-kinds'),
+  get: (kind: string) => get<TaskKindVO>(`/pipeline/task-kinds/${kind}`),
+  update: (kind: string, data: Partial<TaskKindVO>) =>
+    put<void>(`/pipeline/task-kinds/${kind}`, data),
+  toggle: (kind: string) =>
+    put<void>(`/pipeline/task-kinds/${kind}/toggle`, {}),
 }

@@ -7,6 +7,7 @@ import com.hfwas.devops.pipeline.graph.PipelineStageSpec;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -57,7 +58,7 @@ class TektonCompilerTest {
         ));
         CompiledStep step = TektonCompiler.compile(new CompileRequest(
                 6L, 8L, "https://github.com/acme/demo.git", "main", false, graph,
-                "http://192.168.5.2:7890"
+                "http://192.168.5.2:7890", Map.of()
         )).tasks().getFirst().steps().getFirst();
         assertEquals("http://192.168.5.2:7890", step.env().get("GIT_HTTP_PROXY"));
     }
@@ -110,7 +111,7 @@ class TektonCompilerTest {
                 stage("run", 0, List.of(job("echo", PipelineJobKind.CUSTOM, "echo ok", 0)))
         ));
         CompiledTekton compiled = TektonCompiler.compile(new CompileRequest(
-                1L, 8L, "", "main", false, graph, ""));
+                1L, 8L, "", "main", false, graph, "", Map.of()));
         assertEquals(1, compiled.tasks().getFirst().steps().size());
         assertTrue(compiled.tasks().getFirst().steps().getFirst().image() != null);
         assertTrue(compiled.tasks().getFirst().steps().getFirst().script().contains("mkdir -p"));
@@ -129,7 +130,7 @@ class TektonCompilerTest {
     void lintSemgrepUsesSemgrepImageAndUserCli() {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
                 stage("lint", 0, List.of(job("sg", PipelineJobKind.LINT_SEMGREP,
-                        PipelineJobKind.LINT_SEMGREP.defaultCommand(), 0)))
+                        "semgrep scan --error --config=auto .", 0)))
         ));
         List<CompiledStep> steps = TektonCompiler.compile(request(3L, graph, false)).tasks().getFirst().steps();
         assertEquals(1, steps.size());
@@ -143,7 +144,9 @@ class TektonCompilerTest {
     void lintSonarUsesSonarImageAndFailsWhenTokenEmpty() {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
                 stage("lint", 0, List.of(job("sn", PipelineJobKind.LINT_SONAR,
-                        PipelineJobKind.LINT_SONAR.defaultCommand(), 0)))
+                        "export SONAR_HOST_URL=https://sonar.example.com\n"
+                                + "export SONAR_TOKEN=\n"
+                                + "export SONAR_PROJECT_KEY=app", 0)))
         ));
         List<CompiledStep> steps = TektonCompiler.compile(request(3L, graph, false)).tasks().getFirst().steps();
         assertEquals(1, steps.size());
@@ -155,20 +158,22 @@ class TektonCompilerTest {
     }
 
     @Test
-    void imageExpandsToKanikoCraneCosignWithCache() {
+    void imageExpandsToBuildahAndCosign() {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
-                stage("img", 0, List.of(job("img", PipelineJobKind.IMAGE, PipelineJobKind.IMAGE.defaultCommand(), 0)))
+                stage("img", 0, List.of(job("img", PipelineJobKind.IMAGE,
+                        "export DEST=registry.example.com/app:tag\n"
+                                + "export IMAGE_PLATFORMS=linux/amd64,linux/arm64\n"
+                                + "export DOCKERFILE=Dockerfile", 0)))
         ));
         CompiledTekton compiled = TektonCompiler.compile(request(4L, graph, false));
         List<CompiledStep> steps = compiled.tasks().getFirst().steps();
-        assertEquals(3, steps.size());
-        assertEquals(TektonCompiler.KANIKO_IMAGE, steps.get(0).image());
-        assertTrue(steps.get(0).usesKanikoCache());
-        assertTrue(steps.get(0).script().contains("--cache-dir=/cache"));
-        assertEquals(TektonCompiler.CRANE_IMAGE, steps.get(1).image());
-        assertEquals(TektonCompiler.COSIGN_IMAGE, steps.get(2).image());
-        assertTrue(steps.get(2).script().contains("skip cosign"));
-        assertTrue(compiled.anyKanikoCache());
+        assertEquals(2, steps.size());
+        assertEquals(TektonCompiler.BUILDAH_IMAGE, steps.get(0).image());
+        assertTrue(steps.get(0).script().contains("buildah manifest create"));
+        assertTrue(steps.get(0).script().contains("linux/amd64,linux/arm64"));
+        assertEquals(TektonCompiler.COSIGN_IMAGE, steps.get(1).image());
+        assertTrue(steps.get(1).script().contains("skip cosign"));
+        assertFalse(compiled.anyKanikoCache());
     }
 
     @Test
@@ -194,7 +199,8 @@ class TektonCompilerTest {
                 "main",
                 credential,
                 graph,
-                ""
+                "",
+                Map.of()
         );
     }
 

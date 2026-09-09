@@ -7,6 +7,7 @@ import com.hfwas.devops.pipeline.entity.PipelineJobEntity;
 import com.hfwas.devops.pipeline.entity.PipelineRunEntity;
 import com.hfwas.devops.pipeline.entity.PipelineRunJobEntity;
 import com.hfwas.devops.pipeline.entity.PipelineStageEntity;
+import com.hfwas.devops.pipeline.entity.PipelineTaskKindEntity;
 import com.hfwas.devops.pipeline.graph.ApprovalPlan;
 import com.hfwas.devops.pipeline.graph.PipelineGraphSpec;
 import com.hfwas.devops.pipeline.graph.PipelineJobKind;
@@ -15,6 +16,7 @@ import com.hfwas.devops.pipeline.graph.PipelineStageSpec;
 import com.hfwas.devops.pipeline.mapper.PipelineJobMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunJobMapper;
+import com.hfwas.devops.pipeline.mapper.PipelineTaskKindMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineStageMapper;
 import com.hfwas.devops.pipeline.service.PipelineCredentialService;
@@ -28,6 +30,7 @@ import com.hfwas.devops.pipeline.tekton.TektonManifests;
 import com.hfwas.devops.pipeline.tekton.TektonMode;
 import io.fabric8.knative.pkg.apis.Condition;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.tekton.client.TektonClient;
 import io.fabric8.tekton.v1.PipelineRun;
@@ -39,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,6 +64,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
     private final PipelineRunMapper runMapper;
     private final PipelineRunJobMapper runJobMapper;
     private final PipelineCredentialService credentialService;
+    private final PipelineTaskKindMapper taskKindMapper;
     private final String gitHttpProxy;
     private final String gitDockerHost;
     private final ExecutorService watchPool = Executors.newCachedThreadPool(r -> {
@@ -78,6 +83,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             PipelineRunMapper runMapper,
             PipelineRunJobMapper runJobMapper,
             PipelineCredentialService credentialService,
+            PipelineTaskKindMapper taskKindMapper,
             String gitHttpProxy,
             String gitDockerHost
     ) {
@@ -90,6 +96,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         this.runMapper = runMapper;
         this.runJobMapper = runJobMapper;
         this.credentialService = credentialService;
+        this.taskKindMapper = taskKindMapper;
         this.gitHttpProxy = gitHttpProxy;
         this.gitDockerHost = gitDockerHost;
     }
@@ -129,6 +136,18 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         if (proxy != null && !proxy.isBlank()) {
             log.info("clone 使用 git HTTP 代理 {}", proxy);
         }
+        // 解析任务镜像：toolImage 优先，其次 defaultImage
+        Map<String, String> taskImages = new HashMap<>();
+        for (PipelineTaskKindEntity kind : taskKindMapper.selectList(null)) {
+            String effective = kind.getToolImage();
+            if (effective == null || effective.isBlank()) {
+                effective = kind.getDefaultImage();
+            }
+            if (effective != null && !effective.isBlank()) {
+                taskImages.put(kind.getKindValue(), effective);
+            }
+        }
+
         CompiledTekton compiled = TektonCompiler.compile(new CompileRequest(
                 run.getId(),
                 pipeline.getId(),
@@ -136,7 +155,8 @@ public class TektonPipelineExecutor implements PipelineExecutor {
                 run.getGitRef(),
                 secret != null,
                 segment,
-                proxy
+                proxy,
+                taskImages
         ));
         ensureNamespace();
         String gitSecretName = compiled.name() + "-git";
@@ -145,25 +165,24 @@ public class TektonPipelineExecutor implements PipelineExecutor {
                     .resource(TektonManifests.gitSecret(namespace, gitSecretName, username == null ? "" : username, secret))
                     .serverSideApply();
         }
-        String cacheClaim = compiled.anyKanikoCache() ? DnsNames.kanikoCache(pipeline.getId()) : null;
-        if (cacheClaim != null) {
-            client.persistentVolumeClaims().inNamespace(namespace)
-                    .resource(TektonManifests.kanikoCacheClaim(namespace, cacheClaim))
-                    .serverSideApply();
-        }
+        String cacheClaim = null;
         if (compiled.mode() == TektonMode.TASK) {
             var task = compiled.tasks().getFirst();
             tekton.v1().tasks().inNamespace(namespace)
                     .resource(TektonManifests.task(namespace, task, secret == null ? null : gitSecretName))
                     .serverSideApply();
             tekton.v1().taskRuns().inNamespace(namespace)
-                    .resource(TektonManifests.taskRun(namespace, compiled.name(), task.name(), cacheClaim))
+                    .resource(TektonManifests.taskRun(namespace, compiled.name(), task.name()))
                     .serverSideApply();
         } else {
             String claim = compiled.name() + "-ws";
-            client.persistentVolumeClaims().inNamespace(namespace)
-                    .resource(TektonManifests.workspaceClaim(namespace, claim))
-                    .serverSideApply();
+            PersistentVolumeClaim pvc = TektonManifests.workspaceClaim(namespace, claim);
+            try {
+                client.persistentVolumeClaims().inNamespace(namespace).resource(pvc).create();
+            } catch (Exception e) {
+                // PVC 可能已存在（重试/同名），替换之
+                client.persistentVolumeClaims().inNamespace(namespace).resource(pvc).update();
+            }
             for (var task : compiled.tasks()) {
                 tekton.v1().tasks().inNamespace(namespace)
                         .resource(TektonManifests.task(namespace, task, secret == null ? null : gitSecretName))
@@ -173,7 +192,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
                     .resource(TektonManifests.pipeline(namespace, compiled))
                     .serverSideApply();
             tekton.v1().pipelineRuns().inNamespace(namespace)
-                    .resource(TektonManifests.pipelineRun(namespace, compiled.name(), compiled.name(), claim, cacheClaim))
+                    .resource(TektonManifests.pipelineRun(namespace, compiled.name(), compiled.name(), claim))
                     .serverSideApply();
         }
         run.setTektonName(compiled.name());

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Play, Plus, Power, X } from '@lucide/vue'
 import type { EditorJob, EditorStage } from '@/modules/pipeline/types/pipeline'
-import { jobRunDuration, runStatusLabel } from '@/modules/pipeline/status'
+import { jobKindMeta, jobKindLabel } from '@/modules/pipeline/graph/jobCatalog'
+import { jobKindIcon } from '@/modules/pipeline/graph/jobIcons'
+import { jobKindTone, runStatusLabel, runStatusTagType } from '@/modules/pipeline/status'
+import { jobRunDuration } from '@/modules/pipeline/status'
 
 const props = withDefaults(
   defineProps<{
@@ -41,6 +44,10 @@ function statusClass(job: EditorJob) {
   if (status === 'QUEUED' || status === 'CANCELLED') return 'is-idle'
   return ''
 }
+
+function toneClass(kind?: string | null): string {
+  return `tone-${jobKindTone(kind)}`
+}
 </script>
 
 <template>
@@ -59,7 +66,7 @@ function statusClass(job: EditorJob) {
       </button>
 
       <div class="yx-wire">
-        <span class="yx-wire-line" />
+        <div class="yx-wire-bar" />
         <button
           v-if="editable"
           type="button"
@@ -67,9 +74,8 @@ function statusClass(job: EditorJob) {
           title="插入阶段"
           @click.stop="emit('insert-stage', -1)"
         >
-          <Plus :size="14" />
+          <Plus :size="16" />
         </button>
-        <span class="yx-wire-line is-arrow" />
       </div>
 
       <template v-for="(stage, stageIndex) in stages" :key="stage.clientKey">
@@ -81,11 +87,31 @@ function statusClass(job: EditorJob) {
             :class="[{ 'is-selected': selectedJobKey === job.clientKey }, statusClass(job)]"
             @click.stop="emit('select-job', job.clientKey)"
           >
-            <div class="yx-job-main">
-              <span class="yx-job-index">{{ jobIndex(stageIndex, jobIdx) }}</span>
-              <span class="yx-job-name" :title="job.name">{{ job.name }}</span>
+            <!-- 卡片头部 -->
+            <div class="yx-job-head">
+              <span class="yx-index-badge">{{ jobIndex(stageIndex, jobIdx) }}</span>
+              <div class="yx-job-icon-outer">
+                <span class="yx-job-icon" :class="toneClass(job.kind)">
+                  <component :is="jobKindIcon(job.kind)" :size="editable ? 14 : 16" />
+                </span>
+              </div>
+              <div class="yx-job-info">
+                <span class="yx-job-label" :title="job.name">{{ job.name }}</span>
+                <span class="yx-job-kind-tag">{{ jobKindLabel(job.kind) }}</span>
+              </div>
+              <!-- 执行模式：状态标签 -->
+              <n-tag
+                v-if="!editable"
+                size="tiny"
+                :bordered="false"
+                :type="runStatusTagType(job.status)"
+                style="margin-left: auto"
+              >
+                {{ runStatusLabel(job.status) }}
+              </n-tag>
+              <!-- 编辑模式：删除按钮 -->
               <button
-                v-if="editable"
+                v-else
                 type="button"
                 class="yx-job-del"
                 title="删除"
@@ -94,22 +120,40 @@ function statusClass(job: EditorJob) {
                 <X :size="12" />
               </button>
             </div>
-            <div v-if="!editable" class="yx-job-foot">
-              <button type="button" class="yx-job-log" @click.stop="emit('view-log', job.clientKey)">
-                日志
-              </button>
-              <span class="yx-job-dur">{{ jobDuration(job) || runStatusLabel(job.status) }}</span>
+
+            <!-- 描述 -->
+            <p v-if="jobKindMeta(job.kind)?.description" class="yx-job-desc">
+              {{ jobKindMeta(job.kind)?.description }}
+            </p>
+
+            <!-- 底部元数据 -->
+            <div class="yx-job-foot">
+              <span class="yx-job-kind">类型: {{ job.kind }}</span>
+              <span v-if="jobDuration(job) && !editable" class="yx-job-dur">{{ jobDuration(job) }}</span>
             </div>
-            <button
-              v-if="editable"
-              type="button"
-              class="yx-job-add"
-              title="增加并行任务"
-              @click.stop="emit('add-parallel', stage.clientKey)"
-            >
-              <Plus :size="12" />
-            </button>
+
+            <!-- 操作按钮 -->
+            <div class="yx-job-actions">
+              <button
+                v-if="!editable"
+                type="button"
+                class="yx-job-action-btn"
+                @click.stop="emit('view-log', job.clientKey)"
+              >
+                查看日志
+              </button>
+              <button
+                v-else
+                type="button"
+                class="yx-job-action-btn"
+                @click.stop="emit('add-parallel', stage.clientKey)"
+              >
+                <Plus :size="12" style="margin-right: 4px" />
+                增加并行
+              </button>
+            </div>
           </article>
+
           <button
             v-if="editable"
             type="button"
@@ -121,7 +165,7 @@ function statusClass(job: EditorJob) {
         </div>
 
         <div class="yx-wire">
-          <span class="yx-wire-line" />
+          <div class="yx-wire-bar" />
           <button
             v-if="editable"
             type="button"
@@ -129,9 +173,8 @@ function statusClass(job: EditorJob) {
             title="插入阶段"
             @click.stop="emit('insert-stage', stageIndex)"
           >
-            <Plus :size="14" />
+            <Plus :size="16" />
           </button>
-          <span class="yx-wire-line is-arrow" />
         </div>
       </template>
 
@@ -147,6 +190,7 @@ function statusClass(job: EditorJob) {
 </template>
 
 <style scoped>
+/* ========== Canvas Base ========== */
 .yx-canvas {
   flex: 1;
   min-height: 0;
@@ -159,7 +203,7 @@ function statusClass(job: EditorJob) {
   display: flex;
   align-items: flex-start;
   min-width: max-content;
-  padding: 56px 40px 80px;
+  padding: 56px 40px 80px 28px;
 }
 
 .yx-hint {
@@ -168,6 +212,7 @@ function statusClass(job: EditorJob) {
   color: var(--wb-muted, #646a73);
 }
 
+/* ========== Endpoints (Start / End) ========== */
 .yx-endpoint {
   display: flex;
   flex-shrink: 0;
@@ -214,32 +259,33 @@ function statusClass(job: EditorJob) {
   background: var(--wb-error-soft);
 }
 
+/* ========== Wires between stages ========== */
 .yx-wire {
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  width: 72px;
+  width: 88px;
   height: 76px;
 }
 
-.yx-wire-line {
-  flex: 1;
-  height: 0;
-  border-top: 1.5px dashed var(--wb-primary);
-}
-
-.yx-wire-line.is-arrow {
+.yx-wire-bar {
   position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--wb-primary, #3370ff);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--wb-primary) 30%, transparent);
 }
 
-.yx-wire-line.is-arrow::after {
+.yx-wire-bar::after {
   content: '';
   position: absolute;
-  top: -5px;
-  right: -1px;
-  border: 5px solid transparent;
+  right: -2px;
+  top: -6px;
+  border: 7px solid transparent;
   border-right: 0;
-  border-left-color: var(--wb-primary);
+  border-left-color: var(--wb-primary, #3370ff);
+  filter: drop-shadow(1px 0 2px color-mix(in srgb, var(--wb-primary) 25%, transparent));
 }
 
 .yx-plus {
@@ -247,42 +293,57 @@ function statusClass(job: EditorJob) {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--wb-primary);
+  width: 28px;
+  height: 28px;
+  margin: 0 4px;
+  border: 2px solid var(--wb-primary);
   border-radius: 50%;
-  background: var(--wb-card-bg);
+  background: #fff;
   color: var(--wb-primary);
   cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--wb-primary) 20%, transparent);
 }
 
 .yx-plus:hover {
   background: var(--wb-primary);
-  color: var(--wb-card-bg);
+  color: #fff;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--wb-primary) 35%, transparent);
 }
 
+/* ========== Stage Columns ========== */
 .yx-col {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-width: 196px;
-  padding: 8px;
-  border: 1px solid color-mix(in srgb, var(--wb-primary) 45%, transparent);
+  min-width: 224px;
+  padding: 10px;
+  border: 1.5px solid color-mix(in srgb, var(--wb-primary) 35%, transparent);
   border-radius: var(--wb-radius-sm);
   background: color-mix(in srgb, var(--wb-primary) 4%, transparent);
 }
 
+/* ========== Job Card ========== */
 .yx-job {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  background: var(--wb-card-bg);
-  border: 1px solid transparent;
-  border-radius: var(--wb-radius-sm);
-  box-shadow: var(--wb-shadow-1);
+  border: 1px solid var(--wb-border, #e5e7eb);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--wb-card-bg, #fff);
   cursor: pointer;
+  transition: box-shadow 0.15s;
 }
 
+.yx-job:hover {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.yx-job.is-selected {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--wb-primary) 18%, transparent);
+}
+
+/* Status border colors (execution mode) */
 .yx-job.is-ok {
   border-color: var(--wb-success);
 }
@@ -291,40 +352,129 @@ function statusClass(job: EditorJob) {
 }
 .yx-job.is-run {
   border-color: var(--wb-primary);
+  animation: yx-pulse 1.8s ease-in-out infinite;
 }
 .yx-job.is-wait {
   border-color: var(--wb-warning);
 }
-.yx-job.is-selected {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--wb-primary) 18%, transparent);
+.yx-job.is-idle {
+  border-color: var(--wb-border, #e5e7eb);
 }
 
+/* Card Head */
+.yx-job-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.yx-index-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--wb-muted, #646a73);
+  background: var(--wb-th, #f0f2f5);
+  padding: 1px 5px;
+  border-radius: 3px;
+  line-height: 1.5;
+}
+
+/* Tone Icon */
+.yx-job-icon-outer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.yx-job-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Tone Colors */
+.tone-blue {
+  background: #eff6ff;
+  color: #2563eb;
+}
+.tone-violet {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+.tone-green {
+  background: #ecfdf5;
+  color: #059669;
+}
+.tone-amber {
+  background: #fffbeb;
+  color: #d97706;
+}
+.tone-cyan {
+  background: #ecfeff;
+  color: #0891b2;
+}
+.tone-rose {
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+/* Job Label & Kind Tag */
+.yx-job-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+}
+
+.yx-job-label {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wb-ink, #1f2329);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yx-job-kind-tag {
+  font-size: 10px;
+  color: var(--wb-muted, #646a73);
+  white-space: nowrap;
+}
+
+/* Description */
+.yx-job-desc {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--wb-muted, #646a73);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+}
+
+/* Footer Meta */
 .yx-job-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-top: 8px;
   gap: 8px;
-  height: 28px;
-  padding: 0 10px 6px;
 }
 
-.yx-job-log {
-  border: none;
-  padding: 0;
-  background: transparent;
-  font: inherit;
-  font-size: 12px;
-  color: var(--wb-primary);
-  cursor: pointer;
-}
-
-.yx-job-log:hover {
-  text-decoration: underline;
+.yx-job-kind {
+  font-size: 10px;
+  color: var(--wb-muted, #646a73);
 }
 
 .yx-job-dur {
-  font-size: 12px;
-  color: var(--wb-muted);
+  font-size: 11px;
+  color: var(--wb-muted, #646a73);
+  flex-shrink: 0;
 }
 
 .yx-job.is-ok .yx-job-dur {
@@ -334,89 +484,59 @@ function statusClass(job: EditorJob) {
   color: var(--wb-error);
 }
 
-.yx-job-main {
+/* Actions Bar */
+.yx-job-actions {
   display: flex;
-  align-items: stretch;
-  min-height: 48px;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--wb-border-soft, #eef0f3);
 }
 
-.yx-job-index {
+.yx-job-action-btn {
   display: inline-flex;
-  flex-shrink: 0;
   align-items: center;
-  justify-content: center;
-  width: 40px;
-  background: var(--wb-primary);
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
   font-size: 12px;
-  font-weight: 600;
-  color: var(--wb-card-bg);
+  color: var(--wb-primary, #3370ff);
+  cursor: pointer;
 }
 
-.yx-job.is-ok .yx-job-index {
-  background: var(--wb-success);
-}
-.yx-job.is-fail .yx-job-index {
-  background: var(--wb-error);
-}
-.yx-job.is-run .yx-job-index {
-  background: var(--wb-primary);
-  animation: yx-pulse 1.2s ease-in-out infinite;
-}
-.yx-job.is-wait .yx-job-index {
-  background: var(--wb-warning);
-}
-.yx-job.is-idle .yx-job-index {
-  background: var(--wb-muted);
+.yx-job-action-btn:hover {
+  text-decoration: underline;
 }
 
-.yx-job-name {
-  flex: 1;
-  min-width: 0;
-  padding: 12px 8px;
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--wb-ink);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+/* Delete Button */
 .yx-job-del {
-  display: none;
+  display: flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 24px;
+  height: 24px;
+  margin-left: auto;
   border: none;
+  border-radius: 4px;
   background: transparent;
   color: var(--wb-muted);
   cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
 }
 
 .yx-job:hover .yx-job-del {
-  display: inline-flex;
+  opacity: 1;
 }
 
 .yx-job-del:hover {
   color: var(--wb-error);
+  background: var(--wb-error-soft);
 }
 
-.yx-job-add {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 24px;
-  border: none;
-  border-top: 1px solid var(--wb-border-soft);
-  background: var(--wb-card-bg);
-  color: var(--wb-primary);
-  cursor: pointer;
-}
-
-.yx-job-add:hover {
-  background: var(--wb-primary-soft);
-}
-
+/* Stage Add Parallel Button */
 .yx-parallel {
   height: 36px;
   border: none;
@@ -432,6 +552,7 @@ function statusClass(job: EditorJob) {
   background: var(--wb-primary-hover);
 }
 
+/* Running Pulse Animation */
 @keyframes yx-pulse {
   0%,
   100% {

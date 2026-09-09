@@ -128,3 +128,18 @@ export interface EditorStage extends Omit<PipelineStage, 'jobs'> {
   clientKey: string
   jobs: EditorJob[]
 }
+
+export interface TaskKindVO {
+  kindValue: string
+  label: string
+  taskGroup: string
+  description: string
+  hint: string
+  defaultCommand: string
+  requiresCommand: boolean
+  enabled: boolean
+  sortOrder: number
+  toolImage: string
+  defaultImage: string
+  commandTemplate: string
+}
