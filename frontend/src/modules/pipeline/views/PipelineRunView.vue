@@ -4,7 +4,7 @@ import { NAvatar, NButton, NTag, useDialog, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import YunxiaoFlowCanvas from '@/modules/pipeline/components/YunxiaoFlowCanvas.vue'
-import { findEditorJob, groupRunJobs, repoShortName, stackSummary } from '@/modules/pipeline/graph/pipelineGraph'
+import { findEditorJob, groupRunJobs, repoShortName } from '@/modules/pipeline/graph/pipelineGraph'
 import {
   formatCommit,
   formatDateTime,
@@ -384,10 +384,6 @@ const historyColumns = computed<DataTableColumns<PipelineRun>>(() => [
           <div>
             <dt>流水线名称</dt>
             <dd>{{ run.pipelineName || '—' }}</dd>
-          </div>
-          <div>
-            <dt>构建环境</dt>
-            <dd>{{ stackSummary(run.stack, run.runtimeVersion, run.toolVersion) }}</dd>
           </div>
         </dl>
       </section>

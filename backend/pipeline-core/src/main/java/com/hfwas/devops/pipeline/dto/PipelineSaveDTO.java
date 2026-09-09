@@ -11,8 +11,5 @@ public class PipelineSaveDTO {
     private String repoUrl;
     private String gitRef;
     private Long credentialId;
-    private String stack;
-    private String runtimeVersion;
-    private String toolVersion;
     private List<PipelineStageDTO> stages;
 }

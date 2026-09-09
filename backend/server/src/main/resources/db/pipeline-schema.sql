@@ -21,9 +21,6 @@ CREATE TABLE IF NOT EXISTS pipeline (
     repo_url        TEXT         NOT NULL DEFAULT '',
     git_ref         TEXT         NOT NULL DEFAULT 'main',
     credential_id   INTEGER,
-    stack           TEXT         NOT NULL,
-    runtime_version TEXT         NOT NULL,
-    tool_version    TEXT,
     deleted         INTEGER      NOT NULL DEFAULT 0,
     create_by       INTEGER,
     update_by       INTEGER,
@@ -39,13 +36,16 @@ CREATE TABLE IF NOT EXISTS pipeline_stage (
 );
 
 CREATE TABLE IF NOT EXISTS pipeline_job (
-    id          INTEGER      NOT NULL PRIMARY KEY,
-    pipeline_id INTEGER      NOT NULL,
-    stage_id    INTEGER      NOT NULL,
-    name        TEXT         NOT NULL,
-    kind        TEXT         NOT NULL,
-    command     TEXT,
-    sort_order  INTEGER      NOT NULL DEFAULT 0
+    id              INTEGER      NOT NULL PRIMARY KEY,
+    pipeline_id     INTEGER      NOT NULL,
+    stage_id        INTEGER      NOT NULL,
+    name            TEXT         NOT NULL,
+    kind            TEXT         NOT NULL,
+    command         TEXT,
+    stack           TEXT,
+    runtime_version TEXT,
+    tool_version    TEXT,
+    sort_order      INTEGER      NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS pipeline_run (

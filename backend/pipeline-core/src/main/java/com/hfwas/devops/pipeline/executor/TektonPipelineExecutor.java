@@ -134,7 +134,6 @@ public class TektonPipelineExecutor implements PipelineExecutor {
                 pipeline.getId(),
                 pipeline.getRepoUrl(),
                 run.getGitRef(),
-                run.getImage(),
                 secret != null,
                 segment,
                 proxy
@@ -729,6 +728,9 @@ public class TektonPipelineExecutor implements PipelineExecutor {
                             job.getName(),
                             PipelineJobKind.valueOf(job.getKind()),
                             job.getCommand(),
+                            job.getStack(),
+                            job.getRuntimeVersion(),
+                            job.getToolVersion(),
                             job.getSortOrder() == null ? 0 : job.getSortOrder()))
                     .toList();
             specs.add(new PipelineStageSpec(stage.getId(), stage.getName(), stage.getSortOrder(), stageJobs));

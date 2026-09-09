@@ -10,6 +10,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TektonCompilerTest {
@@ -20,8 +21,10 @@ class TektonCompilerTest {
     void serialThreeJobsCompileToOneTaskWithThreeSteps() {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
                 stage("clone", 0, List.of(job("clone", PipelineJobKind.CLONE, "", 0))),
-                stage("build", 1, List.of(job("build", PipelineJobKind.BUILD, "mvn -B -DskipTests package", 0))),
-                stage("test", 2, List.of(job("test", PipelineJobKind.TEST, "mvn -B test", 0)))
+                stage("build", 1, List.of(toolchainJob("build", PipelineJobKind.BUILD, "mvn -B -DskipTests package",
+                        "JAVA_MAVEN", "21", "3.9", 0))),
+                stage("test", 2, List.of(toolchainJob("test", PipelineJobKind.TEST, "mvn -B test",
+                        "JAVA_MAVEN", "21", "3.9", 0)))
         ));
         CompiledTekton compiled = TektonCompiler.compile(request(99L, graph, true));
 
@@ -53,7 +56,7 @@ class TektonCompilerTest {
                 stage("clone", 0, List.of(job("clone", PipelineJobKind.CLONE, "", 0)))
         ));
         CompiledStep step = TektonCompiler.compile(new CompileRequest(
-                6L, 8L, "https://github.com/acme/demo.git", "main", IMAGE, false, graph,
+                6L, 8L, "https://github.com/acme/demo.git", "main", false, graph,
                 "http://192.168.5.2:7890"
         )).tasks().getFirst().steps().getFirst();
         assertEquals("http://192.168.5.2:7890", step.env().get("GIT_HTTP_PROXY"));
@@ -107,9 +110,9 @@ class TektonCompilerTest {
                 stage("run", 0, List.of(job("echo", PipelineJobKind.CUSTOM, "echo ok", 0)))
         ));
         CompiledTekton compiled = TektonCompiler.compile(new CompileRequest(
-                1L, 8L, "", "main", IMAGE, false, graph, ""));
+                1L, 8L, "", "main", false, graph, ""));
         assertEquals(1, compiled.tasks().getFirst().steps().size());
-        assertEquals(IMAGE, compiled.tasks().getFirst().steps().getFirst().image());
+        assertTrue(compiled.tasks().getFirst().steps().getFirst().image() != null);
         assertTrue(compiled.tasks().getFirst().steps().getFirst().script().contains("mkdir -p"));
     }
 
@@ -173,7 +176,7 @@ class TektonCompilerTest {
         assertEquals(TektonCompiler.UPLOAD_IMAGE, imageOf(PipelineJobKind.UPLOAD, "rclone copy ./ :s3:b"));
         assertEquals(TektonCompiler.DEPLOY_IMAGE, imageOf(PipelineJobKind.DEPLOY, "kubectl apply -f k8s/"));
         assertEquals(TektonCompiler.NOTIFY_IMAGE, imageOf(PipelineJobKind.NOTIFY, "curl -fsS https://example.com"));
-        assertEquals(IMAGE, imageOf(PipelineJobKind.PUBLISH, "mvn -B deploy"));
+        assertNotNull(imageOf(PipelineJobKind.PUBLISH, "mvn -B deploy"));
     }
 
     private static String imageOf(PipelineJobKind kind, String command) {
@@ -189,7 +192,6 @@ class TektonCompilerTest {
                 8L,
                 "https://github.com/acme/demo.git",
                 "main",
-                IMAGE,
                 credential,
                 graph,
                 ""
@@ -201,6 +203,11 @@ class TektonCompilerTest {
     }
 
     private static PipelineJobSpec job(String name, PipelineJobKind kind, String command, int order) {
-        return new PipelineJobSpec(null, name, kind, command, order);
+        return new PipelineJobSpec(null, name, kind, command, null, null, null, order);
+    }
+
+    private static PipelineJobSpec toolchainJob(String name, PipelineJobKind kind, String command,
+                                                 String stack, String runtime, String tool, int order) {
+        return new PipelineJobSpec(null, name, kind, command, stack, runtime, tool, order);
     }
 }

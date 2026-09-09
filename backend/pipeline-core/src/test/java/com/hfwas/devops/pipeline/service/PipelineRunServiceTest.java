@@ -65,9 +65,6 @@ class PipelineRunServiceTest {
         pipeline.setId(1L);
         pipeline.setTenantId(9L);
         pipeline.setName("demo");
-        pipeline.setStack("JAVA_MAVEN");
-        pipeline.setRuntimeVersion("21");
-        pipeline.setToolVersion("3.9");
         pipeline.setGitRef("main");
         when(definitionService.requireOwned(1L)).thenReturn(pipeline);
         when(currentUserAccessor.currentUserId()).thenReturn(7L);
@@ -85,7 +82,7 @@ class PipelineRunServiceTest {
         when(jobMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(job));
         when(definitionService.loadGraph(1L)).thenReturn(new PipelineGraphSpec(List.of(
                 new PipelineStageSpec(11L, "clone", 0, List.of(
-                        new PipelineJobSpec(21L, "clone", PipelineJobKind.CLONE, "", 0)
+                        new PipelineJobSpec(21L, "clone", PipelineJobKind.CLONE, "", null, null, null, 0)
                 ))
         )));
 
@@ -102,7 +99,6 @@ class PipelineRunServiceTest {
         PipelineRunVO vo = service.start(1L);
 
         assertEquals("FAILED", vo.getStatus());
-        assertEquals("maven:3.9.9-eclipse-temurin-21", vo.getImage());
         assertNotNull(vo.getErrorMessage());
         assertEquals(true, vo.getErrorMessage().contains("未配置执行集群"));
 
@@ -135,9 +131,9 @@ class PipelineRunServiceTest {
         stubOwned();
         when(definitionService.loadGraph(1L)).thenReturn(new PipelineGraphSpec(List.of(
                 new PipelineStageSpec(10L, "gate", 0, List.of(
-                        new PipelineJobSpec(11L, "ok", PipelineJobKind.APPROVAL, "", 0))),
+                        new PipelineJobSpec(11L, "ok", PipelineJobKind.APPROVAL, "", null, null, null, 0))),
                 new PipelineStageSpec(20L, "run", 1, List.of(
-                        new PipelineJobSpec(21L, "echo", PipelineJobKind.CUSTOM, "echo ok", 0)))
+                        new PipelineJobSpec(21L, "echo", PipelineJobKind.CUSTOM, "echo ok", null, null, null, 0)))
         )));
         PipelineRunEntity run = storedRun("WAITING_APPROVAL");
         when(runMapper.selectById(99L)).thenReturn(run);
@@ -162,11 +158,11 @@ class PipelineRunServiceTest {
         stubOwned();
         when(definitionService.loadGraph(1L)).thenReturn(new PipelineGraphSpec(List.of(
                 new PipelineStageSpec(10L, "a1", 0, List.of(
-                        new PipelineJobSpec(11L, "ok1", PipelineJobKind.APPROVAL, "", 0))),
+                        new PipelineJobSpec(11L, "ok1", PipelineJobKind.APPROVAL, "", null, null, null, 0))),
                 new PipelineStageSpec(11L, "a2", 1, List.of(
-                        new PipelineJobSpec(12L, "ok2", PipelineJobKind.APPROVAL, "", 0))),
+                        new PipelineJobSpec(12L, "ok2", PipelineJobKind.APPROVAL, "", null, null, null, 0))),
                 new PipelineStageSpec(20L, "run", 2, List.of(
-                        new PipelineJobSpec(21L, "echo", PipelineJobKind.CUSTOM, "echo ok", 0)))
+                        new PipelineJobSpec(21L, "echo", PipelineJobKind.CUSTOM, "echo ok", null, null, null, 0)))
         )));
         PipelineRunEntity run = storedRun("WAITING_APPROVAL");
         when(runMapper.selectById(99L)).thenReturn(run);
@@ -189,9 +185,6 @@ class PipelineRunServiceTest {
         pipeline.setId(1L);
         pipeline.setTenantId(9L);
         pipeline.setName("demo");
-        pipeline.setStack("JAVA_MAVEN");
-        pipeline.setRuntimeVersion("21");
-        pipeline.setToolVersion("3.9");
         when(definitionService.requireOwned(1L)).thenReturn(pipeline);
     }
 

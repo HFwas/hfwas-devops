@@ -21,7 +21,19 @@ class PipelineGraphValidatorTest {
 
     @Test
     void defaultGraphIsValidAndHasCloneFirst() {
-        PipelineGraphSpec graph = DefaultPipelineGraph.create(com.hfwas.devops.pipeline.toolchain.PipelineStack.JAVA_MAVEN, "21", "3.9");
+        PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
+                new PipelineStageSpec(null, "clone", 0, List.of(
+                        new PipelineJobSpec(null, "clone", PipelineJobKind.CLONE, "", null, null, null, 0)
+                )),
+                new PipelineStageSpec(null, "build", 1, List.of(
+                        new PipelineJobSpec(null, "build", PipelineJobKind.BUILD,
+                                "mvn -B -DskipTests package", "JAVA_MAVEN", "21", "3.9", 0)
+                )),
+                new PipelineStageSpec(null, "test", 2, List.of(
+                        new PipelineJobSpec(null, "test", PipelineJobKind.TEST,
+                                "mvn -B test", "JAVA_MAVEN", "21", "3.9", 0)
+                ))
+        ));
         PipelineGraphValidator.validate(graph);
         assertEquals(3, graph.stages().size());
         assertEquals(PipelineJobKind.CLONE, graph.stages().getFirst().jobs().getFirst().kind());
@@ -31,7 +43,7 @@ class PipelineGraphValidatorTest {
     void allowsShellOnlyWithoutClone() {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
                 new PipelineStageSpec(null, "run", 0, List.of(
-                        new PipelineJobSpec(null, "echo", PipelineJobKind.CUSTOM, "echo ok", 0)
+                        new PipelineJobSpec(null, "echo", PipelineJobKind.CUSTOM, "echo ok", null, null, null, 0)
                 ))
         ));
         PipelineGraphValidator.validate(graph);
@@ -41,10 +53,10 @@ class PipelineGraphValidatorTest {
     void rejectsSecondClone() {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
                 new PipelineStageSpec(null, "a", 0, List.of(
-                        new PipelineJobSpec(null, "c1", PipelineJobKind.CLONE, "", 0)
+                        new PipelineJobSpec(null, "c1", PipelineJobKind.CLONE, "", null, null, null, 0)
                 )),
                 new PipelineStageSpec(null, "b", 1, List.of(
-                        new PipelineJobSpec(null, "c2", PipelineJobKind.CLONE, "", 0)
+                        new PipelineJobSpec(null, "c2", PipelineJobKind.CLONE, "", null, null, null, 0)
                 ))
         ));
         BizException ex = assertThrows(BizException.class, () -> PipelineGraphValidator.validate(graph));
@@ -56,8 +68,8 @@ class PipelineGraphValidatorTest {
     void rejectsApprovalSharingColumn() {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
                 new PipelineStageSpec(null, "gate", 0, List.of(
-                        new PipelineJobSpec(null, "ok", PipelineJobKind.APPROVAL, "", 0),
-                        new PipelineJobSpec(null, "echo", PipelineJobKind.CUSTOM, "echo", 1)
+                        new PipelineJobSpec(null, "ok", PipelineJobKind.APPROVAL, "", null, null, null, 0),
+                        new PipelineJobSpec(null, "echo", PipelineJobKind.CUSTOM, "echo", null, null, null, 1)
                 ))
         ));
         BizException ex = assertThrows(BizException.class, () -> PipelineGraphValidator.validate(graph));
@@ -68,8 +80,8 @@ class PipelineGraphValidatorTest {
     void rejectsParallelImage() {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
                 new PipelineStageSpec(null, "img", 0, List.of(
-                        new PipelineJobSpec(null, "a", PipelineJobKind.IMAGE, "export DEST=x", 0),
-                        new PipelineJobSpec(null, "b", PipelineJobKind.IMAGE, "export DEST=y", 1)
+                        new PipelineJobSpec(null, "a", PipelineJobKind.IMAGE, "export DEST=x", null, null, null, 0),
+                        new PipelineJobSpec(null, "b", PipelineJobKind.IMAGE, "export DEST=y", null, null, null, 1)
                 ))
         ));
         BizException ex = assertThrows(BizException.class, () -> PipelineGraphValidator.validate(graph));
@@ -80,13 +92,13 @@ class PipelineGraphValidatorTest {
     void approvalPlanSplitsAroundGates() {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
                 new PipelineStageSpec(null, "build", 0, List.of(
-                        new PipelineJobSpec(null, "b", PipelineJobKind.BUILD, "mvn", 0)
+                        new PipelineJobSpec(null, "b", PipelineJobKind.BUILD, "mvn", null, null, null, 0)
                 )),
                 new PipelineStageSpec(null, "gate", 1, List.of(
-                        new PipelineJobSpec(null, "ok", PipelineJobKind.APPROVAL, "", 0)
+                        new PipelineJobSpec(null, "ok", PipelineJobKind.APPROVAL, "", null, null, null, 0)
                 )),
                 new PipelineStageSpec(null, "deploy", 2, List.of(
-                        new PipelineJobSpec(null, "d", PipelineJobKind.DEPLOY, "kubectl apply -f k8s/", 0)
+                        new PipelineJobSpec(null, "d", PipelineJobKind.DEPLOY, "kubectl apply -f k8s/", null, null, null, 0)
                 ))
         ));
         ApprovalPlan plan = ApprovalPlan.of(graph);
@@ -97,10 +109,10 @@ class PipelineGraphValidatorTest {
         assertEquals("deploy", plan.segments().get(1).stages().getFirst().name());
         assertTrue(ApprovalPlan.of(new PipelineGraphSpec(List.of(
                 new PipelineStageSpec(null, "gate", 0, List.of(
-                        new PipelineJobSpec(null, "ok", PipelineJobKind.APPROVAL, "", 0)
+                        new PipelineJobSpec(null, "ok", PipelineJobKind.APPROVAL, "", null, null, null, 0)
                 )),
                 new PipelineStageSpec(null, "run", 1, List.of(
-                        new PipelineJobSpec(null, "e", PipelineJobKind.CUSTOM, "echo", 0)
+                        new PipelineJobSpec(null, "e", PipelineJobKind.CUSTOM, "echo", null, null, null, 0)
                 ))
         ))).waitBeforeFirst());
     }
@@ -109,13 +121,13 @@ class PipelineGraphValidatorTest {
     void consecutiveApprovalsStayOnTimeline() {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
                 new PipelineStageSpec(1L, "a1", 0, List.of(
-                        new PipelineJobSpec(11L, "ok1", PipelineJobKind.APPROVAL, "", 0)
+                        new PipelineJobSpec(11L, "ok1", PipelineJobKind.APPROVAL, "", null, null, null, 0)
                 )),
                 new PipelineStageSpec(2L, "a2", 1, List.of(
-                        new PipelineJobSpec(12L, "ok2", PipelineJobKind.APPROVAL, "", 0)
+                        new PipelineJobSpec(12L, "ok2", PipelineJobKind.APPROVAL, "", null, null, null, 0)
                 )),
                 new PipelineStageSpec(3L, "run", 2, List.of(
-                        new PipelineJobSpec(13L, "e", PipelineJobKind.CUSTOM, "echo", 0)
+                        new PipelineJobSpec(13L, "e", PipelineJobKind.CUSTOM, "echo", null, null, null, 0)
                 ))
         ));
         ApprovalPlan plan = ApprovalPlan.of(graph);

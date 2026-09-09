@@ -6,7 +6,6 @@ import type {
   JobKind,
   PipelineRunJob,
   PipelineStage,
-  ToolchainOption,
 } from '@/modules/pipeline/types/pipeline'
 
 export { JOB_KIND_OPTIONS, jobKindLabel, requiresCommand, nextClientKey }
@@ -15,9 +14,9 @@ export type StageInsertTarget =
   | { type: 'stage'; afterIndex: number }
   | { type: 'parallel'; stageKey: string }
 
-export function defaultCommandForKind(kind: string, option?: ToolchainOption | null): string {
-  if (kind === 'BUILD') return option?.buildCommand ?? ''
-  if (kind === 'TEST') return option?.testCommand ?? ''
+export function defaultCommandForKind(kind: string): string {
+  if (kind === 'BUILD') return ''
+  if (kind === 'TEST') return ''
   return jobKindMeta(kind)?.defaultCommand ?? ''
 }
 
@@ -68,17 +67,16 @@ export function stackSummary(stack: string, runtime: string, tool?: string | nul
 }
 
 /** 仅用于「插入常用模板」；新建流水线默认是空画布。 */
-export function createTemplateStages(option: ToolchainOption): PipelineStage[] {
+export function createTemplateStages(): PipelineStage[] {
   return [
     { name: '代码克隆', sortOrder: 0, jobs: [{ name: '代码克隆', kind: 'CLONE', command: '', sortOrder: 0 }] },
-    { name: '构建', sortOrder: 1, jobs: [{ name: '构建', kind: 'BUILD', command: option.buildCommand, sortOrder: 0 }] },
-    { name: '测试', sortOrder: 2, jobs: [{ name: '测试', kind: 'TEST', command: option.testCommand, sortOrder: 0 }] },
+    { name: '构建', sortOrder: 1, jobs: [{ name: '构建', kind: 'BUILD', command: '', sortOrder: 0 }] },
+    { name: '测试', sortOrder: 2, jobs: [{ name: '测试', kind: 'TEST', command: '', sortOrder: 0 }] },
   ]
 }
 
 export function createEditorJob(
   kind: JobKind,
-  option?: ToolchainOption | null,
   extras?: Partial<EditorJob>,
 ): EditorJob {
   return {
@@ -86,7 +84,10 @@ export function createEditorJob(
     id: extras?.id,
     name: extras?.name ?? jobKindLabel(kind),
     kind,
-    command: extras?.command ?? defaultCommandForKind(kind, option),
+    command: extras?.command ?? defaultCommandForKind(kind),
+    stack: extras?.stack ?? null,
+    runtimeVersion: extras?.runtimeVersion ?? null,
+    toolVersion: extras?.toolVersion ?? null,
     sortOrder: extras?.sortOrder ?? 0,
     status: extras?.status,
     runJobId: extras?.runJobId,
@@ -103,6 +104,9 @@ export function toEditorStages(stages?: PipelineStage[] | null): EditorStage[] {
       ...job,
       clientKey: nextClientKey('job'),
       command: job.command ?? '',
+      stack: job.stack ?? null,
+      runtimeVersion: job.runtimeVersion ?? null,
+      toolVersion: job.toolVersion ?? null,
       sortOrder: jobIndex,
     })),
   }))
@@ -118,6 +122,9 @@ export function toSaveStages(stages: EditorStage[]): PipelineStage[] {
       name: job.name,
       kind: job.kind,
       command: job.command ?? '',
+      stack: job.stack ?? null,
+      runtimeVersion: job.runtimeVersion ?? null,
+      toolVersion: job.toolVersion ?? null,
       sortOrder: jobIndex,
     })),
   }))

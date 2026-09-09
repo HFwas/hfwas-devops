@@ -21,7 +21,6 @@ import {
   toSaveStages,
   type StageInsertTarget,
 } from '@/modules/pipeline/graph/pipelineGraph'
-import { coerceToolchain } from '@/modules/pipeline/graph/toolchainCascade'
 import type { EditorJob, EditorStage, JobKind, PipelineCredential, ToolchainOption } from '@/modules/pipeline/types/pipeline'
 import { isApiError } from '@/shared/errors/apiError'
 import '@/modules/pipeline/styles/pipeline-theme.css'
@@ -37,16 +36,12 @@ const name = ref('')
 const repoUrl = ref('')
 const gitRef = ref('main')
 const credentialId = ref<string | null>(null)
-const stack = ref('JAVA_MAVEN')
-const runtimeVersion = ref('21')
-const toolVersion = ref<string | null>('3.9')
 const stages = ref<EditorStage[]>([])
 const selectedJobKey = ref<string | null>(null)
 const startSelected = ref(false)
 const pickerShow = ref(false)
 const pickerTarget = ref<StageInsertTarget | null>(null)
 const configShow = ref(false)
-const currentOption = ref<ToolchainOption | null>(null)
 
 const pipelineId = computed(() => {
   const id = route.params.id
@@ -54,34 +49,15 @@ const pipelineId = computed(() => {
 })
 const isNew = computed(() => !pipelineId.value)
 const selectedJob = computed(() => findEditorJob(stages.value, selectedJobKey.value))
-const configTitle = computed(() => (startSelected.value || !selectedJob.value ? '流水线设置' : '任务配置'))
+const configTitle = computed(() => {
+  if (startSelected.value || !selectedJob.value) return '流水线设置'
+  return selectedJob.value.name || '任务配置'
+})
 const inspectorMode = computed(() => (selectedJob.value && !startSelected.value ? 'job' : 'pipeline'))
 
 function errorMessage(e: unknown): string {
   if (isApiError(e)) return e.message
   return e instanceof Error ? e.message : '操作失败'
-}
-
-function applyToolchain(option: ToolchainOption) {
-  stack.value = option.stack
-  runtimeVersion.value = option.runtimeVersion
-  toolVersion.value = option.toolVersion ?? null
-  currentOption.value = option
-}
-
-function onStackChange(value: string) {
-  const option = coerceToolchain(toolchains.value, value, runtimeVersion.value, toolVersion.value)
-  if (option) applyToolchain(option)
-}
-
-function onRuntimeChange(value: string) {
-  const option = coerceToolchain(toolchains.value, stack.value, value, toolVersion.value)
-  if (option) applyToolchain(option)
-}
-
-function onToolChange(value: string | null) {
-  const option = coerceToolchain(toolchains.value, stack.value, runtimeVersion.value, value)
-  if (option) applyToolchain(option)
 }
 
 function openPicker(target: StageInsertTarget) {
@@ -123,7 +99,7 @@ function onPick(kind: JobKind) {
     message.warning(blocked)
     return
   }
-  const job = createEditorJob(kind, currentOption.value)
+  const job = createEditorJob(kind)
   if (target.type === 'stage') {
     stages.value = insertStageAt(stages.value, target.afterIndex, job)
   } else {
@@ -148,12 +124,11 @@ function removeJob(jobKey: string) {
 }
 
 function applyTemplate() {
-  if (!currentOption.value) return
   if (stages.value.length) {
     message.warning('画布已有阶段，请先清空或继续手动编排')
     return
   }
-  stages.value = toEditorStages(createTemplateStages(currentOption.value))
+  stages.value = toEditorStages(createTemplateStages())
   selectedJobKey.value = null
   startSelected.value = false
 }
@@ -188,9 +163,6 @@ async function save(thenRun = false) {
       repoUrl: repoUrl.value.trim(),
       gitRef: gitRef.value.trim() || 'main',
       credentialId: credentialId.value,
-      stack: stack.value,
-      runtimeVersion: runtimeVersion.value,
-      toolVersion: toolVersion.value,
       stages: toSaveStages(stages.value),
     }
     const id = isNew.value
@@ -224,13 +196,9 @@ async function load() {
       repoUrl.value = row.repoUrl
       gitRef.value = row.gitRef || 'main'
       credentialId.value = row.credentialId != null ? String(row.credentialId) : null
-      const option = coerceToolchain(matrix, row.stack, row.runtimeVersion, row.toolVersion) ?? matrix[0]
       stages.value = toEditorStages(row.stages)
-      if (option) applyToolchain(option)
     } else {
       stages.value = []
-      const option = coerceToolchain(matrix, 'JAVA_MAVEN', '21', '3.9') ?? matrix[0]
-      if (option) applyToolchain(option)
     }
   } catch (e) {
     message.error(errorMessage(e))
@@ -289,18 +257,12 @@ onMounted(load)
         :repo-url="repoUrl"
         :git-ref="gitRef"
         :credential-id="credentialId"
-        :stack="stack"
-        :runtime-version="runtimeVersion"
-        :tool-version="toolVersion"
         :toolchains="toolchains"
         :credentials="credentials"
         @update:name="name = $event"
         @update:repo-url="repoUrl = $event"
         @update:git-ref="gitRef = $event"
         @update:credential-id="credentialId = $event"
-        @update:stack="onStackChange"
-        @update:runtime-version="onRuntimeChange"
-        @update:tool-version="onToolChange"
         @update:job="patchJob"
         @kind-blocked="message.warning($event)"
         @remove="selectedJobKey && removeJob(selectedJobKey)"

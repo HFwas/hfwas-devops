@@ -21,9 +21,6 @@ import com.hfwas.devops.pipeline.mapper.PipelineJobMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunJobMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineStageMapper;
-import com.hfwas.devops.pipeline.toolchain.PipelineStack;
-import com.hfwas.devops.pipeline.toolchain.ToolchainCatalog;
-import com.hfwas.devops.pipeline.toolchain.ToolchainResolved;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,7 +38,6 @@ public class PipelineRunService {
     private final PipelineRunJobMapper runJobMapper;
     private final PipelineStageMapper stageMapper;
     private final PipelineJobMapper jobMapper;
-    private final ToolchainCatalog toolchainCatalog = new ToolchainCatalog();
     private final CurrentUserAccessor currentUserAccessor;
     private final PipelineExecutor pipelineExecutor;
 
@@ -66,10 +62,6 @@ public class PipelineRunService {
     @Transactional
     public PipelineRunVO start(Long pipelineId) {
         PipelineEntity pipeline = definitionService.requireOwned(pipelineId);
-        ToolchainResolved resolved = toolchainCatalog.resolve(
-                PipelineStack.valueOf(pipeline.getStack()),
-                pipeline.getRuntimeVersion(),
-                pipeline.getToolVersion());
         List<PipelineStageEntity> stages = stageMapper.selectList(new LambdaQueryWrapper<PipelineStageEntity>()
                 .eq(PipelineStageEntity::getPipelineId, pipelineId)
                 .orderByAsc(PipelineStageEntity::getSortOrder));
@@ -91,10 +83,6 @@ public class PipelineRunService {
         run.setTrigger("MANUAL");
         run.setGitRef(pipeline.getGitRef());
         run.setTriggeredByName(currentUserAccessor.currentDisplayName());
-        run.setStack(pipeline.getStack());
-        run.setRuntimeVersion(pipeline.getRuntimeVersion());
-        run.setToolVersion(pipeline.getToolVersion());
-        run.setImage(resolved.image());
         run.setErrorMessage(error);
         run.setStartedAt(LocalDateTime.now());
         if (!clusterReady) {
@@ -312,10 +300,6 @@ public class PipelineRunService {
         vo.setGitRef(run.getGitRef());
         vo.setCommitSha(run.getCommitSha());
         vo.setTriggeredByName(run.getTriggeredByName());
-        vo.setStack(run.getStack());
-        vo.setRuntimeVersion(run.getRuntimeVersion());
-        vo.setToolVersion(run.getToolVersion());
-        vo.setImage(run.getImage());
         vo.setErrorMessage(run.getErrorMessage());
         vo.setStartedAt(run.getStartedAt());
         vo.setFinishedAt(run.getFinishedAt());

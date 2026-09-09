@@ -6,6 +6,9 @@ import com.hfwas.devops.pipeline.graph.PipelineGraphSpec;
 import com.hfwas.devops.pipeline.graph.PipelineJobKind;
 import com.hfwas.devops.pipeline.graph.PipelineJobSpec;
 import com.hfwas.devops.pipeline.graph.PipelineStageSpec;
+import com.hfwas.devops.pipeline.toolchain.PipelineStack;
+import com.hfwas.devops.pipeline.toolchain.ToolchainCatalog;
+import com.hfwas.devops.pipeline.toolchain.ToolchainResolved;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -28,6 +31,8 @@ public final class TektonCompiler {
     public static final String WORKSPACE = "source";
     public static final String CACHE_WORKSPACE = "cache";
     public static final String SOURCE_DIR = "src";
+
+    private static final ToolchainCatalog TOOLCHAIN = new ToolchainCatalog();
 
     private TektonCompiler() {
     }
@@ -111,6 +116,9 @@ public final class TektonCompiler {
             env.put("GIT_HOST", remote.host());
             env.put("GIT_PATH", remote.path());
             env.put("GIT_REF", request.gitRef() == null || request.gitRef().isBlank() ? "main" : request.gitRef());
+            if (remote.hasEmbeddedCredentials()) {
+                env.put("GIT_EMBEDDED_AUTH", remote.userInfo());
+            }
             if (request.gitHttpProxy() != null && !request.gitHttpProxy().isBlank()) {
                 env.put("GIT_HTTP_PROXY", request.gitHttpProxy().trim());
             }
@@ -126,6 +134,8 @@ public final class TektonCompiler {
                     AUTH=""
                     if [ -n "${GIT_USERNAME:-}" ]; then
                       AUTH="${GIT_USERNAME}:${GIT_PASSWORD}@"
+                    elif [ -n "${GIT_EMBEDDED_AUTH:-}" ]; then
+                      AUTH="${GIT_EMBEDDED_AUTH}@"
                     fi
                     URL="${GIT_SCHEME}://${AUTH}${GIT_HOST}/${GIT_PATH}"
                     attempt=1
@@ -161,10 +171,25 @@ public final class TektonCompiler {
             case UPLOAD -> UPLOAD_IMAGE;
             case DEPLOY -> DEPLOY_IMAGE;
             case NOTIFY -> NOTIFY_IMAGE;
-            default -> request.stackImage();
+            default -> toolchainImageForJob(job);
         };
         String script = commandScript(command);
         return List.of(new CompiledStep(base, image, script, env, false, false));
+    }
+
+    private static String toolchainImageForJob(PipelineJobSpec job) {
+        String stack = job.stack();
+        String runtime = job.runtimeVersion();
+        if (stack == null || runtime == null) {
+            return TOOLCHAIN.list().getFirst().image();
+        }
+        try {
+            ToolchainResolved resolved = TOOLCHAIN.resolve(
+                    PipelineStack.valueOf(stack), runtime, job.toolVersion());
+            return resolved.image();
+        } catch (Exception e) {
+            return TOOLCHAIN.list().getFirst().image();
+        }
     }
 
     private static String commandScript(String command) {

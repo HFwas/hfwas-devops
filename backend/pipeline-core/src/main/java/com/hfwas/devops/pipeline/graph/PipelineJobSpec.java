@@ -5,6 +5,9 @@ public record PipelineJobSpec(
         String name,
         PipelineJobKind kind,
         String command,
+        String stack,
+        String runtimeVersion,
+        String toolVersion,
         int sortOrder
 ) {
 }

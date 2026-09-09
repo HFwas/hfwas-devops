@@ -15,5 +15,8 @@ public class PipelineJobEntity {
     private String name;
     private String kind;
     private String command;
+    private String stack;
+    private String runtimeVersion;
+    private String toolVersion;
     private Integer sortOrder;
 }

@@ -33,6 +33,9 @@ export interface PipelineJob {
   name: string
   kind: JobKind | string
   command?: string | null
+  stack?: string | null
+  runtimeVersion?: string | null
+  toolVersion?: string | null
   sortOrder: number
 }
 
@@ -49,9 +52,6 @@ export interface PipelineSummary {
   repoUrl: string
   gitRef: string
   credentialId?: EntityId | null
-  stack: string
-  runtimeVersion: string
-  toolVersion?: string | null
   updateTime?: string | null
   lastRunId?: EntityId | null
   lastRunStatus?: RunStatus | string | null
@@ -65,9 +65,6 @@ export interface PipelineSavePayload {
   repoUrl: string
   gitRef?: string
   credentialId?: EntityId | null
-  stack: string
-  runtimeVersion: string
-  toolVersion?: string | null
   stages: PipelineStage[]
 }
 

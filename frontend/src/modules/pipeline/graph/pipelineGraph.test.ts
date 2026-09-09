@@ -12,20 +12,9 @@ import {
   kindSelectOptions,
   removeEditorJob,
   repoShortName,
-  stackSummary,
   toEditorStages,
   toSaveStages,
 } from './pipelineGraph'
-import type { ToolchainOption } from '@/modules/pipeline/types/pipeline'
-
-const java21: ToolchainOption = {
-  stack: 'JAVA_MAVEN',
-  runtimeVersion: '21',
-  toolVersion: '3.9',
-  image: 'maven:3.9.9-eclipse-temurin-21',
-  buildCommand: 'mvn -B -DskipTests package',
-  testCommand: 'mvn -B test',
-}
 
 describe('pipeline helpers', () => {
   it('exposes 14 job kinds in 云效-style groups and a clone/build/test template', () => {
@@ -35,7 +24,7 @@ describe('pipeline helpers', () => {
     )
     expect(JOB_KIND_OPTIONS.map((item) => item.value)).not.toContain('LINT')
     expect([...JOB_KIND_GROUPS]).toEqual(['代码', '构建', '质量控制', '制品', '部署', '测试', '命令', '流程'])
-    const graph = createTemplateStages(java21)
+    const graph = createTemplateStages()
     expect(graph.map((stage) => stage.jobs[0].kind)).toEqual(['CLONE', 'BUILD', 'TEST'])
     expect(hasClone(graph)).toBe(true)
     const jobs = graph.flatMap((stage) => stage.jobs.map((job) => ({ kind: job.kind, id: job.name })))
@@ -43,18 +32,17 @@ describe('pipeline helpers', () => {
     expect(kindSelectOptions(jobs, '代码克隆').some((item) => item.value === 'CLONE')).toBe(true)
   })
 
-  it('summarizes repo and stack', () => {
+  it('summarizes repo', () => {
     expect(repoShortName('https://github.com/acme/demo.git')).toBe('acme/demo')
     expect(repoShortName('https://gitlab.example.com/group/proj.git')).toBe('group/proj')
-    expect(stackSummary('JAVA_MAVEN', '21', '3.9')).toBe('Java 21 / Maven 3.9')
   })
 
   it('inserts sequential stages and parallel jobs, then serializes without client keys', () => {
     let stages = toEditorStages([])
-    const clone = createEditorJob('CLONE', java21)
+    const clone = createEditorJob('CLONE')
     stages = insertStageAt(stages, -1, clone)
-    stages = insertStageAt(stages, 0, createEditorJob('BUILD', java21))
-    stages = addParallelJob(stages, stages[1].clientKey, createEditorJob('TEST', java21))
+    stages = insertStageAt(stages, 0, createEditorJob('BUILD'))
+    stages = addParallelJob(stages, stages[1].clientKey, createEditorJob('TEST'))
     expect(stages).toHaveLength(2)
     expect(stages[0].jobs.map((job) => job.kind)).toEqual(['CLONE'])
     expect(stages[1].jobs.map((job) => job.kind)).toEqual(['BUILD', 'TEST'])
@@ -71,7 +59,7 @@ describe('pipeline helpers', () => {
   })
 
   it('blocks clone / approval / image constraints when adding or changing kinds', () => {
-    let stages = insertStageAt(toEditorStages([]), -1, createEditorJob('CLONE', java21))
+    let stages = insertStageAt(toEditorStages([]), -1, createEditorJob('CLONE'))
     expect(canAddKindToStage(stages, null, 'CLONE')).toBe('流水线至多一个克隆任务')
     expect(canAddKindToStage(stages, stages[0].clientKey, 'BUILD')).toBeNull()
 
@@ -79,7 +67,7 @@ describe('pipeline helpers', () => {
     expect(canAddKindToStage(stages, stages[1].clientKey, 'TEST')).toBe('审批任务必须独占一列')
     expect(canAddKindToStage(stages, null, 'TEST')).toBeNull()
 
-    stages = insertStageAt(stages, 1, createEditorJob('IMAGE', java21))
+    stages = insertStageAt(stages, 1, createEditorJob('IMAGE'))
     const imageStage = stages[2]
     expect(canAddKindToStage(stages, imageStage.clientKey, 'IMAGE')).toBe('镜像构建不能与其它镜像构建并行')
     expect(canAddKindToStage(stages, imageStage.clientKey, 'DEPLOY')).toBeNull()

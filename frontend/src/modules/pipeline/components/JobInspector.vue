@@ -3,6 +3,7 @@ import { jobKindMeta, requiresCommand } from '@/modules/pipeline/graph/jobCatalo
 import { canChangeJobKind, kindSelectOptions } from '@/modules/pipeline/graph/pipelineGraph'
 import {
   coerceToolchain,
+  findToolchain,
   runtimesFor,
   stackLabel,
   toolsFor,
@@ -19,9 +20,6 @@ const props = defineProps<{
   repoUrl: string
   gitRef: string
   credentialId: string | null
-  stack: string
-  runtimeVersion: string
-  toolVersion: string | null
   toolchains: ToolchainOption[]
   credentials: PipelineCredential[]
 }>()
@@ -31,9 +29,6 @@ const emit = defineEmits<{
   'update:repoUrl': [value: string]
   'update:gitRef': [value: string]
   'update:credentialId': [value: string | null]
-  'update:stack': [value: string]
-  'update:runtimeVersion': [value: string]
-  'update:toolVersion': [value: string | null]
   'update:job': [patch: Partial<EditorJob>]
   'kind-blocked': [message: string]
   remove: []
@@ -44,12 +39,22 @@ const showJobCommand = computed(() => requiresCommand(props.job?.kind))
 const kindOptions = computed(() => kindSelectOptions(props.stages.flatMap((stage) => stage.jobs), props.selectedJobKey ?? undefined))
 const stackOptions = computed(() => uniqueStacks(props.toolchains).map((value) => ({ label: stackLabel(value), value })))
 const runtimeOptions = computed(() =>
-  runtimesFor(props.toolchains, props.stack).map((value) => ({ label: value, value })),
+  props.job?.stack ? runtimesFor(props.toolchains, props.job.stack).map((value) => ({ label: value, value })) : [],
 )
 const toolOptions = computed(() =>
-  toolsFor(props.toolchains, props.stack, props.runtimeVersion).map((value) => ({ label: value, value })),
+  props.job?.stack && props.job.runtimeVersion
+    ? toolsFor(props.toolchains, props.job.stack, props.job.runtimeVersion).map((value) => ({ label: value, value }))
+    : [],
 )
 const showTool = computed(() => toolOptions.value.length > 0)
+
+/** 需要语言/版本/工具选择的 job 类型：代码构建类 */
+function requiresToolchain(kind?: string | null): boolean {
+  return kind === 'BUILD' || kind === 'TEST' || kind === 'CUSTOM' || kind === 'PACKAGE' || kind === 'PUBLISH'
+}
+
+const showToolchain = computed(() => props.job != null && requiresToolchain(props.job.kind))
+
 const credentialOptions = computed(() =>
   props.credentials.map((item) => ({ label: `${item.name}（${item.kind}）`, value: String(item.id) })),
 )
@@ -70,22 +75,43 @@ function onKindChange(kind: JobKind) {
     kind,
     name: props.job?.name === previous?.label ? (next?.label ?? kind) : props.job?.name,
     command: requiresCommand(kind) ? (keep ? command : next?.defaultCommand ?? '') : '',
+    stack: requiresToolchain(kind) ? (props.job?.stack ?? null) : null,
+    runtimeVersion: requiresToolchain(kind) ? (props.job?.runtimeVersion ?? null) : null,
+    toolVersion: requiresToolchain(kind) ? (props.job?.toolVersion ?? null) : null,
   })
 }
 
-function onStackChange(value: string) {
-  emit('update:stack', value)
-  const option = coerceToolchain(props.toolchains, value, props.runtimeVersion, props.toolVersion)
-  if (option) {
-    emit('update:runtimeVersion', option.runtimeVersion)
-    emit('update:toolVersion', option.toolVersion ?? null)
-  }
+function onJobStackChange(value: string) {
+  const runtimes = runtimesFor(props.toolchains, value)
+  const runtime = runtimes.includes(props.job?.runtimeVersion ?? '') ? props.job?.runtimeVersion : runtimes[0]
+  const tools = runtime ? toolsFor(props.toolchains, value, runtime) : []
+  const tool = tools.includes(props.job?.toolVersion ?? '') ? props.job?.toolVersion : (tools[0] ?? null)
+  const option = findToolchain(props.toolchains, value, runtime ?? '', tool)
+  emit('update:job', {
+    stack: value,
+    runtimeVersion: runtime ?? null,
+    toolVersion: tool,
+    command: option?.buildCommand ?? props.job?.command ?? '',
+  })
 }
 
-function onRuntimeChange(value: string) {
-  emit('update:runtimeVersion', value)
-  const option = coerceToolchain(props.toolchains, props.stack, value, props.toolVersion)
-  if (option) emit('update:toolVersion', option.toolVersion ?? null)
+function onJobRuntimeChange(value: string) {
+  const tools = toolsFor(props.toolchains, props.job?.stack ?? '', value)
+  const tool = tools.includes(props.job?.toolVersion ?? '') ? props.job?.toolVersion : (tools[0] ?? null)
+  const option = findToolchain(props.toolchains, props.job?.stack ?? '', value, tool)
+  emit('update:job', {
+    runtimeVersion: value,
+    toolVersion: tool,
+    command: option?.buildCommand ?? props.job?.command ?? '',
+  })
+}
+
+function onJobToolChange(value: string | null) {
+  const option = findToolchain(props.toolchains, props.job?.stack ?? '', props.job?.runtimeVersion ?? '', value)
+  emit('update:job', {
+    toolVersion: value,
+    command: option?.buildCommand ?? props.job?.command ?? '',
+  })
 }
 </script>
 
@@ -99,6 +125,20 @@ function onRuntimeChange(value: string) {
         <n-form-item label="类型">
           <n-select :value="job.kind" :options="kindOptions" @update:value="onKindChange" />
         </n-form-item>
+
+        <!-- 代码构建类任务：语言、版本、工具选择 -->
+        <template v-if="showToolchain">
+          <n-form-item label="技术栈">
+            <n-select :value="job.stack" :options="stackOptions" @update:value="onJobStackChange" />
+          </n-form-item>
+          <n-form-item label="运行时">
+            <n-select :value="job.runtimeVersion" :options="runtimeOptions" @update:value="onJobRuntimeChange" />
+          </n-form-item>
+          <n-form-item v-if="showTool" label="工具版本">
+            <n-select :value="job.toolVersion" :options="toolOptions" @update:value="onJobToolChange" />
+          </n-form-item>
+        </template>
+
         <n-form-item v-if="showJobCommand" label="命令">
           <n-input
             :value="job.command"
@@ -116,15 +156,6 @@ function onRuntimeChange(value: string) {
       <n-form label-placement="top">
         <n-form-item label="名称">
           <n-input :value="name" placeholder="例如 checkout-ci" @update:value="(value) => emit('update:name', value)" />
-        </n-form-item>
-        <n-form-item label="技术栈">
-          <n-select :value="stack" :options="stackOptions" @update:value="onStackChange" />
-        </n-form-item>
-        <n-form-item label="运行时">
-          <n-select :value="runtimeVersion" :options="runtimeOptions" @update:value="onRuntimeChange" />
-        </n-form-item>
-        <n-form-item v-if="showTool" label="工具版本">
-          <n-select :value="toolVersion" :options="toolOptions" @update:value="(value) => emit('update:toolVersion', value)" />
         </n-form-item>
       </n-form>
     </template>

@@ -3,7 +3,7 @@ import { Plus, Search } from '@lucide/vue'
 import { NButton, NSpace, NTag, useDialog, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
-import { repoShortName, stackSummary } from '@/modules/pipeline/graph/pipelineGraph'
+import { repoShortName } from '@/modules/pipeline/graph/pipelineGraph'
 import { formatDateTime, formatGitRef, runStatusLabel, runStatusTagType } from '@/modules/pipeline/status'
 import type { PipelineSummary } from '@/modules/pipeline/types/pipeline'
 import { isApiError } from '@/shared/errors/apiError'
@@ -114,7 +114,12 @@ const columns: DataTableColumns<PipelineSummary> = [
     key: 'stack',
     width: 200,
     ellipsis: { tooltip: true },
-    render: (row) => stackSummary(row.stack, row.runtimeVersion, row.toolVersion),
+    render: (row) => {
+      const jobs = (row.stages ?? []).flatMap((s) => s.jobs ?? [])
+      const builds = jobs.filter((j) => j.kind === 'BUILD' || j.kind === 'CUSTOM' || j.kind === 'TEST')
+      const envs = [...new Set(builds.map((j) => j.stack).filter(Boolean))]
+      return envs.length ? envs.join(', ') : '—'
+    },
   },
   {
     title: '最近状态',

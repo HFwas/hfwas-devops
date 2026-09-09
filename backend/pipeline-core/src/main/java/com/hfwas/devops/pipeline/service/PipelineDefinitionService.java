@@ -24,8 +24,6 @@ import com.hfwas.devops.pipeline.mapper.PipelineMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineStageMapper;
 import com.hfwas.devops.pipeline.tekton.GitRemote;
-import com.hfwas.devops.pipeline.toolchain.PipelineStack;
-import com.hfwas.devops.pipeline.toolchain.ToolchainCatalog;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,7 +42,6 @@ public class PipelineDefinitionService {
     private final PipelineStageMapper stageMapper;
     private final PipelineJobMapper jobMapper;
     private final PipelineRunMapper runMapper;
-    private final ToolchainCatalog toolchainCatalog = new ToolchainCatalog();
     private final CurrentUserAccessor currentUserAccessor;
 
     public PipelineDefinitionService(
@@ -87,8 +84,6 @@ public class PipelineDefinitionService {
         if (!StringUtils.hasText(dto.getName())) {
             throw BizException.of(ResultCode.BAD_REQUEST, "名称不能为空");
         }
-        PipelineStack stack = parseStack(dto.getStack());
-        toolchainCatalog.resolve(stack, dto.getRuntimeVersion(), dto.getToolVersion());
         PipelineGraphSpec graph = toGraph(dto);
         PipelineGraphValidator.validate(graph);
         boolean hasClone = graph.stages().stream()
@@ -104,9 +99,6 @@ public class PipelineDefinitionService {
         row.setRepoUrl(StringUtils.hasText(dto.getRepoUrl()) ? dto.getRepoUrl().trim() : "");
         row.setGitRef(StringUtils.hasText(dto.getGitRef()) ? dto.getGitRef().trim() : "main");
         row.setCredentialId(dto.getCredentialId());
-        row.setStack(stack.name());
-        row.setRuntimeVersion(dto.getRuntimeVersion());
-        row.setToolVersion(blankToNull(dto.getToolVersion()));
         row.setUpdateBy(currentUserAccessor.currentUserId());
         if (row.getId() == null) {
             row.setCreateBy(currentUserAccessor.currentUserId());
@@ -140,6 +132,9 @@ public class PipelineDefinitionService {
                             job.getName(),
                             PipelineJobKind.valueOf(job.getKind()),
                             job.getCommand(),
+                            job.getStack(),
+                            job.getRuntimeVersion(),
+                            job.getToolVersion(),
                             job.getSortOrder() == null ? 0 : job.getSortOrder()))
                     .toList();
             specs.add(new PipelineStageSpec(stage.getId(), stage.getName(), stage.getSortOrder(), jobs));
@@ -177,6 +172,9 @@ public class PipelineDefinitionService {
                 job.setName(jobSpec.name());
                 job.setKind(jobSpec.kind().name());
                 job.setCommand(jobSpec.command());
+                job.setStack(jobSpec.stack());
+                job.setRuntimeVersion(jobSpec.runtimeVersion());
+                job.setToolVersion(jobSpec.toolVersion());
                 job.setSortOrder(jobOrder++);
                 jobMapper.insert(job);
             }
@@ -198,6 +196,9 @@ public class PipelineDefinitionService {
                         job.getName(),
                         parseJobKind(job.getKind()),
                         job.getCommand(),
+                        job.getStack(),
+                        job.getRuntimeVersion(),
+                        job.getToolVersion(),
                         job.getSortOrder() == null ? jobIndex : job.getSortOrder()));
                 jobIndex++;
             }
@@ -232,6 +233,9 @@ public class PipelineDefinitionService {
                 item.setName(job.getName());
                 item.setKind(job.getKind());
                 item.setCommand(job.getCommand());
+                item.setStack(job.getStack());
+                item.setRuntimeVersion(job.getRuntimeVersion());
+                item.setToolVersion(job.getToolVersion());
                 item.setSortOrder(job.getSortOrder());
                 return item;
             }).toList());
@@ -247,9 +251,6 @@ public class PipelineDefinitionService {
         vo.setRepoUrl(row.getRepoUrl());
         vo.setGitRef(row.getGitRef());
         vo.setCredentialId(row.getCredentialId());
-        vo.setStack(row.getStack());
-        vo.setRuntimeVersion(row.getRuntimeVersion());
-        vo.setToolVersion(row.getToolVersion());
         vo.setUpdateTime(row.getUpdateTime());
         PipelineRunEntity last = runMapper.selectOne(new LambdaQueryWrapper<PipelineRunEntity>()
                 .eq(PipelineRunEntity::getPipelineId, row.getId())
@@ -263,24 +264,12 @@ public class PipelineDefinitionService {
         return vo;
     }
 
-    private PipelineStack parseStack(String stack) {
-        try {
-            return PipelineStack.valueOf(stack);
-        } catch (Exception e) {
-            throw BizException.of(ResultCode.BAD_REQUEST, "未知技术栈");
-        }
-    }
-
     private static PipelineJobKind parseJobKind(String kind) {
         try {
             return PipelineJobKind.valueOf(kind);
         } catch (Exception e) {
             throw BizException.of(ResultCode.BAD_REQUEST, "未知任务类型");
         }
-    }
-
-    private static String blankToNull(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
     }
 
     private Long requireTenant() {
