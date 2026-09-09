@@ -2,14 +2,15 @@
 
 > 日期：2026-09-09  
 > 状态：待实施  
-> 版本：v0.1  
+> 版本：v0.2  
 > 关联： [2026-09-07-pipeline-design.md](../superpowers/specs/2026-09-07-pipeline-design.md)
 
 ### 变更记录
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
-| v0.1 | 2026-09-09 | 初版：多容器选择 + 失败 Pod Debug Copy 降级 + WebSocket 终端
+| v0.1 | 2026-09-09 | 初版：多容器选择 + 失败 Pod Debug Copy 降级 + WebSocket 终端 |
+| v0.2 | 2026-09-09 | 审查修订：连接模式改为 exec / ephemeral / debug_pod / unavailable；WS 独立鉴权；异步就绪；资源上限与 GC |
 
 ---
 
@@ -17,14 +18,19 @@
 
 ### 1.1 需求
 
-用户在流水线执行过程中，需要直接点击任务卡片上的「终端」按钮，在浏览器中打开一个交互式 Shell，**直接进入该任务对应的 K8s Pod 内部执行命令、查看现场** — 即 `kubectl exec -it` 的 Web 界面等价。
+用户在流水线执行过程中，需要直接点击任务卡片上的「终端」按钮，在浏览器中打开一个交互式 Shell，**进入该任务对应的 K8s 现场执行命令** — 即 `kubectl exec` / `kubectl debug` 的 Web 界面等价。
+
+失败后排查是核心场景。实现必须尊重本仓库的真实 workspace 形态，不能假设「新建一颗 Pod 挂上原卷」一定可行。
 
 ### 1.2 现状
 
 - **TektonPipelineExecutor** 已通过 fabric8 Kubernetes Client 跟踪 Pod（从 `TaskRun.getStatus().getPodName()` 获取 pod 名），但 Pod 信息仅存留在 watch 线程内存中，未持久化、未通过 API 暴露
-- **前端 PipelineRunView** 展示任务卡片（YunxioFlowCanvas），已有「查看日志」按钮和右侧日志抽屉，但没有交互式终端入口
-- 前后端均无 WebSocket 基础设施
-- 前端无 xterm.js 终端组件
+- **串行流水线**编译为 `TektonMode.TASK`，workspace 绑定 **emptyDir**（见 `TektonManifests.taskRun`）
+- **并行 / 多 Job 流水线**编译为 PipelineRun，workspace 绑定 **ReadWriteOnce PVC**（见 `TektonManifests.workspaceClaim`）
+- Tekton workspace 名为 `source`，源码目录为 `/workspace/source/src`（不是 `/workspace`）
+- **前端 PipelineRunView** 展示任务卡片（YunxiaoFlowCanvas），已有「查看日志」按钮和右侧日志抽屉，但没有交互式终端入口
+- 前后端均无 WebSocket 基础设施；前端无 xterm.js
+- `SecurityConfig` 为 `anyRequest().authenticated()` + oauth2 JWT（只认 `Authorization` 头）；浏览器原生 WebSocket 不能自定义该头
 
 ---
 
@@ -32,24 +38,43 @@
 
 ```
 浏览器 xterm.js
-    │ WebSocket (JWT)
+    │ WebSocket（Sec-WebSocket-Protocol 带 JWT，禁止 query token）
     ▼
-Spring WebSocket Handler
-    ├─ 容器 Running? → fabric8 ExecWatch → K8s exec → 目标容器
-    └─ 容器 Terminated? → fabric8 创建 Debug Pod → K8s exec → debug 容器
+握手拦截器（Origin + JWT + 租户 + pipeline/run/job 归属）
+    ▼
+Spring WebSocket Handler  （先回 mode，K8s 就绪后再回 ready）
+    ├─ exec        原 Pod 在、容器 Running 且有 shell → fabric8 ExecWatch
+    ├─ ephemeral   原 Pod 在、无 shell / 已退出       → 向原 Pod 注入 ephemeral 容器后 exec
+    ├─ debug_pod   原 Pod 已删、workspace PVC 仍在     → 创建临时 Debug Pod 后 exec
+    └─ unavailable 原 Pod 已删、workspace 为 emptyDir  → 明确失败，只能看日志
 ```
 
-### 2.1 核心流程（含失败降级）
+### 2.1 连接模式（后端根据 Live 状态决定，前端不猜）
 
-1. 用户在 PipelineRunView 点击任务卡片的「终端」按钮（**RUNNING / FAILED 状态均可**）
-2. 前端打开 PodTerminalDrawer，调用 `GET .../containers` 获取容器列表 + 各容器状态
-3. 用户在 selecting 界面选择容器
-4. 前端通过 WebSocket 连接后端，URI 含 `{containerName}`
-5. 后端查询目标容器状态：
-   - **Running**: 直接 fabric8 exec 到该容器（正常流程）
-   - **Terminated**（已退出，含失败或成功退出）：创建 Debug Pod（复制原 Pod 的挂载卷 + 添加 busybox debug 容器），然后 exec 到 debug 容器
-6. 后端双向桥接：浏览器键盘输入 → K8s Pod Shell；Pod 输出 → xterm.js 渲染
-7. 用户关闭抽屉 → 清理 exec 连接；若创建了 Debug Pod → 自动删除
+| 原 Pod | 目标容器 | Workspace | 模式 | 说明 |
+|--------|----------|-----------|------|------|
+| 还在 | Running 且有 shell | 任意 | `exec` | `inContainer.exec`，等价 `kubectl exec -it` |
+| 还在 | Running 但无 shell，或 Terminated / 可观察现场 | 任意 | `ephemeral` | 等价 `kubectl debug -it --target=`：共享原 Pod 的 emptyDir / PVC / 网络，**无 RWO 冲突** |
+| 已删除 | — | PVC 仍在（Pipeline 模式） | `debug_pod` | 这时才创建临时 Pod，只挂 workspace PVC |
+| 已删除 | — | emptyDir（TASK 模式） | `unavailable` | 现场已丢，UI 说明只能看日志，禁止假装能进终端 |
+
+**禁止**在原 Pod 仍存在时创建第二颗 Pod 去挂 RWO PVC：本仓库 PVC 是 `ReadWriteOnce`，原 TaskRun Pod 未删时 Debug Pod 会 `FailedAttachVolume`。
+
+**禁止**把原 Pod 的全部 Volume / Secret / ServiceAccount 复制进 Debug 容器。debug_pod 只挂目标 step 的 workspace PVC，使用独立低权限 SA。
+
+### 2.2 核心流程
+
+1. 用户在 PipelineRunView 点击任务卡片的「终端」按钮（**RUNNING / FAILED / SUCCEEDED / CANCELLED** 且已分配 `podName` 时可见）
+2. 前端打开 PodTerminalDrawer，调用 `GET .../containers` 获取容器列表、Live 状态、**推荐模式**
+3. 用户选择容器（单容器可自动进入 connecting，但仍要展示模式提示）
+4. 前端通过 WebSocket 连接后端；JWT 放在 `Sec-WebSocket-Protocol: bearer.<jwt>`，**禁止** `?token=`
+5. 握手拦截器校验 Origin、JWT、租户、资源归属；失败则拒绝升级
+6. Handler 查 Live 状态，选择上表中的一种模式：
+   - 立即发送 `{ type: "mode", mode, message, workspacePath }`
+   - **不得**在握手线程里同步阻塞 30s；ephemeral / debug_pod 的创建在后台完成
+   - 目标 shell 真正 attach 后再发送 `{ type: "ready" }`
+7. 双向桥接：键盘 JSON 控制帧 → K8s；K8s 输出以 **二进制帧** 回给 xterm
+8. 关闭抽屉或空闲超时 → 关闭 ExecWatch；删除本次创建的 ephemeral 容器或 Debug Pod；写审计日志
 
 ---
 
@@ -59,72 +84,77 @@ Spring WebSocket Handler
 
 **文件**: `pipeline-core/.../config/PipelineExecutorConfiguration.java`
 
-将 `KubernetesClient` 实例提升为独立的 `@Bean`，使其可被其他组件（如 Pod Exec Handler）注入，而不局限于 `TektonPipelineExecutor`。
+将 `KubernetesClient` 抽成独立 Bean，供 Executor 与 Pod Exec 共用。**禁止** `@Bean` 方法 `return null`（注入会 NPE）。无 kubeconfig 时不注册该 Bean，用 `ObjectProvider` 表达缺省。关机必须 `close()`。
+
+无 kubeconfig 时**不要注册该 Bean**（自定义 `Condition` 判断文件存在），也**不要** `return null` 或抛错导致启动失败：
 
 ```java
-@Bean
+@Bean(destroyMethod = "close")
 @ConditionalOnMissingBean
+@Conditional(PipelineKubeconfigPresent.class) // 文件存在才注册
 public KubernetesClient kubernetesClient(
         @Value("${pipeline.kubeconfig:}") String kubeconfig
-) {
-    Path path = StringUtils.hasText(kubeconfig) ? Path.of(kubeconfig) : null;
-    if (path == null || !Files.isRegularFile(path)) return null;
-    Config config = Config.fromKubeconfig(Files.readString(path));
+) throws IOException {
+    Config config = Config.fromKubeconfig(Files.readString(Path.of(kubeconfig)));
     return new KubernetesClientBuilder().withConfig(config).build();
 }
 ```
 
-`TektonPipelineExecutor` 改为通过构造器注入这个 bean。
+`pipelineExecutor()` 改为：
+
+```java
+KubernetesClient client = kubernetesClients.getIfAvailable();
+if (client == null) {
+    return new UnavailablePipelineExecutor();
+}
+return new TektonPipelineExecutor(client, ...);
+```
+
+PodExecController / WebSocket Handler 同样通过 `ObjectProvider<KubernetesClient>` 注入；`getIfAvailable() == null` 时返回「未配置执行集群」，不要 NPE。全进程只允许一份 client。
 
 ### 3.2 持久化 Pod / 容器信息（支持多容器）
 
-**背景**: 目前 `PipelineRunJobVO` / `PipelineRunJobEntity` 不包含 `podName` / `namespace` / 容器列表，前端无法知道去连接哪个 Pod 的哪个容器。
+**背景**: 目前 `PipelineRunJobVO` / `PipelineRunJobEntity` 不包含 `podName` / `namespace` / 容器列表。
 
-一个 Tekton TaskRun 会被编译为一个 Pod，Pod 内包含多个容器（每个 Tekton Step 对应一个容器）。用户进入 Pod 时需要先选择要进入哪个容器。
+一个 Tekton TaskRun 对应一个 Pod；Pod 内除 Step 容器外还有 Tekton 内部容器（`place-scripts` 等）。**数据库只存该 Job 的 step 容器名**，Live 查询再补状态，并过滤内部容器。
 
-#### 实体改动
-
-| 文件 | 改动 |
-|------|------|
-| `PipelineRunJobEntity.java` | 新增字段: `podName`, `namespace` (String, nullable), `containers` (String, nullable — JSON 数组文本) |
-| `pipeline_run_job` 表 | 新增对应数据库列 |
-
-`containers` 字段存储格式：`["clone-step","build-step","test-step"]` — 即该 Job 对应 TaskRun 下所有 Step 的容器名称 JSON 数组。
-
-#### VO 与服务改动
+#### 实体与表
 
 | 文件 | 改动 |
 |------|------|
-| `PipelineRunJobVO.java` | 新增字段: `podName`, `namespace`, `containers` (String[]) |
-| `PipelineRunService.java` (toJobVo) | 映射新字段；`containers` 字段做 JSON 反序列化 `List<String> → String[]` |
+| `PipelineRunJobEntity.java` | 新增 `podName`, `namespace`（String, nullable）, `containers`（String, nullable — JSON 数组文本） |
+| `backend/server/src/main/resources/db/pipeline-schema.sql` | `pipeline_run_job` 的 `CREATE TABLE` **直接加列**（绿野项目，不做旧行兼容） |
+
+列名：`pod_name`、`namespace`、`containers`。`containers` 存储格式：`["clone","build"]` — TaskRun 下该 Job 对应的 Step 容器名。
+
+#### VO 与服务
+
+| 文件 | 改动 |
+|------|------|
+| `PipelineRunJobVO.java` | `podName`, `namespace`, `containers` (`String[]`) |
+| `PipelineRunService.java` (`toJobVo`) | 映射；`containers` JSON 反序列化。推荐 MyBatis-Plus TypeHandler 或 Entity getter/setter，**不要**在 `updateJob` 里每次 `new ObjectMapper()` |
 
 #### 同步时写入
 
 **文件**: `TektonPipelineExecutor.java`
 
-在 `updateJob()` 中，当拿到 `status.getPodName()` 时，收集所有容器的名称：
+`podName` **首次非空写入后**，`containers` 不再随 2s watch 刷新（Tekton Pod 生命期内容器不会增减）。仅当 `job.getPodName()` 为空且本次 `pod` 非空时：
 
 ```java
 job.setPodName(pod);
 job.setNamespace(this.namespace);
-// 收集当前 Job 关联的所有 step 容器名
 List<String> containerNames = steps.stream()
-        .map(step -> step.getContainer())
+        .map(StepState::getContainer)
         .filter(c -> c != null && !c.isBlank())
         .toList();
-job.setContainers(new ObjectMapper().writeValueAsString(containerNames));
-runJobMapper.updateById(job);
+job.setContainers(toJson(containerNames)); // 注入的 ObjectMapper / TypeHandler
 ```
 
-`syncPipelineRun()` 中对每个 TaskRun 也对应更新其 Pod 名和容器列表。
+`syncPipelineRun()` 对每个 child TaskRun 同样处理。
 
-> 注意：容器列表在每次同步时都会刷新覆盖（因为 Tekton Pod 生命中期容器不会增减，覆盖是安全的）。
+### 3.3 REST：获取 Job 容器列表（含状态与推荐模式）
 
-### 3.3 新增 REST 端点：获取 Job 容器列表（含状态）
-
-为了前端在选容器阶段展示选项+容器状态，新增 REST 端点：
-
-**文件**: `PodExecController.java`
+**文件**: `pipeline-core/.../controller/PodExecController.java`
 
 ```java
 @RestController
@@ -137,10 +167,11 @@ public class PodExecController {
             @PathVariable Long runId,
             @PathVariable Long jobId
     ) {
-        // 1. 查询 PipelineRunJobEntity → podName / namespace / containers
-        // 2. 验证 tenant 权限
-        // 3. 实时查询 K8s Pod 各容器的实际状态
-        // 4. 返回 Pod 基础信息 + 容器列表 + 各容器状态 + 推荐的连接模式
+        // 1. definitionService.requireOwned(pipelineId)
+        // 2. 校验 run 属于 pipeline、job 属于 run（否则 404，防 IDOR）
+        // 3. 读 PipelineRunJobEntity → podName / namespace / containers
+        // 4. Live 查 K8s Pod；过滤非 step 容器
+        // 5. 按 §2.1 计算每条容器的 recommendedMode / connectModes
     }
 }
 ```
@@ -150,77 +181,46 @@ public class PodExecController {
 public class PodContainersVO {
     private String namespace;
     private String podName;
-    private List<ContainerInfo> containers;   // 容器列表（含状态）
-    private String defaultContainer;           // 建议默认选中的容器
-    private List<String> connectModes;         // 可用连接模式 ["exec"] / ["debug_copy"]
-    private String recommendedMode;            // 推荐模式 "exec" / "debug_copy"
+    private String podExists;                  // "true" / "false" / "unknown"
+    private String workspaceKind;              // "pvc" / "emptydir" / "unknown"
+    private String workspacePath;              // 固定提示："/workspace/source/src"
+    private List<ContainerInfo> containers;
+    private String defaultContainer;
 }
 
 @Data
 public class ContainerInfo {
-    private String name;                       // 容器名
-    private String state;                      // "running" / "terminated" / "waiting"
-    private Integer exitCode;                  // 退出码（terminated 时）
-    private boolean hasShell;                  // 是否可能有 shell（由镜像特征推测）
+    private String name;
+    private String state;                      // "running" / "terminated" / "waiting" / "unknown"
+    private Integer exitCode;
+    private boolean hasShell;                  // 见 §8 hasShell
+    private String recommendedMode;            // exec / ephemeral / debug_pod / unavailable
+    private String unavailableReason;          // mode=unavailable 时的中文说明
 }
 ```
 
-`connectModes` 字段:
-- `["exec"]` — 容器在运行中，可以直接 exec
-- `["debug_copy"]` — 容器已退出，只能通过 debug copy 进入
-- `["exec", "debug_copy"]` — 两种模式均可由用户选择
+不再返回「用户可选 exec 或 debug_copy」。模式由后端按 Live 状态决定；前端只展示说明。
 
-**containers 端点的 Live 状态查询**:
+**Live 查询规则**:
 
-从 K8s API 实时查询 Pod 的 `ContainerStatus` 列表，而不是只依赖数据库中存储的容器名：
+1. `client.pods().inNamespace(ns).withName(podName).get()`
+2. 若 Pod 存在：用 `containerStatuses` 填 state/exitCode，但 **只保留数据库 `containers` 列表中的名字**（过滤 `place-scripts`、`sidecar-*` 等）
+3. 若 Pod 不存在：`podExists=false`，容器 state 全为 `unknown`，按 workspace 类型给出 `debug_pod` 或 `unavailable`
+4. 判断 workspace：看原 Pod spec（若还在）或本次流水线模式（TASK → emptydir，Pipeline → pvc）；PVC 名与 `run.tektonName + "-ws"` 对齐，再 `client.persistentVolumeClaims()...get()` 确认是否仍在
 
-```java
-Pod pod = client.pods().inNamespace(namespace).withName(podName).get();
-if (pod != null && pod.getStatus() != null) {
-    for (ContainerStatus cs : pod.getStatus().getContainerStatuses()) {
-        ContainerInfo info = new ContainerInfo();
-        info.setName(cs.getName());
-        if (cs.getState() != null) {
-            if (cs.getState().getRunning() != null) {
-                info.setState("running");
-            } else if (cs.getState().getTerminated() != null) {
-                info.setState("terminated");
-                info.setExitCode(cs.getState().getTerminated().getExitCode());
-            } else if (cs.getState().getWaiting() != null) {
-                info.setState("waiting");
-            }
-        }
-        // ...
-    }
-}
-```
+`hasShell`：对 Running 容器，维护一小份无 shell 镜像前缀黑名单（kaniko、`gcr.io/distroless`、`curlimages/curl` 等）。**最终以 exec 尝试为准**：exec 因无 shell 失败则自动降到 `ephemeral`，不要只报「容器状态异常」。
 
-如果 K8s API 查询失败（Pod 已被删除等），回退使用数据库中存储的容器名列表，所有容器标记为 `state: "unknown"`。
+### 3.4 WebSocket 依赖与端点
 
-### 3.4 WebSocket 端点：支持指定容器
-
-WebSocket 端点从 `/ws/pipeline/exec/{pipelineId}/{runId}/{jobId}` 改为增加容器选择参数：
+**文件**: `server/pom.xml` — 只加 `spring-boot-starter-websocket`（`jackson-databind` 已由 Spring Boot 提供，不要重复声明）。
 
 ```
-/ws/pipeline/exec/{pipelineId}/{runId}/{jobId}/{containerName}?token=xxx
+/ws/pipeline/exec/{pipelineId}/{runId}/{jobId}/{containerName}
 ```
 
-`PodExecWebSocketHandler` 在 `afterConnectionEstablished` 中从 URI 解析 `containerName`，用它建立 exec 连接。
+`containerName` 用 `encodeURIComponent`；Tekton 名一般是 DNS 标签，真正要防的是 `/` 与空格。
 
-> 注意：WebSocket URI 中的 `containerName` 需 URL 编码（Tekton 容器名可能含特殊字符如 `-`）。
-
-### 3.3 添加 WebSocket 依赖
-
-**文件**: `server/pom.xml`
-
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-websocket</artifactId>
-</dependency>
-```
-
-### 3.5 新增 WebSocket 配置
+### 3.5 WebSocket 配置
 
 **新建文件**: `server/src/main/java/.../config/WebSocketConfig.java`
 
@@ -232,137 +232,159 @@ public class WebSocketConfig implements WebSocketConfigurer {
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(podExecHandler(), "/ws/pipeline/exec/{pipelineId}/{runId}/{jobId}/{containerName}")
                 .addInterceptors(podExecAuthInterceptor())
-                .setAllowedOrigins("*");
+                .setAllowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*");
+        // 生产再通过配置收紧；禁止 setAllowedOrigins("*")
     }
 }
 ```
 
-WebSocket URI 包含 `containerName` 路径段，由 Handler 从 `UriTemplate` 中提取。前端在连接时使用用户选中的容器名称。
-
-### 3.6 新增 JWT 握手指令器
+### 3.6 JWT 握手拦截器（独立于 oauth2 资源服务器）
 
 **新建文件**: `server/src/main/java/.../ws/PodExecAuthHandshakeInterceptor.java`
 
-- 从 URL query param `token=...` 提取 JWT
-- 使用 Spring Security 的 `JwtDecoder` 验证有效性
-- 从 JWT 中提取用户 ID 和租户信息存入 session attributes
-- token 无效、过期、无权限 → 返回 401 拒绝握手
+浏览器不能给原生 WebSocket 设 `Authorization`。现有 `oauth2ResourceServer` **不会**读 query `token=`。因此：
 
-### 3.7 新增 Pod Exec WebSocket Handler（核心逻辑，含 Debug Copy 降级）
+1. **`SecurityConfig` 必须** `.requestMatchers("/ws/pipeline/exec/**").permitAll()`，注释写明：鉴权在握手拦截器，否则升级请求在过滤器链就会 401。
+2. **禁止** JWT 放在 query string（会进 Vite / 反向代理 / access log）。
+3. 拦截器从 `Sec-WebSocket-Protocol` 读取 `bearer.<jwt>`（前端 `new WebSocket(url, ['bearer.' + token])`），用 `JwtDecoder` 校验。
+4. 回显该 subprotocol，握手才能成功。
+5. 将 JWT 转为与 HTTP 相同的 `AuthUserPrincipal`，调用 `TenantContextService.resolveAndValidate`（不要假设 `TenantContextFilter` 的 ThreadLocal 在 WS I/O 线程上仍可用）。
+6. 再做资源归属（与 REST 一致）：
+   - `definitionService.requireOwned(pipelineId)`
+   - run 属于该 pipeline
+   - job 属于该 run
+7. 用户 ID、租户 ID、pipelineId/runId/jobId 写入 session attributes。
+8. Origin 不在允许列表、token 无效/过期、无权限 → 拒绝握手（401/403）。
 
-**新建文件**: `server/src/main/java/.../ws/PodExecWebSocketHandler.java`
+握手通过后写一条审计日志：谁、何时、哪个 pipeline/run/job/container、client IP。真正选用的 mode 在 Handler 里再补一条。
 
-```
-// ====== 全局常量 ======
-DEBUG_IMAGE = "busybox:latest"  // 调试镜像，可通过配置覆盖
-DEBUG_POD_TTL = 30 * 60 * 1000  // 30分钟 idle 自动清理
-
-// ====== afterConnectionEstablished(session) ======
-afterConnectionEstablished(session):
-  1. 解析 URI 中的 {pipelineId}/{runId}/{jobId}/{containerName}
-  2. 从 session 中获取认证用户信息（JWT 拦截器已验证）
-  3. 查询 PipelineRunJobEntity → namespace / podName
-  4. 若 podName == null → 发送 { type: "error", message: "Pod 尚未分配" } 并关闭
-
-  5. 实时查询 K8s 获取目标容器的状态:
-     Pod pod = client.pods().inNamespace(ns).withName(podName).get()
-     ContainerStatus cs = pod.getStatus().getContainerStatuses()
-         .stream().filter(s -> s.getName().equals(containerName)).findFirst()
-
-  6. 根据容器状态选择连接模式:
-     if cs.getState().getRunning() != null:
-         ── MODE EXEC ── 容器正在运行，直接 exec
-         ExecWatch watch = client.pods().inNamespace(ns).withName(podName)
-             .inContainer(containerName)
-             .redirectingInput().redirectingOutput().redirectingError()
-             .redirectingErrorChannel().withTTY()
-             .exec("sh", "-c", "TERM=xterm-256color bash || TERM=xterm sh")
-
-     elif cs.getState().getTerminated() != null:
-         ── MODE DEBUG_COPY ── 容器已退出，创建调试 Pod
-         debugPodName = podName + "-debug-" + randomSuffix(6)
-
-         1) 从原 Pod 提取 workspace PVC 挂载信息：
-            pod.getSpec().getVolumes().stream()
-                .filter(v -> v.getPersistentVolumeClaim() != null)
-                .findFirst() → 获取 PVC 名称
-           
-         2) 创建 Debug Pod:
-            Pod debugPod = new PodBuilder()
-                .withNewMetadata()
-                    .withName(debugPodName)
-                    .withNamespace(ns)
-                    .withLabels(Map.of("app", "pipeline-debug",
-                                       "debug-for", podName,
-                                       "debug-container", containerName))
-                .endMetadata()
-                .withNewSpec()
-                    .withRestartPolicy("Never")
-                    .withContainers(new ContainerBuilder()
-                        .withName("debug")
-                        .withImage(DEBUG_IMAGE)
-                        .withCommand("sh", "-c", "sleep infinity")
-                        .withNewSecurityContext()
-                            .withPrivileged(false)
-                        .endSecurityContext()
-                        .withStdin(true).withTty(true)
-                        // 挂载原 Pod 的 workspace PVC
-                        .withVolumeMounts(原Pod的 VolumeMounts)
-                        .build())
-                    .withVolumes(原Pod的 Volumes)
-                    .withServiceAccountName(原Pod的 ServiceAccount)  // 可能需要
-                .endSpec()
-                .build()
-           
-          3) client.pods().inNamespace(ns).resource(debugPod).create()
-          
-          4) 等待 Pod Ready（最多 30s 轮询）:
-             client.pods().inNamespace(ns).withName(debugPodName)
-                 .waitUntilCondition(p -> p.getStatus() != null
-                     && p.getStatus().getContainerStatuses() != null
-                     && p.getStatus().getContainerStatuses().stream()
-                         .allMatch(s -> s.getState().getRunning() != null),
-                     30, TimeUnit.SECONDS)
-          
-          5) 发送通知给前端:
-             session.sendMessage({ type: "mode", mode: "debug_copy",
-                 message: "容器已退出，已创建临时调试 Pod: " + debugPodName,
-                 debugPodName: debugPodName })
-          
-          6) 建立 exec 连接到 debug 容器:
-             ExecWatch watch = client.pods().inNamespace(ns).withName(debugPodName)
-                 .inContainer("debug") ...exec("sh", "-c", ...)
-
-     else (waiting 或未知状态):
-         发送 { type: "error", message: "容器状态异常" } 并关闭
-
-  7. 启动两个后台线程桥接 I/O（同 exec 模式）
-  8. 保存 watch + session + debugPodName → ConcurrentHashMap
-
-handleMessage(session, message):
-  解析 JSON 消息:
-  - { "type": "input", "data": "..." } → watch.getInput().write(bytes)
-  - { "type": "resize", "cols": 80, "rows": 24 } → watch.resize(cols, rows)
-
-afterConnectionClosed(session, closeStatus):
-  1. 关闭对应的 ExecWatch
-  2. 中断读取线程
-  3. 若存在 debugPodName → 清理:
-     client.pods().inNamespace(ns).withName(debugPodName)
-         .withGracePeriod(0).delete()
-  4. 从 ConcurrentHashMap 移除
-```
-
-### 3.7 更新 SecurityConfig
+### 3.7 SecurityConfig
 
 **文件**: `SecurityConfig.java`
 
-WebSocket 端点已在 `anyRequest().authenticated()` 覆盖范围内，但为确保 WebSocket 路径明确可过：
-
 ```java
-// 允许 WS 端点走我们自己的 JWT 握手拦截器
-// 无需额外规则，拦截器会在握手层做验证
+.authorizeHttpRequests(auth -> auth
+        .requestMatchers("/health/check").permitAll()
+        .requestMatchers("/ws/pipeline/exec/**").permitAll()
+        // ... 其余规则不变
+        .anyRequest().authenticated())
 ```
+
+`permitAll` 只放开升级入口；没有合法 JWT + 资源归属仍进不了 Handler 的 K8s 调用。
+
+### 3.8 Pod Exec WebSocket Handler
+
+**新建文件**: `server/src/main/java/.../ws/PodExecWebSocketHandler.java`
+
+#### 资源与超时（必须落地，不能只写常量）
+
+| 项 | 值 |
+|----|-----|
+| 每用户并发 session | 4 |
+| 全局并发 session | 16 |
+| 空闲超时 | 30 分钟无 input / 无 resize 则关闭 |
+| 应用层 ping | 每 30s 发 `{ type: "ping" }`，前端回 `{ type: "pong" }`；连续 2 次无响应则断开 |
+| Debug 镜像 | 固定 `busybox:1.37.0`（可配置覆盖），`imagePullPolicy=IfNotPresent`，禁止 `latest` |
+| Debug Pod 生存 | `activeDeadlineSeconds=1800` + 标签 GC |
+| Debug Pod 名 | `dbg-{jobId}-{rand6}`，保证 ≤ 63 字符（禁止 `{tektonPodName}-debug-...`） |
+
+超限：发送 `{ type: "error", message: "终端连接数已达上限" }` 并关闭。
+
+I/O 使用**有界**线程池（或 NIO），禁止每 session `new Thread` × 2 的无界 cached pool。
+
+#### 协议
+
+| 方向 | 帧 | 内容 |
+|------|----|------|
+| 服务端 → 浏览器 | 文本 JSON | `mode` / `ready` / `error` / `ping` |
+| 服务端 → 浏览器 | **二进制** | PTY 原始输出（含 ANSI），**不要** JSON 包一层 |
+| 浏览器 → 服务端 | 文本 JSON | `input` / `resize` / `pong` |
+
+`ws.onopen` 只表示传输层连通。前端必须收到 `ready` 才进入 `connected` 并 `term.focus()`。
+
+#### afterConnectionEstablished（禁止长时间阻塞）
+
+```
+afterConnectionEstablished(session):
+  1. 解析 URI；读取握手期写入的用户与资源 ID
+  2. 再次确认 KubernetesClient 可用
+  3. 读 PipelineRunJobEntity；podName == null → error "Pod 尚未分配" 并关闭
+  4. Live 判定模式（§2.1）；立刻 session.send { type: "mode", mode, message, workspacePath }
+  5. 将 attach 提交到有界执行器（不要占用 Tomcat WS worker 等待 K8s）:
+       exec        → 立即 ExecWatch
+       ephemeral   → 注入 ephemeral 容器，watch Ready 后再 exec（超时 30s，失败 error）
+       debug_pod   → 创建 Debug Pod（见下），Ready 后再 exec
+       unavailable → error(unavailableReason) 并关闭
+  6. attach 成功 → send { type: "ready" }；开始把 ExecWatch 输出以二进制帧转发
+  7. 登记 session 到 ConcurrentHashMap（含 lastActiveAt、mode、debugPodName、ephemeralName）
+  8. 审计：userId, tenantId, pipelineId, runId, jobId, container, mode
+```
+
+**exec**:
+
+```
+ExecWatch watch = client.pods().inNamespace(ns).withName(podName)
+    .inContainer(containerName)
+    .redirectingInput().redirectingOutput().redirectingError()
+    .redirectingErrorChannel().withTTY()
+    .exec("sh", "-c", "exec env TERM=xterm-256color bash || exec env TERM=xterm sh")
+```
+
+无 shell（进程立即退出 / 创建失败）→ **同一 session 内降级到 ephemeral**，再发一次 `mode`。
+
+**ephemeral**（原 Pod 还在时的主路径）：
+
+向原 Pod 注入一颗 ephemeral 容器（fabric8 ephemeralContainers patch，等价 `kubectl debug --target=<container>`）：
+
+- 镜像：`busybox:1.37.0`
+- `target`：用户选中的 step 容器（共享其挂载卷，含 emptyDir 与 RWO PVC）
+- 不复制 Secret、不使用流水线 Deploy 的高权限 SA
+- 名称：`dbg-{rand6}`（符合 DNS 标签）
+- Ready 后对该 ephemeral 容器 exec
+- session 关闭时删除该 ephemeral 容器（能删则删；K8s 对 ephemeral 的删除能力有限，故必须设较短的命令 `sleep 1800` 作为兜底）
+
+**debug_pod**（仅原 Pod 已删且 PVC 仍在）：
+
+```
+1. 确认 PVC 存在；不存在 → unavailable
+2. 创建 Pod:
+     metadata.name = dbg-{jobId}-{rand6}
+     labels: app=pipeline-debug, debug-for-job={jobId}, tenant={tenantId}
+     spec.activeDeadlineSeconds = 1800
+     spec.restartPolicy = Never
+     容器: busybox:1.37.0, command sleep 1800, privileged=false
+     只挂载 workspace PVC → /workspace/source
+     ServiceAccount: 独立低权限（默认 namespace SA），禁止抄原 Pod SA
+3. 后台 wait Ready（超时 30s）—— 不在 WS worker 上 waitUntilCondition
+4. exec 进 debug 容器
+```
+
+session 关闭：`withGracePeriod(0).delete()`。另需 **定时 GC**：列出 `app=pipeline-debug` 且创建超过 30 分钟的 Pod 并删除（覆盖进程崩溃 / 握手后浏览器直接杀页）。
+
+**waiting** 且原 Pod 还在：优先 ephemeral（可以看到已完成 step 写在 emptyDir/PVC 里的文件），而不是直接 error。
+
+#### 消息
+
+```
+handleMessage:
+  ping 超时与 lastActiveAt 更新
+  { type: "input", data }  → watch.getInput().write(UTF-8)
+  { type: "resize", cols, rows } → watch.resize(cols, rows)（确认所用 fabric8 版本确有 resize）
+  { type: "pong" } → 记录心跳
+```
+
+#### 关闭
+
+```
+afterConnectionClosed:
+  关闭 ExecWatch
+  取消执行器任务
+  删除本次 Debug Pod / 尝试删除 ephemeral 容器
+  从 map 移除
+  审计 session 结束
+```
+
+服务重启后：启动时跑一次 `app=pipeline-debug` 全量 GC。
 
 ---
 
@@ -375,7 +397,7 @@ cd frontend
 npm install @xterm/xterm @xterm/addon-fit
 ```
 
-### 4.2 新增 PodTerminalDrawer 组件
+### 4.2 PodTerminalDrawer
 
 **新建文件**: `frontend/src/modules/pipeline/components/PodTerminalDrawer.vue`
 
@@ -392,115 +414,88 @@ npm install @xterm/xterm @xterm/addon-fit
 #### 状态机
 
 ```
-closed (未打开)
+closed
   ↓ show=true
-selecting (选择容器) ← 多容器选择界面
-  ↓ 用户选择后点击连接
-connecting (连接中)
-  ↓ 连接成功         ↓ 连接失败
-connected          error
-  ↓ 断开/关闭          ↓
-disconnected       disconnected
-  ↓ 重连
-selecting (重新选容器)
+selecting
+  ↓ 用户连接（或单容器自动 connecting）
+connecting          ← ws.onopen 仍停留在此；展示 mode 文案
+  ↓ type=ready           ↓ type=error / 握手失败
+connected              error
+  ↓ 断开                 ↓ 重试
+disconnected / selecting
 ```
 
-新增 `selecting` 状态：当 Pod 有多个容器时，用户需要选择进入哪一个，然后才发起连接。
+#### UI
 
-#### UI 设计
-
-- **容器**: Naive UI `NDrawer`（右滑出，宽度 700px）
-- **头部**: 任务名称 + 状态 + 连接状态标签 + **当前容器名**（连接后）
-- **主体区域 — selecting 状态**:
-  - 显示 Pod 基础信息摘要（命名空间 / Pod 名称 / Pod 状态）
-  - 容器列表以 radio group + 状态徽标展示：
-    ```
-    ┌────────────────────────────────────────────┐
-    │  Pod 信息                                 │
-    │  命名空间: hfwas-pipeline                  │
-    │  Pod 名称: task-run-xxxx                   │
-    │  Pod 状态: Failed (container exited)       │
-    │                                            │
-    │  选择容器：                                 │
-    │  ○ step-clone     🟢 Running   (推荐)      │
-    │  ● step-build     🔴 Exited(1)             │
-    │  ○ step-test      🔴 Exited(0)             │
-    │  ○ step-scan      🔴 Exited(0)             │
-    │                                            │
-    │  ⓘ 容器已退出，将通过临时 Debug Pod 进入    │
-    │                                            │
-    │  [  连接终端  ]                             │
-    └────────────────────────────────────────────┘
-    ```
-  - 状态图标: 🟢 Running / 🔴 Exited(exitCode) / ⏳ Waiting / ❓ Unknown
-  - 默认选中 running 的容器（若无运行中容器，选中第一个）
-  - 如果只有 1 个容器 → 跳过 selecting 直接进入 connecting
-  - 选择 terminated 容器时，底部出现提示条：「ⓘ 容器已退出，将通过临时 Debug Pod 进入，结束后自动清理」
-  - 连接按钮文案根据模式变化：「连接终端」(exec) / 「创建调试 Pod 并连接」(debug_copy)
-- **主体区域 — connecting**: 加载旋转图标 + "正在连接 Pod..."
-- **主体区域 — connected**: xterm.js 终端（全高，深色背景 `#1d2129`）
-- **主体区域 — error**: 错误消息 + 重试按钮（返回 selecting）
-- **主体区域 — disconnected**: 显示断开提示 + 重连按钮（返回 selecting）
-- **底部工具栏**: 断开/重连按钮（connected/disconnected 时显示）；切换容器按钮（connected 时：断开后重新 selecting）
+- Naive UI `NDrawer`，宽度 700px
+- 头部：任务名 + 连接状态 + 当前容器 + 当前 mode
+- **selecting**：Pod 摘要（namespace / podName / podExists / workspaceKind）+ 容器 radio + 状态徽标
+  - 推荐选中 Running 容器；否则第一个非 unavailable
+  - 底部提示随 `recommendedMode` 变化：
+    - `exec`：直接进入该容器
+    - `ephemeral`：原容器已退出或无 shell，将注入临时调试容器（共享原卷）
+    - `debug_pod`：原 Pod 已删除，将挂载 workspace PVC 创建临时 Pod
+    - `unavailable`：现场已不可用（TASK emptyDir 且 Pod 已删），禁用连接，引导去看日志
+  - 工作区路径提示固定：`文件在 /workspace/source/src`
+- 单容器且 mode ≠ unavailable：自动 connecting，**不要跳过 mode 提示**（connecting 区显示同一句话）
+- **connecting**：spinner + 后端 `mode.message`（例如「正在注入调试容器…」）
+- **connected**：xterm，背景 `#1d2129`
+- **error / disconnected**：说明 + 回到 selecting
 
 #### 核心逻辑
 
 ```typescript
-// 获取容器列表
-async function fetchContainers() {
-  const token = await getToken()
-  const resp = await fetch(
-    `/api/pipeline/pipelines/${pipelineId}/runs/${runId}/jobs/${jobId}/containers`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  )
-  const data = await resp.json()
-  containers.value = data.data.containers
-  defaultContainer.value = data.data.defaultContainer
-  selectedContainer.value = defaultContainer.value
-  // 仅一个容器 → 直接连接
-  if (containers.value.length === 1) connect()
-}
-
-// 安装 xterm 终端
-const term = new Terminal({
-  cursorBlink: true,
-  cursorStyle: 'block',
-  fontSize: 13,
-  fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-  theme: { background: '#1d2129', foreground: '#e5e7eb' },
-})
-const fitAddon = new FitAddon()
-term.loadAddon(fitAddon)
-
-// 连接 WebSocket（传入选中的容器名）
 function connect() {
   status = 'connecting'
+  disposeTermIO() // 重连前去掉旧的 onData / onResize，避免一次按键多发
   const token = await getToken()
-  ws = new WebSocket(
-    `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws/pipeline/exec/${pipelineId}/${runId}/${jobId}/${encodeURIComponent(selectedContainer.value)}?token=${token}`
-  )
-  ws.onopen = () => { status = 'connected'; term.focus(); fitAddon.fit() }
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+  const url = `${proto}://${location.host}/api/ws/pipeline/exec/${pipelineId}/${runId}/${jobId}/${encodeURIComponent(selectedContainer.value)}`
+  ws = new WebSocket(url, [`bearer.${token}`])
+  ws.binaryType = 'arraybuffer'
+  ws.onopen = () => { /* 仍为 connecting，等待 ready */ }
   ws.onmessage = (ev) => {
+    if (typeof ev.data !== 'string') {
+      term.write(new Uint8Array(ev.data))
+      return
+    }
     const msg = JSON.parse(ev.data)
-    if (msg.type === 'output') term.write(msg.data)
+    if (msg.type === 'mode') {
+      currentMode = msg.mode
+      connectingHint = msg.message
+      workspacePath = msg.workspacePath
+    }
+    if (msg.type === 'ready') {
+      status = 'connected'
+      term.focus()
+      fitAddon.fit()
+    }
     if (msg.type === 'error') { status = 'error'; errorMsg = msg.message }
-    if (msg.type === 'container_info') currentContainer = msg.containerName
+    if (msg.type === 'ping') ws.send(JSON.stringify({ type: 'pong' }))
   }
   ws.onclose = () => { status = 'disconnected' }
-  term.onData((data) => ws.send(JSON.stringify({ type: 'input', data })))
-  term.onResize(({ cols, rows }) => ws.send(JSON.stringify({ type: 'resize', cols, rows })))
+  termDataDisp = term.onData((data) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'input', data }))
+    }
+  })
+  termResizeDisp = term.onResize(({ cols, rows }) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'resize', cols, rows }))
+    }
+  })
 }
 ```
 
-### 4.3 在任务卡片添加「终端」按钮
+REST `GET .../containers` 继续走现有 `Authorization: Bearer`（axios/fetch），不要用裸 fetch 漏掉公共错误处理；优先复用 `shared/api/request`。
+
+### 4.3 任务卡片「终端」按钮
 
 **文件**: `YunxiaoFlowCanvas.vue`
 
-在任务操作按钮区新增「终端」按钮。与「查看日志」不同，终端按钮在 **RUNNING 和 FAILED** 状态均可见（失败后进入 Debug Pod 排查是核心场景）：
-
 ```html
 <button
-  v-if="!editable && (job.status === 'RUNNING' || job.status === 'FAILED')"
+  v-if="!editable && terminalAllowed(job.status)"
   type="button"
   class="yx-job-action-btn"
   @click.stop="emit('open-terminal', job.clientKey)"
@@ -509,68 +504,40 @@ function connect() {
 </button>
 ```
 
-同时更新 emits 声明：
-
 ```typescript
-const emit = defineEmits<{
-  'insert-stage': [afterIndex: number]
-  'add-parallel': [stageKey: string]
-  'select-job': [jobKey: string]
-  'select-start': []
-  'view-log': [jobKey: string]
-  'open-terminal': [jobKey: string]  // ← 新增
-  remove: [jobKey: string]
-}>()
-```
-
-### 4.4 集成到 PipelineRunView
-
-**文件**: `PipelineRunView.vue`
-
-1. 新增状态：
-
-```typescript
-const terminalJobKey = ref<string | null>(null)
-
-const terminalRunJob = computed(() => {
-  if (!terminalJobKey.value) return null
-  const job = findEditorJob(stages.value, terminalJobKey.value)
-  if (job?.runJobId == null) return null
-  return run.value?.jobs.find((item) => String(item.id) === String(job.runJobId)) ?? null
-})
-```
-
-2. 处理事件：
-
-```typescript
-function openTerminal(jobKey: string) {
-  terminalJobKey.value = jobKey
+function terminalAllowed(status?: string) {
+  return status === 'RUNNING' || status === 'FAILED'
+      || status === 'SUCCEEDED' || status === 'CANCELLED'
 }
 ```
 
-3. 模板嵌入抽屉组件：
+QUEUED / WAITING_APPROVAL 不可见。点开后若 API 判定 `unavailable`，抽屉内说明原因，而不是隐藏按钮（成功/取消后用户仍可能想试，由后端告诉现场在不在）。
 
-```html
-<PodTerminalDrawer
-  :show="terminalJobKey != null"
-  :pipeline-id="pipelineId"
-  :run-id="runId"
-  :job-id="terminalRunJob?.id ?? ''"
-  :job-name="terminalRunJob?.jobName ?? ''"
-  @close="terminalJobKey = null"
-/>
-```
+emits 增加 `'open-terminal': [jobKey: string]`。
 
-### 4.5 Vite 代理配置
+### 4.4 集成 PipelineRunView
 
-**文件**: `vite.config.ts`
+**文件**: `PipelineRunView.vue`
 
-确保开发环境的 Vite proxy 转发 WebSocket 连接：
+与日志抽屉并列：`terminalJobKey` → 解析 `terminalRunJob` → 渲染 `PodTerminalDrawer`。关闭时 `terminalJobKey = null`。
+
+### 4.5 Vite 代理
+
+**文件**: `frontend/vite.config.ts`
+
+前端 WS URL 是 `/api/ws/...`，现有代理已把 `/api/` rewrite 成后端路径，后端端口是 **8089**。
+
+**只给现有 `/api/` 代理加 `ws: true`**。不要新增 `/ws` → `8080`（匹配不到 URL，端口也不对）。
 
 ```typescript
 proxy: {
-  '/api': { target: 'http://localhost:8080', changeOrigin: true },
-  '/ws': { target: 'http://localhost:8080', ws: true },  // ← 新增
+  '/api/': {
+    target: 'http://localhost:8089',
+    changeOrigin: true,
+    ws: true,
+    rewrite: (p) => p.replace(/^\/api/, ''),
+    configure: (proxy) => { /* 现有 X-Forwarded-For 保持不变 */ },
+  },
 }
 ```
 
@@ -578,32 +545,34 @@ proxy: {
 
 ## 5. 文件清单
 
-### 后端（新增 4 个文件，修改 8 个文件）
+### 后端（新增约 6 个文件，修改 9 个文件）
 
 | 操作 | 文件路径 |
 |------|----------|
-| 改 | `pipeline-core/.../entity/PipelineRunJobEntity.java` — 加 `podName`, `namespace`, `containers` (JSON) 字段 |
-| 改 | `pipeline-core/.../dto/PipelineRunJobVO.java` — 加 `podName`, `namespace`, `containers` (String[]) |
-| 改 | `pipeline-core/.../config/PipelineExecutorConfiguration.java` — 抽出 K8sClient bean |
-| 改 | `pipeline-core/.../executor/TektonPipelineExecutor.java` — 注入 K8sClient bean, populate pod/containers info |
-| 改 | `pipeline-core/.../service/PipelineRunService.java` — toJobVo 映射新字段，含 JSON 反序列化 |
-| 改 | `server/pom.xml` — 加 `spring-boot-starter-websocket`，`jackson-databind` |
-| 改 | `server/.../config/SecurityConfig.java` — WebSocket 路径认证确认 |
-| **新** | `server/.../config/WebSocketConfig.java` — 注册 handler |
-| **新** | `server/.../ws/PodExecAuthHandshakeInterceptor.java` — JWT 握手拦截 |
-| **新** | `server/.../ws/PodExecWebSocketHandler.java` — 核心 exec 桥接，按 `containerName` 参数选择容器 |
-| **新** | `pipeline-core/.../controller/PodExecController.java` — `GET .../containers` 返回容器列表 |
-| **新** | `pipeline-core/.../dto/PodContainersVO.java` — 容器列表 VO |
+| 改 | `backend/server/src/main/resources/db/pipeline-schema.sql` — `pipeline_run_job` 加 `pod_name` / `namespace` / `containers` |
+| 改 | `pipeline-core/.../entity/PipelineRunJobEntity.java` |
+| 改 | `pipeline-core/.../dto/PipelineRunJobVO.java` |
+| 改 | `pipeline-core/.../config/PipelineExecutorConfiguration.java` — Client Bean + ObjectProvider |
+| 改 | `pipeline-core/.../executor/TektonPipelineExecutor.java` — 首次写入 pod/containers |
+| 改 | `pipeline-core/.../service/PipelineRunService.java` — toJobVo |
+| 改 | `server/pom.xml` — `spring-boot-starter-websocket` |
+| 改 | `server/.../config/SecurityConfig.java` — permitAll `/ws/pipeline/exec/**` |
+| **新** | `server/.../config/WebSocketConfig.java` |
+| **新** | `server/.../ws/PodExecAuthHandshakeInterceptor.java` |
+| **新** | `server/.../ws/PodExecWebSocketHandler.java` |
+| **新** | `server/.../ws/PipelineDebugPodGc.java` — 启动 + 定时清理 `app=pipeline-debug` |
+| **新** | `pipeline-core/.../controller/PodExecController.java` |
+| **新** | `pipeline-core/.../dto/PodContainersVO.java` |
 
 ### 前端（新增 1 个文件，修改 4 个文件）
 
 | 操作 | 文件路径 |
 |------|----------|
-| **新** | `frontend/src/modules/pipeline/components/PodTerminalDrawer.vue` — 终端抽屉组件 |
+| **新** | `frontend/src/modules/pipeline/components/PodTerminalDrawer.vue` |
 | 改 | `frontend/package.json` — 依赖 + lock |
-| 改 | `frontend/src/modules/pipeline/components/YunxiaoFlowCanvas.vue` — 加终端按钮 |
-| 改 | `frontend/src/modules/pipeline/views/PipelineRunView.vue` — 集成抽屉 |
-| 改 | `frontend/vite.config.ts` — WebSocket proxy |
+| 改 | `frontend/src/modules/pipeline/components/YunxiaoFlowCanvas.vue` |
+| 改 | `frontend/src/modules/pipeline/views/PipelineRunView.vue` |
+| 改 | `frontend/vite.config.ts` — `/api/` 增加 `ws: true` |
 
 ---
 
@@ -611,51 +580,42 @@ proxy: {
 
 | 场景 | 步骤 | 预期 |
 |------|------|------|
-| 基础功能 | 运行流水线 → 点击运行中任务(card)的「终端」按钮 | 抽屉打开，显示容器选择界面或直连（单容器时） |
-| 多容器选择 | 点击含多 Step 的任务终端按钮 | 显示容器列表 radio group，各容器有状态徽标 |
-| 容器状态展示 | 选择界面中，运行中的容器显示 🟢 Running，已退出的显示 🔴 Exited(1) | 状态徽标正确 |
-| 运行中进入 | 选 Running 容器 → 连接终端 | 直接 exec 进入该容器 Shell |
-| 命令执行 | 终端输入 `ls`, `env`, `echo hello` | 命令正常执行并回显 |
-| **失败 Pod 进入** | Step 失败 → 点击 FAILED 任务的终端按钮 → 选已退出的容器 → 连接 | 后端创建 Debug Pod，前端提示「调试 Pod 已创建」，进入 busybox Shell |
-| 调试 Pod 文件查看 | 在 Debug Pod 终端中检查 `/workspace` 目录 | 能看到 Tekton 编译产物、源代码等（通过 PVC 挂载） |
-| **调试 Pod 自动清理** | 关闭终端抽屉（WebSocket 断开） | 后端自动删除对应的 Debug Pod |
-| Pod 未就绪 | 点击 QUEUED 状态任务的终端按钮 | 按钮不可见 |
-| Pod 已成功退出 | 点击 SUCCEEDED 状态任务的终端按钮（加入失败即终止时仍保留按钮） | 按钮可见，进入 Debug Pod |
-| 连接断开 | connected → 手动断开 / Pod 退出 | 显示 disconnected，重连回到 selecting |
-| 切换容器 | connected → 断开 → 选另一个容器 → 连接 | 正确进入新容器 |
-| 窗口 resize | 终端连接时缩放浏览器窗口 | xterm 自适应大小 (fit addon) |
-| 单容器自动跳 | 点击仅 1 个容器的任务终端按钮 | 跳过 selecting 直连 |
-| Auth 验证 | 使用无效 token 连接 WebSocket | 握手被拒绝，显示认证错误 |
-| Containers API | GET .../containers | 返回 namespace/podName/containers[]（每个含 state/exitCode） |
-| Debug Pod 标签 | 调试 Pod 被创建后在 K8s 中检查 | 有 `app=pipeline-debug`、`debug-for=原Pod名`、`debug-container=容器名` 标签 |
-| 多重调试 | 同时打开两个 FAILED 任务的终端 | 各自独立 Debug Pod，互不干扰 |
-| 安全性 | 非该租户的 run 获取容器列表/连 WebSocket | 返回 403 |
+| 基础功能 | 运行中任务点「终端」 | 抽屉打开；多容器选列表，单容器进入 connecting 并显示 mode 文案 |
+| 运行中有 shell | 选 Running 容器 | `mode=exec`，收到 `ready` 后再出现可输入 shell |
+| 运行中无 shell | kaniko / curl 等镜像 | exec 失败后同一 session 降级 `ephemeral`，能进 busybox |
+| **失败现场（Pod 还在）** | FAILED 任务选已退出容器 | `ephemeral`，**不是**新建 Debug Pod；能看到 emptyDir 或 PVC 上的文件 |
+| TASK 模式且 Pod 已删 | SUCCEEDED 后 Tekton 清掉 Pod | `unavailable`，提示只能看日志，不创建 Pod |
+| Pipeline 模式且 Pod 已删、PVC 在 | 点终端 | `debug_pod`，connecting 显示创建中，ready 后 `ls /workspace/source/src` 看得到源码 |
+| RWO 不冲突 | 原 Pod 仍在时进失败 step | 不得出现第二颗 Pending（FailedAttachVolume）的 debug Pod |
+| Debug Pod 清理 | 关闭抽屉 | Debug Pod 被删；杀浏览器进程后 30min 内 GC 也会删 |
+| 按钮可见性 | QUEUED 无按钮；RUNNING/FAILED/SUCCEEDED/CANCELLED 有 | 与 §4.3 一致 |
+| 工作区路径 | 终端内 | 文档与 UI 均指向 `/workspace/source/src` |
+| 内部容器 | 选择列表 | 无 `place-scripts` / sidecar |
+| resize | 缩放窗口 | vim/nano 正常 |
+| 重连 | 断开再连 | 一次按键只发一份 input |
+| Auth | 无效 / 过期 JWT | 握手拒绝 |
+| IDOR | 改 URI 中别人的 pipelineId/runId/jobId | 403 |
+| Query token | `?token=` 连接 | **失败**（不支持） |
+| 并发上限 | 同一用户开第 5 条 | error「连接数已达上限」 |
+| 开发代理 | `npm run dev` 连终端 | `/api/` + `ws: true` + 8089 可升级，不依赖 `/ws` 代理 |
+| 审计 | 连接一次 | 日志含 userId、资源 ID、mode |
 
 ---
 
 ## 7. 注意事项
 
-1. **日志不打码**: 终端场景不是日志场景，`LogMasker` 不应作用于终端输出。用户在 Pod 内看到的是未经打码的原始输出（与真实 `kubectl exec` 行为一致）。
+1. **日志不打码**：终端不是日志管道，`LogMasker` 不作用于 PTY 输出（与 `kubectl exec` 一致）。审计只记元数据，不记终端内容。
 
-2. **多容器语义**: Tekton Task 的每个 Step 映射为一个 Pod 内的独立容器。`step-clone`、`step-build` 等容器可能不包含 Shell（例如 `gcr.io/kaniko-project/executor`）。WebSocket handler 使用 `sh -c "TERM=xterm-256color bash || TERM=xterm sh"` 自动降级。若目标容器无任何 Shell，exec 会失败并返回明确错误。
+2. **exec 仍是高权限操作**：运行中容器环境变量可能含 `GIT_PASSWORD`。产品接受与 `kubectl exec` 同等风险，但必须：租户 + 资源归属、并发上限、审计。debug_pod / ephemeral **不得**复用流水线 Task 的 SA 去操作集群。
 
-3. **失败 Pod 调试（Debug Copy 核心场景）**: Step 失败后容器退出，`kubectl exec` 无法进入。后端通过以下方式补救：
-   - 创建新 Pod（使用 busybox 镜像），挂载原 Pod 的 workspace PVC
-   - 原 Pod 的 `/workspace` 下保留编译产物和源代码，用户进入 Debug Pod 后可以 `ls /workspace`、`cat` 日志文件等
-   - Debug Pod 命名: `{tektonPod}-debug-{random6}`，带标签 `app=pipeline-debug`, `debug-for=原Pod名`
-   - 生命周期与 WebSocket Session 绑定 — 断开连接即自动 `delete()`（`gracePeriod=0`）
-   - 若因异常未能清理，Debug Pod 可通过 K8s 标签 `app=pipeline-debug` 统一清理
+3. **ephemeral 是失败排查主路径**；debug_pod 只覆盖「Pod 已删 + PVC 还在」。TASK + emptyDir + Pod 已删 = 不可用。
 
-3. **容器列表刷新时机**: 容器列表在 Pod 分配时一次性确定（Tekton Pod 生命期内容器不会增减）。同步写入只需在首次拿到 podName 时完成，后续同步可跳过容器列表更新（或覆盖更新，成本很低）。
+4. **同一次 PipelineRun 的多个 Job 共享一块 RWO PVC**。两个 FAILED 任务若原 Pod 都还在，各自 ephemeral 挂在**自己的 TaskRun Pod**上，互不抢卷。仅 debug_pod 模式不要对同一 PVC 并行创建两颗 Debug Pod。
 
-4. **containers 字段存储**: 使用 Jackson `ObjectMapper` 在实体层面做 `List<String> ↔ JSON String` 的转换。推荐在 Entity 的 getter/setter 中处理，或使用 MyBatis-Plus 的 TypeHandler。
+5. **容器列表**：首次拿到 `podName` 时写入 DB，之后 watch 不再刷 `containers`。
 
-5. **WebSocket 容器参数编码**: 容器名在 WebSocket URI 中可能含特殊字符（如 `step-clone`），需前端用 `encodeURIComponent()` 编码，后端用 Spring 的 `@PathVariable` 自动解码。
+6. **握手线程**：任何 K8s wait 都放到有界执行器；先 `mode` 后 `ready`。
 
-6. **单容器优化**: 当 `containers.length === 1` 时，前端自动跳过 selecting 状态，直接进入 connecting 状态，减少用户点击次数。
+7. **TTY resize**：按 xterm 的 `cols/rows` 调用 fabric8 `ExecWatch.resize`；实现时核对当前 fabric8 版本 API。
 
-7. **超时保护**: K8s exec 空闲超过 30 分钟应自动断开（可通过 `ExecWatch.close()` 和 session close 实现）。
-
-8. **TTY 宽度/高度**: resize 消息需根据 xterm 实际 `cols/rows` 传递，确保 shell 编辑器（vim、nano 等）显示正常。
-
-9. **K8sClient Bean 为 null 时的处理**: 若 `kubernetesClient()` bean 因无 kubeconfig 为 null，PodExecController 的容器列表 API 和 WebSocket handler 均在握手阶段返回错误信息「未配置执行集群」。
+8. **生产 Origin**：`WebSocketConfig` 的 allowedOriginPatterns 与 CORS 同源策略对齐，随部署配置，不要 `*`。
