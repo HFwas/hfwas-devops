@@ -23,6 +23,7 @@ const emit = defineEmits<{
   'select-job': [jobKey: string]
   'select-start': []
   'view-log': [jobKey: string]
+  'open-terminal': [jobKey: string]
   remove: [jobKey: string]
 }>()
 
@@ -141,6 +142,14 @@ function toneClass(kind?: string | null): string {
                 @click.stop="emit('view-log', job.clientKey)"
               >
                 查看日志
+              </button>
+              <button
+                v-if="!editable"
+                type="button"
+                class="yx-job-action-btn"
+                @click.stop="emit('open-terminal', job.clientKey)"
+              >
+                终端
               </button>
               <button
                 v-else

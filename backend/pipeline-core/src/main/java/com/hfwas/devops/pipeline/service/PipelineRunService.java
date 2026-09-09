@@ -326,8 +326,21 @@ public class PipelineRunService {
         vo.setCommand(row.getCommand());
         vo.setStatus(row.getStatus());
         vo.setLogText(row.getLogText());
+        vo.setPodName(row.getPodName());
+        vo.setNamespace(row.getNamespace());
+        vo.setContainers(parseContainerJson(row.getContainers()));
         vo.setStartedAt(row.getStartedAt());
         vo.setFinishedAt(row.getFinishedAt());
         return vo;
+    }
+
+    private static String[] parseContainerJson(String json) {
+        if (json == null || json.isBlank()) return new String[0];
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(json, String[].class);
+        } catch (Exception e) {
+            return new String[0];
+        }
     }
 }

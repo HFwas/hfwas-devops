@@ -366,6 +366,17 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         if (allTerminated) {
             job.setFinishedAt(LocalDateTime.now());
         }
+        // 首次拿到 podName 时写入 pod/namespace/containers（后续不再覆盖）
+        if (pod != null && !pod.isBlank() && job.getPodName() == null) {
+            job.setPodName(pod);
+            job.setNamespace(namespace);
+            List<String> containerNames = steps.stream()
+                    .map(StepState::getContainer)
+                    .filter(c -> c != null && !c.isBlank())
+                    .distinct()
+                    .toList();
+            job.setContainers(toContainerJson(containerNames));
+        }
         if (pod != null && !pod.isBlank()) {
             StringBuilder logs = new StringBuilder();
             for (StepState step : steps) {
@@ -755,5 +766,18 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             specs.add(new PipelineStageSpec(stage.getId(), stage.getName(), stage.getSortOrder(), stageJobs));
         }
         return new PipelineGraphSpec(specs);
+    }
+
+    // ---- Pod Exec support ----
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper CONTAINER_MAPPER =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
+    static String toContainerJson(List<String> names) {
+        try {
+            return CONTAINER_MAPPER.writeValueAsString(names);
+        } catch (Exception e) {
+            return "[]";
+        }
     }
 }

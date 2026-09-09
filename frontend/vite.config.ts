@@ -7,6 +7,11 @@ import { NaiveUiResolver } from 'unplugin-vue-components/resolvers'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
+  optimizeDeps: {
+    // 排除 naive-ui 的预打包 —— 开发模式避免全量 barrel export 被 esbuild 打包为 3.8 MB
+    // 改为按需加载真实导入的子模块，HTTP/2 多路复用性能可接受
+    exclude: ['naive-ui'],
+  },
   plugins: [
     vue(),
     AutoImport({
@@ -35,6 +40,7 @@ export default defineConfig({
       '/api/': {
         target: 'http://localhost:8089',
         changeOrigin: true,
+        ws: true,
         rewrite: (p) => p.replace(/^\/api/, ''),
         configure: (proxy) => {
           proxy.on('proxyReq', (proxyReq, req) => {
@@ -43,6 +49,18 @@ export default defineConfig({
               proxyReq.setHeader('X-Forwarded-For', remoteAddress)
             }
           })
+        },
+      },
+    },
+  },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'naive-ui': ['naive-ui'],
+          'vendor-base': ['vue', 'vue-router', 'pinia'],
+          'shared-utils': ['lodash-es', 'date-fns'],
         },
       },
     },

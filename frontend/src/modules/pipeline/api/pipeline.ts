@@ -7,6 +7,7 @@ import type {
   PipelineRun,
   PipelineSavePayload,
   PipelineSummary,
+  PodContainersVO,
   TaskKindVO,
   ToolchainOption,
 } from '@/modules/pipeline/types/pipeline'
@@ -32,6 +33,8 @@ export const pipelineApi = {
     post<PipelineRun>(`/pipeline/pipelines/${asId(id)}/runs/${asId(runId)}/cancel`),
   approve: (id: EntityId, runId: EntityId) =>
     post<PipelineRun>(`/pipeline/pipelines/${asId(id)}/runs/${asId(runId)}/approve`),
+  getContainers: (id: EntityId, runId: EntityId, jobId: EntityId) =>
+    get<PodContainersVO>(`/pipeline/pipelines/${asId(id)}/runs/${asId(runId)}/jobs/${asId(jobId)}/containers`),
 }
 
 export const pipelineCredentialApi = {

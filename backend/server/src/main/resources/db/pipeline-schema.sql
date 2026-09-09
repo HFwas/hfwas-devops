@@ -81,7 +81,10 @@ CREATE TABLE IF NOT EXISTS pipeline_run_job (
     status      TEXT         NOT NULL,
     log_text    TEXT,
     started_at  TEXT,
-    finished_at TEXT
+    finished_at TEXT,
+    pod_name    TEXT,
+    namespace   TEXT,
+    containers  TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_pipeline_tenant ON pipeline (tenant_id, deleted);

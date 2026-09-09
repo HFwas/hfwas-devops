@@ -4,6 +4,7 @@ import { NAvatar, NButton, NTag, useDialog, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import YunxiaoFlowCanvas from '@/modules/pipeline/components/YunxiaoFlowCanvas.vue'
+import PodTerminalDrawer from '@/modules/pipeline/components/PodTerminalDrawer.vue'
 import { findEditorJob, groupRunJobs, repoShortName } from '@/modules/pipeline/graph/pipelineGraph'
 import {
   formatCommit,
@@ -35,6 +36,14 @@ const historyPagination = usePagination({ pageSize: 10, pageSizes: [10, 20, 50] 
 const logEl = ref<HTMLElement | null>(null)
 const now = ref(Date.now())
 let timer: number | null = null
+
+// 终端抽屉
+const terminalJobKey = ref<string | null>(null)
+const terminalRunJob = computed(() => {
+  const job = findEditorJob(stages.value, terminalJobKey.value)
+  if (job?.runJobId == null) return null
+  return run.value?.jobs.find((item) => String(item.id) === String(job.runJobId)) ?? null
+})
 
 const pipelineId = computed(() => String(route.params.id ?? ''))
 const runId = computed(() => String(route.params.runId ?? ''))
@@ -195,6 +204,14 @@ function viewLog(jobKey: string) {
 function viewAllLogs() {
   logMode.value = 'all'
   logOpen.value = true
+}
+
+function openTerminal(jobKey: string) {
+  terminalJobKey.value = jobKey
+}
+
+function closeTerminal() {
+  terminalJobKey.value = null
 }
 
 function openHistoryRun(row: PipelineRun) {
@@ -400,6 +417,7 @@ const historyColumns = computed<DataTableColumns<PipelineRun>>(() => [
             :now="now"
             @select-job="selectJob"
             @view-log="viewLog"
+            @open-terminal="openTerminal"
           />
         </div>
       </n-spin>
@@ -451,6 +469,15 @@ const historyColumns = computed<DataTableColumns<PipelineRun>>(() => [
         </div>
       </n-drawer-content>
     </n-drawer>
+
+    <PodTerminalDrawer
+      :show="terminalJobKey != null"
+      :pipeline-id="pipelineId"
+      :run-id="runId"
+      :job-id="String(terminalRunJob?.id ?? '')"
+      :job-name="terminalRunJob?.jobName ?? ''"
+      @close="closeTerminal"
+    />
   </div>
 </template>
 

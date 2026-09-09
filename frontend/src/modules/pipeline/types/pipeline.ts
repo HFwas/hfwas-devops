@@ -77,6 +77,9 @@ export interface PipelineRunJob {
   command?: string | null
   status: RunStatus | string
   logText?: string | null
+  podName?: string | null
+  namespace?: string | null
+  containers?: string[] | null
   startedAt?: string | null
   finishedAt?: string | null
 }
@@ -142,4 +145,23 @@ export interface TaskKindVO {
   toolImage: string
   defaultImage: string
   commandTemplate: string
+}
+
+export interface ContainerInfo {
+  name: string
+  state: 'running' | 'terminated' | 'waiting' | 'unknown'
+  exitCode?: number | null
+  hasShell: boolean
+  recommendedMode: 'exec' | 'ephemeral' | 'debug_pod' | 'unavailable'
+  unavailableReason?: string | null
+}
+
+export interface PodContainersVO {
+  namespace: string
+  podName: string
+  podExists: 'true' | 'false' | 'unknown'
+  workspaceKind: 'pvc' | 'emptydir' | 'unknown'
+  workspacePath: string
+  containers: ContainerInfo[]
+  defaultContainer: string
 }
