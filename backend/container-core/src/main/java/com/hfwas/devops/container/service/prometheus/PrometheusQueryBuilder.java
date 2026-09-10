@@ -2,6 +2,8 @@ package com.hfwas.devops.container.service.prometheus;
 
 import lombok.experimental.UtilityClass;
 
+import java.util.regex.Pattern;
+
 /**
  * PromQL query string builder.
  * All methods return fully-formed PromQL expressions.
@@ -9,48 +11,67 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class PrometheusQueryBuilder {
 
+    /** Escape a node name for use in a PromQL regex label matcher (instance=~".*<name>.*"). */
+    private static String escapeNodeName(String name) {
+        return Pattern.quote(name);
+    }
+
     // ── Node metrics ──
 
     public static String nodeCpuUsage(String nodeName) {
+        String q = escapeNodeName(nodeName);
         return String.format(
             "100 - avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\", instance=~\".*%s.*\"}[5m])) * 100",
-            nodeName);
+            q);
     }
 
     public static String nodeMemoryUsage(String nodeName) {
+        String q = escapeNodeName(nodeName);
         return String.format(
             "(1 - node_memory_MemAvailable_bytes{instance=~\".*%s.*\"} / node_memory_MemTotal_bytes{instance=~\".*%s.*\"}) * 100",
-            nodeName, nodeName);
+            q, q);
     }
 
     public static String nodeNetworkReceive(String nodeName) {
+        String q = escapeNodeName(nodeName);
         return String.format(
             "rate(node_network_receive_bytes_total{instance=~\".*%s.*\", device!=\"lo\"}[5m])",
-            nodeName);
+            q);
     }
 
     public static String nodeNetworkTransmit(String nodeName) {
+        String q = escapeNodeName(nodeName);
         return String.format(
             "rate(node_network_transmit_bytes_total{instance=~\".*%s.*\", device!=\"lo\"}[5m])",
-            nodeName);
+            q);
     }
 
     public static String nodeTcpConnections(String nodeName) {
+        String q = escapeNodeName(nodeName);
         return String.format(
             "node_netstat_Tcp_CurrEstab{instance=~\".*%s.*\"}",
-            nodeName);
+            q);
     }
 
     public static String nodeDiskRead(String nodeName) {
+        String q = escapeNodeName(nodeName);
         return String.format(
             "rate(node_disk_read_bytes_total{instance=~\".*%s.*\"}[5m])",
-            nodeName);
+            q);
     }
 
     public static String nodeDiskWrite(String nodeName) {
+        String q = escapeNodeName(nodeName);
         return String.format(
             "rate(node_disk_written_bytes_total{instance=~\".*%s.*\"}[5m])",
-            nodeName);
+            q);
+    }
+
+    public static String nodeLoad1(String nodeName) {
+        String q = escapeNodeName(nodeName);
+        return String.format(
+            "node_load1{instance=~\".*%s.*\"}",
+            q);
     }
 
     // ── Pod metrics ──

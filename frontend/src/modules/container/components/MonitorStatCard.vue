@@ -10,7 +10,7 @@ defineProps<{
 <template>
   <n-card :bordered="false" size="small">
     <n-spin :show="loading" size="small">
-      <n-statistic :title="title" :value="value" :precision="value !== 0 && Number(value) < 0.01 ? 2 : 1">
+      <n-statistic :title="title" :value="value" :precision="Number(value) !== 0 && Math.abs(Number(value)) < 0.01 ? 2 : 1">
         <template v-if="unit" #suffix>
           <span style="font-size: 13px; opacity: 0.6">{{ unit }}</span>
         </template>

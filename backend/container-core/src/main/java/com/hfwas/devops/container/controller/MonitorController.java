@@ -36,41 +36,61 @@ public class MonitorController {
     @GetMapping("/nodes/{name}/cpu")
     public BaseResult<List<MonitorSeriesVO>> nodeCpu(
             @PathVariable Long clusterId,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryNodeCpu(clusterId, name, tenantId));
+        return BaseResult.ok(monitorService.queryNodeCpu(clusterId, name, tenantId, range, step));
     }
 
     @GetMapping("/nodes/{name}/memory")
     public BaseResult<List<MonitorSeriesVO>> nodeMemory(
             @PathVariable Long clusterId,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryNodeMemory(clusterId, name, tenantId));
+        return BaseResult.ok(monitorService.queryNodeMemory(clusterId, name, tenantId, range, step));
     }
 
     @GetMapping("/nodes/{name}/network")
     public BaseResult<List<MonitorSeriesVO>> nodeNetwork(
             @PathVariable Long clusterId,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryNodeNetwork(clusterId, name, tenantId));
+        return BaseResult.ok(monitorService.queryNodeNetwork(clusterId, name, tenantId, range, step));
     }
 
     @GetMapping("/nodes/{name}/connections")
     public BaseResult<List<MonitorSeriesVO>> nodeConnections(
             @PathVariable Long clusterId,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryNodeConnections(clusterId, name, tenantId));
+        return BaseResult.ok(monitorService.queryNodeConnections(clusterId, name, tenantId, range, step));
     }
 
     @GetMapping("/nodes/{name}/disk")
     public BaseResult<List<MonitorSeriesVO>> nodeDisk(
             @PathVariable Long clusterId,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryNodeDisk(clusterId, name, tenantId));
+        return BaseResult.ok(monitorService.queryNodeDisk(clusterId, name, tenantId, range, step));
+    }
+
+    @GetMapping("/nodes/{name}/load1")
+    public BaseResult<List<MonitorSeriesVO>> nodeLoad1(
+            @PathVariable Long clusterId,
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        return BaseResult.ok(monitorService.queryNodeLoad1(clusterId, name, tenantId, range, step));
     }
 
     // ── Pod monitor ──
@@ -79,27 +99,33 @@ public class MonitorController {
     public BaseResult<List<MonitorSeriesVO>> podCpu(
             @PathVariable Long clusterId,
             @PathVariable String namespace,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryPodCpu(clusterId, namespace, name, tenantId));
+        return BaseResult.ok(monitorService.queryPodCpu(clusterId, namespace, name, tenantId, range, step));
     }
 
     @GetMapping("/namespaces/{namespace}/pods/{name}/memory")
     public BaseResult<List<MonitorSeriesVO>> podMemory(
             @PathVariable Long clusterId,
             @PathVariable String namespace,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryPodMemory(clusterId, namespace, name, tenantId));
+        return BaseResult.ok(monitorService.queryPodMemory(clusterId, namespace, name, tenantId, range, step));
     }
 
     @GetMapping("/namespaces/{namespace}/pods/{name}/network")
     public BaseResult<List<MonitorSeriesVO>> podNetwork(
             @PathVariable Long clusterId,
             @PathVariable String namespace,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryPodNetwork(clusterId, namespace, name, tenantId));
+        return BaseResult.ok(monitorService.queryPodNetwork(clusterId, namespace, name, tenantId, range, step));
     }
 
     // ── JVM monitor ──
@@ -118,44 +144,54 @@ public class MonitorController {
     public BaseResult<List<MonitorSeriesVO>> jvmHeap(
             @PathVariable Long clusterId,
             @PathVariable String namespace,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryJvmHeap(clusterId, namespace, name, tenantId));
+        return BaseResult.ok(monitorService.queryJvmHeap(clusterId, namespace, name, tenantId, range, step));
     }
 
     @GetMapping("/namespaces/{namespace}/pods/{name}/jvm/nonheap")
     public BaseResult<List<MonitorSeriesVO>> jvmNonHeap(
             @PathVariable Long clusterId,
             @PathVariable String namespace,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryJvmNonHeap(clusterId, namespace, name, tenantId));
+        return BaseResult.ok(monitorService.queryJvmNonHeap(clusterId, namespace, name, tenantId, range, step));
     }
 
     @GetMapping("/namespaces/{namespace}/pods/{name}/jvm/gc")
     public BaseResult<List<MonitorSeriesVO>> jvmGc(
             @PathVariable Long clusterId,
             @PathVariable String namespace,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryJvmGc(clusterId, namespace, name, tenantId));
+        return BaseResult.ok(monitorService.queryJvmGc(clusterId, namespace, name, tenantId, range, step));
     }
 
     @GetMapping("/namespaces/{namespace}/pods/{name}/jvm/thread")
     public BaseResult<List<MonitorSeriesVO>> jvmThread(
             @PathVariable Long clusterId,
             @PathVariable String namespace,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryJvmThread(clusterId, namespace, name, tenantId));
+        return BaseResult.ok(monitorService.queryJvmThread(clusterId, namespace, name, tenantId, range, step));
     }
 
     @GetMapping("/namespaces/{namespace}/pods/{name}/jvm/memory-pools")
     public BaseResult<List<MonitorSeriesVO>> jvmMemoryPools(
             @PathVariable Long clusterId,
             @PathVariable String namespace,
-            @PathVariable String name) {
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(monitorService.queryJvmMemoryPools(clusterId, namespace, name, tenantId));
+        return BaseResult.ok(monitorService.queryJvmMemoryPools(clusterId, namespace, name, tenantId, range, step));
     }
 }

@@ -38,7 +38,7 @@ function buildOption(): echarts.EChartsOption {
       trigger: 'axis',
       valueFormatter: (v: unknown) => {
         if (typeof v === 'number') {
-          if (props.yAxisLabel === 'bytes' && v >= 1024) {
+          if (props.yAxisLabel && props.yAxisLabel.startsWith('bytes') && v >= 1024) {
             const units = ['B', 'KB', 'MB', 'GB']
             let unitIdx = 0
             let val = v

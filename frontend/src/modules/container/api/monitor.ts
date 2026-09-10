@@ -27,6 +27,9 @@ export const monitorApi = {
   nodeDisk: (clusterId: string, name: string, range: MonitorRange) =>
     get<MonitorSeries[]>(`/container/clusters/${clusterId}/monitor/nodes/${name}/disk`, rangeParams(range)),
 
+  nodeLoad1: (clusterId: string, name: string, range: MonitorRange) =>
+    get<MonitorSeries[]>(`/container/clusters/${clusterId}/monitor/nodes/${name}/load1`, rangeParams(range)),
+
   // ── Pod ──
   podCpu: (clusterId: string, namespace: string, name: string, range: MonitorRange) =>
     get<MonitorSeries[]>(`/container/clusters/${clusterId}/monitor/namespaces/${namespace}/pods/${name}/cpu`, rangeParams(range)),

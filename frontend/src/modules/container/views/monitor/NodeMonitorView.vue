@@ -23,6 +23,7 @@ const connSeries = ref<{ name: string; color: string; data: [number, number][] }
 const statCpu = ref(0)
 const statMem = ref(0)
 const statConn = ref(0)
+const statLoad1 = ref(0)
 
 const loading = ref(false)
 
@@ -30,12 +31,13 @@ async function load() {
   loading.value = true
   try {
     // Load all data in parallel
-    const [cpuData, memData, netData, diskData, connData] = await Promise.all([
+    const [cpuData, memData, netData, diskData, connData, load1Data] = await Promise.all([
       monitorApi.nodeCpu(props.clusterId, props.name, range.value),
       monitorApi.nodeMemory(props.clusterId, props.name, range.value),
       monitorApi.nodeNetwork(props.clusterId, props.name, range.value),
       monitorApi.nodeDisk(props.clusterId, props.name, range.value),
       monitorApi.nodeConnections(props.clusterId, props.name, range.value),
+      monitorApi.nodeLoad1(props.clusterId, props.name, range.value),
     ])
 
     cpuSeries.value = cpuData.map(s => ({
@@ -78,6 +80,9 @@ async function load() {
     if (connData.length && connData[0].points.length) {
       statConn.value = connData[0].points[connData[0].points.length - 1].value
     }
+    if (load1Data.length && load1Data[0].points.length) {
+      statLoad1.value = load1Data[0].points[load1Data[0].points.length - 1].value
+    }
   } catch (e) {
     message.error(isApiError(e) ? e.message : '加载监控数据失败')
   } finally {
@@ -103,7 +108,7 @@ onMounted(load)
         <MonitorStatCard title="TCP 连接数" :value="statConn" unit="" :loading="loading" />
       </n-gi>
       <n-gi>
-        <MonitorStatCard title="负载 1m" :value="0" unit="" :loading="loading" />
+        <MonitorStatCard title="负载 1m" :value="statLoad1" unit="" :loading="loading" />
       </n-gi>
     </n-grid>
 

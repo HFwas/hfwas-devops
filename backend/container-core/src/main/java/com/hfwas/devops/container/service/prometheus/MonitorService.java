@@ -65,19 +65,31 @@ public class MonitorService {
     // ── Node monitor queries ──
 
     public List<MonitorSeriesVO> queryNodeCpu(Long clusterId, String nodeName, Long tenantId) {
+        return queryNodeCpu(clusterId, nodeName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryNodeCpu(Long clusterId, String nodeName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        return queryRangeSeries(url, PrometheusQueryBuilder.nodeCpuUsage(nodeName));
+        return queryRangeSeries(url, PrometheusQueryBuilder.nodeCpuUsage(nodeName), range, step);
     }
 
     public List<MonitorSeriesVO> queryNodeMemory(Long clusterId, String nodeName, Long tenantId) {
+        return queryNodeMemory(clusterId, nodeName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryNodeMemory(Long clusterId, String nodeName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        return queryRangeSeries(url, PrometheusQueryBuilder.nodeMemoryUsage(nodeName));
+        return queryRangeSeries(url, PrometheusQueryBuilder.nodeMemoryUsage(nodeName), range, step);
     }
 
     public List<MonitorSeriesVO> queryNodeNetwork(Long clusterId, String nodeName, Long tenantId) {
+        return queryNodeNetwork(clusterId, nodeName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryNodeNetwork(Long clusterId, String nodeName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        List<MonitorSeriesVO> rx = queryRangeSeries(url, PrometheusQueryBuilder.nodeNetworkReceive(nodeName));
-        List<MonitorSeriesVO> tx = queryRangeSeries(url, PrometheusQueryBuilder.nodeNetworkTransmit(nodeName));
+        List<MonitorSeriesVO> rx = queryRangeSeries(url, PrometheusQueryBuilder.nodeNetworkReceive(nodeName), range, step);
+        List<MonitorSeriesVO> tx = queryRangeSeries(url, PrometheusQueryBuilder.nodeNetworkTransmit(nodeName), range, step);
         // Add direction label
         rx.forEach(s -> s.getLabels().put("direction", "receive"));
         tx.forEach(s -> s.getLabels().put("direction", "transmit"));
@@ -88,14 +100,22 @@ public class MonitorService {
     }
 
     public List<MonitorSeriesVO> queryNodeConnections(Long clusterId, String nodeName, Long tenantId) {
+        return queryNodeConnections(clusterId, nodeName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryNodeConnections(Long clusterId, String nodeName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        return queryRangeSeries(url, PrometheusQueryBuilder.nodeTcpConnections(nodeName));
+        return queryRangeSeries(url, PrometheusQueryBuilder.nodeTcpConnections(nodeName), range, step);
     }
 
     public List<MonitorSeriesVO> queryNodeDisk(Long clusterId, String nodeName, Long tenantId) {
+        return queryNodeDisk(clusterId, nodeName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryNodeDisk(Long clusterId, String nodeName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        List<MonitorSeriesVO> read = queryRangeSeries(url, PrometheusQueryBuilder.nodeDiskRead(nodeName));
-        List<MonitorSeriesVO> write = queryRangeSeries(url, PrometheusQueryBuilder.nodeDiskWrite(nodeName));
+        List<MonitorSeriesVO> read = queryRangeSeries(url, PrometheusQueryBuilder.nodeDiskRead(nodeName), range, step);
+        List<MonitorSeriesVO> write = queryRangeSeries(url, PrometheusQueryBuilder.nodeDiskWrite(nodeName), range, step);
         read.forEach(s -> s.getLabels().put("direction", "read"));
         write.forEach(s -> s.getLabels().put("direction", "write"));
         List<MonitorSeriesVO> result = new ArrayList<>();
@@ -104,22 +124,43 @@ public class MonitorService {
         return result;
     }
 
+    public List<MonitorSeriesVO> queryNodeLoad1(Long clusterId, String nodeName, Long tenantId) {
+        return queryNodeLoad1(clusterId, nodeName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryNodeLoad1(Long clusterId, String nodeName, Long tenantId, String range, String step) {
+        String url = getPrometheusUrl(clusterId, tenantId);
+        return queryRangeSeries(url, PrometheusQueryBuilder.nodeLoad1(nodeName), range, step);
+    }
+
     // ── Pod monitor queries ──
 
     public List<MonitorSeriesVO> queryPodCpu(Long clusterId, String namespace, String podName, Long tenantId) {
+        return queryPodCpu(clusterId, namespace, podName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryPodCpu(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        return queryRangeSeries(url, PrometheusQueryBuilder.podCpuUsage(namespace, podName));
+        return queryRangeSeries(url, PrometheusQueryBuilder.podCpuUsage(namespace, podName), range, step);
     }
 
     public List<MonitorSeriesVO> queryPodMemory(Long clusterId, String namespace, String podName, Long tenantId) {
+        return queryPodMemory(clusterId, namespace, podName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryPodMemory(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        return queryRangeSeries(url, PrometheusQueryBuilder.podMemoryUsage(namespace, podName));
+        return queryRangeSeries(url, PrometheusQueryBuilder.podMemoryUsage(namespace, podName), range, step);
     }
 
     public List<MonitorSeriesVO> queryPodNetwork(Long clusterId, String namespace, String podName, Long tenantId) {
+        return queryPodNetwork(clusterId, namespace, podName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryPodNetwork(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        List<MonitorSeriesVO> rx = queryRangeSeries(url, PrometheusQueryBuilder.podNetworkReceive(namespace, podName));
-        List<MonitorSeriesVO> tx = queryRangeSeries(url, PrometheusQueryBuilder.podNetworkTransmit(namespace, podName));
+        List<MonitorSeriesVO> rx = queryRangeSeries(url, PrometheusQueryBuilder.podNetworkReceive(namespace, podName), range, step);
+        List<MonitorSeriesVO> tx = queryRangeSeries(url, PrometheusQueryBuilder.podNetworkTransmit(namespace, podName), range, step);
         rx.forEach(s -> s.getLabels().put("direction", "receive"));
         tx.forEach(s -> s.getLabels().put("direction", "transmit"));
         List<MonitorSeriesVO> result = new ArrayList<>();
@@ -147,10 +188,14 @@ public class MonitorService {
     }
 
     public List<MonitorSeriesVO> queryJvmHeap(Long clusterId, String namespace, String podName, Long tenantId) {
+        return queryJvmHeap(clusterId, namespace, podName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryJvmHeap(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        List<MonitorSeriesVO> used = queryRangeSeries(url, PrometheusQueryBuilder.jvmHeapUsed(namespace, podName));
-        List<MonitorSeriesVO> max = queryRangeSeries(url, PrometheusQueryBuilder.jvmHeapMax(namespace, podName));
-        List<MonitorSeriesVO> committed = queryRangeSeries(url, PrometheusQueryBuilder.jvmHeapCommitted(namespace, podName));
+        List<MonitorSeriesVO> used = queryRangeSeries(url, PrometheusQueryBuilder.jvmHeapUsed(namespace, podName), range, step);
+        List<MonitorSeriesVO> max = queryRangeSeries(url, PrometheusQueryBuilder.jvmHeapMax(namespace, podName), range, step);
+        List<MonitorSeriesVO> committed = queryRangeSeries(url, PrometheusQueryBuilder.jvmHeapCommitted(namespace, podName), range, step);
         used.forEach(s -> s.getLabels().put("metric", "used"));
         max.forEach(s -> s.getLabels().put("metric", "max"));
         committed.forEach(s -> s.getLabels().put("metric", "committed"));
@@ -162,14 +207,22 @@ public class MonitorService {
     }
 
     public List<MonitorSeriesVO> queryJvmNonHeap(Long clusterId, String namespace, String podName, Long tenantId) {
+        return queryJvmNonHeap(clusterId, namespace, podName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryJvmNonHeap(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        return queryRangeSeries(url, PrometheusQueryBuilder.jvmNonHeapUsed(namespace, podName));
+        return queryRangeSeries(url, PrometheusQueryBuilder.jvmNonHeapUsed(namespace, podName), range, step);
     }
 
     public List<MonitorSeriesVO> queryJvmGc(Long clusterId, String namespace, String podName, Long tenantId) {
+        return queryJvmGc(clusterId, namespace, podName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryJvmGc(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        List<MonitorSeriesVO> count = queryRangeSeries(url, PrometheusQueryBuilder.jvmGcCount(namespace, podName));
-        List<MonitorSeriesVO> elapsed = queryRangeSeries(url, PrometheusQueryBuilder.jvmGcElapsed(namespace, podName));
+        List<MonitorSeriesVO> count = queryRangeSeries(url, PrometheusQueryBuilder.jvmGcCount(namespace, podName), range, step);
+        List<MonitorSeriesVO> elapsed = queryRangeSeries(url, PrometheusQueryBuilder.jvmGcElapsed(namespace, podName), range, step);
         count.forEach(s -> s.getLabels().put("metric", "count"));
         elapsed.forEach(s -> s.getLabels().put("metric", "elapsed"));
         List<MonitorSeriesVO> result = new ArrayList<>();
@@ -179,13 +232,21 @@ public class MonitorService {
     }
 
     public List<MonitorSeriesVO> queryJvmThread(Long clusterId, String namespace, String podName, Long tenantId) {
+        return queryJvmThread(clusterId, namespace, podName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryJvmThread(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        return queryRangeSeries(url, PrometheusQueryBuilder.jvmThreadCount(namespace, podName));
+        return queryRangeSeries(url, PrometheusQueryBuilder.jvmThreadCount(namespace, podName), range, step);
     }
 
     public List<MonitorSeriesVO> queryJvmMemoryPools(Long clusterId, String namespace, String podName, Long tenantId) {
+        return queryJvmMemoryPools(clusterId, namespace, podName, tenantId, "1h", "15s");
+    }
+
+    public List<MonitorSeriesVO> queryJvmMemoryPools(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        return queryRangeSeries(url, PrometheusQueryBuilder.jvmMemoryPools(namespace, podName));
+        return queryRangeSeries(url, PrometheusQueryBuilder.jvmMemoryPools(namespace, podName), range, step);
     }
 
     // ── Cluster overview ──
@@ -208,13 +269,32 @@ public class MonitorService {
 
     // ── Internal helpers ──
 
+    /** Parse a range string like "1h", "6h", "24h", "7d" into seconds. */
+    private static long rangeToSeconds(String range) {
+        if (range == null || range.isBlank()) return 3600;
+        String trimmed = range.trim();
+        char unit = trimmed.charAt(trimmed.length() - 1);
+        long value = Long.parseLong(trimmed.substring(0, trimmed.length() - 1));
+        return switch (unit) {
+            case 'd' -> value * 86400;
+            case 'h' -> value * 3600;
+            case 'm' -> value * 60;
+            default -> 3600;
+        };
+    }
+
     /**
      * Query a range query and parse into MonitorSeriesVO list.
      */
     private List<MonitorSeriesVO> queryRangeSeries(String url, String promql) {
+        return queryRangeSeries(url, promql, "1h", "15s");
+    }
+
+    private List<MonitorSeriesVO> queryRangeSeries(String url, String promql, String range, String step) {
         long end = Instant.now().getEpochSecond();
-        long start = end - 3600; // default 1h range
-        return queryRangeSeries(url, promql, start, end, "15s");
+        long start = end - rangeToSeconds(range);
+        if (step == null || step.isBlank()) step = "15s";
+        return queryRangeSeries(url, promql, start, end, step);
     }
 
     private List<MonitorSeriesVO> queryRangeSeries(String url, String promql, long start, long end, String step) {

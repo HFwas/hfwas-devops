@@ -16,8 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * Service for uploading/downloading files to/from pod containers.
@@ -42,11 +40,6 @@ public class PodFileService {
 
     private final ClusterService clusterService;
     private final ClusterKubernetesClientFactory clientFactory;
-    private final ExecutorService executor = Executors.newCachedThreadPool(r -> {
-        Thread t = new Thread(r, "pod-file-");
-        t.setDaemon(true);
-        return t;
-    });
 
     // ==================== Upload ====================
 
@@ -163,13 +156,15 @@ public class PodFileService {
 
             String stderr = readAll(watch.getError(), 4096);
             if (!stderr.isEmpty()) {
-                throw new RuntimeException("cat stderr: " + stderr);
+                throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED,
+                        "文件上传失败: " + stderr);
             }
 
         } catch (IOException e) {
             // The try-with-resources closes ExecWatch; this catches close errors too.
             // Re-throw as runtime so the caller sees it.
-            throw new RuntimeException("cat exec error: " + e.getMessage());
+            throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED,
+                    "cat exec error: " + e.getMessage());
         }
     }
 
@@ -234,9 +229,6 @@ public class PodFileService {
                     .read();
 
             byte[] bytes = input.readAllBytes();
-            if (bytes.length == 0) {
-                throw new BizException(400, "文件内容为空");
-            }
             return new ByteArrayInputStream(bytes);
         } catch (BizException e) {
             throw e;
