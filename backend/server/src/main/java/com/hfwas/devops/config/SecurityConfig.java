@@ -37,6 +37,8 @@ public class SecurityConfig {
                         .requestMatchers("/health/check").permitAll()
                         .requestMatchers("/internal/keycloak/events").permitAll()
                         .requestMatchers("/ws/exec/**").permitAll()
+                        .requestMatchers("/ws/container/**").permitAll()
+                        .requestMatchers("/container/**").authenticated()
                         .requestMatchers("/user/users/page", "/user/users/save", "/user/users/delete").hasRole("admin")
                         .requestMatchers("/user/login-logs/**").hasRole("admin")
                         .requestMatchers("/user/oper-logs/**").hasRole("admin")

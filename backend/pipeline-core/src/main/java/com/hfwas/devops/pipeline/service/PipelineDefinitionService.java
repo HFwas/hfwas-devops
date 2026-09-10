@@ -142,7 +142,7 @@ public class PipelineDefinitionService {
         return new PipelineGraphSpec(specs);
     }
 
-    PipelineEntity requireOwned(Long id) {
+    public PipelineEntity requireOwned(Long id) {
         PipelineEntity row = pipelineMapper.selectById(id);
         if (row == null || !requireTenant().equals(row.getTenantId())) {
             throw BizException.of(ResultCode.NOT_FOUND, "流水线不存在");

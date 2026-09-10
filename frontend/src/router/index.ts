@@ -6,6 +6,7 @@ import { fileParserRoutes } from '@/modules/file-parser/router/fileParserRoutes'
 import { docgenRoutes } from '@/modules/docgen/router/docgenRoutes'
 import { imageRoutes } from '@/modules/image/router/imageRoutes'
 import { pipelineRoutes } from '@/modules/pipeline/router/pipelineRoutes'
+import { containerRoutes } from '@/modules/container/router/containerRoutes'
 import { useAuthStore } from '@/modules/user/stores/auth'
 import { resolveRouteProjectId } from '@/modules/pm/utils/projectRoute'
 import { appRedirectUri, isAuthenticated, login as keycloakLogin } from '@/shared/keycloak'
@@ -26,6 +27,7 @@ const router = createRouter({
     ...docgenRoutes,
     ...imageRoutes,
     ...pipelineRoutes,
+    ...containerRoutes,
   ],
 })
 

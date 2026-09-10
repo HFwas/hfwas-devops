@@ -21,6 +21,7 @@
         <module>file-parser</module>
         <module>image-core</module>
         <module>pipeline-core</module>
+        <module>container-core</module>
         <module>server</module>
     </modules>
 

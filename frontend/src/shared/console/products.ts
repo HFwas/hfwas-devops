@@ -66,13 +66,12 @@ export const CONSOLE_PRODUCTS: ConsoleProduct[] = [
     group: '研发协同',
   },
   {
-    key: 'resource',
-    name: '资源编排',
-    description: '主机、集群与中间件编排',
+    key: 'container',
+    name: '容器管理',
+    description: '多集群 Kubernetes 统一管理',
     icon: ServerCog,
-    path: '/resource/overview',
+    path: '/container/clusters',
     group: '基础设施',
-    comingSoon: true,
   },
   {
     key: 'artifact',
