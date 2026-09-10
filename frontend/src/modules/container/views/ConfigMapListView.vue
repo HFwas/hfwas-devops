@@ -1,20 +1,22 @@
 <script setup lang="ts">
-import { RefreshCw } from '@lucide/vue'
-import { NButton, NCard, NDataTable, NInput, NSpace, NTag, useMessage } from 'naive-ui'
+import { RefreshCw, Trash2, Eye } from '@lucide/vue'
+import { NButton, NCard, NDataTable, NInput, NSpace, useDialog, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
-import { serviceApi } from '@/modules/container/api/service'
-import type { ServiceSummary } from '@/modules/container/types/resource'
+import { configMapApi } from '@/modules/container/api/configmap'
+import { useClusterStore } from '@/modules/container/stores/cluster'
+import type { ConfigMapSummary } from '@/modules/container/types/resource'
 import { isApiError } from '@/shared/errors/apiError'
 import AppPagination from '@/shared/components/AppPagination.vue'
 import { usePagination } from '@/shared/composables/usePagination'
-import { useClusterStore } from '@/modules/container/stores/cluster'
 
 const props = defineProps<{ clusterId: string }>()
+const router = useRouter()
 const message = useMessage()
+const dialog = useDialog()
 const clusterStore = useClusterStore()
 
 const loading = ref(false)
-const rows = ref<ServiceSummary[]>([])
+const rows = ref<ConfigMapSummary[]>([])
 const keyword = ref('')
 const pagination = usePagination({ pageSize: 20 })
 
@@ -26,7 +28,7 @@ function errorMessage(e: unknown): string {
 async function load() {
   loading.value = true
   try {
-    const page = await serviceApi.list(props.clusterId, {
+    const page = await configMapApi.list(props.clusterId, {
       ...pagination.query.value,
       keyword: keyword.value.trim() || undefined,
       namespace: clusterStore.currentNamespace || undefined,
@@ -45,25 +47,40 @@ function onSearch() {
   load()
 }
 
-const typeTagType = (t: string) => {
-  switch (t) {
-    case 'ClusterIP': return 'info' as const
-    case 'NodePort': return 'warning' as const
-    case 'LoadBalancer': return 'success' as const
-    case 'ExternalName': return 'default' as const
-    default: return 'default' as const
-  }
+function openDetail(row: ConfigMapSummary) {
+  router.push(`/container/clusters/${props.clusterId}/configmaps/${row.namespace}/${row.name}`)
 }
 
-const columns: DataTableColumns<ServiceSummary> = [
+function confirmDelete(row: ConfigMapSummary) {
+  dialog.warning({
+    title: '删除 ConfigMap',
+    content: `确认删除 ConfigMap「${row.name}」？`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await configMapApi.delete(props.clusterId, row.namespace, row.name)
+        message.success('已删除')
+        await load()
+      } catch (e) {
+        message.error(errorMessage(e))
+      }
+    },
+  })
+}
+
+const columns: DataTableColumns<ConfigMapSummary> = [
   { title: '名称', key: 'name', ellipsis: { tooltip: true } },
   { title: 'Namespace', key: 'namespace', width: 140 },
-  { title: '类型', key: 'type', width: 120,
-    render: (row) => h(NTag, { type: typeTagType(row.type), size: 'small' }, () => row.type) },
-  { title: 'Cluster IP', key: 'clusterIP', width: 140 },
-  { title: '外部 IP', key: 'externalIP', ellipsis: { tooltip: true }, width: 140 },
-  { title: '端口数', key: 'portCount', width: 70 },
+  { title: '数据条目', key: 'dataCount', width: 90 },
   { title: '年龄', key: 'age', width: 80 },
+  {
+    title: '操作', key: 'actions', width: 140,
+    render: (row) => [
+      h(NButton, { size: 'tiny', quaternary: true, style: 'margin-right: 8px', onClick: () => openDetail(row) }, () => 'YAML'),
+      h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => confirmDelete(row) }, () => '删除'),
+    ],
+  },
 ]
 
 onMounted(load)
@@ -75,11 +92,11 @@ watch(() => clusterStore.currentNamespace, () => {
 </script>
 
 <template>
-  <div class="service-list-page">
+  <div class="configmap-list-page">
     <n-card :bordered="false">
       <template #header>
         <n-space align="center">
-          <span>Service 列表</span>
+          <span>ConfigMap 列表</span>
           <n-input v-model:value="keyword" placeholder="搜索" clearable style="width: 240px" @keyup.enter="onSearch" />
           <n-button quaternary @click="onSearch">搜索</n-button>
           <n-button quaternary @click="load">
@@ -93,7 +110,11 @@ watch(() => clusterStore.currentNamespace, () => {
         :data="rows"
         :loading="loading"
         :bordered="false"
-        :row-key="(row: ServiceSummary) => `${row.namespace}/${row.name}`"
+        :row-key="(row: ConfigMapSummary) => `${row.namespace}/${row.name}`"
+        :row-props="(row: ConfigMapSummary) => ({
+          style: 'cursor: pointer',
+          onClick: () => openDetail(row),
+        })"
       />
       <div class="pagination-wrap">
         <AppPagination
@@ -106,7 +127,7 @@ watch(() => clusterStore.currentNamespace, () => {
 </template>
 
 <style scoped>
-.service-list-page {
+.configmap-list-page {
   max-width: 1200px;
   margin: 0 auto;
 }

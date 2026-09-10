@@ -186,7 +186,7 @@ onMounted(loadTree)
             block-line
             :data="treeOptions"
             :render-suffix="renderSuffix"
-            @update:selected-keys="(keys) => { if (keys[0] != null) selectedKey = keys[0] }"
+            @update:selected-keys="(keys: string[]) => { if (keys[0] != null) selectedKey = keys[0] }"
           />
           <n-empty v-if="!loading && !filteredTree.length" description="暂无模块，点击「新建模块」创建" size="small" style="margin-top: 24px" />
         </n-spin>

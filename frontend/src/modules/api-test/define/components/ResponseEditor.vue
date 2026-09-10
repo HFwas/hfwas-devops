@@ -16,7 +16,7 @@
                 :value="resp.statusCode || 200"
                 :min="100"
                 :max="599"
-                @update:value="(v) => updateResponse(index, 'statusCode', v)"
+                @update:value="(v: number | null) => updateResponse(index, 'statusCode', v ?? 200)"
               />
             </n-form-item>
           </n-grid-item>

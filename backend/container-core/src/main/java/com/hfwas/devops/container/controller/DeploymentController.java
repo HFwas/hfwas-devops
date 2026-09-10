@@ -47,6 +47,17 @@ public class DeploymentController {
         return BaseResult.ok(resourceService.getDeploymentYaml(clusterId, namespace, name, tenantId));
     }
 
+    @PutMapping("/namespaces/{namespace}/deployments/{name}/yaml")
+    public BaseResult<Void> updateDeploymentYaml(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name,
+            @RequestBody String yamlBody) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        resourceService.updateDeploymentYaml(clusterId, namespace, name, yamlBody, tenantId);
+        return BaseResult.ok();
+    }
+
     @PutMapping("/namespaces/{namespace}/deployments/{name}/scale")
     public BaseResult<Void> scaleDeployment(
             @PathVariable Long clusterId,

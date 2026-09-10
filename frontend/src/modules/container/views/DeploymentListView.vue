@@ -7,11 +7,13 @@ import type { DeploymentSummary } from '@/modules/container/types/resource'
 import { isApiError } from '@/shared/errors/apiError'
 import AppPagination from '@/shared/components/AppPagination.vue'
 import { usePagination } from '@/shared/composables/usePagination'
+import { useClusterStore } from '@/modules/container/stores/cluster'
 
 const props = defineProps<{ clusterId: string }>()
 const router = useRouter()
 const message = useMessage()
 const dialog = useDialog()
+const clusterStore = useClusterStore()
 
 const loading = ref(false)
 const rows = ref<DeploymentSummary[]>([])
@@ -29,9 +31,10 @@ function errorMessage(e: unknown): string {
 async function load() {
   loading.value = true
   try {
-    const page = await deploymentApi.list(Number(props.clusterId), {
+    const page = await deploymentApi.list(props.clusterId, {
       ...pagination.query.value,
       keyword: keyword.value.trim() || undefined,
+      namespace: clusterStore.currentNamespace || undefined,
     })
     rows.value = page.records ?? []
     pagination.setTotal(page.total)
@@ -56,7 +59,7 @@ function openScale(row: DeploymentSummary) {
 async function submitScale() {
   if (!scaleDeploy.value) return
   try {
-    await deploymentApi.scale(Number(props.clusterId), scaleDeploy.value.namespace, scaleDeploy.value.name, scaleReplicas.value)
+    await deploymentApi.scale(props.clusterId, scaleDeploy.value.namespace, scaleDeploy.value.name, scaleReplicas.value)
     message.success(`已缩放到 ${scaleReplicas.value} 副本`)
     showScaleModal.value = false
     await load()
@@ -67,7 +70,7 @@ async function submitScale() {
 
 async function restartDeploy(row: DeploymentSummary) {
   try {
-    await deploymentApi.restart(Number(props.clusterId), row.namespace, row.name)
+    await deploymentApi.restart(props.clusterId, row.namespace, row.name)
     message.success('已触发滚动重启')
   } catch (e) {
     message.error(errorMessage(e))
@@ -82,7 +85,7 @@ function confirmDelete(row: DeploymentSummary) {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        await deploymentApi.delete(Number(props.clusterId), row.namespace, row.name)
+        await deploymentApi.delete(props.clusterId, row.namespace, row.name)
         message.success('已删除')
         await load()
       } catch (e) {
@@ -110,6 +113,11 @@ const columns: DataTableColumns<DeploymentSummary> = [
 ]
 
 onMounted(load)
+
+watch(() => clusterStore.currentNamespace, () => {
+  pagination.resetPage()
+  load()
+})
 </script>
 
 <template>

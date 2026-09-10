@@ -19,7 +19,7 @@ const rows = ref<ClusterVO[]>([])
 const pagination = usePagination({ pageSize: 20 })
 const showModal = ref(false)
 const modalMode = ref<'create' | 'edit'>('create')
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const formRef = ref<FormInst | null>(null)
 
 const form = reactive<ClusterSaveDTO>({

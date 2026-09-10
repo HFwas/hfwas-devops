@@ -12,13 +12,16 @@ public class ContainerWsConfig implements WebSocketConfigurer {
     private final ContainerWsAuthInterceptor authInterceptor;
     private final ResourceWatchHandler resourceWatchHandler;
     private final LogTailHandler logTailHandler;
+    private final PodShellWebSocketHandler podShellHandler;
 
     public ContainerWsConfig(ContainerWsAuthInterceptor authInterceptor,
                              ResourceWatchHandler resourceWatchHandler,
-                             LogTailHandler logTailHandler) {
+                             LogTailHandler logTailHandler,
+                             PodShellWebSocketHandler podShellHandler) {
         this.authInterceptor = authInterceptor;
         this.resourceWatchHandler = resourceWatchHandler;
         this.logTailHandler = logTailHandler;
+        this.podShellHandler = podShellHandler;
     }
 
     @Override
@@ -28,6 +31,10 @@ public class ContainerWsConfig implements WebSocketConfigurer {
                 .setAllowedOriginPatterns("*");
 
         registry.addHandler(logTailHandler, "/ws/container/logs/**")
+                .addInterceptors(authInterceptor)
+                .setAllowedOriginPatterns("*");
+
+        registry.addHandler(podShellHandler, "/ws/container/shell/{clusterId}/{namespace}/{podName}")
                 .addInterceptors(authInterceptor)
                 .setAllowedOriginPatterns("*");
     }

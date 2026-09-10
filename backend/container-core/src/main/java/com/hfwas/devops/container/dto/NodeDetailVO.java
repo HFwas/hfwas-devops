@@ -64,6 +64,6 @@ public class NodeDetailVO {
     @Data
     public static class NodeImageVO {
         private String name;
-        private int sizeBytes;
+        private long sizeBytes;
     }
 }

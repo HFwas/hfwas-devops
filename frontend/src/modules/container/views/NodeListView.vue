@@ -22,7 +22,7 @@ function errorMessage(e: unknown): string {
 async function load() {
   loading.value = true
   try {
-    rows.value = await nodeApi.list(Number(props.clusterId), keyword.value.trim() || undefined)
+    rows.value = await nodeApi.list(props.clusterId, keyword.value.trim() || undefined)
   } catch (e) {
     message.error(errorMessage(e))
   } finally {

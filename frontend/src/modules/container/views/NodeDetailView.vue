@@ -20,7 +20,7 @@ function errorMessage(e: unknown): string {
 async function load() {
   loading.value = true
   try {
-    node.value = await nodeApi.get(Number(props.clusterId), props.name)
+    node.value = await nodeApi.get(props.clusterId, props.name)
   } catch (e) {
     message.error(errorMessage(e))
   } finally {

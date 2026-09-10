@@ -93,6 +93,45 @@ export interface EventInfo {
   source: string | null
 }
 
+export interface StatefulSetSummary {
+  name: string
+  namespace: string
+  desiredReplicas: number
+  readyReplicas: number
+  currentReplicas: number
+  serviceName: string | null
+  age: string
+  creationTimestamp: string | null
+}
+
+export interface PvcSummary {
+  name: string
+  namespace: string
+  status: string | null
+  accessModes: string | null
+  storageClass: string | null
+  capacity: string | null
+  age: string
+  creationTimestamp: string | null
+}
+
+export interface SecretSummary {
+  name: string
+  namespace: string
+  type: string | null
+  dataCount: number
+  age: string
+  creationTimestamp: string | null
+}
+
+export interface ConfigMapSummary {
+  name: string
+  namespace: string
+  dataCount: number
+  age: string
+  creationTimestamp: string | null
+}
+
 export interface NodeSummary {
   name: string
   status: string

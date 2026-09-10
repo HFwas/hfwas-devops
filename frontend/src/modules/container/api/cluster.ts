@@ -5,10 +5,10 @@ import type { ClusterSaveDTO, ClusterStatsVO, ClusterUpdateDTO, ClusterVO } from
 export const clusterApi = {
   page: (data: { pageNo?: number; pageSize?: number }) =>
     post<PageResult<ClusterVO>>('/container/clusters/page', data),
-  get: (id: number) => get<ClusterVO>(`/container/clusters/${id}`),
+  get: (id: string) => get<ClusterVO>(`/container/clusters/${id}`),
   create: (data: ClusterSaveDTO) => post<number>('/container/clusters', data),
-  update: (id: number, data: ClusterUpdateDTO) => put<void>(`/container/clusters/${id}`, data),
-  delete: (id: number) => del<void>(`/container/clusters/${id}`),
-  test: (id: number) => post<boolean>(`/container/clusters/${id}/test`),
-  stats: (id: number) => get<ClusterStatsVO>(`/container/clusters/${id}/stats`),
+  update: (id: string, data: ClusterUpdateDTO) => put<void>(`/container/clusters/${id}`, data),
+  delete: (id: string) => del<void>(`/container/clusters/${id}`),
+  test: (id: string) => post<boolean>(`/container/clusters/${id}/test`),
+  stats: (id: string) => get<ClusterStatsVO>(`/container/clusters/${id}/stats`),
 }

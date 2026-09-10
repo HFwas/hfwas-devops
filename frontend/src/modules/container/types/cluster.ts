@@ -1,5 +1,5 @@
 export interface ClusterVO {
-  id: number
+  id: string
   tenantId: number
   name: string
   alias: string | null

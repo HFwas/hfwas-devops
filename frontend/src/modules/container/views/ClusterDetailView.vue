@@ -23,9 +23,9 @@ function errorMessage(e: unknown): string {
 async function load() {
   loading.value = true
   try {
-    cluster.value = await clusterApi.get(Number(props.id))
+    cluster.value = await clusterApi.get(props.id)
     clusterStore.setCurrent(cluster.value)
-    stats.value = await clusterApi.stats(Number(props.id))
+    stats.value = await clusterApi.stats(props.id)
   } catch (e) {
     message.error(errorMessage(e))
   } finally {
@@ -35,7 +35,7 @@ async function load() {
 
 async function testConnection() {
   try {
-    const ok = await clusterApi.test(Number(props.id))
+    const ok = await clusterApi.test(props.id)
     message.success(ok ? '连接成功' : '连接失败')
     await load()
   } catch (e) {

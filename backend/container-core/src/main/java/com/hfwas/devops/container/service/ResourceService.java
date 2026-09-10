@@ -13,6 +13,8 @@ import com.hfwas.devops.container.service.cluster.ClusterService;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
+import io.fabric8.kubernetes.api.model.apps.StatefulSet;
+import io.fabric8.kubernetes.api.model.apps.StatefulSetSpec;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import io.fabric8.kubernetes.client.dsl.base.PatchContext;
@@ -258,6 +260,18 @@ public class ResourceService {
         client.apps().deployments().inNamespace(namespace).withName(name).delete();
     }
 
+    public void updateDeploymentYaml(Long clusterId, String namespace, String name, String yamlBody, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        try {
+            Deployment deploy = objectMapper.readValue(yamlBody, Deployment.class);
+            client.apps().deployments().inNamespace(namespace).resource(deploy).update();
+        } catch (Exception e) {
+            throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED);
+        }
+    }
+
     // ==================== Service ====================
 
     public IPage<ServiceSummaryVO> listServices(Long clusterId, String namespace, String keyword,
@@ -308,7 +322,241 @@ public class ResourceService {
         return toServiceDetail(svc);
     }
 
-    // ==================== Events ====================
+    // ==================== StatefulSet ====================
+
+    public IPage<StatefulSetSummaryVO> listStatefulSets(Long clusterId, String namespace, String keyword,
+                                                        int pageNo, int pageSize, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+
+        List<StatefulSet> all = (namespace != null && !namespace.isBlank())
+                ? client.apps().statefulSets().inNamespace(namespace).list().getItems()
+                : client.apps().statefulSets().inAnyNamespace().list().getItems();
+
+        if (keyword != null && !keyword.isBlank()) {
+            String lower = keyword.toLowerCase();
+            all = all.stream()
+                    .filter(s -> s.getMetadata().getName().toLowerCase().contains(lower))
+                    .collect(Collectors.toList());
+        }
+
+        all.sort((a, b) -> {
+            String t1 = a.getMetadata().getCreationTimestamp();
+            String t2 = b.getMetadata().getCreationTimestamp();
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t2.compareTo(t1);
+        });
+
+        int total = all.size();
+        int from = (pageNo - 1) * pageSize;
+        int to = Math.min(from + pageSize, total);
+        List<StatefulSetSummaryVO> records = from < total
+                ? all.subList(from, to).stream().map(this::toStatefulSetSummary).collect(Collectors.toList())
+                : List.of();
+
+        Page<StatefulSetSummaryVO> page = new Page<>(pageNo, pageSize, total);
+        page.setRecords(records);
+        return page;
+    }
+
+    public void deleteStatefulSet(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        client.apps().statefulSets().inNamespace(namespace).withName(name).delete();
+    }
+
+    public String getStatefulSetYaml(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        StatefulSet sts = client.apps().statefulSets().inNamespace(namespace).withName(name).get();
+        if (sts == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(sts);
+        } catch (Exception e) {
+            throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED);
+        }
+    }
+
+    public void updateStatefulSetYaml(Long clusterId, String namespace, String name, String yamlBody, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        try {
+            StatefulSet sts = objectMapper.readValue(yamlBody, StatefulSet.class);
+            client.apps().statefulSets().inNamespace(namespace).resource(sts).update();
+        } catch (Exception e) {
+            throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED);
+        }
+    }
+
+    // ==================== PersistentVolumeClaim ====================
+
+    public IPage<PvcSummaryVO> listPersistentVolumeClaims(Long clusterId, String namespace, String keyword,
+                                                           int pageNo, int pageSize, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+
+        List<PersistentVolumeClaim> all = (namespace != null && !namespace.isBlank())
+                ? client.persistentVolumeClaims().inNamespace(namespace).list().getItems()
+                : client.persistentVolumeClaims().inAnyNamespace().list().getItems();
+
+        if (keyword != null && !keyword.isBlank()) {
+            String lower = keyword.toLowerCase();
+            all = all.stream()
+                    .filter(p -> p.getMetadata().getName().toLowerCase().contains(lower))
+                    .collect(Collectors.toList());
+        }
+
+        all.sort((a, b) -> {
+            String t1 = a.getMetadata().getCreationTimestamp();
+            String t2 = b.getMetadata().getCreationTimestamp();
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t2.compareTo(t1);
+        });
+
+        int total = all.size();
+        int from = (pageNo - 1) * pageSize;
+        int to = Math.min(from + pageSize, total);
+        List<PvcSummaryVO> records = from < total
+                ? all.subList(from, to).stream().map(this::toPvcSummary).collect(Collectors.toList())
+                : List.of();
+
+        Page<PvcSummaryVO> page = new Page<>(pageNo, pageSize, total);
+        page.setRecords(records);
+        return page;
+    }
+
+    public void deletePersistentVolumeClaim(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        client.persistentVolumeClaims().inNamespace(namespace).withName(name).delete();
+    }
+
+    // ==================== Secret ====================
+
+    public IPage<SecretSummaryVO> listSecrets(Long clusterId, String namespace, String keyword,
+                                               int pageNo, int pageSize, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+
+        List<Secret> all = (namespace != null && !namespace.isBlank())
+                ? client.secrets().inNamespace(namespace).list().getItems()
+                : client.secrets().inAnyNamespace().list().getItems();
+
+        if (keyword != null && !keyword.isBlank()) {
+            String lower = keyword.toLowerCase();
+            all = all.stream()
+                    .filter(s -> s.getMetadata().getName().toLowerCase().contains(lower))
+                    .collect(Collectors.toList());
+        }
+
+        all.sort((a, b) -> {
+            String t1 = a.getMetadata().getCreationTimestamp();
+            String t2 = b.getMetadata().getCreationTimestamp();
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t2.compareTo(t1);
+        });
+
+        int total = all.size();
+        int from = (pageNo - 1) * pageSize;
+        int to = Math.min(from + pageSize, total);
+        List<SecretSummaryVO> records = from < total
+                ? all.subList(from, to).stream().map(this::toSecretSummary).collect(Collectors.toList())
+                : List.of();
+
+        Page<SecretSummaryVO> page = new Page<>(pageNo, pageSize, total);
+        page.setRecords(records);
+        return page;
+    }
+
+    public void deleteSecret(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        client.secrets().inNamespace(namespace).withName(name).delete();
+    }
+
+    // ==================== ConfigMap ====================
+
+    public IPage<ConfigMapSummaryVO> listConfigMaps(Long clusterId, String namespace, String keyword,
+                                                     int pageNo, int pageSize, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+
+        List<ConfigMap> all = (namespace != null && !namespace.isBlank())
+                ? client.configMaps().inNamespace(namespace).list().getItems()
+                : client.configMaps().inAnyNamespace().list().getItems();
+
+        if (keyword != null && !keyword.isBlank()) {
+            String lower = keyword.toLowerCase();
+            all = all.stream()
+                    .filter(c -> c.getMetadata().getName().toLowerCase().contains(lower))
+                    .collect(Collectors.toList());
+        }
+
+        all.sort((a, b) -> {
+            String t1 = a.getMetadata().getCreationTimestamp();
+            String t2 = b.getMetadata().getCreationTimestamp();
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t2.compareTo(t1);
+        });
+
+        int total = all.size();
+        int from = (pageNo - 1) * pageSize;
+        int to = Math.min(from + pageSize, total);
+        List<ConfigMapSummaryVO> records = from < total
+                ? all.subList(from, to).stream().map(this::toConfigMapSummary).collect(Collectors.toList())
+                : List.of();
+
+        Page<ConfigMapSummaryVO> page = new Page<>(pageNo, pageSize, total);
+        page.setRecords(records);
+        return page;
+    }
+
+    public void deleteConfigMap(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        client.configMaps().inNamespace(namespace).withName(name).delete();
+    }
+
+    public String getConfigMapYaml(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        ConfigMap cm = client.configMaps().inNamespace(namespace).withName(name).get();
+        if (cm == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(cm);
+        } catch (Exception e) {
+            throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED);
+        }
+    }
+
+    public void updateConfigMapYaml(Long clusterId, String namespace, String name, String yamlBody, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        try {
+            ConfigMap cm = objectMapper.readValue(yamlBody, ConfigMap.class);
+            client.configMaps().inNamespace(namespace).resource(cm).update();
+        } catch (Exception e) {
+            throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED);
+        }
+    }
+
+    // ==================== StatefulSet ====================
 
     public List<EventVO> listEvents(Long clusterId, String namespace, String uid, Long tenantId) {
         ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
@@ -555,6 +803,104 @@ public class ResourceService {
             vo.setInvolvedUid(event.getInvolvedObject().getUid());
         }
         vo.setSource(event.getSource() != null ? event.getSource().getComponent() : null);
+        return vo;
+    }
+
+    // ==================== StatefulSet VO mapping ====================
+
+    private StatefulSetSummaryVO toStatefulSetSummary(StatefulSet sts) {
+        StatefulSetSummaryVO vo = new StatefulSetSummaryVO();
+        ObjectMeta meta = sts.getMetadata();
+        vo.setName(meta.getName());
+        vo.setNamespace(meta.getNamespace());
+        vo.setCreationTimestamp(toLocalDateTime(meta.getCreationTimestamp()));
+        vo.setAge(formatAge(meta.getCreationTimestamp()));
+
+        StatefulSetSpec spec = sts.getSpec();
+        if (spec != null) {
+            vo.setDesiredReplicas(spec.getReplicas() != null ? spec.getReplicas() : 0);
+            if (spec.getServiceName() != null) {
+                vo.setServiceName(spec.getServiceName());
+            }
+        }
+
+        if (sts.getStatus() != null) {
+            vo.setReadyReplicas(sts.getStatus().getReadyReplicas() != null ? sts.getStatus().getReadyReplicas() : 0);
+            vo.setCurrentReplicas(sts.getStatus().getCurrentReplicas() != null ? sts.getStatus().getCurrentReplicas() : 0);
+        }
+
+        return vo;
+    }
+
+    // ==================== PVC VO mapping ====================
+
+    private PvcSummaryVO toPvcSummary(PersistentVolumeClaim pvc) {
+        PvcSummaryVO vo = new PvcSummaryVO();
+        ObjectMeta meta = pvc.getMetadata();
+        vo.setName(meta.getName());
+        vo.setNamespace(meta.getNamespace());
+        vo.setCreationTimestamp(toLocalDateTime(meta.getCreationTimestamp()));
+        vo.setAge(formatAge(meta.getCreationTimestamp()));
+
+        if (pvc.getStatus() != null) {
+            vo.setStatus(pvc.getStatus().getPhase());
+        }
+
+        if (pvc.getSpec() != null) {
+            if (pvc.getSpec().getAccessModes() != null) {
+                vo.setAccessModes(String.join(", ", pvc.getSpec().getAccessModes()));
+            }
+            if (pvc.getSpec().getStorageClassName() != null) {
+                vo.setStorageClass(pvc.getSpec().getStorageClassName());
+            }
+            if (pvc.getSpec().getResources() != null
+                    && pvc.getSpec().getResources().getRequests() != null) {
+                var requests = pvc.getSpec().getResources().getRequests();
+                if (requests.containsKey("storage")) {
+                    vo.setCapacity(requests.get("storage").getAmount()
+                            + requests.get("storage").getFormat());
+                }
+            }
+        }
+
+        return vo;
+    }
+
+    // ==================== Secret VO mapping ====================
+
+    private SecretSummaryVO toSecretSummary(Secret secret) {
+        SecretSummaryVO vo = new SecretSummaryVO();
+        ObjectMeta meta = secret.getMetadata();
+        vo.setName(meta.getName());
+        vo.setNamespace(meta.getNamespace());
+        vo.setCreationTimestamp(toLocalDateTime(meta.getCreationTimestamp()));
+        vo.setAge(formatAge(meta.getCreationTimestamp()));
+
+        if (secret.getType() != null) {
+            vo.setType(secret.getType());
+        }
+
+        if (secret.getData() != null) {
+            vo.setDataCount(secret.getData().size());
+        }
+
+        return vo;
+    }
+
+    // ==================== ConfigMap VO mapping ====================
+
+    private ConfigMapSummaryVO toConfigMapSummary(ConfigMap cm) {
+        ConfigMapSummaryVO vo = new ConfigMapSummaryVO();
+        ObjectMeta meta = cm.getMetadata();
+        vo.setName(meta.getName());
+        vo.setNamespace(meta.getNamespace());
+        vo.setCreationTimestamp(toLocalDateTime(meta.getCreationTimestamp()));
+        vo.setAge(formatAge(meta.getCreationTimestamp()));
+
+        if (cm.getData() != null) {
+            vo.setDataCount(cm.getData().size());
+        }
+
         return vo;
     }
 

@@ -39,11 +39,19 @@ public class ClusterService {
         // tenant + name uniqueness is enforced by DB UNIQUE constraint
         entity.setKubeconfig(kubeconfigCipher.encrypt(entity.getKubeconfig()));
         if (entity.getMode() == null) entity.setMode("proxy");
-        if (entity.getStatus() == null) entity.setStatus("Unknown");
         if (entity.getLabels() == null) entity.setLabels("{}");
+        entity.setStatus("Unknown");
         entity.setCreatedAt(LocalDateTime.now());
         entity.setUpdatedAt(LocalDateTime.now());
         clusterMapper.insert(entity);
+
+        // Immediately test connectivity and set realistic status
+        boolean connected = clientFactory.testConnection(entity);
+        String newStatus = connected ? "Connected" : "Disconnected";
+        entity.setStatus(newStatus);
+        entity.setUpdatedAt(LocalDateTime.now());
+        clusterMapper.updateById(entity);
+
         return entity.getId();
     }
 

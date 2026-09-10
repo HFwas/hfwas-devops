@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Data
 @TableName("cluster_info")
 public class ClusterEntity {
-    @TableId(type = IdType.ASSIGN_ID)
+    @TableId(type = IdType.AUTO)
     private Long id;
     private Long tenantId;
     private String name;

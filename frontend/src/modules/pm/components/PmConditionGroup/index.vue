@@ -49,7 +49,7 @@ defineExpose({ addCondition })
       <n-radio-group
         :value="group.logic"
         size="small"
-        @update:value="(v) => emit('update:group', { ...group, logic: v })"
+        @update:value="(v: 'AND' | 'OR') => emit('update:group', { ...group, logic: v })"
       >
         <n-radio-button value="AND">满足全部（且）</n-radio-button>
         <n-radio-button value="OR">满足任一（或）</n-radio-button>

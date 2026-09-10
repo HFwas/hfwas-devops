@@ -28,9 +28,10 @@ function errorMessage(e: unknown): string {
 async function load() {
   loading.value = true
   try {
-    const page = await podApi.list(Number(props.clusterId), {
+    const page = await podApi.list(props.clusterId, {
       ...pagination.query.value,
       keyword: keyword.value.trim() || undefined,
+      namespace: clusterStore.currentNamespace || undefined,
     })
     rows.value = page.records ?? []
     pagination.setTotal(page.total)
@@ -58,7 +59,7 @@ function confirmDelete(row: PodSummary) {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        await podApi.delete(Number(props.clusterId), row.namespace, row.name)
+        await podApi.delete(props.clusterId, row.namespace, row.name)
         message.success('已删除')
         await load()
       } catch (e) {
@@ -95,6 +96,11 @@ const columns: DataTableColumns<PodSummary> = [
 ]
 
 onMounted(load)
+
+watch(() => clusterStore.currentNamespace, () => {
+  pagination.resetPage()
+  load()
+})
 </script>
 
 <template>

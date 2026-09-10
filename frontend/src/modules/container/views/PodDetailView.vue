@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ArrowLeft, RefreshCw, Terminal } from '@lucide/vue'
-import { NCard, NButton, NSpace, NTag, NTabs, NTabPane, NDescriptions, NDescriptionsItem, NDataTable, NEmpty, useMessage } from 'naive-ui'
+import { ArrowLeft, RefreshCw, Terminal, Play, Square } from '@lucide/vue'
+import { NCard, NButton, NSpace, NTag, NTabs, NTabPane, NDescriptions, NDescriptionsItem, NDataTable, NEmpty, NSelect, useMessage } from 'naive-ui'
+import type { SelectOption } from 'naive-ui'
 import { podApi } from '@/modules/container/api/pod'
 import type { PodDetail, ContainerStatus, PodCondition } from '@/modules/container/types/resource'
 import { isApiError } from '@/shared/errors/apiError'
+import PodShellTerminal from '@/modules/container/components/PodShellTerminal.vue'
 
 const props = defineProps<{ clusterId: string; namespace: string; name: string }>()
 const router = useRouter()
@@ -15,6 +17,19 @@ const logContent = ref('')
 const logLoading = ref(false)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
+const currentContainer = ref('')
+const autoRefresh = ref(false)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+const logRef = ref<HTMLPreElement | null>(null)
+
+const containerOptions = computed<SelectOption[]>(() => {
+  if (!pod.value?.containers) return []
+  return [
+    { label: '(所有容器)', value: '' },
+    ...pod.value.containers.map(c => ({ label: c.name, value: c.name })),
+  ]
+})
 
 function errorMessage(e: unknown): string {
   if (isApiError(e)) return e.message
@@ -24,7 +39,7 @@ function errorMessage(e: unknown): string {
 async function load() {
   loading.value = true
   try {
-    pod.value = await podApi.get(Number(props.clusterId), props.namespace, props.name)
+    pod.value = await podApi.get(props.clusterId, props.namespace, props.name)
   } catch (e) {
     message.error(errorMessage(e))
   } finally {
@@ -32,21 +47,60 @@ async function load() {
   }
 }
 
-async function loadLogs(container?: string, tailLines = 100) {
+async function loadLogs(container?: string, tailLines = 500) {
   logLoading.value = true
   try {
-    logContent.value = await podApi.logs(Number(props.clusterId), props.namespace, props.name, { container, tailLines })
+    logContent.value = await podApi.logs(props.clusterId, props.namespace, props.name, { container: container || undefined, tailLines })
   } catch (e) {
     logContent.value = `获取日志失败: ${errorMessage(e)}`
   } finally {
     logLoading.value = false
+    await nextTick()
+    scrollLogsToBottom()
+  }
+}
+
+function scrollLogsToBottom() {
+  if (logRef.value) {
+    logRef.value.scrollTop = logRef.value.scrollHeight
+  }
+}
+
+function toggleAutoRefresh() {
+  autoRefresh.value = !autoRefresh.value
+  if (autoRefresh.value) {
+    startAutoRefresh()
+  } else {
+    stopAutoRefresh()
+  }
+}
+
+function startAutoRefresh() {
+  stopAutoRefresh()
+  refreshTimer = setInterval(() => {
+    loadLogs(currentContainer.value, 200)
+  }, 3000)
+}
+
+function stopAutoRefresh() {
+  if (refreshTimer !== null) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+}
+
+function onContainerChange(container: string | null) {
+  currentContainer.value = container ?? ''
+  loadLogs(currentContainer.value)
+  if (autoRefresh.value) {
+    startAutoRefresh()
   }
 }
 
 async function loadYaml() {
   yamlLoading.value = true
   try {
-    yamlContent.value = await podApi.yaml(Number(props.clusterId), props.namespace, props.name)
+    yamlContent.value = await podApi.yaml(props.clusterId, props.namespace, props.name)
   } catch (e) {
     yamlContent.value = `获取 YAML 失败: ${errorMessage(e)}`
   } finally {
@@ -73,7 +127,7 @@ const containerColumns = [
     render: (row: ContainerStatus) => row.ready ? '✓' : '✗' },
   { title: '重启', key: 'restartCount', width: 60 },
   { title: '日志', key: 'logs', width: 80,
-    render: (row: ContainerStatus) => h(NButton, { size: 'tiny', quaternary: true, onClick: () => loadLogs(row.name) }, () => '查看') },
+    render: (row: ContainerStatus) => h(NButton, { size: 'tiny', quaternary: true, onClick: () => { currentContainer.value = row.name; loadLogs(row.name) } }, () => '查看') },
 ]
 
 const conditionColumns = [
@@ -87,6 +141,10 @@ onMounted(() => {
   load()
   loadLogs()
   loadYaml()
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
 })
 </script>
 
@@ -103,22 +161,24 @@ onMounted(() => {
       </n-button>
     </n-space>
 
-    <n-card :title="pod?.name" :bordered="false" v-if="pod">
-      <template #header-extra>
-        <n-tag :type="statusTagType(pod.status)">{{ pod.status }}</n-tag>
+    <n-card :bordered="false" v-if="pod">
+      <template #header>
+        <n-space align="center">
+          <span style="font-weight: 600; font-size: 15px">{{ pod.name }}</span>
+          <n-tag :type="statusTagType(pod.status)" size="small">{{ pod.status }}</n-tag>
+        </n-space>
       </template>
-      <n-descriptions label-placement="left" :column="2">
-        <n-descriptions-item label="Namespace">{{ pod.namespace }}</n-descriptions-item>
-        <n-descriptions-item label="Node">{{ pod.nodeName || '-' }}</n-descriptions-item>
-        <n-descriptions-item label="Pod IP">{{ pod.podIP || '-' }}</n-descriptions-item>
-        <n-descriptions-item label="QoS Class">{{ pod.qosClass || '-' }}</n-descriptions-item>
-        <n-descriptions-item label="Owner">{{ pod.ownerReference || '-' }}</n-descriptions-item>
-        <n-descriptions-item label="Age">{{ pod.age }}</n-descriptions-item>
-      </n-descriptions>
-    </n-card>
-
-    <n-card :bordered="false" style="margin-top: 16px" v-if="pod">
       <n-tabs type="line" animated>
+        <n-tab-pane name="info" tab="POD信息">
+          <n-descriptions label-placement="left" :column="2">
+            <n-descriptions-item label="Namespace">{{ pod.namespace }}</n-descriptions-item>
+            <n-descriptions-item label="Node">{{ pod.nodeName || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="Pod IP">{{ pod.podIP || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="QoS Class">{{ pod.qosClass || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="Owner">{{ pod.ownerReference || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="Age">{{ pod.age }}</n-descriptions-item>
+          </n-descriptions>
+        </n-tab-pane>
         <n-tab-pane name="containers" tab="容器">
           <n-data-table :columns="containerColumns" :data="pod.containers || []" :bordered="false" :max-height="300" />
         </n-tab-pane>
@@ -129,8 +189,41 @@ onMounted(() => {
           <pre class="yaml-block">{{ yamlLoading ? '加载中...' : yamlContent }}</pre>
         </n-tab-pane>
         <n-tab-pane name="logs" tab="日志">
-          <pre class="log-block">{{ logLoading ? '加载中...' : (logContent || '(无日志)') }}</pre>
-          <n-button size="tiny" quaternary style="margin-top: 8px" @click="loadLogs()">重新加载日志</n-button>
+          <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <n-select
+              v-model:value="currentContainer"
+              :options="containerOptions"
+              placeholder="选择容器"
+              style="width: 200px"
+              clearable
+              @update:value="onContainerChange"
+            />
+            <n-button size="tiny" quaternary @click="loadLogs(currentContainer)">
+              <template #icon><RefreshCw :size="14" /></template>
+              刷新
+            </n-button>
+            <n-button
+              size="tiny"
+              :type="autoRefresh ? 'primary' : 'default'"
+              @click="toggleAutoRefresh"
+            >
+              <template #icon>
+                <Play v-if="!autoRefresh" :size="14" />
+                <Square v-else :size="14" />
+              </template>
+              {{ autoRefresh ? '停止刷新' : '自动刷新' }}
+            </n-button>
+            <span v-if="autoRefresh" style="font-size: 12px; color: #909399;">每 3 秒自动刷新 ✓ 自动滚动</span>
+          </div>
+          <pre ref="logRef" class="log-block">{{ logLoading ? '加载中...' : (logContent || '(无日志)') }}</pre>
+        </n-tab-pane>
+        <n-tab-pane name="console" tab="控制台">
+          <PodShellTerminal
+            :clusterId="clusterId"
+            :namespace="pod.namespace"
+            :podName="pod.name"
+            :containers="(pod.containers || []).map(c => ({ name: c.name, state: c.state }))"
+          />
         </n-tab-pane>
         <n-tab-pane name="labels" tab="标签">
           <n-descriptions label-placement="left" :column="1" v-if="pod.labels && Object.keys(pod.labels).length">

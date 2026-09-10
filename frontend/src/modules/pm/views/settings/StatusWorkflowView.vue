@@ -619,7 +619,7 @@ onMounted(load)
                       <div v-else class="cell-body">
                         <n-checkbox
                           :checked="isEnabled(row.statusCode, col.statusCode)"
-                          @update:checked="(checked) => setTransition(row.statusCode, col.statusCode, checked, col.statusName)"
+                          @update:checked="(checked: boolean) => setTransition(row.statusCode, col.statusCode, checked, col.statusName)"
                         />
                         <n-text
                           v-if="matrixCellHint(row.statusCode, col.statusCode)"
