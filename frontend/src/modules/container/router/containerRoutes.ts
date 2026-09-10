@@ -95,6 +95,36 @@ export const containerRoutes: RouteRecordRaw[] = [
         component: () => import('@/modules/container/views/PvcListView.vue'),
         props: true,
       },
+      // ─── 镜像仓库 ───
+      {
+        path: 'registries',
+        name: 'container-registries',
+        component: () => import('@/modules/container/views/Registry/RegistryListView.vue'),
+      },
+      {
+        path: 'registries/:id',
+        name: 'container-registry-detail',
+        component: () => import('@/modules/container/views/Registry/RegistryDetailView.vue'),
+        props: true,
+      },
+      {
+        path: 'registries/:registryId/projects/:project/repos',
+        name: 'container-registry-repo-list',
+        component: () => import('@/modules/container/views/Registry/RepoListView.vue'),
+        props: true,
+      },
+      {
+        path: 'registries/:registryId/projects/:project/repos/:repo',
+        name: 'container-registry-repo-detail',
+        component: () => import('@/modules/container/views/Registry/RepoDetailView.vue'),
+        props: true,
+      },
+      // ─── 镜像列表 ───
+      {
+        path: 'images',
+        name: 'container-images',
+        component: () => import('@/modules/container/views/Registry/ImageView.vue'),
+      },
     ],
   },
 ]

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Server, HardDrive, Box, Layers, Globe, Cpu, KeyRound, FileJson, HardDrive as Storage } from '@lucide/vue'
+import { Server, HardDrive, Box, Layers, Globe, Cpu, KeyRound, FileJson, HardDrive as Storage, Container, Search } from '@lucide/vue'
 import { useClusterStore } from '@/modules/container/stores/cluster'
 import { h, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -48,6 +48,20 @@ const menuOptions = computed<MenuOption[]>(() => {
       key: `${base}/nodes`,
       icon: () => h(HardDrive, { size: 16 }),
       disabled: !cid,
+    },
+    {
+      type: 'divider',
+      key: 'd1',
+    },
+    {
+      label: '镜像仓库',
+      key: '/container/registries',
+      icon: () => h(Container, { size: 16 }),
+    },
+    {
+      label: '镜像',
+      key: '/container/images',
+      icon: () => h(Search, { size: 16 }),
     },
     {
       type: 'divider',
@@ -106,6 +120,13 @@ const activeMenuKey = computed(() => {
     case 'container-clusters':
     case 'container-cluster-detail':
       return '/container/clusters'
+    case 'container-registries':
+    case 'container-registry-detail':
+    case 'container-registry-repo-list':
+    case 'container-registry-repo-detail':
+      return '/container/registries'
+    case 'container-images':
+      return '/container/images'
     case 'container-nodes':
     case 'container-node-detail':
       return `${base}/nodes`
