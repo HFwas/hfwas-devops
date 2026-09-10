@@ -4,6 +4,7 @@ import { NCard, NButton, NSpace, NTag, NTabs, NTabPane, NDescriptions, NDescript
 import { nodeApi } from '@/modules/container/api/node'
 import type { NodeDetail, NodeAddress, NodeTaint, NodeImage } from '@/modules/container/types/resource'
 import { isApiError } from '@/shared/errors/apiError'
+import NodeMonitorView from '@/modules/container/views/monitor/NodeMonitorView.vue'
 
 const props = defineProps<{ clusterId: string; name: string }>()
 const router = useRouter()
@@ -125,6 +126,9 @@ onMounted(load)
         <n-tab-pane name="images" tab="镜像">
           <n-data-table v-if="node.images?.length" :columns="imageColumns" :data="node.images" :bordered="false" :max-height="400" />
           <n-empty v-else description="无镜像信息" />
+        </n-tab-pane>
+        <n-tab-pane name="monitor" tab="监控">
+          <NodeMonitorView :clusterId :name />
         </n-tab-pane>
         <n-tab-pane name="capacity" tab="资源容量">
           <n-descriptions label-placement="left" :column="1" v-if="node.capacity">

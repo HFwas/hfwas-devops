@@ -6,6 +6,7 @@ import type { PodDetail, ContainerStatus, PodCondition } from '@/modules/contain
 import { isApiError } from '@/shared/errors/apiError'
 import PodShellTerminal from '@/modules/container/components/PodShellTerminal.vue'
 import PodLogStream from '@/modules/container/components/PodLogStream.vue'
+import PodMonitorView from '@/modules/container/views/monitor/PodMonitorView.vue'
 
 const props = defineProps<{ clusterId: string; namespace: string; name: string }>()
 const router = useRouter()
@@ -137,6 +138,14 @@ onMounted(() => {
             <n-descriptions-item v-for="(v, k) in pod.labels" :key="k" :label="k">{{ v }}</n-descriptions-item>
           </n-descriptions>
           <n-empty v-else description="无标签" />
+        </n-tab-pane>
+        <n-tab-pane name="monitor" tab="监控">
+          <PodMonitorView
+            :clusterId
+            :namespace="pod.namespace"
+            :name="pod.name"
+            :containers="(pod.containers || []).map(c => c.name)"
+          />
         </n-tab-pane>
         <n-tab-pane name="annotations" tab="注解">
           <n-descriptions label-placement="left" :column="1" v-if="pod.annotations && Object.keys(pod.annotations).length">

@@ -7,6 +7,7 @@ import { clusterApi } from '@/modules/container/api/cluster'
 import type { ClusterComponentVO, ClusterStatsVO, ClusterVO, NodeComponentVO, SystemComponentVO } from '@/modules/container/types/cluster'
 import { useClusterStore } from '@/modules/container/stores/cluster'
 import { isApiError } from '@/shared/errors/apiError'
+import ClusterMonitorView from '@/modules/container/views/monitor/ClusterMonitorView.vue'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -197,6 +198,10 @@ onMounted(() => {
           <n-empty v-if="!compLoading && components.systemComponents.length === 0" description="暂无系统组件数据" style="padding: 24px" />
         </n-tab-pane>
       </n-tabs>
+    </n-card>
+
+    <n-card title="监控" :bordered="false" style="margin-top: 16px">
+      <ClusterMonitorView :clusterId="id" />
     </n-card>
   </div>
 </template>

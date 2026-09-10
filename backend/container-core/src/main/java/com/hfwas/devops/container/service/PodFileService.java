@@ -220,39 +220,30 @@ public class PodFileService {
     }
 
     /**
-     * Download via Fabric8's file copy API.
-     * file(path).copy() returns an InputStream (tar archive).
-     * We untar and return the raw file content as ByteArrayInputStream.
+     * Download via Fabric8's file read API.
+     * file(path).read() returns an InputStream of raw file content.
      */
     private InputStream tryDownloadWithFabric8Api(KubernetesClient client,
                                                    String namespace, String podName,
                                                    String container, String filePath) {
-        InputStream tarInput = client.pods().inNamespace(namespace)
-                .withName(podName)
-                .inContainer(container)
-                .file(filePath)
-                .copy();
+        try {
+            InputStream input = client.pods().inNamespace(namespace)
+                    .withName(podName)
+                    .inContainer(container)
+                    .file(filePath)
+                    .read();
 
-        // Read and untar synchronously to catch errors
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (TarArchiveInputStream tarIn = new TarArchiveInputStream(tarInput)) {
-            TarArchiveEntry entry = tarIn.getNextTarEntry();
-            if (entry == null || entry.isDirectory()) {
-                throw new BizException(400, "路径为目录，请指定文件路径");
+            byte[] bytes = input.readAllBytes();
+            if (bytes.length == 0) {
+                throw new BizException(400, "文件内容为空");
             }
-            byte[] buf = new byte[BUFFER_SIZE];
-            int n;
-            while ((n = tarIn.read(buf)) != -1) {
-                baos.write(buf, 0, n);
-            }
+            return new ByteArrayInputStream(bytes);
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
             throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED,
                     "文件读取失败: " + e.getMessage());
         }
-
-        return new ByteArrayInputStream(baos.toByteArray());
     }
 
     /**

@@ -20,6 +20,7 @@
     "axios": "^1.7.9",
     "cropperjs": "^1.6.2",
     "dayjs": "^1.11.13",
+    "echarts": "^5.6.0",
     "keycloak-js": "^26.2.4",
     "md-editor-v3": "^6.5.3",
     "naive-ui": "^2.40.3",
