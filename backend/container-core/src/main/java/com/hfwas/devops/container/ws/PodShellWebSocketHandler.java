@@ -109,7 +109,7 @@ public class PodShellWebSocketHandler extends AbstractWebSocketHandler {
     private void doExec(WebSocketSession session, KubernetesClient client,
                         String namespace, String podName, String containerName) {
         try {
-            String[] cmd = {"sh", "-c", "export TERM=xterm-256color; exec bash 2>/dev/null || exec sh"};
+            String[] cmd = {"sh"};
 
             ExecWatch watch = client.pods().inNamespace(namespace)
                     .withName(podName)
@@ -150,9 +150,13 @@ public class PodShellWebSocketHandler extends AbstractWebSocketHandler {
             switch (type) {
                 case "input" -> {
                     String data = json.path("data").asText();
+                    log.debug("WS input received: session={}, data='{}'", session.getId(), data);
                     if (shellSession.execInput != null && data != null) {
                         shellSession.execInput.write(data.getBytes());
                         shellSession.execInput.flush();
+                        log.debug("WS input written to exec stream: session={}", session.getId());
+                    } else {
+                        log.warn("WS input skipped: execInput={}, data={}", shellSession.execInput, data);
                     }
                     shellSession.lastActivity = System.currentTimeMillis();
                 }
@@ -188,55 +192,35 @@ public class PodShellWebSocketHandler extends AbstractWebSocketHandler {
     // ==================== Internal ====================
 
     private void startReaderThread(ShellSession shellSession) {
-        Thread reader = new Thread(() -> {
-            InputStream stdout = shellSession.execWatch.getOutput();
-            InputStream stderr = shellSession.execWatch.getError();
-            WebSocketSession wsSession = shellSession.wsSession;
+        Thread stdoutReader = new Thread(() -> readStream("stdout", shellSession.execWatch.getOutput(), shellSession), "k8s-shell-stdout-" + shellSession.wsSession.getId().substring(0, 8));
+        Thread stderrReader = new Thread(() -> readStream("stderr", shellSession.execWatch.getError(), shellSession), "k8s-shell-stderr-" + shellSession.wsSession.getId().substring(0, 8));
+        stdoutReader.setDaemon(true);
+        stderrReader.setDaemon(true);
+        stdoutReader.start();
+        stderrReader.start();
+    }
 
-            byte[] buf = new byte[8192];
-            try {
-                while (wsSession.isOpen()) {
-                    boolean hasOutput = false;
-
-                    if (stdout != null && stdout.available() > 0) {
-                        int n = stdout.read(buf);
-                        if (n > 0) {
-                            wsSession.sendMessage(new BinaryMessage(buf, 0, n, true));
-                            hasOutput = true;
-                        } else if (n == -1) {
-                            break;
-                        }
-                    }
-
-                    if (stderr != null && stderr.available() > 0) {
-                        int n = stderr.read(buf);
-                        if (n > 0) {
-                            wsSession.sendMessage(new BinaryMessage(buf, 0, n, true));
-                            hasOutput = true;
-                        } else if (n == -1) {
-                            break;
-                        }
-                    }
-
-                    if (hasOutput) {
-                        shellSession.lastActivity = System.currentTimeMillis();
-                    } else {
-                        Thread.sleep(50);
-                    }
+    private void readStream(String name, InputStream stream, ShellSession shellSession) {
+        WebSocketSession wsSession = shellSession.wsSession;
+        byte[] buf = new byte[8192];
+        try {
+            while (wsSession.isOpen()) {
+                int n = stream.read(buf);
+                if (n > 0) {
+                    wsSession.sendMessage(new BinaryMessage(buf, 0, n, true));
+                    shellSession.lastActivity = System.currentTimeMillis();
+                } else if (n == -1) {
+                    break;
                 }
-            } catch (IOException e) {
-                if (!"Broken pipe".equals(e.getMessage()) && !"Stream closed".equals(e.getMessage())) {
-                    log.debug("Reader thread IO error: {}", e.getMessage());
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } finally {
-                closeSession(shellSession.wsSession.getId());
             }
-        }, "k8s-shell-reader-" + shellSession.wsSession.getId().substring(0, 8));
-
-        reader.setDaemon(true);
-        reader.start();
+        } catch (IOException e) {
+            if (!"Broken pipe".equals(e.getMessage()) && !"Stream closed".equals(e.getMessage())) {
+                log.debug("{} reader thread IO error: {}", name, e.getMessage());
+            }
+        } finally {
+            log.debug("{} reader thread ended for session {}", name, shellSession.wsSession.getId());
+            closeSession(shellSession.wsSession.getId());
+        }
     }
 
     private void closeSession(String sessionId) {

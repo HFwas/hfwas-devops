@@ -24,9 +24,10 @@ public class PodController {
             @RequestParam(required = false) String namespace,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int pageNo,
-            @RequestParam(defaultValue = "20") int pageSize) {
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String labels) {
         Long tenantId = SecurityHelper.currentTenantId();
-        return BaseResult.ok(resourceService.listPods(clusterId, namespace, keyword, pageNo, pageSize, tenantId));
+        return BaseResult.ok(resourceService.listPods(clusterId, namespace, keyword, pageNo, pageSize, tenantId, labels));
     }
 
     @GetMapping("/namespaces/{namespace}/pods/{name}")

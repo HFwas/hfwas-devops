@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.container.dto.ClusterComponentVO;
 import com.hfwas.devops.container.entity.ClusterEntity;
 import com.hfwas.devops.container.error.ContainerErrorCode;
 import com.hfwas.devops.container.mapper.ClusterMapper;
@@ -18,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -156,6 +159,137 @@ public class ClusterService {
             log.warn("Failed to fetch cluster stats for id={}: {}", id, e.getMessage());
         }
         return new ClusterStats(nodeCount, podCount, cpuTotal, memoryTotal);
+    }
+
+    /**
+     * Get cluster component versions and status.
+     */
+    public ClusterComponentVO getComponents(Long id, Long tenantId) {
+        ClusterEntity entity = getById(id, tenantId);
+        KubernetesClient client = clientFactory.getClient(entity);
+
+        ClusterComponentVO vo = new ClusterComponentVO();
+
+        // Kubernetes version
+        try {
+            var versionInfo = client.getKubernetesVersion();
+            vo.setKubernetesVersion(versionInfo != null
+                    ? versionInfo.getMajor() + "." + versionInfo.getMinor() : "unknown");
+        } catch (Exception e) {
+            vo.setKubernetesVersion("unknown");
+        }
+
+        // Nodes with component versions
+        List<ClusterComponentVO.NodeComponentVO> nodes = new ArrayList<>();
+        try {
+            var nodeList = client.nodes().list().getItems();
+            vo.setNodeCount(nodeList.size());
+            for (var n : nodeList) {
+                var meta = n.getMetadata();
+                var nv = new ClusterComponentVO.NodeComponentVO();
+                nv.setName(meta.getName());
+                nv.setKubeletVersion(n.getStatus().getNodeInfo() != null
+                        ? n.getStatus().getNodeInfo().getKubeletVersion() : "-");
+                nv.setContainerRuntime(n.getStatus().getNodeInfo() != null
+                        ? n.getStatus().getNodeInfo().getContainerRuntimeVersion() : "-");
+                nv.setOsImage(n.getStatus().getNodeInfo() != null
+                        ? n.getStatus().getNodeInfo().getOsImage() : "-");
+                nv.setKernelVersion(n.getStatus().getNodeInfo() != null
+                        ? n.getStatus().getNodeInfo().getKernelVersion() : "-");
+                nv.setArchitecture(n.getStatus().getNodeInfo() != null
+                        ? n.getStatus().getNodeInfo().getArchitecture() : "-");
+
+                // Determine node status
+                String status = "Unknown";
+                if (n.getStatus() != null && n.getStatus().getConditions() != null) {
+                    for (var c : n.getStatus().getConditions()) {
+                        if ("Ready".equals(c.getType())) {
+                            status = "True".equals(c.getStatus()) ? "Ready" : "NotReady";
+                            break;
+                        }
+                    }
+                }
+                nv.setStatus(status);
+                nodes.add(nv);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch node component info: {}", e.getMessage());
+        }
+        vo.setNodes(nodes);
+
+        // System components from kube-system namespace (deployments, daemonsets)
+        List<ClusterComponentVO.SystemComponentVO> systemComponents = new ArrayList<>();
+        try {
+            // CoreDNS
+            var corednsDeploy = client.apps().deployments().inNamespace("kube-system")
+                    .withName("coredns").get();
+            if (corednsDeploy != null) {
+                var sv = new ClusterComponentVO.SystemComponentVO();
+                sv.setName("CoreDNS");
+                sv.setNamespace("kube-system");
+                sv.setDesiredReplicas(corednsDeploy.getSpec().getReplicas() != null
+                        ? corednsDeploy.getSpec().getReplicas() : 0);
+                sv.setReadyReplicas(corednsDeploy.getStatus() != null
+                        ? (corednsDeploy.getStatus().getReadyReplicas() != null
+                            ? corednsDeploy.getStatus().getReadyReplicas() : 0) : 0);
+                sv.setStatus(sv.getReadyReplicas() >= sv.getDesiredReplicas() ? "Healthy" : "Degraded");
+                sv.setVersion(corednsDeploy.getMetadata().getLabels() != null
+                        ? corednsDeploy.getMetadata().getLabels().getOrDefault("k8s-app", "-") : "-");
+                systemComponents.add(sv);
+            }
+
+            // kube-proxy (DaemonSet)
+            var kubeProxyDs = client.apps().daemonSets().inNamespace("kube-system")
+                    .withName("kube-proxy").get();
+            if (kubeProxyDs != null && kubeProxyDs.getStatus() != null) {
+                var sv = new ClusterComponentVO.SystemComponentVO();
+                sv.setName("kube-proxy");
+                sv.setNamespace("kube-system");
+                sv.setDesiredReplicas(kubeProxyDs.getStatus().getDesiredNumberScheduled() != null
+                        ? kubeProxyDs.getStatus().getDesiredNumberScheduled() : 0);
+                sv.setReadyReplicas(kubeProxyDs.getStatus().getNumberReady() != null
+                        ? kubeProxyDs.getStatus().getNumberReady() : 0);
+                sv.setStatus(sv.getReadyReplicas() >= sv.getDesiredReplicas() ? "Healthy" : "Degraded");
+                systemComponents.add(sv);
+            }
+
+            // Also try to get other common components
+            String[][] commonComponents = {
+                {"kube-system", "etcd"},
+                {"kube-system", "kube-apiserver"},
+                {"kube-system", "kube-controller-manager"},
+                {"kube-system", "kube-scheduler"},
+            };
+            for (String[] comp : commonComponents) {
+                var podList = client.pods().inNamespace(comp[0])
+                        .withLabel("component", comp[1]).list().getItems();
+                if (podList.isEmpty()) {
+                    // Try with app label
+                    podList = client.pods().inNamespace(comp[0])
+                            .withLabel("app", comp[1]).list().getItems();
+                }
+                if (!podList.isEmpty()) {
+                    var sv = new ClusterComponentVO.SystemComponentVO();
+                    sv.setName(comp[1]);
+                    sv.setNamespace(comp[0]);
+                    long ready = podList.stream()
+                            .filter(p -> p.getStatus() != null)
+                            .filter(p -> p.getStatus().getContainerStatuses() != null)
+                            .filter(p -> p.getStatus().getContainerStatuses().stream()
+                                    .anyMatch(cs -> cs.getReady()))
+                            .count();
+                    sv.setReadyReplicas((int) ready);
+                    sv.setDesiredReplicas(podList.size());
+                    sv.setStatus(ready == podList.size() ? "Healthy" : "Degraded");
+                    systemComponents.add(sv);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch system component info: {}", e.getMessage());
+        }
+        vo.setSystemComponents(systemComponents);
+
+        return vo;
     }
 
     /**

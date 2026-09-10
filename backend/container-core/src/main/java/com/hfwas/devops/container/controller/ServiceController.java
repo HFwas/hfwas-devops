@@ -35,4 +35,13 @@ public class ServiceController {
         Long tenantId = SecurityHelper.currentTenantId();
         return BaseResult.ok(resourceService.getService(clusterId, namespace, name, tenantId));
     }
+
+    @GetMapping("/namespaces/{namespace}/services/{name}/yaml")
+    public BaseResult<String> getServiceYaml(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        return BaseResult.ok(resourceService.getServiceYaml(clusterId, namespace, name, tenantId));
+    }
 }

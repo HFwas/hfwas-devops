@@ -95,8 +95,13 @@ function confirmDelete(row: DeploymentSummary) {
   })
 }
 
+function toDetail(row: DeploymentSummary) {
+  router.push(`/container/clusters/${props.clusterId}/deployments/${row.namespace}/${row.name}`)
+}
+
 const columns: DataTableColumns<DeploymentSummary> = [
-  { title: '名称', key: 'name', ellipsis: { tooltip: true } },
+  { title: '名称', key: 'name', ellipsis: { tooltip: true },
+    render: (row) => h(NButton, { size: 'tiny', text: true, type: 'primary', onClick: () => toDetail(row) }, () => row.name) },
   { title: 'Namespace', key: 'namespace', width: 140 },
   { title: '副本', key: 'readyReplicas', width: 100,
     render: (row) => `${row.readyReplicas}/${row.desiredReplicas} 就绪` },

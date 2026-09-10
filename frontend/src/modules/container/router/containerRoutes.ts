@@ -48,6 +48,12 @@ export const containerRoutes: RouteRecordRaw[] = [
         props: true,
       },
       {
+        path: 'clusters/:clusterId/deployments/:namespace/:name',
+        name: 'container-deployment-detail',
+        component: () => import('@/modules/container/views/DeploymentDetailView.vue'),
+        props: true,
+      },
+      {
         path: 'clusters/:clusterId/statefulsets',
         name: 'container-statefulsets',
         component: () => import('@/modules/container/views/StatefulSetListView.vue'),
@@ -57,6 +63,12 @@ export const containerRoutes: RouteRecordRaw[] = [
         path: 'clusters/:clusterId/services',
         name: 'container-services',
         component: () => import('@/modules/container/views/ServiceListView.vue'),
+        props: true,
+      },
+      {
+        path: 'clusters/:clusterId/services/:namespace/:name',
+        name: 'container-service-detail',
+        component: () => import('@/modules/container/views/ServiceDetailView.vue'),
         props: true,
       },
       {

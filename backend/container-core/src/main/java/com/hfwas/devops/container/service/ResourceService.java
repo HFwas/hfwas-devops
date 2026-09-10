@@ -53,13 +53,22 @@ public class ResourceService {
     // ==================== Pod ====================
 
     public IPage<PodSummaryVO> listPods(Long clusterId, String namespace, String keyword,
-                                         int pageNo, int pageSize, Long tenantId) {
+                                         int pageNo, int pageSize, Long tenantId, String labels) {
         ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
-        List<Pod> allPods = (namespace != null && !namespace.isBlank())
-                ? client.pods().inNamespace(namespace).list().getItems()
-                : client.pods().inAnyNamespace().list().getItems();
+        List<Pod> allPods;
+        if (labels != null && !labels.isBlank()) {
+            // Use label selector for deployment-owned pods
+            Map<String, String> labelMap = parseLabels(labels);
+            allPods = (namespace != null && !namespace.isBlank())
+                    ? client.pods().inNamespace(namespace).withLabels(labelMap).list().getItems()
+                    : client.pods().inAnyNamespace().withLabels(labelMap).list().getItems();
+        } else {
+            allPods = (namespace != null && !namespace.isBlank())
+                    ? client.pods().inNamespace(namespace).list().getItems()
+                    : client.pods().inAnyNamespace().list().getItems();
+        }
 
         // keyword filter
         if (keyword != null && !keyword.isBlank()) {
@@ -320,6 +329,22 @@ public class ResourceService {
             throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
         }
         return toServiceDetail(svc);
+    }
+
+    public String getServiceYaml(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+
+        io.fabric8.kubernetes.api.model.Service svc = client.services().inNamespace(namespace).withName(name).get();
+        if (svc == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(svc);
+        } catch (Exception e) {
+            throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED);
+        }
     }
 
     // ==================== StatefulSet ====================
@@ -732,17 +757,106 @@ public class ResourceService {
         vo.setCreationTimestamp(summary.getCreationTimestamp());
 
         vo.setUid(deploy.getMetadata().getUid());
+        vo.setLabels(deploy.getMetadata().getLabels());
+        vo.setAnnotations(deploy.getMetadata().getAnnotations());
 
-        if (deploy.getSpec() != null && deploy.getSpec().getSelector() != null) {
-            vo.setSelector(deploy.getSpec().getSelector().getMatchLabels() != null
-                    ? deploy.getSpec().getSelector().getMatchLabels().toString() : "");
+        if (deploy.getSpec() != null) {
+            if (deploy.getSpec().getSelector() != null) {
+                vo.setSelector(deploy.getSpec().getSelector().getMatchLabels() != null
+                        ? deploy.getSpec().getSelector().getMatchLabels().toString() : "");
+            }
+            if (deploy.getSpec().getRevisionHistoryLimit() != null) {
+                vo.setRevisionHistoryLimit(String.valueOf(deploy.getSpec().getRevisionHistoryLimit()));
+            }
+            if (deploy.getSpec().getMinReadySeconds() != null) {
+                vo.setMinReadySeconds(String.valueOf(deploy.getSpec().getMinReadySeconds()));
+            }
+
+            if (deploy.getSpec().getTemplate() != null && deploy.getSpec().getTemplate().getSpec() != null) {
+                var podSpec = deploy.getSpec().getTemplate().getSpec();
+
+                // Status
+                if (deploy.getStatus() != null) {
+                    StringBuilder status = new StringBuilder();
+                    if (deploy.getStatus().getReplicas() != null) status.append("replicas=").append(deploy.getStatus().getReplicas()).append(" ");
+                    if (deploy.getStatus().getUpdatedReplicas() != null) status.append("updated=").append(deploy.getStatus().getUpdatedReplicas()).append(" ");
+                    if (deploy.getStatus().getReadyReplicas() != null) status.append("ready=").append(deploy.getStatus().getReadyReplicas()).append(" ");
+                    if (deploy.getStatus().getAvailableReplicas() != null) status.append("available=").append(deploy.getStatus().getAvailableReplicas()).append(" ");
+                    if (deploy.getStatus().getUnavailableReplicas() != null) status.append("unavailable=").append(deploy.getStatus().getUnavailableReplicas());
+                    vo.setStatus(status.toString().trim());
+                }
+
+                // Containers with resources
+                if (!podSpec.getContainers().isEmpty()) {
+                    vo.setImage(podSpec.getContainers().getFirst().getImage());
+                    List<DeploymentDetailVO.ContainerResourceVO> containers = podSpec.getContainers().stream()
+                            .map(this::toContainerResource)
+                            .collect(Collectors.toList());
+                    vo.setContainers(containers);
+                }
+
+                // Volumes
+                if (podSpec.getVolumes() != null) {
+                    List<DeploymentDetailVO.VolumeMountVO> volumes = podSpec.getVolumes().stream()
+                            .map(v -> {
+                                DeploymentDetailVO.VolumeMountVO vm = new DeploymentDetailVO.VolumeMountVO();
+                                vm.setName(v.getName());
+                                if (v.getConfigMap() != null) vm.setVolumeType("ConfigMap");
+                                else if (v.getSecret() != null) vm.setVolumeType("Secret");
+                                else if (v.getPersistentVolumeClaim() != null) vm.setVolumeType("PVC");
+                                else if (v.getEmptyDir() != null) vm.setVolumeType("EmptyDir");
+                                else if (v.getHostPath() != null) vm.setVolumeType("HostPath");
+                                else vm.setVolumeType("Other");
+                                return vm;
+                            })
+                            .collect(Collectors.toList());
+                    vo.setVolumes(volumes);
+                }
+            }
         }
 
-        if (deploy.getSpec() != null && deploy.getSpec().getTemplate().getSpec() != null
-                && !deploy.getSpec().getTemplate().getSpec().getContainers().isEmpty()) {
-            vo.setImage(deploy.getSpec().getTemplate().getSpec().getContainers().getFirst().getImage());
-        }
+        return vo;
+    }
 
+    private DeploymentDetailVO.ContainerResourceVO toContainerResource(Container container) {
+        DeploymentDetailVO.ContainerResourceVO vo = new DeploymentDetailVO.ContainerResourceVO();
+        vo.setName(container.getName());
+        vo.setImage(container.getImage());
+        if (container.getResources() != null) {
+            if (container.getResources().getRequests() != null) {
+                var req = container.getResources().getRequests();
+                if (req.get("cpu") != null) vo.setCpuRequest(req.get("cpu").getAmount() + req.get("cpu").getFormat());
+                if (req.get("memory") != null) vo.setMemRequest(req.get("memory").getAmount() + req.get("memory").getFormat());
+            }
+            if (container.getResources().getLimits() != null) {
+                var lim = container.getResources().getLimits();
+                if (lim.get("cpu") != null) vo.setCpuLimit(lim.get("cpu").getAmount() + lim.get("cpu").getFormat());
+                if (lim.get("memory") != null) vo.setMemLimit(lim.get("memory").getAmount() + lim.get("memory").getFormat());
+            }
+        }
+        // Volume mounts
+        if (container.getVolumeMounts() != null) {
+            vo.setVolumeMounts(container.getVolumeMounts().stream().map(m -> {
+                DeploymentDetailVO.VolumeMountVO vm = new DeploymentDetailVO.VolumeMountVO();
+                vm.setName(m.getName());
+                vm.setMountPath(m.getMountPath());
+                vm.setReadOnly(m.getReadOnly() != null && m.getReadOnly() ? "true" : "false");
+                vm.setSubPath(m.getSubPath());
+                return vm;
+            }).collect(Collectors.toList()));
+        }
+        // Ports
+        if (container.getPorts() != null) {
+            vo.setPorts(container.getPorts().stream().map(p -> {
+                DeploymentDetailVO.PortVO pv = new DeploymentDetailVO.PortVO();
+                pv.setName(p.getName());
+                pv.setContainerPort(p.getContainerPort());
+                pv.setProtocol(p.getProtocol());
+                return pv;
+            }).collect(Collectors.toList()));
+        }
+        if (container.getCommand() != null) vo.setCommand(String.join(" ", container.getCommand()));
+        if (container.getArgs() != null) vo.setArgs(String.join(" ", container.getArgs()));
         return vo;
     }
 
@@ -780,10 +894,25 @@ public class ResourceService {
         vo.setCreationTimestamp(summary.getCreationTimestamp());
 
         vo.setUid(svc.getMetadata().getUid());
+        vo.setLabels(svc.getMetadata().getLabels());
+        vo.setAnnotations(svc.getMetadata().getAnnotations());
         if (svc.getSpec() != null) {
             vo.setSelector(svc.getSpec().getSelector());
             if (svc.getSpec().getSessionAffinity() != null) {
                 vo.setSessionAffinity(svc.getSpec().getSessionAffinity());
+            }
+            // Port mappings
+            if (svc.getSpec().getPorts() != null) {
+                List<ServiceDetailVO.ServicePortVO> ports = svc.getSpec().getPorts().stream().map(p -> {
+                    ServiceDetailVO.ServicePortVO sp = new ServiceDetailVO.ServicePortVO();
+                    sp.setName(p.getName());
+                    sp.setPort(p.getPort());
+                    if (p.getTargetPort() != null) sp.setTargetPort(p.getTargetPort().getStrVal());
+                    if (p.getNodePort() != null) sp.setNodePort(String.valueOf(p.getNodePort()));
+                    sp.setProtocol(p.getProtocol());
+                    return sp;
+                }).collect(Collectors.toList());
+                vo.setPorts(ports);
             }
         }
         return vo;
@@ -1141,5 +1270,17 @@ public class ResourceService {
         } catch (Exception e) {
             return "";
         }
+    }
+
+    private static Map<String, String> parseLabels(String labels) {
+        Map<String, String> result = new HashMap<>();
+        if (labels == null || labels.isBlank()) return result;
+        for (String pair : labels.split(",")) {
+            String[] kv = pair.split("=", 2);
+            if (kv.length == 2 && !kv[0].isBlank()) {
+                result.put(kv[0].trim(), kv[1].trim());
+            }
+        }
+        return result;
     }
 }

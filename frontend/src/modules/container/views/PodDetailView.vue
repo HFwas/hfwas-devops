@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ArrowLeft, RefreshCw, Terminal, Play, Square } from '@lucide/vue'
-import { NCard, NButton, NSpace, NTag, NTabs, NTabPane, NDescriptions, NDescriptionsItem, NDataTable, NEmpty, NSelect, useMessage } from 'naive-ui'
-import type { SelectOption } from 'naive-ui'
+import { ArrowLeft, RefreshCw } from '@lucide/vue'
+import { NCard, NButton, NSpace, NTag, NTabs, NTabPane, NDescriptions, NDescriptionsItem, NDataTable, NEmpty, useMessage } from 'naive-ui'
 import { podApi } from '@/modules/container/api/pod'
 import type { PodDetail, ContainerStatus, PodCondition } from '@/modules/container/types/resource'
 import { isApiError } from '@/shared/errors/apiError'
 import PodShellTerminal from '@/modules/container/components/PodShellTerminal.vue'
+import PodLogStream from '@/modules/container/components/PodLogStream.vue'
 
 const props = defineProps<{ clusterId: string; namespace: string; name: string }>()
 const router = useRouter()
@@ -13,23 +13,8 @@ const message = useMessage()
 
 const pod = ref<PodDetail | null>(null)
 const loading = ref(false)
-const logContent = ref('')
-const logLoading = ref(false)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
-const currentContainer = ref('')
-const autoRefresh = ref(false)
-let refreshTimer: ReturnType<typeof setInterval> | null = null
-
-const logRef = ref<HTMLPreElement | null>(null)
-
-const containerOptions = computed<SelectOption[]>(() => {
-  if (!pod.value?.containers) return []
-  return [
-    { label: '(所有容器)', value: '' },
-    ...pod.value.containers.map(c => ({ label: c.name, value: c.name })),
-  ]
-})
 
 function errorMessage(e: unknown): string {
   if (isApiError(e)) return e.message
@@ -44,56 +29,6 @@ async function load() {
     message.error(errorMessage(e))
   } finally {
     loading.value = false
-  }
-}
-
-async function loadLogs(container?: string, tailLines = 500) {
-  logLoading.value = true
-  try {
-    logContent.value = await podApi.logs(props.clusterId, props.namespace, props.name, { container: container || undefined, tailLines })
-  } catch (e) {
-    logContent.value = `获取日志失败: ${errorMessage(e)}`
-  } finally {
-    logLoading.value = false
-    await nextTick()
-    scrollLogsToBottom()
-  }
-}
-
-function scrollLogsToBottom() {
-  if (logRef.value) {
-    logRef.value.scrollTop = logRef.value.scrollHeight
-  }
-}
-
-function toggleAutoRefresh() {
-  autoRefresh.value = !autoRefresh.value
-  if (autoRefresh.value) {
-    startAutoRefresh()
-  } else {
-    stopAutoRefresh()
-  }
-}
-
-function startAutoRefresh() {
-  stopAutoRefresh()
-  refreshTimer = setInterval(() => {
-    loadLogs(currentContainer.value, 200)
-  }, 3000)
-}
-
-function stopAutoRefresh() {
-  if (refreshTimer !== null) {
-    clearInterval(refreshTimer)
-    refreshTimer = null
-  }
-}
-
-function onContainerChange(container: string | null) {
-  currentContainer.value = container ?? ''
-  loadLogs(currentContainer.value)
-  if (autoRefresh.value) {
-    startAutoRefresh()
   }
 }
 
@@ -126,8 +61,6 @@ const containerColumns = [
   { title: 'Ready', key: 'ready', width: 70,
     render: (row: ContainerStatus) => row.ready ? '✓' : '✗' },
   { title: '重启', key: 'restartCount', width: 60 },
-  { title: '日志', key: 'logs', width: 80,
-    render: (row: ContainerStatus) => h(NButton, { size: 'tiny', quaternary: true, onClick: () => { currentContainer.value = row.name; loadLogs(row.name) } }, () => '查看') },
 ]
 
 const conditionColumns = [
@@ -139,12 +72,7 @@ const conditionColumns = [
 
 onMounted(() => {
   load()
-  loadLogs()
   loadYaml()
-})
-
-onUnmounted(() => {
-  stopAutoRefresh()
 })
 </script>
 
@@ -189,33 +117,12 @@ onUnmounted(() => {
           <pre class="yaml-block">{{ yamlLoading ? '加载中...' : yamlContent }}</pre>
         </n-tab-pane>
         <n-tab-pane name="logs" tab="日志">
-          <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-            <n-select
-              v-model:value="currentContainer"
-              :options="containerOptions"
-              placeholder="选择容器"
-              style="width: 200px"
-              clearable
-              @update:value="onContainerChange"
-            />
-            <n-button size="tiny" quaternary @click="loadLogs(currentContainer)">
-              <template #icon><RefreshCw :size="14" /></template>
-              刷新
-            </n-button>
-            <n-button
-              size="tiny"
-              :type="autoRefresh ? 'primary' : 'default'"
-              @click="toggleAutoRefresh"
-            >
-              <template #icon>
-                <Play v-if="!autoRefresh" :size="14" />
-                <Square v-else :size="14" />
-              </template>
-              {{ autoRefresh ? '停止刷新' : '自动刷新' }}
-            </n-button>
-            <span v-if="autoRefresh" style="font-size: 12px; color: #909399;">每 3 秒自动刷新 ✓ 自动滚动</span>
-          </div>
-          <pre ref="logRef" class="log-block">{{ logLoading ? '加载中...' : (logContent || '(无日志)') }}</pre>
+          <PodLogStream
+            :clusterId="clusterId"
+            :namespace="pod.namespace"
+            :podName="pod.name"
+            :containers="(pod.containers || []).map(c => ({ name: c.name, state: c.state }))"
+          />
         </n-tab-pane>
         <n-tab-pane name="console" tab="控制台">
           <PodShellTerminal

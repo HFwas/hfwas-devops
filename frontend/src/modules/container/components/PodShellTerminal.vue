@@ -65,8 +65,10 @@ async function connect() {
 
     ws.onopen = () => {
       state.value = 'connected'
-      initTerminal()
-      startPing()
+      nextTick(() => {
+        initTerminal()
+        startPing()
+      })
     }
 
     ws.onmessage = (event) => {
@@ -152,8 +154,13 @@ function initTerminal() {
   window.addEventListener('resize', onResize)
 
   terminal.onData((data: string) => {
+    console.log('[terminal] onData received:', JSON.stringify(data))
     if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'input', data }))
+      const msg = JSON.stringify({ type: 'input', data })
+      console.log('[terminal] sending to WS:', msg)
+      ws.send(msg)
+    } else {
+      console.warn('[terminal] WS not open, state:', ws?.readyState)
     }
   })
 

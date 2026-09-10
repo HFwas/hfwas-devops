@@ -7,4 +7,6 @@ export const serviceApi = {
     get<PageResult<ServiceSummary>>(`/container/clusters/${clusterId}/services`, params),
   get: (clusterId: string, namespace: string, name: string) =>
     get<ServiceDetail>(`/container/clusters/${clusterId}/namespaces/${namespace}/services/${name}`),
+  yaml: (clusterId: string, namespace: string, name: string) =>
+    get<string>(`/container/clusters/${clusterId}/namespaces/${namespace}/services/${name}/yaml`),
 }

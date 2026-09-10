@@ -2,6 +2,7 @@ package com.hfwas.devops.container.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hfwas.devops.common.core.base.BaseResult;
+import com.hfwas.devops.container.dto.ClusterComponentVO;
 import com.hfwas.devops.container.dto.ClusterSaveDTO;
 import com.hfwas.devops.container.dto.ClusterStatsVO;
 import com.hfwas.devops.container.dto.ClusterUpdateDTO;
@@ -101,6 +102,12 @@ public class ClusterController {
         vo.setCpuTotal(s.cpuTotal());
         vo.setMemoryTotal(s.memoryTotal());
         return BaseResult.ok(vo);
+    }
+
+    @GetMapping("/{id}/components")
+    public BaseResult<ClusterComponentVO> components(@PathVariable Long id) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        return BaseResult.ok(clusterService.getComponents(id, tenantId));
     }
 
     // ---- internal ----

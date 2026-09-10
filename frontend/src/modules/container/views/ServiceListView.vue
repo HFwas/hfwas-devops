@@ -10,6 +10,7 @@ import { usePagination } from '@/shared/composables/usePagination'
 import { useClusterStore } from '@/modules/container/stores/cluster'
 
 const props = defineProps<{ clusterId: string }>()
+const router = useRouter()
 const message = useMessage()
 const clusterStore = useClusterStore()
 
@@ -45,6 +46,10 @@ function onSearch() {
   load()
 }
 
+function toDetail(row: ServiceSummary) {
+  router.push(`/container/clusters/${props.clusterId}/services/${row.namespace}/${row.name}`)
+}
+
 const typeTagType = (t: string) => {
   switch (t) {
     case 'ClusterIP': return 'info' as const
@@ -56,7 +61,8 @@ const typeTagType = (t: string) => {
 }
 
 const columns: DataTableColumns<ServiceSummary> = [
-  { title: '名称', key: 'name', ellipsis: { tooltip: true } },
+  { title: '名称', key: 'name', ellipsis: { tooltip: true },
+    render: (row) => h(NButton, { size: 'tiny', text: true, type: 'primary', onClick: () => toDetail(row) }, () => row.name) },
   { title: 'Namespace', key: 'namespace', width: 140 },
   { title: '类型', key: 'type', width: 120,
     render: (row) => h(NTag, { type: typeTagType(row.type), size: 'small' }, () => row.type) },

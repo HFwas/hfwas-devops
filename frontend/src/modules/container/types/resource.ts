@@ -53,6 +53,39 @@ export interface DeploymentDetail extends DeploymentSummary {
   image: string
   selector: string
   status: string
+  containers?: ContainerResource[]
+  volumes?: VolumeMount[]
+  labels?: Record<string, string>
+  annotations?: Record<string, string>
+  revisionHistoryLimit?: string
+  minReadySeconds?: string
+}
+
+export interface ContainerResource {
+  name: string
+  image: string
+  cpuRequest?: string
+  cpuLimit?: string
+  memRequest?: string
+  memLimit?: string
+  volumeMounts?: VolumeMount[]
+  ports?: ContainerPort[]
+  command?: string
+  args?: string
+}
+
+export interface VolumeMount {
+  name: string
+  mountPath?: string
+  readOnly?: string
+  subPath?: string
+  volumeType?: string
+}
+
+export interface ContainerPort {
+  name?: string
+  containerPort: number
+  protocol?: string
 }
 
 export interface ServiceSummary {
@@ -68,8 +101,19 @@ export interface ServiceSummary {
 
 export interface ServiceDetail extends ServiceSummary {
   uid: string
-  selector: Record<string, string> | null
-  sessionAffinity: string | null
+  selector?: Record<string, string>
+  sessionAffinity?: string
+  labels?: Record<string, string>
+  annotations?: Record<string, string>
+  ports?: ServicePortItem[]
+}
+
+export interface ServicePortItem {
+  name?: string
+  port: number
+  targetPort?: string
+  nodePort?: string
+  protocol?: string
 }
 
 export interface NamespaceInfo {

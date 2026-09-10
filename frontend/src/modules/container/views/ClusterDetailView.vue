@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ArrowLeft, RefreshCw } from '@lucide/vue'
-import { NCard, NButton, NSpace, NGrid, NGi, NStatistic, NDataTable, NTag, NDescriptions, NDescriptionsItem, useMessage } from 'naive-ui'
+import { NCard, NButton, NSpace, NGrid, NGi, NStatistic, NDataTable, NTag, NText, NDescriptions, NDescriptionsItem, NTabs, NTabPane, NEmpty, useMessage } from 'naive-ui'
+import type { DataTableColumns } from 'naive-ui'
+import { useRouter } from 'vue-router'
 import { clusterApi } from '@/modules/container/api/cluster'
-import type { ClusterStatsVO, ClusterVO } from '@/modules/container/types/cluster'
+import type { ClusterComponentVO, ClusterStatsVO, ClusterVO, NodeComponentVO, SystemComponentVO } from '@/modules/container/types/cluster'
 import { useClusterStore } from '@/modules/container/stores/cluster'
 import { isApiError } from '@/shared/errors/apiError'
 
@@ -13,7 +15,9 @@ const clusterStore = useClusterStore()
 
 const cluster = ref<ClusterVO | null>(null)
 const stats = ref<ClusterStatsVO | null>(null)
+const components = ref<ClusterComponentVO | null>(null)
 const loading = ref(false)
+const compLoading = ref(false)
 
 function errorMessage(e: unknown): string {
   if (isApiError(e)) return e.message
@@ -58,7 +62,48 @@ const navigateItems = [
   { label: 'Service', path: `/container/clusters/${props.id}/services`, color: '#f0a020' },
 ]
 
-onMounted(load)
+async function loadComponents() {
+  compLoading.value = true
+  try {
+    components.value = await clusterApi.components(props.id)
+  } catch (e) {
+    message.error(errorMessage(e))
+  } finally {
+    compLoading.value = false
+  }
+}
+
+const nodeColumns: DataTableColumns<NodeComponentVO> = [
+  { title: '名称', key: 'name', ellipsis: { tooltip: true } },
+  { title: 'Kubelet 版本', key: 'kubeletVersion', width: 130 },
+  { title: '容器运行时', key: 'containerRuntime', width: 170, ellipsis: { tooltip: true } },
+  { title: 'OS 镜像', key: 'osImage', width: 180, ellipsis: { tooltip: true } },
+  { title: '内核版本', key: 'kernelVersion', width: 140, ellipsis: { tooltip: true } },
+  { title: '架构', key: 'architecture', width: 80 },
+  { title: '状态', key: 'status', width: 100,
+    render: (row) => h(NTag, {
+      type: row.status === 'Ready' ? 'success' : 'error',
+      size: 'small'
+    }, () => row.status) },
+]
+
+const systemColumns: DataTableColumns<SystemComponentVO> = [
+  { title: '名称', key: 'name', width: 140 },
+  { title: '命名空间', key: 'namespace', width: 120 },
+  { title: '状态', key: 'status', width: 90,
+    render: (row) => h(NTag, {
+      type: row.status === 'Healthy' ? 'success' : 'warning',
+      size: 'small'
+    }, () => row.status) },
+  { title: '版本', key: 'version', width: 120 },
+  { title: '就绪/期望', key: 'replicas', width: 100,
+    render: (row) => `${row.readyReplicas}/${row.desiredReplicas}` },
+]
+
+onMounted(() => {
+  load()
+  loadComponents()
+})
 </script>
 
 <template>
@@ -120,6 +165,38 @@ onMounted(load)
           {{ item.label }}
         </n-button>
       </n-space>
+    </n-card>
+
+    <n-card title="集群组件" :bordered="false" style="margin-top: 16px" v-if="components">
+      <template #header-extra>
+        <n-text depth="3" style="font-size: 13px">
+          Kubernetes {{ components.kubernetesVersion }} · {{ components.nodeCount }} 节点
+        </n-text>
+      </template>
+      <n-tabs type="line" animated>
+        <n-tab-pane name="nodes" tab="Node 组件">
+          <n-data-table
+            :columns="nodeColumns"
+            :data="components.nodes"
+            :loading="compLoading"
+            :bordered="false"
+            :max-height="400"
+            size="small"
+          />
+          <n-empty v-if="!compLoading && components.nodes.length === 0" description="暂无节点数据" style="padding: 24px" />
+        </n-tab-pane>
+        <n-tab-pane name="system" tab="系统组件">
+          <n-data-table
+            :columns="systemColumns"
+            :data="components.systemComponents"
+            :loading="compLoading"
+            :bordered="false"
+            :max-height="400"
+            size="small"
+          />
+          <n-empty v-if="!compLoading && components.systemComponents.length === 0" description="暂无系统组件数据" style="padding: 24px" />
+        </n-tab-pane>
+      </n-tabs>
     </n-card>
   </div>
 </template>

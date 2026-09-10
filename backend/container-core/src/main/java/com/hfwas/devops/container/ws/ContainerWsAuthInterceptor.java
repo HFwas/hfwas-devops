@@ -35,19 +35,21 @@ public class ContainerWsAuthInterceptor implements HandshakeInterceptor {
     public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
                                    WebSocketHandler wsHandler, Map<String, Object> attributes) {
         // Extract JWT from Sec-WebSocket-Protocol header
+        // Browser sends protocols as comma-separated in a single header value
         List<String> protocols = request.getHeaders().get(SEC_WS_PROTOCOL);
         String token = null;
 
-        if (protocols != null && !protocols.isEmpty()) {
-            for (String p : protocols) {
-                String trimmed = p.trim();
-                if (!trimmed.isEmpty() && !trimmed.startsWith("container-")) {
-                    token = trimmed;
-                    break;
+        if (protocols != null) {
+            for (String headerValue : protocols) {
+                String[] parts = headerValue.split(",");
+                for (String part : parts) {
+                    String trimmed = part.trim();
+                    if (!trimmed.isEmpty() && !trimmed.startsWith("container-")) {
+                        token = trimmed;
+                        break;
+                    }
                 }
-            }
-            if (token == null) {
-                token = protocols.getFirst().trim();
+                if (token != null) break;
             }
         }
 

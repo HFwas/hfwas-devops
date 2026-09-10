@@ -41,3 +41,29 @@ export interface ClusterStatsVO {
 }
 
 export type ClusterStatus = 'Connected' | 'Degraded' | 'Disconnected' | 'Unknown'
+
+export interface NodeComponentVO {
+  name: string
+  kubeletVersion: string
+  containerRuntime: string
+  osImage: string
+  kernelVersion: string
+  architecture: string
+  status: string
+}
+
+export interface SystemComponentVO {
+  name: string
+  namespace: string
+  status: string
+  version: string
+  readyReplicas: number
+  desiredReplicas: number
+}
+
+export interface ClusterComponentVO {
+  kubernetesVersion: string
+  nodeCount: number
+  nodes: NodeComponentVO[]
+  systemComponents: SystemComponentVO[]
+}
