@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Server, HardDrive, Box, Layers, Globe, Cpu, KeyRound, FileJson, HardDrive as Storage, Container, Search } from '@lucide/vue'
+import { Server, HardDrive, Box, Layers, Globe, Cpu, KeyRound, FileJson, HardDrive as Storage, Container, Search, Database } from '@lucide/vue'
 import { useClusterStore } from '@/modules/container/stores/cluster'
 import { h, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -109,6 +109,12 @@ const menuOptions = computed<MenuOption[]>(() => {
       icon: () => h(Storage, { size: 16 }),
       disabled: !cid,
     },
+    {
+      label: 'StorageClass',
+      key: `${base}/storageclasses`,
+      icon: () => h(Database, { size: 16 }),
+      disabled: !cid,
+    },
   ]
 })
 
@@ -145,6 +151,8 @@ const activeMenuKey = computed(() => {
       return `${base}/secrets`
     case 'container-pvcs':
       return `${base}/pvcs`
+    case 'container-storageclasses':
+      return `${base}/storageclasses`
     default:
       return null
   }

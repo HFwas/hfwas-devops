@@ -176,6 +176,16 @@ export interface ConfigMapSummary {
   creationTimestamp: string | null
 }
 
+export interface StorageClassSummary {
+  name: string
+  provisioner: string | null
+  reclaimPolicy: string | null
+  volumeBindingMode: string | null
+  allowVolumeExpansion: boolean | null
+  age: string
+  creationTimestamp: string | null
+}
+
 export interface NodeSummary {
   name: string
   status: string

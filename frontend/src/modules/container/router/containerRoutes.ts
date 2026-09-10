@@ -125,6 +125,12 @@ export const containerRoutes: RouteRecordRaw[] = [
         name: 'container-images',
         component: () => import('@/modules/container/views/Registry/ImageView.vue'),
       },
+      // ─── StorageClass ───
+      {
+        path: 'storageclasses',
+        name: 'container-storageclasses',
+        component: () => import('@/modules/container/views/StorageClassListView.vue'),
+      },
     ],
   },
 ]

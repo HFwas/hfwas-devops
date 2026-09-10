@@ -15,6 +15,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
 import io.fabric8.kubernetes.api.model.apps.StatefulSet;
 import io.fabric8.kubernetes.api.model.apps.StatefulSetSpec;
+import io.fabric8.kubernetes.api.model.storage.StorageClass;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.LogWatch;
 import io.fabric8.kubernetes.client.dsl.base.PatchContext;
@@ -1236,6 +1237,40 @@ public class ResourceService {
             }
         }
         return "<none>";
+    }
+
+    // ==================== StorageClass ====================
+
+    public List<StorageClassSummaryVO> listStorageClasses(Long clusterId, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+
+        return client.resources(StorageClass.class).list().getItems().stream()
+                .map(this::toStorageClassSummary)
+                .sorted((a, b) -> {
+                    if (a.getCreationTimestamp() == null) return 1;
+                    if (b.getCreationTimestamp() == null) return -1;
+                    return b.getCreationTimestamp().compareTo(a.getCreationTimestamp());
+                })
+                .collect(Collectors.toList());
+    }
+
+    private StorageClassSummaryVO toStorageClassSummary(StorageClass sc) {
+        StorageClassSummaryVO vo = new StorageClassSummaryVO();
+        ObjectMeta meta = sc.getMetadata();
+        vo.setName(meta.getName());
+        vo.setCreationTimestamp(toLocalDateTime(meta.getCreationTimestamp()));
+        vo.setAge(formatAge(meta.getCreationTimestamp()));
+        vo.setProvisioner(sc.getProvisioner());
+
+        if (sc.getReclaimPolicy() != null) {
+            vo.setReclaimPolicy(sc.getReclaimPolicy());
+        }
+        if (sc.getVolumeBindingMode() != null) {
+            vo.setVolumeBindingMode(sc.getVolumeBindingMode());
+        }
+        vo.setAllowVolumeExpansion(sc.getAllowVolumeExpansion());
+        return vo;
     }
 
     // ==================== Helpers ====================
