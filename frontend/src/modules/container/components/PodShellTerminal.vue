@@ -2,9 +2,10 @@
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
-import { NButton, NSelect, NSpace, NTag, useMessage } from 'naive-ui'
+import { NButton, NInput, NModal, NSelect, NSpace, NTag, useMessage } from 'naive-ui'
 import { getToken } from '@/shared/keycloak'
-import { onBeforeUnmount, ref, watch, nextTick } from 'vue'
+import { podApi } from '@/modules/container/api/pod'
+import { onBeforeUnmount, ref, watch, nextTick, computed } from 'vue'
 
 const props = defineProps<{
   clusterId: string
@@ -26,6 +27,16 @@ let ws: WebSocket | null = null
 let pingTimer: number | null = null
 
 const terminalEl = ref<HTMLDivElement | null>(null)
+
+// File transfer state
+const showUploadDialog = ref(false)
+const showDownloadDialog = ref(false)
+const uploading = ref(false)
+const downloading = ref(false)
+const uploadDestPath = ref('/tmp/')
+const downloadFilePath = ref('')
+const selectedFile = ref<File | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const containerOptions = computed(() =>
   props.containers.map(c => ({ label: `${c.name} (${c.state})`, value: c.name }))
@@ -229,6 +240,103 @@ function destroyTerminal() {
 onBeforeUnmount(() => {
   disconnect()
 })
+
+// ==================== File Transfer ====================
+
+function openUploadDialog() {
+  uploadDestPath.value = '/tmp/'
+  selectedFile.value = null
+  showUploadDialog.value = true
+}
+
+function onFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files.length > 0) {
+    selectedFile.value = input.files[0]
+  }
+}
+
+function triggerFilePicker() {
+  fileInputRef.value?.click()
+}
+
+async function handleUpload() {
+  if (!selectedFile.value) {
+    message.warning('请选择要上传的文件')
+    return
+  }
+  if (!uploadDestPath.value.trim()) {
+    message.warning('请输入目标路径')
+    return
+  }
+  if (!selectedContainer.value) {
+    message.warning('请先选择容器')
+    return
+  }
+
+  uploading.value = true
+  try {
+    await podApi.uploadFile(
+      props.clusterId,
+      props.namespace,
+      props.podName,
+      selectedContainer.value,
+      uploadDestPath.value.trim(),
+      selectedFile.value,
+    )
+    message.success(`文件已上传到 ${uploadDestPath.value}${selectedFile.value.name}`)
+    showUploadDialog.value = false
+    selectedFile.value = null
+  } catch (e: any) {
+    message.error(e?.message || '上传失败')
+  } finally {
+    uploading.value = false
+  }
+}
+
+function openDownloadDialog() {
+  downloadFilePath.value = ''
+  showDownloadDialog.value = true
+}
+
+async function handleDownload() {
+  if (!downloadFilePath.value.trim()) {
+    message.warning('请输入容器内文件路径')
+    return
+  }
+  if (!selectedContainer.value) {
+    message.warning('请先选择容器')
+    return
+  }
+
+  downloading.value = true
+  try {
+    const { blob, filename } = await podApi.downloadFile(
+      props.clusterId,
+      props.namespace,
+      props.podName,
+      selectedContainer.value,
+      downloadFilePath.value.trim(),
+    )
+
+    // Trigger browser download
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    message.success(`文件已下载: ${filename}`)
+    showDownloadDialog.value = false
+  } catch (e: any) {
+    message.error(e?.message || '下载失败')
+  } finally {
+    downloading.value = false
+  }
+}
 </script>
 
 <template>
@@ -257,6 +365,12 @@ onBeforeUnmount(() => {
       <div ref="terminalEl" class="shell-terminal" />
       <div class="shell-actions">
         <n-space>
+          <n-button size="tiny" quaternary @click="openUploadDialog" :disabled="uploading">
+            上传文件
+          </n-button>
+          <n-button size="tiny" quaternary @click="openDownloadDialog" :disabled="downloading">
+            下载文件
+          </n-button>
           <n-button size="tiny" quaternary @click="disconnect">断开</n-button>
           <n-button size="tiny" quaternary @click="connect">重连</n-button>
         </n-space>
@@ -268,6 +382,49 @@ onBeforeUnmount(() => {
     <div v-if="state === 'idle'" class="shell-hint">
       选择容器后点击"进入控制台"以建立终端连接
     </div>
+
+    <!-- Upload dialog -->
+    <n-modal v-model:show="showUploadDialog" title="上传文件到容器" :mask-closable="false" preset="card" style="width: 480px">
+      <n-space vertical>
+        <div class="upload-file-row">
+          <n-button @click="triggerFilePicker" :disabled="uploading">选择文件</n-button>
+          <span class="upload-file-name">{{ selectedFile?.name || '未选择文件' }}</span>
+        </div>
+        <input ref="fileInputRef" type="file" style="display: none" @change="onFileSelected" />
+        <n-input
+          v-model:value="uploadDestPath"
+          placeholder="目标目录，默认 /tmp/"
+          :disabled="uploading"
+        >
+          <template #prefix>目标路径</template>
+        </n-input>
+        <n-space justify="end">
+          <n-button @click="showUploadDialog = false" :disabled="uploading">取消</n-button>
+          <n-button type="primary" @click="handleUpload" :loading="uploading" :disabled="!selectedFile">
+            上传
+          </n-button>
+        </n-space>
+      </n-space>
+    </n-modal>
+
+    <!-- Download dialog -->
+    <n-modal v-model:show="showDownloadDialog" title="从容器下载文件" :mask-closable="false" preset="card" style="width: 480px">
+      <n-space vertical>
+        <n-input
+          v-model:value="downloadFilePath"
+          placeholder="请输入容器内文件路径，如 /tmp/myfile.log"
+          :disabled="downloading"
+        >
+          <template #prefix>文件路径</template>
+        </n-input>
+        <n-space justify="end">
+          <n-button @click="showDownloadDialog = false" :disabled="downloading">取消</n-button>
+          <n-button type="primary" @click="handleDownload" :loading="downloading" :disabled="!downloadFilePath.trim()">
+            下载
+          </n-button>
+        </n-space>
+      </n-space>
+    </n-modal>
   </div>
 </template>
 
@@ -325,5 +482,20 @@ onBeforeUnmount(() => {
   min-height: 200px;
   color: var(--wb-muted, #909399);
   font-size: 13px;
+}
+
+.upload-file-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.upload-file-name {
+  font-size: 13px;
+  color: var(--wb-muted, #909399);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
