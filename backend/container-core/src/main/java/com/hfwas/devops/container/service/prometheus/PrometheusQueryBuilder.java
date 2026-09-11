@@ -2,8 +2,6 @@ package com.hfwas.devops.container.service.prometheus;
 
 import lombok.experimental.UtilityClass;
 
-import java.util.regex.Pattern;
-
 /**
  * PromQL query string builder.
  * All methods return fully-formed PromQL expressions.
@@ -11,67 +9,67 @@ import java.util.regex.Pattern;
 @UtilityClass
 public class PrometheusQueryBuilder {
 
-    /** Escape a node name for use in a PromQL regex label matcher (instance=~".*<name>.*"). */
-    private static String escapeNodeName(String name) {
-        return Pattern.quote(name);
+    /**
+     * node-exporter instance is "{ip}:9100", not the Kubernetes node name.
+     * Join via node_uname_info.nodename (matches kubectl node names).
+     * {@code .*} / blank means all nodes (cluster overview).
+     */
+    private static String nodeUname(String nodeName) {
+        if (nodeName == null || nodeName.isBlank() || ".*".equals(nodeName)) {
+            return "node_uname_info";
+        }
+        return "node_uname_info{nodename=\"" + escapeLabelValue(nodeName) + "\"}";
+    }
+
+    private static String onNode(String expr, String nodeName) {
+        return "(" + expr + ") * on(instance) group_left(nodename) " + nodeUname(nodeName);
+    }
+
+    /** Escape a PromQL double-quoted label value. */
+    static String escapeLabelValue(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 
     // ── Node metrics ──
 
     public static String nodeCpuUsage(String nodeName) {
-        String q = escapeNodeName(nodeName);
-        return String.format(
-            "100 - avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\", instance=~\".*%s.*\"}[5m])) * 100",
-            q);
+        return onNode(
+            "(1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))) * 100",
+            nodeName);
     }
 
     public static String nodeMemoryUsage(String nodeName) {
-        String q = escapeNodeName(nodeName);
-        return String.format(
-            "(1 - node_memory_MemAvailable_bytes{instance=~\".*%s.*\"} / node_memory_MemTotal_bytes{instance=~\".*%s.*\"}) * 100",
-            q, q);
+        return onNode(
+            "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100",
+            nodeName);
     }
 
     public static String nodeNetworkReceive(String nodeName) {
-        String q = escapeNodeName(nodeName);
-        return String.format(
-            "rate(node_network_receive_bytes_total{instance=~\".*%s.*\", device!=\"lo\"}[5m])",
-            q);
+        return onNode(
+            "rate(node_network_receive_bytes_total{device!=\"lo\"}[5m])",
+            nodeName);
     }
 
     public static String nodeNetworkTransmit(String nodeName) {
-        String q = escapeNodeName(nodeName);
-        return String.format(
-            "rate(node_network_transmit_bytes_total{instance=~\".*%s.*\", device!=\"lo\"}[5m])",
-            q);
+        return onNode(
+            "rate(node_network_transmit_bytes_total{device!=\"lo\"}[5m])",
+            nodeName);
     }
 
     public static String nodeTcpConnections(String nodeName) {
-        String q = escapeNodeName(nodeName);
-        return String.format(
-            "node_netstat_Tcp_CurrEstab{instance=~\".*%s.*\"}",
-            q);
+        return onNode("node_netstat_Tcp_CurrEstab", nodeName);
     }
 
     public static String nodeDiskRead(String nodeName) {
-        String q = escapeNodeName(nodeName);
-        return String.format(
-            "rate(node_disk_read_bytes_total{instance=~\".*%s.*\"}[5m])",
-            q);
+        return onNode("rate(node_disk_read_bytes_total[5m])", nodeName);
     }
 
     public static String nodeDiskWrite(String nodeName) {
-        String q = escapeNodeName(nodeName);
-        return String.format(
-            "rate(node_disk_written_bytes_total{instance=~\".*%s.*\"}[5m])",
-            q);
+        return onNode("rate(node_disk_written_bytes_total[5m])", nodeName);
     }
 
     public static String nodeLoad1(String nodeName) {
-        String q = escapeNodeName(nodeName);
-        return String.format(
-            "node_load1{instance=~\".*%s.*\"}",
-            q);
+        return onNode("node_load1", nodeName);
     }
 
     // ── Pod metrics ──
@@ -100,60 +98,80 @@ public class PrometheusQueryBuilder {
             namespace, podName);
     }
 
-    // ── JVM metrics (OTel Java Agent) ──
+    // ── JVM metrics (OTel Java Agent 2.x semantic conventions) ──
+
+    private static String jvmNsPod(String namespace, String podName) {
+        return "kubernetes_namespace=\"" + escapeLabelValue(namespace)
+                + "\", kubernetes_pod_name=\"" + escapeLabelValue(podName) + "\"";
+    }
 
     public static String jvmCheck(String namespace, String podName) {
-        return String.format(
-            "count(jvm_memory_used_bytes{kubernetes_namespace=\"%s\", kubernetes_pod_name=\"%s\"})",
-            namespace, podName);
+        return "count(jvm_memory_used_bytes{" + jvmNsPod(namespace, podName) + "})";
     }
 
     public static String jvmHeapUsed(String namespace, String podName) {
-        return String.format(
-            "jvm_memory_used_bytes{area=\"heap\", kubernetes_namespace=\"%s\", kubernetes_pod_name=\"%s\"}",
-            namespace, podName);
+        return "sum(jvm_memory_used_bytes{jvm_memory_type=\"heap\", " + jvmNsPod(namespace, podName) + "})";
     }
 
     public static String jvmHeapMax(String namespace, String podName) {
-        return String.format(
-            "jvm_memory_limit_bytes{area=\"heap\", kubernetes_namespace=\"%s\", kubernetes_pod_name=\"%s\"}",
-            namespace, podName);
+        return "sum(jvm_memory_limit_bytes{jvm_memory_type=\"heap\", " + jvmNsPod(namespace, podName) + "})";
     }
 
     public static String jvmHeapCommitted(String namespace, String podName) {
-        return String.format(
-            "jvm_memory_committed_bytes{area=\"heap\", kubernetes_namespace=\"%s\", kubernetes_pod_name=\"%s\"}",
-            namespace, podName);
+        return "sum(jvm_memory_committed_bytes{jvm_memory_type=\"heap\", " + jvmNsPod(namespace, podName) + "})";
     }
 
     public static String jvmNonHeapUsed(String namespace, String podName) {
-        return String.format(
-            "jvm_memory_used_bytes{area=\"nonheap\", kubernetes_namespace=\"%s\", kubernetes_pod_name=\"%s\"}",
-            namespace, podName);
+        return "sum(jvm_memory_used_bytes{jvm_memory_type=\"non_heap\", " + jvmNsPod(namespace, podName) + "})";
     }
 
     public static String jvmGcCount(String namespace, String podName) {
-        return String.format(
-            "rate(jvm_gc_collections_count_total{kubernetes_namespace=\"%s\", kubernetes_pod_name=\"%s\"}[5m])",
-            namespace, podName);
+        return "sum by (jvm_gc_name) (rate(jvm_gc_duration_seconds_count{" + jvmNsPod(namespace, podName) + "}[5m]))";
     }
 
     public static String jvmGcElapsed(String namespace, String podName) {
-        return String.format(
-            "rate(jvm_gc_collections_elapsed_total{kubernetes_namespace=\"%s\", kubernetes_pod_name=\"%s\"}[5m])",
-            namespace, podName);
+        return "sum by (jvm_gc_name) (rate(jvm_gc_duration_seconds_sum{" + jvmNsPod(namespace, podName) + "}[5m]))";
     }
 
     public static String jvmThreadCount(String namespace, String podName) {
-        return String.format(
-            "jvm_threads_count{kubernetes_namespace=\"%s\", kubernetes_pod_name=\"%s\"}",
-            namespace, podName);
+        return "sum(jvm_thread_count{" + jvmNsPod(namespace, podName) + "})";
+    }
+
+    public static String jvmThreadByState(String namespace, String podName) {
+        return "sum by (jvm_thread_daemon, jvm_thread_state) (jvm_thread_count{" + jvmNsPod(namespace, podName) + "})";
     }
 
     public static String jvmMemoryPools(String namespace, String podName) {
-        return String.format(
-            "jvm_memory_pool_used_bytes{kubernetes_namespace=\"%s\", kubernetes_pod_name=\"%s\"}",
-            namespace, podName);
+        return "sum by (jvm_memory_pool_name) (jvm_memory_used_bytes{" + jvmNsPod(namespace, podName) + "})";
+    }
+
+    public static String jvmClassCount(String namespace, String podName) {
+        return "jvm_class_count{" + jvmNsPod(namespace, podName) + "}";
+    }
+
+    public static String jvmClassLoaded(String namespace, String podName) {
+        return "jvm_class_loaded_total{" + jvmNsPod(namespace, podName) + "}";
+    }
+
+    public static String jvmClassUnloaded(String namespace, String podName) {
+        return "jvm_class_unloaded_total{" + jvmNsPod(namespace, podName) + "}";
+    }
+
+    public static String jvmCpuUtilization(String namespace, String podName) {
+        return "jvm_cpu_recent_utilization_ratio{" + jvmNsPod(namespace, podName) + "} * 100";
+    }
+
+    public static String jvmCpuTime(String namespace, String podName) {
+        return "rate(jvm_cpu_time_seconds_total{" + jvmNsPod(namespace, podName) + "}[5m])";
+    }
+
+    public static String jvmCpuCount(String namespace, String podName) {
+        return "jvm_cpu_count{" + jvmNsPod(namespace, podName) + "}";
+    }
+
+    public static String jvmMemoryAfterGc(String namespace, String podName) {
+        return "sum by (jvm_memory_pool_name) (jvm_memory_used_after_last_gc_bytes{jvm_memory_type=\"heap\", "
+                + jvmNsPod(namespace, podName) + "})";
     }
 
     // ── Cluster overview ──

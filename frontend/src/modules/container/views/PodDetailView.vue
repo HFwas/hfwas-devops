@@ -3,10 +3,13 @@ import { ArrowLeft, RefreshCw } from '@lucide/vue'
 import { NCard, NButton, NSpace, NTag, NTabs, NTabPane, NDescriptions, NDescriptionsItem, NDataTable, NEmpty, useMessage } from 'naive-ui'
 import { podApi } from '@/modules/container/api/pod'
 import type { PodDetail, ContainerStatus, PodCondition } from '@/modules/container/types/resource'
+import type { MonitorRange } from '@/modules/container/types/monitor'
+import { monitorApi } from '@/modules/container/api/monitor'
 import { isApiError } from '@/shared/errors/apiError'
 import PodShellTerminal from '@/modules/container/components/PodShellTerminal.vue'
 import PodLogStream from '@/modules/container/components/PodLogStream.vue'
 import PodMonitorView from '@/modules/container/views/monitor/PodMonitorView.vue'
+import PodJvmMonitor from '@/modules/container/views/monitor/PodJvmMonitor.vue'
 
 const props = defineProps<{ clusterId: string; namespace: string; name: string }>()
 const router = useRouter()
@@ -16,6 +19,12 @@ const pod = ref<PodDetail | null>(null)
 const loading = ref(false)
 const yamlContent = ref('')
 const yamlLoading = ref(false)
+
+// Monitor state
+const range = ref<MonitorRange>('1h')
+const hasJvm = ref(false)
+const jvmChecking = ref(true)
+const jvmRange = ref<MonitorRange>('1h')
 
 function errorMessage(e: unknown): string {
   if (isApiError(e)) return e.message
@@ -41,6 +50,18 @@ async function loadYaml() {
     yamlContent.value = `获取 YAML 失败: ${errorMessage(e)}`
   } finally {
     yamlLoading.value = false
+  }
+}
+
+async function checkJvm() {
+  jvmChecking.value = true
+  try {
+    const result = await monitorApi.jvmCheck(props.clusterId, props.namespace, props.name)
+    hasJvm.value = result.hasJvmMetrics
+  } catch {
+    hasJvm.value = false
+  } finally {
+    jvmChecking.value = false
   }
 }
 
@@ -74,6 +95,7 @@ const conditionColumns = [
 onMounted(() => {
   load()
   loadYaml()
+  checkJvm()
 })
 </script>
 
@@ -139,12 +161,22 @@ onMounted(() => {
           </n-descriptions>
           <n-empty v-else description="无标签" />
         </n-tab-pane>
-        <n-tab-pane name="monitor" tab="监控">
+        <n-tab-pane name="monitor" tab="监控" display-directive="show:lazy">
           <PodMonitorView
             :clusterId
             :namespace="pod.namespace"
             :name="pod.name"
             :containers="(pod.containers || []).map(c => c.name)"
+            :range
+            @update:range="(v) => range = v"
+          />
+        </n-tab-pane>
+        <n-tab-pane v-if="hasJvm" name="jvm" tab="JVM 监控" display-directive="show:lazy">
+          <PodJvmMonitor
+            :clusterId
+            :namespace="pod.namespace"
+            :name="pod.name"
+            :range
           />
         </n-tab-pane>
         <n-tab-pane name="annotations" tab="注解">

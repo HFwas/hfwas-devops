@@ -23,6 +23,7 @@ strategy:
 service:
   type: ClusterIP
   port: 8089
+  nodePort: null
   annotations: {}
 
 # 应用配置
@@ -35,12 +36,24 @@ config:
   docgenPythonPath: python3
   docgenOutputDir: /app/files
 
-# 额外环境变量
+# JVM 参数（OTel 启用时会自动前置 -javaagent）
+javaToolOptions: "-Xms512m -Xmx1g -XX:MaxDirectMemorySize=512m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/dumps"
+
+# OpenTelemetry Java Agent（initContainer 拷 jar，Prometheus 拉 /metrics）
+otel:
+  enabled: false
+  image: otel/opentelemetry-java-agent:2.12.0
+  imagePullPolicy: IfNotPresent
+  metricsPort: 9404
+  serviceName: hfwas-devops-backend
+
+# 额外环境变量（不要再写 JAVA_TOOL_OPTIONS，用上面的 javaToolOptions）
 extraEnv:
   - name: MALLOC_ARENA_MAX
     value: "2"
-  - name: JAVA_TOOL_OPTIONS
-    value: "-Xms512m -Xmx1g -XX:MaxDirectMemorySize=512m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/dumps"
+
+# 解析集群外主机名（如 compose 里的 keycloak）
+hostAliases: []
 
 # livenessProbe
 livenessProbe:

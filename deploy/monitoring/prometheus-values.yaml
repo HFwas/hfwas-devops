@@ -1,0 +1,117 @@
+# Prometheus 监控栈 - k3s 单节点部署（Chart 90.x 适配版）
+
+global:
+  imagePullPolicy: IfNotPresent
+
+# ── Prometheus Operator ──
+prometheusOperator:
+  image:
+    tag: v0.77.2
+  prometheusConfigReloader:
+    image:
+      tag: v0.77.2
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+            - arm64
+
+# ── Prometheus ──
+prometheus:
+  enabled: true
+  agentMode: false
+  defaultRules:
+    create: false
+  prometheusSpec:
+    image:
+      registry: quay.io
+      repository: prometheus/prometheus
+      tag: v2.55.1
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+    retention: 15d
+    retentionSize: 18GB
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 200m
+      limits:
+        memory: 2Gi
+        cpu: "1"
+    scrapeConfigNamespaceSelector: {}
+    ruleNamespaceSelector: {}
+    serviceMonitorNamespaceSelector: {}
+    podMonitorNamespaceSelector: {}
+    additionalScrapeConfigs:
+      - job_name: prometheus-self
+        static_configs:
+          - targets: ['localhost:9090']
+      # 采集带 prometheus.io/scrape=true 注解的 Pod（OTel Java Agent /metrics）
+      - job_name: kubernetes-pods-metrics
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+  service:
+    type: NodePort
+    nodePort: 30090
+
+# ── Node Exporter（subchart）──
+prometheus-node-exporter:
+  image:
+    registry: quay.io
+    repository: prometheus/node-exporter
+    tag: v1.8.2
+    distroless: false
+  hostRootFsMount:
+    enabled: false
+  extraArgs:
+    - --collector.netstat
+    - --collector.tcpstat
+  tolerations:
+    - operator: Exists
+
+# ── kube-state-metrics（subchart）──
+kube-state-metrics:
+  image:
+    registry: registry.k8s.io
+    repository: kube-state-metrics/kube-state-metrics
+    tag: v2.15.0
+
+# ── Alertmanager（禁用）──
+alertmanager:
+  enabled: false
+
+# ── Grafana（禁用）──
+grafana:
+  enabled: false

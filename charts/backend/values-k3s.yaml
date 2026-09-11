@@ -1,0 +1,52 @@
+# k3s（devops-k3s）本地部署覆盖值
+fullnameOverride: devops-backend
+
+image:
+  repository: hfwas/devops-backend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: NodePort
+  port: 8089
+  nodePort: 30889
+
+otel:
+  enabled: true
+  image: otel/opentelemetry-java-agent:2.12.0
+  imagePullPolicy: IfNotPresent
+  metricsPort: 9404
+  serviceName: hfwas-devops-backend
+
+# 启动含 javaagent，探针延迟加大
+livenessProbe:
+  initialDelaySeconds: 120
+readinessProbe:
+  initialDelaySeconds: 90
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 768Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+persistence:
+  storageClass: local-path
+  size: 1Gi
+
+filePersistence:
+  storageClass: local-path
+  size: 2Gi
+
+extraEnv:
+  - name: MALLOC_ARENA_MAX
+    value: "2"
+  - name: OAUTH2_JWK_SET_URI
+    value: "http://keycloak:8080/auth/realms/hfwas-devops/protocol/openid-connect/certs"
+
+# hostAliases 在部署时按 compose 中 keycloak 容器 IP 注入
+hostAliases: []

@@ -33,10 +33,14 @@ const showUploadDialog = ref(false)
 const showDownloadDialog = ref(false)
 const uploading = ref(false)
 const downloading = ref(false)
-const uploadDestPath = ref('/tmp/')
+const uploadDestPath = ref('')
 const downloadFilePath = ref('')
 const selectedFile = ref<File | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
+
+// Current working directory tracking (detected from user's cd commands)
+const currentDir = ref('/')
+let inputBuffer = ''
 
 const containerOptions = computed(() =>
   props.containers.map(c => ({ label: `${c.name} (${c.state})`, value: c.name }))
@@ -165,13 +169,26 @@ function initTerminal() {
   window.addEventListener('resize', onResize)
 
   terminal.onData((data: string) => {
-    console.log('[terminal] onData received:', JSON.stringify(data))
+    // Track input buffer for cd command detection
+    if (data === '\r') {
+      const line = inputBuffer.trim()
+      if (line.startsWith('cd ')) {
+        currentDir.value = resolvePath(currentDir.value, line.slice(3).trim())
+      } else if (line === 'cd' || line === 'cd ~') {
+        // cd with no args or ~ goes to home, keep as-is
+      }
+      inputBuffer = ''
+    } else if (data === '\x7f') {
+      inputBuffer = inputBuffer.slice(0, -1)
+    } else if (data.startsWith('\x1b')) {
+      // Escape sequence (arrow keys etc.) — reset buffer, user is navigating
+      inputBuffer = ''
+    } else if (data.length === 1 && data.charCodeAt(0) >= 0x20) {
+      inputBuffer += data
+    }
+
     if (ws?.readyState === WebSocket.OPEN) {
-      const msg = JSON.stringify({ type: 'input', data })
-      console.log('[terminal] sending to WS:', msg)
-      ws.send(msg)
-    } else {
-      console.warn('[terminal] WS not open, state:', ws?.readyState)
+      ws.send(JSON.stringify({ type: 'input', data }))
     }
   })
 
@@ -241,12 +258,69 @@ onBeforeUnmount(() => {
   disconnect()
 })
 
+// ==================== Path Helpers ====================
+
+/** Resolve a cd target relative to the current directory */
+function resolvePath(current: string, target: string): string {
+  if (target === '~' || target === '' || target === '-') {
+    return current // home / prev — can't track reliably
+  }
+  if (target.startsWith('~/')) {
+    return normalizePath('/' + target.slice(2)) // ~ as /
+  }
+  if (target.startsWith('/')) {
+    return normalizePath(target)
+  }
+  return normalizePath(current + '/' + target)
+}
+
+/** Normalize a path: resolve . and .., remove double slashes, no trailing slash */
+function normalizePath(path: string): string {
+  const parts = path.split('/').filter(Boolean)
+  const result: string[] = []
+  for (const part of parts) {
+    if (part === '.') continue
+    if (part === '..') {
+      if (result.length > 0) result.pop()
+      continue
+    }
+    result.push(part)
+  }
+  return '/' + result.join('/')
+}
+
 // ==================== File Transfer ====================
 
 function openUploadDialog() {
-  uploadDestPath.value = '/tmp/'
+  // Try to detect the current directory from the terminal prompt
+  detectCurrentDirFromBuffer()
+  // Default to tracked directory, falling back to /tmp/
+  uploadDestPath.value = (currentDir.value.endsWith('/') ? currentDir.value : currentDir.value + '/') || '/tmp/'
   selectedFile.value = null
   showUploadDialog.value = true
+}
+
+/** Read the terminal buffer to detect the current directory from the shell prompt */
+function detectCurrentDirFromBuffer() {
+  if (!terminal) return
+  const buffer = terminal.buffer.active
+  const cursorY = buffer.cursorY
+  // Search backwards from the cursor line for a prompt with a path
+  for (let i = Math.min(cursorY, buffer.length - 1); i >= Math.max(0, cursorY - 3); i--) {
+    const line = buffer.getLine(i)?.translateToString() || ''
+    // Match patterns like hostname:/path$, user@host:/path#, /path $
+    const m = line.match(/:(\/[^\s$#]*)[$#]/)
+    if (m && m[1]) {
+      currentDir.value = normalizePath(m[1])
+      return
+    }
+    // Fallback: match standalone absolute path before $ or #
+    const m2 = line.match(/(\/[^\s$#]+)[$#]/)
+    if (m2 && m2[1]) {
+      currentDir.value = normalizePath(m2[1])
+      return
+    }
+  }
 }
 
 function onFileSelected(event: Event) {

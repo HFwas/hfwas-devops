@@ -78,29 +78,29 @@ onMounted(load)
       </n-button>
     </n-space>
 
-    <n-card :title="node?.name" :bordered="false" v-if="node">
-      <template #header-extra>
-        <n-space>
-          <n-tag :type="statusTagType(node.status)">{{ node.status }}</n-tag>
-          <n-tag>{{ node.role }}</n-tag>
+    <n-card :bordered="false" v-if="node">
+      <template #header>
+        <n-space align="center">
+          <span style="font-weight: 600; font-size: 15px">{{ node.name }}</span>
+          <n-tag :type="statusTagType(node.status)" size="small">{{ node.status }}</n-tag>
+          <n-tag size="small">{{ node.role }}</n-tag>
         </n-space>
       </template>
-      <n-descriptions label-placement="left" :column="2">
-        <n-descriptions-item label="Kubelet 版本">{{ node.kubeletVersion || '-' }}</n-descriptions-item>
-        <n-descriptions-item label="容器运行时">{{ node.containerRuntime || '-' }}</n-descriptions-item>
-        <n-descriptions-item label="OS 镜像">{{ node.osImage || '-' }}</n-descriptions-item>
-        <n-descriptions-item label="内核">{{ node.kernelVersion || '-' }}</n-descriptions-item>
-        <n-descriptions-item label="架构">{{ node.architecture || '-' }}</n-descriptions-item>
-        <n-descriptions-item label="CPU">{{ node.cpuCapacity }} 核</n-descriptions-item>
-        <n-descriptions-item label="内存">{{ formatMem(node.memoryCapacity) }}</n-descriptions-item>
-        <n-descriptions-item label="Pod 数">{{ node.podCount }}</n-descriptions-item>
-        <n-descriptions-item label="Pod CIDR">{{ node.podCIDR || '-' }}</n-descriptions-item>
-        <n-descriptions-item label="Provider ID">{{ node.providerID || '-' }}</n-descriptions-item>
-      </n-descriptions>
-    </n-card>
-
-    <n-card :bordered="false" style="margin-top: 16px" v-if="node">
       <n-tabs type="line" animated>
+        <n-tab-pane name="info" tab="节点信息">
+          <n-descriptions label-placement="left" :column="2">
+            <n-descriptions-item label="Kubelet 版本">{{ node.kubeletVersion || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="容器运行时">{{ node.containerRuntime || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="OS 镜像">{{ node.osImage || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="内核">{{ node.kernelVersion || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="架构">{{ node.architecture || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="CPU">{{ node.cpuCapacity }} 核</n-descriptions-item>
+            <n-descriptions-item label="内存">{{ formatMem(node.memoryCapacity) }}</n-descriptions-item>
+            <n-descriptions-item label="Pod 数">{{ node.podCount }}</n-descriptions-item>
+            <n-descriptions-item label="Pod CIDR">{{ node.podCIDR || '-' }}</n-descriptions-item>
+            <n-descriptions-item label="Provider ID">{{ node.providerID || '-' }}</n-descriptions-item>
+          </n-descriptions>
+        </n-tab-pane>
         <n-tab-pane name="addresses" tab="地址">
           <n-data-table v-if="node.addresses?.length" :columns="addressColumns" :data="node.addresses" :bordered="false" />
           <n-empty v-else description="无地址信息" />
@@ -127,7 +127,7 @@ onMounted(load)
           <n-data-table v-if="node.images?.length" :columns="imageColumns" :data="node.images" :bordered="false" :max-height="400" />
           <n-empty v-else description="无镜像信息" />
         </n-tab-pane>
-        <n-tab-pane name="monitor" tab="监控">
+        <n-tab-pane name="monitor" tab="监控" display-directive="show:lazy">
           <NodeMonitorView :clusterId :name />
         </n-tab-pane>
         <n-tab-pane name="capacity" tab="资源容量">

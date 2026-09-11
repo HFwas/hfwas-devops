@@ -6,201 +6,152 @@ import com.hfwas.devops.container.error.ContainerErrorCode;
 import com.hfwas.devops.container.service.cluster.ClusterKubernetesClientFactory;
 import com.hfwas.devops.container.service.cluster.ClusterService;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.ExecWatch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
- * Service for uploading/downloading files to/from pod containers.
+ * Upload/download files to/from pod containers.
  * <p>
- * Upload: packs file into tar stream, pipes via exec "tar xf - -C {dir}".
- * Falls back to "cat > {path}" for containers without tar (e.g. alpine).
- * Download: uses Fabric8 file().copy() API to read tar stream, then untars.
- * Falls back to exec "cat {path}" for containers without tar.
- * <p>
- * Error scenarios (matching design doc):
- * - Container target dir not found  → 400 "目标路径不存在"
- * - File not found                 → 404 "文件不存在"
- * - Path is a directory            → 400 "路径为目录，请指定文件路径"
- * - Permission denied              → 403 "权限不足"
+ * Upload uses Fabric8 {@code file().upload()} (same protocol as {@code kubectl cp}).
+ * Manual {@code tar xf} + blocking stderr reads hang: the exec process never EOFs
+ * stderr until the watch is closed, so the request sits until Kong returns 504.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PodFileService {
 
-    private static final int BUFFER_SIZE = 8192;
+    private static final long EXEC_TIMEOUT_SECONDS = 50;
 
     private final ClusterService clusterService;
     private final ClusterKubernetesClientFactory clientFactory;
 
-    // ==================== Upload ====================
-
-    /**
-     * Upload a file to the pod container at the specified directory.
-     * <p>
-     * Primary: packs the file as a tar stream → exec "tar xf - -C {dir}"
-     * Fallback: exec "cat > {dir}/{filename}" (alpine compat, no auto mkdir)
-     */
     public void uploadFile(Long clusterId, String namespace, String podName,
                            String container, String destPath, MultipartFile file,
                            Long tenantId) {
         ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
-        String filename = file.getOriginalFilename();
-        if (filename == null || filename.isBlank()) {
-            filename = "uploaded";
-        }
+        String filename = sanitizeFileName(file.getOriginalFilename());
+        String dir = destPath == null || destPath.isBlank() ? "/tmp/" : destPath;
+        dir = dir.endsWith("/") ? dir : dir + "/";
+        String remotePath = dir + filename;
 
-        String dir = destPath.endsWith("/") ? destPath : destPath + "/";
-        byte[] tarData = buildTar(filename, file);
-
-        // 1. Primary: tar-based upload (matches kubectl cp behavior)
-        String stderr = tryUploadWithTar(client, namespace, podName, container, dir, tarData);
-        if (stderr == null) {
-            log.info("File '{}' uploaded via tar to pod {}/{}/{}:{} ({} bytes)",
-                    filename, namespace, podName, container, dir, file.getSize());
-            return;
-        }
-
-        // If tar itself wasn't found, try cat fallback (alpine compat)
-        if (stderr.toLowerCase().contains("not found")) {
-            log.info("tar not found in container {}/{}, falling back to cat: {}",
-                    namespace, podName, stderr);
-            tryUploadWithCat(client, namespace, podName, container, dir, filename, file);
-            log.info("File '{}' uploaded via cat to pod {}/{}/{}:{} ({} bytes)",
-                    filename, namespace, podName, container, dir, file.getSize());
-            return;
-        }
-
-        // Other tar errors: directory not found, permission denied, etc.
-        throw buildUploadException(stderr);
-    }
-
-    /** Build a tar archive containing a single file. */
-    private byte[] buildTar(String filename, MultipartFile file) {
         try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            try (TarArchiveOutputStream tarOut = new TarArchiveOutputStream(baos)) {
-                tarOut.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
-                TarArchiveEntry entry = new TarArchiveEntry(filename);
-                entry.setSize(file.getSize());
-                tarOut.putArchiveEntry(entry);
-                try (InputStream in = file.getInputStream()) {
-                    in.transferTo(tarOut);
-                }
-                tarOut.closeArchiveEntry();
+            boolean uploaded = client.pods().inNamespace(namespace)
+                    .withName(podName)
+                    .inContainer(container)
+                    .file(remotePath)
+                    .upload(file.getInputStream());
+            if (uploaded) {
+                log.info("File '{}' uploaded to pod {}/{}/{}:{} ({} bytes)",
+                        filename, namespace, podName, container, remotePath, file.getSize());
+                return;
             }
-            return baos.toByteArray();
-        } catch (IOException e) {
-            throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED,
-                    "打包 tar 失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Try tar-based upload. Returns null on success, stderr string on failure.
-     * Never throws.
-     */
-    private String tryUploadWithTar(KubernetesClient client, String namespace,
-                                     String podName, String container,
-                                     String destDir, byte[] tarData) {
-        try (ExecWatch watch = client.pods().inNamespace(namespace)
-                .withName(podName)
-                .inContainer(container)
-                .redirectingInput()
-                .redirectingError()
-                .exec("tar", "xf", "-", "-C", destDir)) {
-
-            OutputStream stdin = watch.getInput();
-            stdin.write(tarData);
-            stdin.flush();
-            stdin.close();
-
-            return readAll(watch.getError(), 1024);
+            log.info("Fabric8 file upload returned false for {}/{}, falling back to cat", namespace, podName);
+        } catch (KubernetesClientException e) {
+            throw mapClientException(e, "上传");
         } catch (Exception e) {
-            return "exec error: " + e.getMessage();
+            log.info("Fabric8 file upload failed for {}/{}, falling back to cat: {}",
+                    namespace, podName, e.getMessage());
         }
+
+        tryUploadWithCat(client, namespace, podName, container, remotePath, file);
+        log.info("File '{}' uploaded via cat to pod {}/{}/{}:{} ({} bytes)",
+                filename, namespace, podName, container, remotePath, file.getSize());
     }
 
     /**
-     * Fallback upload via shell cat. No mkdir -p: if directory doesn't exist,
-     * the shell will report "No such file or directory", which is detected.
+     * Fallback for images where Fabric8's upload helper cannot complete.
+     * Closes stdin then waits on {@link ExecWatch#exitCode()} — never block on stderr EOF.
      */
     private void tryUploadWithCat(KubernetesClient client, String namespace,
-                                   String podName, String container,
-                                   String destDir, String filename, MultipartFile file) {
-        String fullPath = destDir + filename;
-        String escapedPath = fullPath.replace("'", "'\\''");
+                                  String podName, String container,
+                                  String remotePath, MultipartFile file) {
+        String escapedPath = remotePath.replace("'", "'\\''");
+        ByteArrayOutputStream err = new ByteArrayOutputStream();
 
         try (ExecWatch watch = client.pods().inNamespace(namespace)
                 .withName(podName)
                 .inContainer(container)
                 .redirectingInput()
-                .redirectingError()
+                .writingError(err)
                 .exec("sh", "-c", "cat > '" + escapedPath + "'")) {
 
-            try (InputStream fileIn = file.getInputStream()) {
-                fileIn.transferTo(watch.getInput());
-            }
-            watch.getInput().flush();
-            watch.getInput().close();
-
-            String stderr = readAll(watch.getError(), 4096);
-            if (!stderr.isEmpty()) {
-                throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED,
-                        "文件上传失败: " + stderr);
+            try (OutputStream stdin = watch.getInput(); InputStream in = file.getInputStream()) {
+                in.transferTo(stdin);
             }
 
-        } catch (IOException e) {
-            // The try-with-resources closes ExecWatch; this catches close errors too.
-            // Re-throw as runtime so the caller sees it.
+            Integer exit = watch.exitCode().get(EXEC_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            String stderr = err.toString().trim();
+            if (exit == null || exit != 0 || !stderr.isEmpty()) {
+                throw buildUploadException(stderr.isEmpty() ? "exit code " + exit : stderr);
+            }
+        } catch (TimeoutException e) {
             throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED,
-                    "cat exec error: " + e.getMessage());
+                    "上传超时：容器未在限定时间内完成写入");
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED,
+                    "文件上传失败: " + e.getMessage());
         }
     }
 
-    /** Map stderr to the correct BizException per the design doc. */
+    private static String sanitizeFileName(String original) {
+        if (original == null || original.isBlank()) {
+            return "uploaded";
+        }
+        int slash = Math.max(original.lastIndexOf('/'), original.lastIndexOf('\\'));
+        String name = slash >= 0 ? original.substring(slash + 1) : original;
+        return name.isBlank() ? "uploaded" : name;
+    }
+
+    private static BizException mapClientException(KubernetesClientException e, String action) {
+        int code = e.getCode();
+        if (code == 404) {
+            return new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND, "Pod 或容器不存在");
+        }
+        if (code == 403) {
+            return new BizException(403, "权限不足");
+        }
+        return new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED,
+                action + "失败: " + e.getMessage());
+    }
+
     private BizException buildUploadException(String stderr) {
         String lower = stderr.toLowerCase();
         if (lower.contains("no such file") || lower.contains("cannot change")
-                || lower.contains("cannot access") || lower.contains("not a directory")) {
+                || lower.contains("cannot access") || lower.contains("not a directory")
+                || lower.contains("is a directory")) {
             return new BizException(400, "目标路径不存在");
         }
-        if (lower.contains("permission denied") || lower.contains("not permitted")) {
+        if (lower.contains("permission denied") || lower.contains("not permitted")
+                || lower.contains("read-only")) {
             return new BizException(403, "权限不足");
         }
         return new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED,
                 "上传失败: " + stderr);
     }
 
-    // ==================== Download ====================
-
-    /**
-     * Download a file from the pod container.
-     * <p>
-     * Primary: Fabric8 file().copy() API → untar tar stream
-     * Fallback: exec "cat {path}" via shell (alpine compat)
-     * <p>
-     * Reads the entire file synchronously to catch errors before the HTTP response
-     * headers are sent. Returns a ByteArrayInputStream for memory safety
-     * (the configured upload limit of 100 MB applies here too).
-     */
     public InputStream downloadFile(Long clusterId, String namespace, String podName,
-                                     String container, String filePath,
-                                     Long tenantId) {
+                                    String container, String filePath,
+                                    Long tenantId) {
         ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
-        // 1. Primary: Fabric8 file copy API
         try {
             return tryDownloadWithFabric8Api(client, namespace, podName, container, filePath);
         } catch (BizException e) {
@@ -210,17 +161,12 @@ public class PodFileService {
                     namespace, podName, e.getMessage());
         }
 
-        // 2. Fallback: exec cat — read synchronously to detect errors
         return tryDownloadWithCat(client, namespace, podName, container, filePath);
     }
 
-    /**
-     * Download via Fabric8's file read API.
-     * file(path).read() returns an InputStream of raw file content.
-     */
     private InputStream tryDownloadWithFabric8Api(KubernetesClient client,
-                                                   String namespace, String podName,
-                                                   String container, String filePath) {
+                                                  String namespace, String podName,
+                                                  String container, String filePath) {
         try {
             InputStream input = client.pods().inNamespace(namespace)
                     .withName(podName)
@@ -238,83 +184,58 @@ public class PodFileService {
         }
     }
 
-    /**
-     * Fallback: download via exec "cat" via shell.
-     * Reads stdout + stderr synchronously to detect errors.
-     */
     private InputStream tryDownloadWithCat(KubernetesClient client,
-                                            String namespace, String podName,
-                                            String container, String filePath) {
+                                           String namespace, String podName,
+                                           String container, String filePath) {
         String escapedPath = filePath.replace("'", "'\\''");
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        String stderr;
+        ByteArrayOutputStream errBaos = new ByteArrayOutputStream();
 
         try (ExecWatch watch = client.pods().inNamespace(namespace)
                 .withName(podName)
                 .inContainer(container)
                 .redirectingOutput()
-                .redirectingError()
+                .writingError(errBaos)
                 .exec("sh", "-c", "cat '" + escapedPath + "'")) {
 
-            // Read stdout and stderr concurrently to avoid deadlock
-            // (stderr may have content while stdout is still being read)
-            ByteArrayOutputStream errBaos = new ByteArrayOutputStream();
-            Thread errThread = new Thread(() -> {
-                try { watch.getError().transferTo(errBaos); } catch (IOException ignored) {}
-            });
-            errThread.setDaemon(true);
-            errThread.start();
-
             watch.getOutput().transferTo(baos);
-
-            try { errThread.join(5000); } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
+            Integer exit = watch.exitCode().get(EXEC_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            String stderr = errBaos.toString().trim();
+            if (exit == null) {
+                throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "下载超时");
             }
-
-            stderr = errBaos.toString().trim();
-
+            if (!stderr.isEmpty() || exit != 0) {
+                throw mapDownloadError(namespace, podName, stderr.isEmpty() ? "exit code " + exit : stderr);
+            }
+        } catch (TimeoutException e) {
+            throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "下载超时");
+        } catch (BizException e) {
+            throw e;
         } catch (IOException e) {
             throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED,
                     "下载文件失败: " + e.getMessage());
-        }
-
-        // Map stderr to appropriate error
-        if (!stderr.isEmpty()) {
-            String lower = stderr.toLowerCase();
-            log.warn("Download stderr for {}/{}: {}", namespace, podName, stderr);
-            if (lower.contains("no such file") || lower.contains("cannot access")) {
-                throw new BizException(404, "文件不存在");
-            }
-            if (lower.contains("is a directory")) {
-                throw new BizException(400, "路径为目录，请指定文件路径");
-            }
-            if (lower.contains("permission denied")) {
-                throw new BizException(403, "权限不足");
-            }
+        } catch (Exception e) {
             throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED,
-                    "下载失败: " + stderr);
+                    "下载文件失败: " + e.getMessage());
         }
 
         return new ByteArrayInputStream(baos.toByteArray());
     }
 
-    // ==================== Utilities ====================
-
-    /** Read stderr up to maxBytes. Returns empty string if nothing read. */
-    private static String readAll(InputStream stream, int maxBytes) {
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            byte[] buf = new byte[Math.min(maxBytes, BUFFER_SIZE)];
-            int total = 0;
-            int n;
-            while (total < maxBytes && (n = stream.read(buf, 0, Math.min(buf.length, maxBytes - total))) != -1) {
-                baos.write(buf, 0, n);
-                total += n;
-            }
-            return baos.toString().trim();
-        } catch (IOException e) {
-            return "";
+    private BizException mapDownloadError(String namespace, String podName, String stderr) {
+        String lower = stderr.toLowerCase();
+        log.warn("Download stderr for {}/{}: {}", namespace, podName, stderr);
+        if (lower.contains("no such file") || lower.contains("cannot access")) {
+            return new BizException(404, "文件不存在");
         }
+        if (lower.contains("is a directory")) {
+            return new BizException(400, "路径为目录，请指定文件路径");
+        }
+        if (lower.contains("permission denied")) {
+            return new BizException(403, "权限不足");
+        }
+        return new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED,
+                "下载失败: " + stderr);
     }
 }

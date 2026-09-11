@@ -1,0 +1,16 @@
+# kube-prometheus-stack (Prometheus 监控栈) 离线镜像清单
+# 版本: kube-prometheus-stack 90.0.0 (Prometheus v2.55.x)
+# 集群: k3s v1.31.4
+# 架构: arm64 / amd64
+
+# 核心镜像（7 个）
+quay.io/prometheus/prometheus:v2.55.1
+quay.io/prometheus/node-exporter:v1.8.2
+quay.io/prometheus-operator/prometheus-operator:v0.77.2
+quay.io/prometheus-operator/prometheus-config-reloader:v0.77.2
+registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.15.0
+quay.io/kiwigrid/k8s-sidecar:1.28.0
+quay.io/prometheus/alertmanager:v0.28.1
+
+# Helm chart 依赖工具镜像（仅在 values 中启用 Grafana/Alertmanager 时需要）
+# docker.io/grafana/grafana:11.4.0

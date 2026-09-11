@@ -68,6 +68,9 @@ public class ClusterKubernetesClientFactory {
     private KubernetesClient buildClient(ClusterEntity cluster) {
         String plainKubeconfig = kubeconfigCipher.decrypt(cluster.getKubeconfig());
         Config config = Config.fromKubeconfig(plainKubeconfig);
+        // Fabric8 file().upload() waits on this; keep it under typical gateway timeouts
+        // for hung execs, but long enough for the 100 MB upload limit.
+        config.setUploadRequestTimeout(120_000);
         KubernetesClient client = new KubernetesClientBuilder().withConfig(config).build();
         log.info("KubernetesClient created for cluster id={} name={}", cluster.getId(), cluster.getName());
         return client;

@@ -194,4 +194,37 @@ public class MonitorController {
         Long tenantId = SecurityHelper.currentTenantId();
         return BaseResult.ok(monitorService.queryJvmMemoryPools(clusterId, namespace, name, tenantId, range, step));
     }
+
+    @GetMapping("/namespaces/{namespace}/pods/{name}/jvm/class")
+    public BaseResult<List<MonitorSeriesVO>> jvmClass(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        return BaseResult.ok(monitorService.queryJvmClass(clusterId, namespace, name, tenantId, range, step));
+    }
+
+    @GetMapping("/namespaces/{namespace}/pods/{name}/jvm/cpu")
+    public BaseResult<List<MonitorSeriesVO>> jvmCpu(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        return BaseResult.ok(monitorService.queryJvmCpu(clusterId, namespace, name, tenantId, range, step));
+    }
+
+    @GetMapping("/namespaces/{namespace}/pods/{name}/jvm/after-gc")
+    public BaseResult<List<MonitorSeriesVO>> jvmAfterGc(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name,
+            @RequestParam(required = false, defaultValue = "1h") String range,
+            @RequestParam(required = false, defaultValue = "15s") String step) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        return BaseResult.ok(monitorService.queryJvmAfterGc(clusterId, namespace, name, tenantId, range, step));
+    }
 }

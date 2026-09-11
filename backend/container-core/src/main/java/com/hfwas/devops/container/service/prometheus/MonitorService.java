@@ -237,7 +237,51 @@ public class MonitorService {
 
     public List<MonitorSeriesVO> queryJvmThread(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        return queryRangeSeries(url, PrometheusQueryBuilder.jvmThreadCount(namespace, podName), range, step);
+        List<MonitorSeriesVO> total = queryRangeSeries(url, PrometheusQueryBuilder.jvmThreadCount(namespace, podName), range, step);
+        List<MonitorSeriesVO> byState = queryRangeSeries(url, PrometheusQueryBuilder.jvmThreadByState(namespace, podName), range, step);
+        total.forEach(s -> s.getLabels().put("metric", "total"));
+        byState.forEach(s -> s.getLabels().put("metric", "by_state"));
+        List<MonitorSeriesVO> result = new ArrayList<>();
+        result.addAll(total);
+        result.addAll(byState);
+        return result;
+    }
+
+    public List<MonitorSeriesVO> queryJvmClass(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
+        String url = getPrometheusUrl(clusterId, tenantId);
+        List<MonitorSeriesVO> current = queryRangeSeries(url, PrometheusQueryBuilder.jvmClassCount(namespace, podName), range, step);
+        List<MonitorSeriesVO> loaded = queryRangeSeries(url, PrometheusQueryBuilder.jvmClassLoaded(namespace, podName), range, step);
+        List<MonitorSeriesVO> unloaded = queryRangeSeries(url, PrometheusQueryBuilder.jvmClassUnloaded(namespace, podName), range, step);
+        current.forEach(s -> s.getLabels().put("metric", "current"));
+        loaded.forEach(s -> s.getLabels().put("metric", "loaded"));
+        unloaded.forEach(s -> s.getLabels().put("metric", "unloaded"));
+        List<MonitorSeriesVO> result = new ArrayList<>();
+        result.addAll(current);
+        result.addAll(loaded);
+        result.addAll(unloaded);
+        return result;
+    }
+
+    public List<MonitorSeriesVO> queryJvmCpu(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
+        String url = getPrometheusUrl(clusterId, tenantId);
+        List<MonitorSeriesVO> utilization = queryRangeSeries(url, PrometheusQueryBuilder.jvmCpuUtilization(namespace, podName), range, step);
+        List<MonitorSeriesVO> time = queryRangeSeries(url, PrometheusQueryBuilder.jvmCpuTime(namespace, podName), range, step);
+        List<MonitorSeriesVO> count = queryRangeSeries(url, PrometheusQueryBuilder.jvmCpuCount(namespace, podName), range, step);
+        utilization.forEach(s -> s.getLabels().put("metric", "utilization"));
+        time.forEach(s -> s.getLabels().put("metric", "cpu_time"));
+        count.forEach(s -> s.getLabels().put("metric", "cores"));
+        List<MonitorSeriesVO> result = new ArrayList<>();
+        result.addAll(utilization);
+        result.addAll(time);
+        result.addAll(count);
+        return result;
+    }
+
+    public List<MonitorSeriesVO> queryJvmAfterGc(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
+        String url = getPrometheusUrl(clusterId, tenantId);
+        List<MonitorSeriesVO> series = queryRangeSeries(url, PrometheusQueryBuilder.jvmMemoryAfterGc(namespace, podName), range, step);
+        series.forEach(MonitorService::copyPoolLabel);
+        return series;
     }
 
     public List<MonitorSeriesVO> queryJvmMemoryPools(Long clusterId, String namespace, String podName, Long tenantId) {
@@ -246,7 +290,9 @@ public class MonitorService {
 
     public List<MonitorSeriesVO> queryJvmMemoryPools(Long clusterId, String namespace, String podName, Long tenantId, String range, String step) {
         String url = getPrometheusUrl(clusterId, tenantId);
-        return queryRangeSeries(url, PrometheusQueryBuilder.jvmMemoryPools(namespace, podName), range, step);
+        List<MonitorSeriesVO> series = queryRangeSeries(url, PrometheusQueryBuilder.jvmMemoryPools(namespace, podName), range, step);
+        series.forEach(MonitorService::copyPoolLabel);
+        return series;
     }
 
     // ── Cluster overview ──
@@ -268,6 +314,19 @@ public class MonitorService {
     }
 
     // ── Internal helpers ──
+
+    /** OTel uses jvm_memory_pool_name; expose a stable `pool` label for the UI. */
+    private static void copyPoolLabel(MonitorSeriesVO series) {
+        Map<String, String> labels = series.getLabels();
+        if (labels == null) return;
+        String pool = labels.get("pool");
+        if (pool == null || pool.isBlank()) {
+            String fromOtel = labels.get("jvm_memory_pool_name");
+            if (fromOtel != null && !fromOtel.isBlank()) {
+                labels.put("pool", fromOtel);
+            }
+        }
+    }
 
     /** Parse a range string like "1h", "6h", "24h", "7d" into seconds. */
     private static long rangeToSeconds(String range) {

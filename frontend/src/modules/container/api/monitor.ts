@@ -58,4 +58,13 @@ export const monitorApi = {
 
   jvmMemoryPools: (clusterId: string, namespace: string, name: string, range: MonitorRange) =>
     get<MonitorSeries[]>(`/container/clusters/${clusterId}/monitor/namespaces/${namespace}/pods/${name}/jvm/memory-pools`, rangeParams(range)),
+
+  jvmClass: (clusterId: string, namespace: string, name: string, range: MonitorRange) =>
+    get<MonitorSeries[]>(`/container/clusters/${clusterId}/monitor/namespaces/${namespace}/pods/${name}/jvm/class`, rangeParams(range)),
+
+  jvmCpu: (clusterId: string, namespace: string, name: string, range: MonitorRange) =>
+    get<MonitorSeries[]>(`/container/clusters/${clusterId}/monitor/namespaces/${namespace}/pods/${name}/jvm/cpu`, rangeParams(range)),
+
+  jvmAfterGc: (clusterId: string, namespace: string, name: string, range: MonitorRange) =>
+    get<MonitorSeries[]>(`/container/clusters/${clusterId}/monitor/namespaces/${namespace}/pods/${name}/jvm/after-gc`, rangeParams(range)),
 }

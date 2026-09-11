@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import * as echarts from 'echarts'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
+import { useMonitorChart } from '@/modules/container/composables/useMonitorChart'
+import { chartGrid, formatMetricValue, valueAxis } from '@/modules/container/utils/chartAxis'
 
 const props = defineProps<{
   title?: string
@@ -16,80 +17,50 @@ const props = defineProps<{
 }>()
 
 const chartRef = ref<HTMLElement | null>(null)
-let chartInstance: echarts.ECharts | null = null
 
-function initChart() {
-  if (!chartRef.value) return
-  if (chartInstance) chartInstance.dispose()
-  chartInstance = echarts.init(chartRef.value)
-  updateChart()
-}
+const plotSeries = computed(() =>
+  (props.series ?? []).filter(s => (s.data?.length ?? 0) > 0),
+)
 
-function updateChart() {
-  if (!chartInstance) return
-  chartInstance.setOption(buildOption(), true)
-}
+const showEmpty = computed(() =>
+  !!props.empty || !!props.error || (!props.loading && plotSeries.value.length === 0),
+)
 
-function buildOption(): echarts.EChartsOption {
-  // Group data by time for bar chart with multiple series side-by-side
-  const timeMap = new Map<number, Record<string, number>>()
-  for (const s of props.series) {
-    for (const [ts, val] of s.data) {
-      if (!timeMap.has(ts)) timeMap.set(ts, {})
-      timeMap.get(ts)![s.name] = val
-    }
-  }
-  const sortedTimes = [...timeMap.keys()].sort()
-
+function buildOption() {
   return {
+    animation: false,
     tooltip: {
-      trigger: 'axis',
-      valueFormatter: (v: unknown) => typeof v === 'number' ? v.toFixed(1) : String(v),
+      trigger: 'axis' as const,
+      valueFormatter: (v: unknown) => formatMetricValue(v, props.yAxisLabel),
     },
     legend: {
-      type: 'scroll',
+      type: 'scroll' as const,
       bottom: 0,
       textStyle: { fontSize: 12 },
     },
-    grid: {
-      left: 50,
-      right: 16,
-      top: props.title ? 36 : 16,
-      bottom: props.series.length > 1 ? 40 : 24,
-    },
+    grid: chartGrid(!!props.title, plotSeries.value.length),
     xAxis: {
-      type: 'time',
+      type: 'time' as const,
       axisLabel: { fontSize: 11, hideOverlap: true },
     },
-    yAxis: {
-      type: 'value',
-      name: props.yAxisLabel || '',
-      nameTextStyle: { fontSize: 11 },
-      axisLabel: { fontSize: 11 },
-      splitLine: { lineStyle: { type: 'dashed', opacity: 0.3 } },
-    },
-    series: props.series.map(s => ({
-      type: 'bar',
+    yAxis: valueAxis(props.yAxisLabel, plotSeries.value),
+    series: plotSeries.value.map(s => ({
+      type: 'bar' as const,
       name: s.name,
       data: s.data,
+      animation: false,
       itemStyle: { color: s.color },
       barMaxWidth: 20,
-    })) as echarts.SeriesOption[],
+    })),
   }
 }
 
-onMounted(() => {
-  initChart()
-  window.addEventListener('resize', () => chartInstance?.resize())
-})
-
-onUnmounted(() => {
-  chartInstance?.dispose()
-})
-
-watch(() => [props.series, props.yAxisLabel], () => {
-  updateChart()
-}, { deep: true })
+useMonitorChart(
+  chartRef,
+  buildOption,
+  () => [plotSeries.value, props.yAxisLabel],
+  () => !showEmpty.value,
+)
 </script>
 
 <template>
@@ -98,11 +69,43 @@ watch(() => [props.series, props.yAxisLabel], () => {
       <span style="font-size: 14px; font-weight: 500">{{ title }}</span>
     </template>
     <n-spin :show="loading" size="small">
-      <div v-if="error" style="padding: 24px; text-align: center">
-        <n-alert type="error" :title="error" closable />
+      <div class="chart-wrap">
+        <div v-if="error" class="chart-overlay">
+          <n-alert type="error" :title="error" closable />
+        </div>
+        <div v-else-if="showEmpty" class="chart-overlay">
+          <n-empty description="暂无数据" />
+        </div>
+        <div
+          ref="chartRef"
+          class="chart-canvas"
+          :class="{ 'chart-hidden': !!error || showEmpty }"
+        />
       </div>
-      <n-empty v-else-if="empty || (!loading && series.every(s => s.data.length === 0))" description="暂无数据" style="padding: 24px" />
-      <div v-else ref="chartRef" style="width: 100%; height: 280px" />
     </n-spin>
   </n-card>
 </template>
+
+<style scoped>
+.chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 280px;
+}
+.chart-canvas {
+  width: 100%;
+  height: 280px;
+}
+.chart-hidden {
+  visibility: hidden;
+}
+.chart-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+</style>

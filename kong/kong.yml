@@ -15,9 +15,9 @@ services:
   - name: backend-service
     url: http://backend:8089
     connect_timeout: 30000
-    write_timeout: 30000
-    read_timeout: 60000
-    retries: 3
+    write_timeout: 180000
+    read_timeout: 180000
+    retries: 0
     routes:
       - name: backend-api
         paths:

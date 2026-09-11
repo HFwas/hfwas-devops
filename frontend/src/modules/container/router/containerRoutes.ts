@@ -127,9 +127,10 @@ export const containerRoutes: RouteRecordRaw[] = [
       },
       // ─── StorageClass ───
       {
-        path: 'storageclasses',
+        path: 'clusters/:clusterId/storageclasses',
         name: 'container-storageclasses',
         component: () => import('@/modules/container/views/StorageClassListView.vue'),
+        props: true,
       },
     ],
   },
