@@ -184,6 +184,58 @@ class TektonCompilerTest {
         assertNotNull(imageOf(PipelineJobKind.PUBLISH, "mvn -B deploy"));
     }
 
+    @Test
+    void formatIncludesCommitPushAndSkipCi() {
+        PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
+                stage("fmt", 0, List.of(job("fmt", PipelineJobKind.FORMAT,
+                        "npx prettier --write .", 0)))
+        ));
+        CompiledStep step = TektonCompiler.compile(request(10L, graph, false))
+                .tasks().getFirst().steps().getFirst();
+        assertTrue(step.script().contains("git add ."));
+        assertTrue(step.script().contains("commit -m"), "should contain commit command");
+        assertTrue(step.script().contains("git push"));
+        assertTrue(step.script().contains("[skip ci]"));
+        assertTrue(step.script().contains("npx prettier --write ."));
+        assertTrue(step.script().contains("git status --porcelain"));
+    }
+
+    @Test
+    void formatUsesGitSecret() {
+        PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
+                stage("fmt", 0, List.of(job("fmt", PipelineJobKind.FORMAT,
+                        "npx prettier --write .", 0)))
+        ));
+        CompiledStep step = TektonCompiler.compile(request(11L, graph, true))
+                .tasks().getFirst().steps().getFirst();
+        assertTrue(step.usesGitSecret());
+    }
+
+    @Test
+    void formatUsesToolchainImage() {
+        PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
+                stage("fmt", 0, List.of(toolchainJob("fmt", PipelineJobKind.FORMAT,
+                        "npx prettier --write .", "NODE", "22", "NPM", 0)))
+        ));
+        CompiledStep step = TektonCompiler.compile(new CompileRequest(
+                12L, 8L, "https://github.com/acme/demo.git", "main", false, graph, "", Map.of()))
+                .tasks().getFirst().steps().getFirst();
+        assertTrue(step.image().contains("node"), "FORMAT with NODE/NPM should use a node image, got: " + step.image());
+    }
+
+    @Test
+    void formatSkipsCommitWhenNoChanges() {
+        PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
+                stage("fmt", 0, List.of(job("fmt", PipelineJobKind.FORMAT,
+                        "black .", 0)))
+        ));
+        CompiledStep step = TektonCompiler.compile(request(13L, graph, false))
+                .tasks().getFirst().steps().getFirst();
+        assertTrue(step.script().contains("no changes after formatter"));
+        assertTrue(step.script().contains("black ."));
+        assertTrue(step.script().contains("git pull --rebase"));
+    }
+
     private static String imageOf(PipelineJobKind kind, String command) {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
                 stage("s", 0, List.of(job("j", kind, command, 0)))

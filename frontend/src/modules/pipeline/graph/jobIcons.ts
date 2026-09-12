@@ -6,6 +6,7 @@ import {
   GitBranch,
   Hammer,
   Package,
+  Paintbrush,
   Rocket,
   Search,
   Shield,
@@ -30,6 +31,7 @@ export const JOB_KIND_ICONS: Record<JobKind, Component> = {
   DEPLOY: Rocket,
   APPROVAL: UserRound,
   NOTIFY: Bell,
+  FORMAT: Paintbrush,
 }
 
 export function jobKindIcon(kind?: string | null): Component {

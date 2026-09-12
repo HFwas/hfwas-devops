@@ -160,6 +160,10 @@ public final class TektonCompiler {
                     new CompiledStep(base + "-cosign", resolveImage("IMAGE", request.taskImages(), COSIGN_IMAGE), imageCosignScript(command), env, false, false)
             );
         }
+        if (job.kind() == PipelineJobKind.FORMAT) {
+            String formatScript = formatCommandScript(command);
+            return List.of(new CompiledStep(base, toolchainImageForJob(job), formatScript, env, true, false));
+        }
         if (job.kind() == PipelineJobKind.LINT_SONAR) {
             return List.of(new CompiledStep(base, resolveImage("LINT_SONAR", request.taskImages(), SONAR_IMAGE), lintSonarScript(command), env, false, false));
         }
@@ -209,6 +213,27 @@ public final class TektonCompiler {
                 mkdir -p "$(workspaces.source.path)/src"
                 cd "$(workspaces.source.path)/src"
                 %s
+                """.formatted(command).stripIndent();
+    }
+
+    private static String formatCommandScript(String command) {
+        return """
+                set -eu
+                cd "$(workspaces.source.path)/src"
+                eval "$(cat <<'HFWAS_USER'
+                %s
+                HFWAS_USER
+                )"
+                if [ -z "$(git status --porcelain)" ]; then
+                  echo "no changes after formatter, skip commit"
+                  exit 0
+                fi
+                git add .
+                git config user.name "HFwas Pipeline"
+                git config user.email "pipeline@hfwas.com"
+                git commit -m "style: auto format code [skip ci]"
+                git pull --rebase
+                git push
                 """.formatted(command).stripIndent();
     }
 

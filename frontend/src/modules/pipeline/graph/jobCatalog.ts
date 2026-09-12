@@ -62,6 +62,15 @@ export SONAR_TOKEN=
 export SONAR_PROJECT_KEY=app`,
   },
   {
+    value: 'FORMAT',
+    label: '代码格式化',
+    group: '质量控制',
+    description: '自动格式化代码并提交回仓库',
+    hint: '选择技术栈并填写格式化命令。JS/TS → npx prettier --write .，Java → mvn spotless:apply，Go → gofmt -w .，Python → black .',
+    requiresCommand: true,
+    defaultCommand: 'npx prettier --write .',
+  },
+  {
     value: 'SCAN',
     label: '安全扫描',
     group: '质量控制',

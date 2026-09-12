@@ -136,6 +136,10 @@ INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, descrip
 ('LINT_SEMGREP', 'Semgrep 检查', '质量控制', 'Semgrep 静态检查', '填写 Semgrep CLI。', 'semgrep scan --error --config=auto .', 1, 1, 30, 'semgrep/semgrep:1.97.0', 'semgrep/semgrep:1.97.0');
 
 INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
+('FORMAT', '代码格式化', '质量控制', '自动格式化代码并提交回仓库', '选择技术栈（Node/Java/Go/Python）并填写格式化命令。会自动 add、commit（[skip ci]）、push。推荐：JS/TS → npx prettier --write .，Java → mvn spotless:apply，Go → gofmt -w .，Python → black .',
+ 'npx prettier --write .', 1, 1, 35, '', '');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
 ('LINT_SONAR', 'Sonar 检查', '质量控制', 'SonarScanner 静态检查', '填写 SONAR_HOST_URL / SONAR_TOKEN / SONAR_PROJECT_KEY。',
  'export SONAR_HOST_URL=https://sonar.example.com' || CHAR(10) ||
  'export SONAR_TOKEN=' || CHAR(10) ||
