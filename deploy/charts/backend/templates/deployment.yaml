@@ -21,6 +21,9 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- if .Values.schema.init.enabled }}
+        checksum/schema: {{ include (print $.Template.BasePath "/configmap-schema.yaml") . | sha256sum }}
+        {{- end }}
         {{- if .Values.otel.enabled }}
         prometheus.io/scrape: "true"
         prometheus.io/port: {{ .Values.otel.metricsPort | quote }}
@@ -39,8 +42,35 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{- if .Values.otel.enabled }}
+      {{- if or .Values.schema.init.enabled .Values.otel.enabled }}
       initContainers:
+        {{- if .Values.schema.init.enabled }}
+        - name: schema-migrate
+          image: {{ .Values.schema.init.image | quote }}
+          imagePullPolicy: {{ .Values.schema.init.imagePullPolicy }}
+          command: ["python3", "/sql/migrate.py"]
+          env:
+            - name: SQL_DIR
+              value: /sql
+            - name: DB_PATH
+              value: {{ printf "%s/%s" .Values.persistence.mountPath .Values.schema.init.dbFile | quote }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          volumeMounts:
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            - name: schema
+              mountPath: /sql
+              readOnly: true
+        {{- end }}
+        {{- if .Values.otel.enabled }}
         - name: otel-agent-copy
           image: {{ .Values.otel.image | quote }}
           imagePullPolicy: {{ .Values.otel.imagePullPolicy }}
@@ -54,6 +84,7 @@ spec:
           volumeMounts:
             - name: otel-agent
               mountPath: /otel-agent
+        {{- end }}
       {{- end }}
       containers:
         - name: backend
@@ -180,6 +211,12 @@ spec:
         - name: config
           configMap:
             name: {{ include "backend.fullname" . }}-logback
+        {{- if .Values.schema.init.enabled }}
+        - name: schema
+          configMap:
+            name: {{ include "backend.fullname" . }}-schema
+            defaultMode: 0444
+        {{- end }}
       {{- /* 合并自定义亲和性和 Pod 反亲和 */}}
       {{- $affinity := .Values.affinity | default dict }}
       {{- if and (gt (.Values.replicaCount | int) 1) .Values.podAntiAffinity }}

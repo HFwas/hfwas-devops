@@ -1,0 +1,17 @@
+{{- if .Values.theme.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "keycloak.fullname" . }}-theme
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+data:
+  theme.properties: |
+{{ .Files.Get "files/theme/login/theme.properties" | indent 4 }}
+  messages_zh_CN.properties: |
+{{ .Files.Get "files/theme/login/messages/messages_zh_CN.properties" | indent 4 }}
+  messages_en.properties: |
+{{ .Files.Get "files/theme/login/messages/messages_en.properties" | indent 4 }}
+  hfwas.css: |
+{{ .Files.Get "files/theme/login/resources/css/hfwas.css" | indent 4 }}
+{{- end }}

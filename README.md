@@ -60,7 +60,7 @@
 | 后端 | Java 21、Spring Boot 3.4、Spring Security、MyBatis-Plus |
 | 前端 | Vue 3、TypeScript、Vite 6、Naive UI、Pinia、Vue Flow |
 | 脚本 | Python 3（python-docx、openpyxl、python-pptx、matplotlib、fpdf） |
-| 数据库 | SQLite（`./data/hfwas-devops.db`，启动时自动迁移） |
+| 数据库 | SQLite（Compose / Helm 由 `schema-migrate` 容器执行 SQL；宿主机 `start-backend.sh` 仍进程内建表） |
 | 构建 | Maven 3.8+、npm |
 
 ---
@@ -379,23 +379,38 @@ tail -f logs/backend/devops.log logs/frontend/access.log logs/kong/error.log log
 
 ### Helm 部署（Kubernetes）
 
+Chart 在 `deploy/charts/`。Keycloak / Kong 镜像清单见 [`deploy/charts/images.txt`](deploy/charts/images.txt)。
+
 ```bash
+# SPI 镜像（Keycloak 事件回写后端）
+docker build -t hfwas/keycloak-http-listener:latest keycloak/http-event-listener
+
+# Keycloak（默认带 Postgres；k3s 用 values-k3s.yaml，Service 名为 keycloak）
+helm install keycloak ./deploy/charts/keycloak -f ./deploy/charts/keycloak/values-k3s.yaml
+
+# Kong DB-less（上游默认 devops-backend / devops-frontend / keycloak）
+helm install kong ./deploy/charts/kong -f ./deploy/charts/kong/values-k3s.yaml
+
 # 安装后端
-helm install devops-backend ./charts/backend \
+helm install devops-backend ./deploy/charts/backend \
   --set config.jwtSecret="your-secret-here" \
   --set replicaCount=2
 
 # 安装前端（需先部署后端）
-helm install devops-frontend ./charts/frontend \
+helm install devops-frontend ./deploy/charts/frontend \
   --set config.backendUrl="http://devops-backend:8089" \
   --set ingress.hosts[0].host="devops.example.com" \
   --set replicaCount=2
 
 # 升级
-helm upgrade devops-backend ./charts/backend
-helm upgrade devops-frontend ./charts/frontend
+helm upgrade keycloak ./deploy/charts/keycloak
+helm upgrade kong ./deploy/charts/kong
+helm upgrade devops-backend ./deploy/charts/backend
+helm upgrade devops-frontend ./deploy/charts/frontend
 
 # 卸载
+helm uninstall kong
+helm uninstall keycloak
 helm uninstall devops-backend
 helm uninstall devops-frontend
 ```

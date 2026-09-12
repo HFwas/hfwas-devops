@@ -39,6 +39,14 @@ config:
 # JVM 参数（OTel 启用时会自动前置 -javaagent）
 javaToolOptions: "-Xms512m -Xmx1g -XX:MaxDirectMemorySize=512m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/dumps"
 
+# SQL 变更：initContainer 专职执行 files/db/*.sql，应用不再建表
+schema:
+  init:
+    enabled: true
+    image: python:3.12-alpine
+    imagePullPolicy: IfNotPresent
+    dbFile: hfwas-devops.db
+
 # OpenTelemetry Java Agent（initContainer 拷 jar，Prometheus 拉 /metrics）
 otel:
   enabled: false

@@ -1,0 +1,20 @@
+apiVersion: v2
+name: hfwas-devops-kong
+description: HFWAS DevOps Platform — Kong Gateway (DB-less)
+type: application
+version: 0.1.0
+appVersion: "3.9"
+
+keywords:
+  - devops
+  - kong
+  - gateway
+
+home: https://github.com/HFwas/hfwas-devops
+sources:
+  - https://github.com/HFwas/hfwas-devops
+  - https://github.com/Kong/kong
+
+maintainers:
+  - name: HFwas
+    email: hfwas@example.com

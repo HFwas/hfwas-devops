@@ -112,6 +112,7 @@ reload_backend_if_running() {
   if docker ps --format '{{.Names}}' | grep -qx 'devops-backend'; then
     log "重启 backend 以加载 pipeline.kubeconfig ..."
     export_pipeline_git_http_proxy
+    compose up --no-deps --force-recreate schema-migrate
     compose up -d --no-deps --force-recreate backend
   else
     log "backend 未在运行。下次 start-dev / start-backend 会自动带上 kubeconfig。"

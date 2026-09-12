@@ -1,0 +1,4 @@
+# Kong Helm chart 运行时镜像
+# Chart: deploy/charts/kong  appVersion: 3.9
+
+kong:3.9

@@ -1,0 +1,134 @@
+# =============================================================================
+# Kong — 默认值（DB-less，对齐 docker-compose + kong/kong.yml）
+# =============================================================================
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+image:
+  repository: kong
+  tag: "3.9"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+service:
+  type: ClusterIP
+  annotations: {}
+  proxy:
+    port: 8000
+    nodePort: null
+  proxySsl:
+    enabled: true
+    port: 8443
+    nodePort: null
+  admin:
+    enabled: true
+    port: 8001
+    nodePort: null
+
+config:
+  database: "off"
+  declarativeConfig: /etc/kong/kong.yml
+  plugins: bundled,cors,key-auth,rate-limiting,ip-restriction
+  logLevel: info
+  adminListen: 0.0.0.0:8001
+
+# 上游服务（K8s Service DNS，对齐 backend/frontend/keycloak 的 k3s fullnameOverride）
+upstreams:
+  backend: http://devops-backend:8089
+  frontend: http://devops-frontend:80
+  keycloak: http://keycloak:8080
+
+# 经网关对外的 Host（Keycloak request-transformer / CORS）
+public:
+  proto: http
+  host: localhost:8000
+  port: "8000"
+
+plugins:
+  cors:
+    enabled: true
+  rateLimiting:
+    enabled: true
+    minute: 300
+    hour: 10000
+  requestSizeLimiting:
+    enabled: true
+    allowedPayloadSize: 200
+  fileLog:
+    enabled: false
+    path: /usr/local/kong/logs/request.log
+
+extraEnv: []
+
+hostAliases: []
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1
+    memory: 1Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 1000
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+  runAsNonRoot: true
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAntiAffinity:
+  preferredDuringScheduling: true
+  topologyKey: kubernetes.io/hostname
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: devops.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []

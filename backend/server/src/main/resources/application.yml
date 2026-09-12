@@ -27,6 +27,12 @@ mybatis-plus:
 keycloak:
   webhook-secret: ${KEYCLOAK_WEBHOOK_SECRET:dev-keycloak-webhook}
 
+# embedded: 进程内 SqliteSchemaInitializer / *Migration
+# external: Helm initContainer 专职跑 SQL，应用不再建表
+devops:
+  schema:
+    init: ${DEVOPS_SCHEMA_INIT:embedded}
+
 docgen:
   script-path: ../scripts/generate_doc.py
   python-path: ${DOCGEN_PYTHON_PATH:python3}

@@ -3,6 +3,7 @@ package com.hfwas.devops.config;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
@@ -15,6 +16,7 @@ import java.nio.file.Path;
 @Slf4j
 @Component
 @Order(1)
+@ConditionalOnProperty(name = "devops.schema.init", havingValue = "embedded", matchIfMissing = true)
 public class SqliteSchemaInitializer implements ApplicationRunner {
 
     private final DataSource dataSource;

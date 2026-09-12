@@ -340,11 +340,11 @@ stop_stack() {
   if [ ! -f "$COMPOSE_FILE" ]; then
     return 0
   fi
-  if docker ps -a --format "{{.Names}}" 2>/dev/null | grep -qE '^devops-(backend|frontend|kong|keycloak)'; then
+  if docker ps -a --format "{{.Names}}" 2>/dev/null | grep -qE '^devops-(backend|frontend|kong|keycloak|schema-migrate)'; then
     log "停止 Docker Compose 服务 ..."
     # 只停开发栈，不动 k3s，也不 compose down（会误伤同项目其它容器）。
     compose stop backend frontend kong keycloak 2>/dev/null || true
-    compose rm -f backend frontend kong keycloak 2>/dev/null || true
+    compose rm -f backend frontend kong keycloak schema-migrate 2>/dev/null || true
   fi
 }
 

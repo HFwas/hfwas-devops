@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kong.fullname" . }}
+  labels:
+    {{- include "kong.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.proxy.port }}
+      targetPort: proxy
+      protocol: TCP
+      name: proxy
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.proxy.nodePort }}
+      nodePort: {{ .Values.service.proxy.nodePort }}
+      {{- end }}
+    {{- if .Values.service.proxySsl.enabled }}
+    - port: {{ .Values.service.proxySsl.port }}
+      targetPort: proxy-ssl
+      protocol: TCP
+      name: proxy-ssl
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.proxySsl.nodePort }}
+      nodePort: {{ .Values.service.proxySsl.nodePort }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.service.admin.enabled }}
+    - port: {{ .Values.service.admin.port }}
+      targetPort: admin
+      protocol: TCP
+      name: admin
+      {{- if and (eq .Values.service.type "NodePort") .Values.service.admin.nodePort }}
+      nodePort: {{ .Values.service.admin.nodePort }}
+      {{- end }}
+    {{- end }}
+  selector:
+    {{- include "kong.selectorLabels" . | nindent 4 }}

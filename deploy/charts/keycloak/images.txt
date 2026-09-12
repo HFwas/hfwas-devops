@@ -1,0 +1,14 @@
+# Keycloak Helm chart 运行时镜像
+# Chart: deploy/charts/keycloak  appVersion: 26.7.3
+
+# Keycloak
+quay.io/keycloak/keycloak:26.7.3
+
+# 内置 Postgres（values.postgres.enabled=true，默认开启）
+postgres:16-alpine
+
+# 登录主题目录组装（initContainer）
+busybox:1.37
+
+# HTTP Event Listener SPI（项目自建，见 keycloak/http-event-listener）
+hfwas/keycloak-http-listener:latest

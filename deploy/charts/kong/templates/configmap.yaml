@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kong.fullname" . }}
+  labels:
+    {{- include "kong.labels" . | nindent 4 }}
+data:
+  kong.yml: |
+    _format_version: "3.0"
+    _transform: true
+    services:
+      - name: backend-service
+        url: {{ .Values.upstreams.backend | quote }}
+        connect_timeout: 30000
+        write_timeout: 180000
+        read_timeout: 180000
+        retries: 0
+        routes:
+          - name: backend-api
+            paths:
+              - /api
+            strip_path: true
+            methods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - HEAD
+              - OPTIONS
+            protocols:
+              - http
+              - https
+      - name: frontend-service
+        url: {{ .Values.upstreams.frontend | quote }}
+        connect_timeout: 10000
+        write_timeout: 30000
+        read_timeout: 30000
+        retries: 0
+        routes:
+          - name: frontend-spa
+            paths:
+              - /
+            strip_path: false
+            methods:
+              - GET
+              - POST
+              - HEAD
+              - OPTIONS
+            protocols:
+              - http
+              - https
+      - name: keycloak-service
+        url: {{ .Values.upstreams.keycloak | quote }}
+        connect_timeout: 15000
+        write_timeout: 30000
+        read_timeout: 30000
+        retries: 2
+        routes:
+          - name: keycloak-auth
+            paths:
+              - /auth
+            strip_path: false
+            methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - HEAD
+              - OPTIONS
+            protocols:
+              - http
+              - https
+    plugins:
+      {{- if .Values.plugins.cors.enabled }}
+      - name: cors
+        service: backend-service
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Content-Type
+            - Authorization
+            - X-Tenant-Id
+            - X-Requested-With
+          exposed_headers:
+            - Content-Disposition
+            - Content-Type
+            - X-Total-Count
+          credentials: true
+          max_age: 3600
+          preflight_continue: false
+      - name: cors
+        service: keycloak-service
+        config:
+          origins:
+            - "*"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Content-Type
+            - Authorization
+            - X-Requested-With
+          credentials: true
+          max_age: 3600
+          preflight_continue: false
+      {{- end }}
+      - name: request-transformer
+        service: keycloak-service
+        config:
+          add:
+            headers:
+              - "X-Forwarded-Proto:{{ .Values.public.proto }}"
+              - "X-Forwarded-Host:{{ .Values.public.host }}"
+              - "X-Forwarded-Port:{{ .Values.public.port }}"
+      {{- if .Values.plugins.fileLog.enabled }}
+      - name: file-log
+        service: backend-service
+        config:
+          path: {{ .Values.plugins.fileLog.path | quote }}
+          reopen: true
+      {{- end }}
+      {{- if .Values.plugins.rateLimiting.enabled }}
+      - name: rate-limiting
+        service: backend-service
+        config:
+          minute: {{ .Values.plugins.rateLimiting.minute }}
+          hour: {{ .Values.plugins.rateLimiting.hour }}
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+      {{- end }}
+      {{- if .Values.plugins.requestSizeLimiting.enabled }}
+      - name: request-size-limiting
+        service: backend-service
+        config:
+          allowed_payload_size: {{ .Values.plugins.requestSizeLimiting.allowedPayloadSize }}
+      {{- end }}

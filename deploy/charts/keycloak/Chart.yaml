@@ -1,0 +1,20 @@
+apiVersion: v2
+name: hfwas-devops-keycloak
+description: HFWAS DevOps Platform — Keycloak (OIDC, realm hfwas-devops)
+type: application
+version: 0.1.0
+appVersion: "26.7.3"
+
+keywords:
+  - devops
+  - keycloak
+  - oidc
+
+home: https://github.com/HFwas/hfwas-devops
+sources:
+  - https://github.com/HFwas/hfwas-devops
+  - https://github.com/keycloak/keycloak
+
+maintainers:
+  - name: HFwas
+    email: hfwas@example.com

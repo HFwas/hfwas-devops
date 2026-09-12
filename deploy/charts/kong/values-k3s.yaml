@@ -1,0 +1,40 @@
+# k3s（devops-k3s）本地部署覆盖值
+fullnameOverride: kong
+
+image:
+  repository: kong
+  tag: "3.9"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: NodePort
+  proxy:
+    port: 8000
+    nodePort: 30080
+  admin:
+    enabled: true
+    port: 8001
+    nodePort: 30081
+
+upstreams:
+  backend: http://devops-backend:8089
+  frontend: http://devops-frontend:80
+  keycloak: http://keycloak:8080
+
+public:
+  proto: http
+  host: localhost:30080
+  port: "30080"
+
+config:
+  logLevel: debug
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

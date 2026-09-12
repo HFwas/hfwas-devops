@@ -1,0 +1,164 @@
+# =============================================================================
+# Keycloak — 默认值（对齐 docker-compose：/auth、realm 导入、主题、HTTP SPI）
+# =============================================================================
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+image:
+  repository: quay.io/keycloak/keycloak
+  tag: "26.7.3"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+strategy:
+  type: Recreate
+
+service:
+  type: ClusterIP
+  port: 8080
+  nodePort: null
+  annotations: {}
+
+# 管理口（health / metrics），默认不对外
+management:
+  port: 9000
+
+config:
+  httpRelativePath: /auth
+  hostname: http://localhost:8000/auth
+  hostnameAdmin: http://localhost:8081/auth
+  hostnameStrict: "false"
+  proxyHeaders: xforwarded
+  healthEnabled: "true"
+  httpEnabled: "true"
+  log: console
+  logLevel: INFO
+  # start-dev 对齐 compose；开 postgres 后自动改为 start --import-realm
+  command: []
+  extraArgs:
+    - --import-realm
+  # 事件回写后端
+  listenerUrl: http://devops-backend:8089/internal/keycloak/events
+  listenerSecret: dev-keycloak-webhook
+
+admin:
+  username: admin
+  password: admin
+
+# HTTP Event Listener SPI（compose 中的 keycloak-spi 镜像）
+spi:
+  enabled: true
+  image:
+    repository: hfwas/keycloak-http-listener
+    tag: latest
+    pullPolicy: IfNotPresent
+
+# 登录主题 hfwas（chart files/theme，由 busybox init 落到 themes 目录）
+theme:
+  enabled: true
+  image:
+    repository: busybox
+    tag: "1.37"
+    pullPolicy: IfNotPresent
+
+# realm 导入（chart files/realm.json）
+realm:
+  import: true
+
+# 生产建议开 Postgres；关闭则走 start-dev + 内置 H2（仅开发）
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 16-alpine
+    pullPolicy: IfNotPresent
+  database: keycloak
+  username: keycloak
+  password: keycloak
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    existingClaim: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+extraEnv: []
+
+hostAliases: []
+
+livenessProbe:
+  enabled: true
+  path: /auth/health/live
+  initialDelaySeconds: 60
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+readinessProbe:
+  enabled: true
+  path: /auth/health/ready
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 2
+    memory: 2Gi
+
+persistence:
+  enabled: false
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  existingClaim: ""
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 1000
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+  runAsNonRoot: true
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: devops.local
+      paths:
+        - path: /auth
+          pathType: Prefix
+  tls: []

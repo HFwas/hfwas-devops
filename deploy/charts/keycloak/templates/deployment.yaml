@@ -1,0 +1,265 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keycloak.fullname" . }}
+  labels:
+    {{- include "keycloak.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+  selector:
+    matchLabels:
+      {{- include "keycloak.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- if .Values.realm.import }}
+        checksum/realm: {{ include (print $.Template.BasePath "/configmap-realm.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if .Values.theme.enabled }}
+        checksum/theme: {{ include (print $.Template.BasePath "/configmap-theme.yaml") . | sha256sum }}
+        {{- end }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "keycloak.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- include "keycloak.imagePullSecrets" . | nindent 6 }}
+      {{- with .Values.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if or .Values.spi.enabled .Values.postgres.enabled .Values.theme.enabled .Values.realm.import }}
+      initContainers:
+        {{- if .Values.postgres.enabled }}
+        - name: wait-postgres
+          image: "{{ include "keycloak.imageRegistry" . }}{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          imagePullPolicy: {{ .Values.postgres.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - until pg_isready -h {{ include "keycloak.postgresHost" . }} -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do sleep 2; done
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keycloak.fullname" . }}
+                  key: postgres-database
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keycloak.fullname" . }}
+                  key: postgres-username
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+        {{- end }}
+        {{- if .Values.spi.enabled }}
+        - name: spi-copy
+          image: "{{ include "keycloak.imageRegistry" . }}{{ .Values.spi.image.repository }}:{{ .Values.spi.image.tag }}"
+          imagePullPolicy: {{ .Values.spi.image.pullPolicy }}
+          command:
+            - cp
+            - /jar/hfwas-keycloak-http-listener.jar
+            - /opt/keycloak/providers/hfwas-keycloak-http-listener.jar
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: providers
+              mountPath: /opt/keycloak/providers
+        {{- end }}
+        {{- if or .Values.theme.enabled .Values.realm.import }}
+        - name: import-copy
+          image: "{{ include "keycloak.imageRegistry" . }}{{ .Values.theme.image.repository }}:{{ .Values.theme.image.tag }}"
+          imagePullPolicy: {{ .Values.theme.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              {{- if .Values.theme.enabled }}
+              mkdir -p /themes/login/messages /themes/login/resources/css
+              cp /theme-src/theme.properties /themes/login/theme.properties
+              cp /theme-src/messages_zh_CN.properties /themes/login/messages/
+              cp /theme-src/messages_en.properties /themes/login/messages/
+              cp /theme-src/hfwas.css /themes/login/resources/css/
+              {{- end }}
+              {{- if .Values.realm.import }}
+              mkdir -p /data/import
+              cp /realm-src/hfwas-devops-realm.json /data/import/hfwas-devops-realm.json
+              {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            {{- if .Values.theme.enabled }}
+            - name: theme-src
+              mountPath: /theme-src
+            - name: themes
+              mountPath: /themes
+            {{- end }}
+            {{- if .Values.realm.import }}
+            - name: realm
+              mountPath: /realm-src
+            - name: data
+              mountPath: /data
+            {{- end }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: keycloak
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          image: "{{ include "keycloak.imageRegistry" . }}{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            {{- include "keycloak.command" . | nindent 12 }}
+          args:
+            {{- toYaml .Values.config.extraArgs | nindent 12 }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: http
+              protocol: TCP
+            - containerPort: {{ .Values.management.port }}
+              name: management
+              protocol: TCP
+          env:
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keycloak.fullname" . }}
+                  key: admin-username
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keycloak.fullname" . }}
+                  key: admin-password
+            - name: KC_HTTP_RELATIVE_PATH
+              value: {{ .Values.config.httpRelativePath | quote }}
+            - name: KC_HOSTNAME
+              value: {{ .Values.config.hostname | quote }}
+            - name: KC_HOSTNAME_ADMIN
+              value: {{ .Values.config.hostnameAdmin | quote }}
+            - name: KC_HOSTNAME_STRICT
+              value: {{ .Values.config.hostnameStrict | quote }}
+            - name: KC_PROXY_HEADERS
+              value: {{ .Values.config.proxyHeaders | quote }}
+            - name: KC_HEALTH_ENABLED
+              value: {{ .Values.config.healthEnabled | quote }}
+            - name: KC_HTTP_ENABLED
+              value: {{ .Values.config.httpEnabled | quote }}
+            - name: KC_LOG
+              value: {{ .Values.config.log | quote }}
+            - name: KC_LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+            - name: KEYCLOAK_HTTP_LISTENER_URL
+              value: {{ .Values.config.listenerUrl | quote }}
+            - name: KEYCLOAK_HTTP_LISTENER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keycloak.fullname" . }}
+                  key: listener-secret
+            {{- if .Values.postgres.enabled }}
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL_HOST
+              value: {{ include "keycloak.postgresHost" . | quote }}
+            - name: KC_DB_URL_PORT
+              value: "5432"
+            - name: KC_DB_URL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keycloak.fullname" . }}
+                  key: postgres-database
+            - name: KC_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keycloak.fullname" . }}
+                  key: postgres-username
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keycloak.fullname" . }}
+                  key: postgres-password
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.path }}
+              port: management
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+          {{- end }}
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: management
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+          {{- end }}
+          volumeMounts:
+            {{- if .Values.spi.enabled }}
+            - name: providers
+              mountPath: /opt/keycloak/providers
+            {{- end }}
+            {{- if .Values.theme.enabled }}
+            - name: themes
+              mountPath: /opt/keycloak/themes/hfwas
+            {{- end }}
+            - name: data
+              mountPath: /opt/keycloak/data
+      volumes:
+        {{- if .Values.spi.enabled }}
+        - name: providers
+          emptyDir: {}
+        {{- end }}
+        {{- if .Values.realm.import }}
+        - name: realm
+          configMap:
+            name: {{ include "keycloak.fullname" . }}-realm
+        {{- end }}
+        {{- if .Values.theme.enabled }}
+        - name: theme-src
+          configMap:
+            name: {{ include "keycloak.fullname" . }}-theme
+        - name: themes
+          emptyDir: {}
+        {{- end }}
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim | default (printf "%s-data" (include "keycloak.fullname" .)) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

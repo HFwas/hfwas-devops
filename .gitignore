@@ -60,3 +60,5 @@ backend/scripts/venv/
 
 ### Generated files ###
 files/
+!deploy/charts/**/files/
+!deploy/charts/**/files/**

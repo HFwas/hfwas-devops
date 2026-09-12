@@ -1,0 +1,31 @@
+# k3s（devops-k3s）本地部署覆盖值
+fullnameOverride: keycloak
+
+image:
+  repository: quay.io/keycloak/keycloak
+  tag: "26.7.3"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: NodePort
+  port: 8080
+  nodePort: 30881
+
+config:
+  hostname: http://localhost:8000/auth
+  hostnameAdmin: http://localhost:30881/auth
+  listenerUrl: http://devops-backend:8089/internal/keycloak/events
+
+postgres:
+  persistence:
+    storageClass: local-path
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1536Mi

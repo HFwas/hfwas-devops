@@ -13,3 +13,6 @@ data:
   DOCGEN_OUTPUT_DIR: {{ .Values.config.docgenOutputDir | quote }}
   SPRING_DATASOURCE_URL: "jdbc:sqlite:{{ .Values.persistence.mountPath }}/hfwas-devops.db"
   LOGGING_CONFIG: "file:{{ .Values.config.logbackPath | default "/app/config/logback-spring.xml" }}"
+  {{- if .Values.schema.init.enabled }}
+  DEVOPS_SCHEMA_INIT: "external"
+  {{- end }}

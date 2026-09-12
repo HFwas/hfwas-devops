@@ -1,0 +1,20 @@
+# deploy/charts 运行时镜像清单（Helm 部署 Keycloak + Kong + 已有前后端）
+# 构建 SPI：docker build -t hfwas/keycloak-http-listener:latest keycloak/http-event-listener
+
+# ---- Keycloak ----
+quay.io/keycloak/keycloak:26.7.3
+postgres:16-alpine
+busybox:1.37
+hfwas/keycloak-http-listener:latest
+
+# ---- Kong ----
+kong:3.9
+
+# ---- 已有应用 chart（deploy/charts/backend、frontend）----
+hfwas/devops-backend:latest
+hfwas/devops-frontend:latest
+otel/opentelemetry-java-agent:2.12.0
+python:3.12-alpine
+
+# ---- SPI 构建（不进集群，仅本地/CI 打 hfwas/keycloak-http-listener）----
+# maven:3.9.9-eclipse-temurin-21

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,7 @@ import java.util.Map;
 @Component
 @Order(0)
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "devops.schema.init", havingValue = "embedded", matchIfMissing = true)
 public class UserSchemaMigration implements ApplicationRunner {
 
     private final JdbcTemplate jdbcTemplate;
