@@ -20,6 +20,7 @@ import com.hfwas.devops.pipeline.mapper.PipelineTaskKindMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineStageMapper;
 import com.hfwas.devops.pipeline.service.PipelineCredentialService;
+import com.hfwas.devops.pipeline.service.PipelineRunService;
 import com.hfwas.devops.pipeline.tekton.CompileRequest;
 import com.hfwas.devops.pipeline.tekton.CompiledTekton;
 import com.hfwas.devops.pipeline.tekton.DnsNames;
@@ -65,6 +66,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
     private final PipelineRunJobMapper runJobMapper;
     private final PipelineCredentialService credentialService;
     private final PipelineTaskKindMapper taskKindMapper;
+    private final PipelineRunService runService;
     private final String gitHttpProxy;
     private final String gitDockerHost;
     private final String apiEndpoint;
@@ -85,6 +87,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             PipelineRunJobMapper runJobMapper,
             PipelineCredentialService credentialService,
             PipelineTaskKindMapper taskKindMapper,
+            PipelineRunService runService,
             String gitHttpProxy,
             String gitDockerHost,
             String apiEndpoint
@@ -99,6 +102,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         this.runJobMapper = runJobMapper;
         this.credentialService = credentialService;
         this.taskKindMapper = taskKindMapper;
+        this.runService = runService;
         this.gitHttpProxy = gitHttpProxy;
         this.gitDockerHost = gitDockerHost;
         this.apiEndpoint = apiEndpoint;
@@ -527,6 +531,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
     private void finishSegment(Long runId, CompiledTekton compiled, String overall, String message) {
         if (!"SUCCEEDED".equals(overall)) {
             markRun(runId, overall, message);
+            dequeueNextRun(runId);
             return;
         }
         PipelineRunEntity run = runMapper.selectById(runId);
@@ -544,12 +549,14 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         ApprovalPlan.Resume resume = plan.afterSegment(idx);
         if (resume == ApprovalPlan.Resume.DONE) {
             markRun(runId, "SUCCEEDED", null);
+            dequeueNextRun(runId);
             return;
         }
         if (resume == ApprovalPlan.Resume.SUBMIT) {
             Integer next = plan.nextSegmentAfterSegment(idx);
             if (next == null) {
                 markRun(runId, "SUCCEEDED", null);
+                dequeueNextRun(runId);
                 return;
             }
             run.setSegmentIndex(next);
@@ -565,6 +572,14 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         run.setErrorMessage(null);
         runMapper.updateById(run);
         markNextApproval(runId, plan.nextApprovalAfterSegment(idx));
+    }
+
+    private void dequeueNextRun(Long finishedRunId) {
+        PipelineRunEntity run = runMapper.selectById(finishedRunId);
+        if (run == null || run.getTenantId() == null) {
+            return;
+        }
+        runService.dequeueNextRun(run.getTenantId());
     }
 
     private void markNextApproval(Long runId, ApprovalPlan.Item item) {

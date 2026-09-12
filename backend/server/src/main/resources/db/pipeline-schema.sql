@@ -201,3 +201,23 @@ CREATE TABLE IF NOT EXISTS pipeline_run_artifact (
     create_time   TEXT         NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_artifact_run ON pipeline_run_artifact (run_id, artifact_type);
+
+-- ============================================================
+-- 依赖组件表（从 SBOM 解析入库，支撑集中依赖视图）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS dependency_component (
+    id              INTEGER      NOT NULL PRIMARY KEY,
+    artifact_id     INTEGER      NOT NULL REFERENCES pipeline_run_artifact(id),
+    run_id          INTEGER      NOT NULL REFERENCES pipeline_run(id),
+    purl            TEXT         NOT NULL,
+    group_name      TEXT,
+    name            TEXT         NOT NULL,
+    version         TEXT         NOT NULL,
+    license         TEXT,
+    scope           TEXT,
+    language        TEXT         NOT NULL,
+    create_time     TEXT         NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_dep_comp_purl ON dependency_component (purl);
+CREATE INDEX IF NOT EXISTS idx_dep_comp_run  ON dependency_component (run_id);
+CREATE INDEX IF NOT EXISTS idx_dep_comp_name ON dependency_component (name, version);

@@ -22,6 +22,7 @@ import com.hfwas.devops.pipeline.mapper.PipelineRunJobMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineStageMapper;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -40,6 +41,7 @@ public class PipelineRunService {
     private final PipelineJobMapper jobMapper;
     private final CurrentUserAccessor currentUserAccessor;
     private final PipelineExecutor pipelineExecutor;
+    private final int maxConcurrentRuns;
 
     public PipelineRunService(
             PipelineDefinitionService definitionService,
@@ -48,7 +50,8 @@ public class PipelineRunService {
             PipelineStageMapper stageMapper,
             PipelineJobMapper jobMapper,
             CurrentUserAccessor currentUserAccessor,
-            PipelineExecutor pipelineExecutor
+            PipelineExecutor pipelineExecutor,
+            @Value("${pipeline.max-concurrent-runs:10}") int maxConcurrentRuns
     ) {
         this.definitionService = definitionService;
         this.runMapper = runMapper;
@@ -57,6 +60,7 @@ public class PipelineRunService {
         this.jobMapper = jobMapper;
         this.currentUserAccessor = currentUserAccessor;
         this.pipelineExecutor = pipelineExecutor;
+        this.maxConcurrentRuns = maxConcurrentRuns;
     }
 
     @Transactional
@@ -116,7 +120,10 @@ public class PipelineRunService {
         if (clusterReady && !waitFirst && !plan.segments().isEmpty()) {
             run.setSegmentIndex(0);
             runMapper.updateById(run);
-            submitAfterCommit(run.getId());
+            if (canSubmitNow(run.getTenantId())) {
+                submitAfterCommit(run.getId());
+            }
+            // 超出最大并发数，保持 QUEUED 状态等待调度
         }
         return get(pipelineId, run.getId());
     }
@@ -213,6 +220,38 @@ public class PipelineRunService {
         Long id = run.getId();
         submitAfterCommit(id);
         return get(pipelineId, runId);
+    }
+
+    private boolean canSubmitNow(Long tenantId) {
+        Long running = runMapper.selectCount(new LambdaQueryWrapper<PipelineRunEntity>()
+                .eq(PipelineRunEntity::getTenantId, tenantId)
+                .eq(PipelineRunEntity::getStatus, "RUNNING"));
+        return running == null || running < maxConcurrentRuns;
+    }
+
+    /**
+     * 租户维度并发限制 — 从队列中取出下一个等待的运行提交执行。
+     * 由 TektonPipelineExecutor 在每次运行结束时调用。
+     */
+    public void dequeueNextRun(Long tenantId) {
+        PipelineRunEntity next = runMapper.selectOne(new LambdaQueryWrapper<PipelineRunEntity>()
+                .eq(PipelineRunEntity::getTenantId, tenantId)
+                .eq(PipelineRunEntity::getStatus, "QUEUED")
+                .orderByAsc(PipelineRunEntity::getId)
+                .last("LIMIT 1"));
+        if (next == null) {
+            return;
+        }
+        // 重新加载 graph 并提交
+        Long pipelineId = next.getPipelineId();
+        PipelineGraphSpec graph = definitionService.loadGraph(pipelineId);
+        ApprovalPlan plan = ApprovalPlan.of(graph);
+        if (plan.segments().isEmpty()) {
+            return;
+        }
+        next.setSegmentIndex(0);
+        runMapper.updateById(next);
+        submitAfterCommit(next.getId());
     }
 
     private void submitAfterCommit(Long runId) {

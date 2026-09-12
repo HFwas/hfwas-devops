@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { GitBranch, KeyRound, Package } from '@lucide/vue'
+import { GitBranch, KeyRound, Package, FileTree, Scan } from '@lucide/vue'
 import type { MenuOption } from 'naive-ui'
 
 const route = useRoute()
@@ -7,6 +7,15 @@ const router = useRouter()
 
 const menuOptions: MenuOption[] = [
   { label: '流水线', key: '/pipeline/pipelines', icon: () => h(GitBranch, { size: 16 }) },
+  {
+    label: '依赖管理',
+    key: 'dependency-group',
+    type: 'group',
+    children: [
+      { label: '依赖组件', key: '/pipeline/dependency/components', icon: () => h(FileTree, { size: 16 }) },
+      { label: '依赖扫描', key: '/pipeline/dependency/scan', icon: () => h(Scan, { size: 16 }) },
+    ],
+  },
   { label: '任务市场', key: '/pipeline/task-kinds', icon: () => h(Package, { size: 16 }) },
   { label: '凭证', key: '/pipeline/credentials', icon: () => h(KeyRound, { size: 16 }) },
 ]
@@ -14,6 +23,8 @@ const menuOptions: MenuOption[] = [
 const activeKey = computed(() => {
   if (route.path.startsWith('/pipeline/credentials')) return '/pipeline/credentials'
   if (route.path.startsWith('/pipeline/task-kinds')) return '/pipeline/task-kinds'
+  if (route.path.startsWith('/pipeline/dependency/components')) return '/pipeline/dependency/components'
+  if (route.path.startsWith('/pipeline/dependency/scan')) return '/pipeline/dependency/scan'
   return '/pipeline/pipelines'
 })
 

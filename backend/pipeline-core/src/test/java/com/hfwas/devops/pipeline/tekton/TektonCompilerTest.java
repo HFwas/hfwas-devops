@@ -58,7 +58,7 @@ class TektonCompilerTest {
         ));
         CompiledStep step = TektonCompiler.compile(new CompileRequest(
                 6L, 8L, "https://github.com/acme/demo.git", "main", false, graph,
-                "http://192.168.5.2:7890", Map.of()
+                "http://192.168.5.2:7890", Map.of(), null
         )).tasks().getFirst().steps().getFirst();
         assertEquals("http://192.168.5.2:7890", step.env().get("GIT_HTTP_PROXY"));
     }
@@ -218,7 +218,7 @@ class TektonCompilerTest {
                         "npx prettier --write .", "NODE", "22", "NPM", 0)))
         ));
         CompiledStep step = TektonCompiler.compile(new CompileRequest(
-                12L, 8L, "https://github.com/acme/demo.git", "main", false, graph, "", Map.of()))
+                12L, 8L, "https://github.com/acme/demo.git", "main", false, graph, "", Map.of(), null))
                 .tasks().getFirst().steps().getFirst();
         assertTrue(step.image().contains("node"), "FORMAT with NODE/NPM should use a node image, got: " + step.image());
     }
@@ -234,6 +234,50 @@ class TektonCompilerTest {
         assertTrue(step.script().contains("no changes after formatter"));
         assertTrue(step.script().contains("black ."));
         assertTrue(step.script().contains("git pull --rebase"));
+    }
+
+    @Test
+    void dependencyAnalysisUsesCdxgenImage() {
+        PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
+                stage("dep", 0, List.of(job("dep", PipelineJobKind.DEPENDENCY_ANALYSIS,
+                        "cdxgen -o target/sbom.json -t cyclonedx:json", 0)))
+        ));
+        CompiledStep step = TektonCompiler.compile(request(14L, graph, false))
+                .tasks().getFirst().steps().getFirst();
+        assertEquals(TektonCompiler.CDXGEN_IMAGE, step.image());
+        assertTrue(step.script().contains("cdxgen -o target/sbom.json"));
+    }
+
+    @Test
+    void dependencyAnalysisIncludesUploadScriptWhenApiEndpointSet() {
+        PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
+                stage("dep", 0, List.of(job("dep", PipelineJobKind.DEPENDENCY_ANALYSIS,
+                        "mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom "
+                                + "-Dcyclonedx.outputFormat=json -DoutputName=sbom -q", 0)))
+        ));
+        String apiEndpoint = "http://host.docker.internal:8089";
+        CompiledStep step = TektonCompiler.compile(requestWithApi(15L, graph, false, apiEndpoint))
+                .tasks().getFirst().steps().getFirst();
+        assertTrue(step.script().contains("target/sbom.json"), "should check for sbom.json");
+        assertTrue(step.script().contains(apiEndpoint), "should contain api endpoint");
+        assertTrue(step.script().contains("uploading SBOM"), "should have upload log");
+        assertTrue(step.script().contains("curl -fsS -X POST"), "should contain curl upload");
+        assertTrue(step.script().contains("RUN_ID"), "should inject RUN_ID env");
+        assertEquals(apiEndpoint, step.env().get("API_ENDPOINT"));
+        assertEquals("15", step.env().get("RUN_ID"));
+    }
+
+    @Test
+    void dependencyAnalysisSkipsUploadWhenNoApiEndpoint() {
+        PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
+                stage("dep", 0, List.of(job("dep", PipelineJobKind.DEPENDENCY_ANALYSIS,
+                        "cdxgen -o target/sbom.json -t cyclonedx:json", 0)))
+        ));
+        CompiledStep step = TektonCompiler.compile(request(16L, graph, false))
+                .tasks().getFirst().steps().getFirst();
+        assertFalse(step.script().contains("curl -fsS"), "should not contain curl when no api endpoint");
+        assertFalse(step.script().contains("uploading SBOM"), "should not contain upload when no api endpoint");
+        assertFalse(step.env().containsKey("API_ENDPOINT"));
     }
 
     private static String imageOf(PipelineJobKind kind, String command) {
@@ -252,7 +296,22 @@ class TektonCompilerTest {
                 credential,
                 graph,
                 "",
-                Map.of()
+                Map.of(),
+                null
+        );
+    }
+
+    private static CompileRequest requestWithApi(long runId, PipelineGraphSpec graph, boolean credential, String apiEndpoint) {
+        return new CompileRequest(
+                runId,
+                8L,
+                "https://github.com/acme/demo.git",
+                "main",
+                credential,
+                graph,
+                "",
+                Map.of(),
+                apiEndpoint
         );
     }
 

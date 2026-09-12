@@ -45,6 +45,16 @@ export const pipelineRoutes: RouteRecordRaw[] = [
         name: 'pipeline-task-kinds',
         component: () => import('@/modules/pipeline/views/TaskMarketView.vue'),
       },
+      {
+        path: 'dependency/components',
+        name: 'dependency-components',
+        component: () => import('@/modules/pipeline/views/DependencyListView.vue'),
+      },
+      {
+        path: 'dependency/scan',
+        name: 'dependency-scan',
+        component: () => import('@/modules/pipeline/views/DependencyScanView.vue'),
+      },
     ],
   },
 ]

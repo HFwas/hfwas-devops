@@ -11,6 +11,7 @@ import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,13 +34,15 @@ public class PipelineRunArtifactService {
 
     private final PipelineRunArtifactMapper artifactMapper;
     private final PipelineRunMapper runMapper;
+    private final SbomParserService sbomParserService;
 
     @Value("${pipeline.artifact.storage:data/artifacts}")
     private String storageBase;
 
-    public PipelineRunArtifactService(PipelineRunArtifactMapper artifactMapper, PipelineRunMapper runMapper) {
+    public PipelineRunArtifactService(PipelineRunArtifactMapper artifactMapper, PipelineRunMapper runMapper, SbomParserService sbomParserService) {
         this.artifactMapper = artifactMapper;
         this.runMapper = runMapper;
+        this.sbomParserService = sbomParserService;
     }
 
     @Transactional
@@ -87,7 +90,25 @@ public class PipelineRunArtifactService {
         entity.setCreateTime(LocalDateTime.now());
         artifactMapper.insert(entity);
 
+        // 异步解析 SBOM 组件入库
+        if ("sbom".equals(artifactType) || (fileName != null && fileName.contains("sbom"))) {
+            parseSbomAsync(entity.getId(), runId, entity.getStoragePath());
+        }
+
         return toVo(entity);
+    }
+
+    private void parseSbomAsync(Long artifactId, Long runId, String storagePath) {
+        try {
+            java.nio.file.Path file = Paths.get(storageBase, storagePath);
+            if (java.nio.file.Files.exists(file)) {
+                try (InputStream in = java.nio.file.Files.newInputStream(file)) {
+                    sbomParserService.parse(artifactId, runId, in);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("SBOM 异步解析失败: artifactId={}, runId={}", artifactId, runId, e);
+        }
     }
 
     public List<PipelineRunArtifactVO> listByRun(Long runId) {

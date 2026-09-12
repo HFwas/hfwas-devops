@@ -10,6 +10,7 @@ import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineStageMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineTaskKindMapper;
 import com.hfwas.devops.pipeline.service.PipelineCredentialService;
+import com.hfwas.devops.pipeline.service.PipelineRunService;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
@@ -62,7 +63,8 @@ public class PipelineExecutorConfiguration {
             PipelineRunMapper runMapper,
             PipelineRunJobMapper runJobMapper,
             PipelineCredentialService credentialService,
-            PipelineTaskKindMapper taskKindMapper
+            PipelineTaskKindMapper taskKindMapper,
+            PipelineRunService runService
     ) {
         KubernetesClient client = kubernetesClients.getIfAvailable();
         if (client == null) {
@@ -79,6 +81,7 @@ public class PipelineExecutorConfiguration {
                 runJobMapper,
                 credentialService,
                 taskKindMapper,
+                runService,
                 gitHttpProxy,
                 gitDockerHost,
                 apiEndpoint
