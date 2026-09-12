@@ -1,7 +1,9 @@
 package com.hfwas.devops.pipeline.service;
 
 import com.hfwas.devops.pipeline.entity.DependencyComponentEntity;
+import com.hfwas.devops.pipeline.entity.PipelineRunEntity;
 import com.hfwas.devops.pipeline.mapper.DependencyComponentMapper;
+import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,17 +18,21 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class SbomParserServiceTest {
 
     @Mock
     private DependencyComponentMapper componentMapper;
+    @Mock
+    private PipelineRunMapper runMapper;
 
     @Captor
     private ArgumentCaptor<DependencyComponentEntity> captor;
@@ -35,7 +41,11 @@ class SbomParserServiceTest {
 
     @BeforeEach
     void setUp() {
-        parserService = new SbomParserService(componentMapper);
+        parserService = new SbomParserService(componentMapper, runMapper);
+        PipelineRunEntity run = new PipelineRunEntity();
+        run.setPipelineId(9L);
+        lenient().when(runMapper.selectById(any())).thenReturn(run);
+        lenient().when(componentMapper.selectOne(any())).thenReturn(null);
     }
 
     @Test
@@ -80,11 +90,12 @@ class SbomParserServiceTest {
         verify(componentMapper, times(3)).insert(captor.capture());
 
         List<DependencyComponentEntity> entities = captor.getAllValues();
-        // 验证第一个组件
         DependencyComponentEntity first = entities.get(0);
         assertEquals(100L, first.getArtifactId());
         assertEquals(200L, first.getRunId());
+        assertEquals(9L, first.getPipelineId());
         assertEquals("pkg:maven/org.springframework.boot/spring-boot-starter-web@3.3.0", first.getPurl());
+        assertEquals("pkg:maven/org.springframework.boot/spring-boot-starter-web@3.3.0", first.getIdentityKey());
         assertEquals("org.springframework.boot", first.getGroupName());
         assertEquals("spring-boot-starter-web", first.getName());
         assertEquals("3.3.0", first.getVersion());
@@ -92,7 +103,6 @@ class SbomParserServiceTest {
         assertEquals("required", first.getScope());
         assertEquals("java", first.getLanguage());
 
-        // 验证 Node 组件语言推断
         DependencyComponentEntity third = entities.get(2);
         assertEquals("lodash", third.getName());
         assertEquals("javascript", third.getLanguage());
@@ -107,6 +117,7 @@ class SbomParserServiceTest {
         InputStream stream = new ByteArrayInputStream(sbom.getBytes(StandardCharsets.UTF_8));
         int count = parserService.parse(101L, 201L, stream);
         assertEquals(0, count);
+        verify(componentMapper, never()).insert(any(DependencyComponentEntity.class));
     }
 
     @Test
@@ -117,6 +128,7 @@ class SbomParserServiceTest {
         InputStream stream = new ByteArrayInputStream(sbom.getBytes(StandardCharsets.UTF_8));
         int count = parserService.parse(102L, 202L, stream);
         assertEquals(0, count);
+        verify(componentMapper, never()).insert(any(DependencyComponentEntity.class));
     }
 
     @Test
@@ -138,8 +150,9 @@ class SbomParserServiceTest {
         parserService.parse(103L, 203L, stream);
         verify(componentMapper).insert(captor.capture());
         DependencyComponentEntity entity = captor.getValue();
-        assertEquals("unknown", entity.getLanguage(), "without purl, should fallback to unknown");
-        assertNull(entity.getPurl(), "purl should be empty string, not null");
+        assertEquals("java", entity.getLanguage(), "group 含 org. 时按 Java 推断");
+        assertEquals("", entity.getPurl());
+        assertEquals("gav:org.apache.commons|commons-lang3|3.14.0", entity.getIdentityKey());
         assertNull(entity.getLicense());
         assertNull(entity.getScope());
     }
@@ -163,5 +176,59 @@ class SbomParserServiceTest {
         assertEquals("javascript", entities.get(0).getLanguage());
         assertEquals("go", entities.get(1).getLanguage());
         assertEquals("python", entities.get(2).getLanguage());
+    }
+
+    @Test
+    void parseDedupesSamePurlInsideOneSbom() {
+        String sbom = """
+                {
+                  "bomFormat": "CycloneDX",
+                  "components": [
+                    {"type": "library", "name": "jsqlparser", "version": "5.1", "purl": "pkg:maven/com.github.jsqlparser/jsqlparser@5.1?type=jar"},
+                    {"type": "library", "name": "jsqlparser", "version": "5.1", "purl": "pkg:maven/com.github.jsqlparser/jsqlparser@5.1?type=jar"}
+                  ]
+                }
+                """;
+        InputStream stream = new ByteArrayInputStream(sbom.getBytes(StandardCharsets.UTF_8));
+        int count = parserService.parse(105L, 205L, stream);
+        assertEquals(1, count);
+        verify(componentMapper, times(1)).insert(any(DependencyComponentEntity.class));
+        verify(componentMapper, never()).updateById(any(DependencyComponentEntity.class));
+    }
+
+    @Test
+    void parseUpdatesExistingRowForSamePipelineAndPurl() {
+        DependencyComponentEntity existing = new DependencyComponentEntity();
+        existing.setId(77L);
+        existing.setPipelineId(9L);
+        existing.setIdentityKey("pkg:maven/com.github.jsqlparser/jsqlparser@5.1?type=jar");
+        when(componentMapper.selectOne(any())).thenReturn(existing);
+
+        String sbom = """
+                {
+                  "bomFormat": "CycloneDX",
+                  "components": [
+                    {
+                      "type": "library",
+                      "group": "com.github.jsqlparser",
+                      "name": "jsqlparser",
+                      "version": "5.1",
+                      "purl": "pkg:maven/com.github.jsqlparser/jsqlparser@5.1?type=jar",
+                      "licenses": [{"license": {"id": "LGPL-2.1-only"}}]
+                    }
+                  ]
+                }
+                """;
+        InputStream stream = new ByteArrayInputStream(sbom.getBytes(StandardCharsets.UTF_8));
+        int count = parserService.parse(106L, 206L, stream);
+        assertEquals(1, count);
+        verify(componentMapper, never()).insert(any(DependencyComponentEntity.class));
+        verify(componentMapper).updateById(captor.capture());
+        DependencyComponentEntity updated = captor.getValue();
+        assertEquals(77L, updated.getId());
+        assertEquals(106L, updated.getArtifactId());
+        assertEquals(206L, updated.getRunId());
+        assertEquals(9L, updated.getPipelineId());
+        assertEquals("LGPL-2.1-only", updated.getLicense());
     }
 }

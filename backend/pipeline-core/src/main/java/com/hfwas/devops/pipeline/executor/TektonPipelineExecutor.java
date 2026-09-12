@@ -40,7 +40,11 @@ import io.fabric8.tekton.v1.TaskRun;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.DateTimeException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -370,16 +374,8 @@ public class TektonPipelineExecutor implements PipelineExecutor {
     private void updateJob(PipelineRunJobEntity job, List<StepState> steps, String pod, String secret, List<String> extraSecrets) {
         String status = mergeStepStatus(steps);
         job.setStatus(status);
-        boolean allTerminated = !steps.isEmpty() && steps.stream().allMatch(step -> step.getTerminated() != null);
-        if ("QUEUED".equals(status)) {
-            job.setStartedAt(null);
-            job.setFinishedAt(null);
-        } else if (job.getStartedAt() == null) {
-            job.setStartedAt(LocalDateTime.now());
-        }
-        if (allTerminated) {
-            job.setFinishedAt(LocalDateTime.now());
-        }
+        job.setStartedAt(resolveJobStartedAt(status, steps, job.getStartedAt()));
+        job.setFinishedAt(resolveJobFinishedAt(status, steps, job.getFinishedAt()));
         // 首次拿到 podName 时写入 pod/namespace/containers（后续不再覆盖）
         if (pod != null && !pod.isBlank() && job.getPodName() == null) {
             job.setPodName(pod);
@@ -483,6 +479,108 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             return "SUCCEEDED";
         }
         return "QUEUED";
+    }
+
+    /** 排队中无耗时；否则取 step 真实 startedAt，缺省时保留已有值。 */
+    static LocalDateTime resolveJobStartedAt(String status, List<StepState> steps, LocalDateTime previous) {
+        if ("QUEUED".equals(status)) {
+            return null;
+        }
+        LocalDateTime fromSteps = earliestStartedAt(steps);
+        if (fromSteps != null) {
+            return fromSteps;
+        }
+        return previous != null ? previous : nowUtc();
+    }
+
+    /** 全部 terminated 后用 step finishedAt；禁止每次 poll 用 now() 把已结束任务的结束时间往后推。 */
+    static LocalDateTime resolveJobFinishedAt(String status, List<StepState> steps, LocalDateTime previous) {
+        if ("QUEUED".equals(status)) {
+            return null;
+        }
+        boolean allTerminated = steps != null && !steps.isEmpty()
+                && steps.stream().allMatch(step -> step.getTerminated() != null);
+        if (allTerminated) {
+            LocalDateTime fromSteps = latestFinishedAt(steps);
+            if (fromSteps != null) {
+                return fromSteps;
+            }
+            return previous != null ? previous : nowUtc();
+        }
+        if (isTerminal(status)) {
+            return previous != null ? previous : nowUtc();
+        }
+        return null;
+    }
+
+    static LocalDateTime earliestStartedAt(List<StepState> steps) {
+        if (steps == null || steps.isEmpty()) {
+            return null;
+        }
+        LocalDateTime earliest = null;
+        for (StepState step : steps) {
+            LocalDateTime started = stepStartedAt(step);
+            if (started != null && (earliest == null || started.isBefore(earliest))) {
+                earliest = started;
+            }
+        }
+        return earliest;
+    }
+
+    static LocalDateTime latestFinishedAt(List<StepState> steps) {
+        if (steps == null || steps.isEmpty()) {
+            return null;
+        }
+        LocalDateTime latest = null;
+        for (StepState step : steps) {
+            if (step.getTerminated() == null) {
+                return null;
+            }
+            LocalDateTime finished = parseK8sTime(step.getTerminated().getFinishedAt());
+            if (finished == null) {
+                return null;
+            }
+            if (latest == null || finished.isAfter(latest)) {
+                latest = finished;
+            }
+        }
+        return latest;
+    }
+
+    private static LocalDateTime stepStartedAt(StepState step) {
+        if (step.getRunning() != null) {
+            LocalDateTime started = parseK8sTime(step.getRunning().getStartedAt());
+            if (started != null) {
+                return started;
+            }
+        }
+        if (step.getTerminated() != null) {
+            return parseK8sTime(step.getTerminated().getStartedAt());
+        }
+        return null;
+    }
+
+    static LocalDateTime parseK8sTime(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String value = raw.trim();
+        try {
+            if (value.endsWith("Z") || value.matches(".*[+-]\\d{2}:\\d{2}$")) {
+                return OffsetDateTime.parse(value).toLocalDateTime();
+            }
+            return LocalDateTime.parse(value.replace(' ', 'T'));
+        } catch (DateTimeException ignored) {
+            try {
+                return Instant.parse(value).atOffset(ZoneOffset.UTC).toLocalDateTime();
+            } catch (DateTimeException ignoredToo) {
+                return null;
+            }
+        }
+    }
+
+    private static LocalDateTime nowUtc() {
+        return LocalDateTime.now(ZoneOffset.UTC);
     }
 
     private List<String> extraSecrets(Long runId) {

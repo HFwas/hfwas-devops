@@ -14,6 +14,9 @@ public class DependencyComponentEntity {
     private Long id;
     private Long artifactId;
     private Long runId;
+    private Long pipelineId;
+    /** 去重键：有 purl 用 purl，否则 gav:group|name|version */
+    private String identityKey;
     private String purl;
     private String groupName;
     private String name;

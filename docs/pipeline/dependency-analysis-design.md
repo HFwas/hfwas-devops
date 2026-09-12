@@ -1,7 +1,7 @@
 # 流水线依赖分析任务设计方案
 
 > 日期：2026-09-13
-> 版本：v0.4
+> 版本：v0.5
 > 定位：在流水线中增加一个**通用依赖分析任务**，支持多种语言项目的依赖扫描，生成标准 SBOM 作为后续漏洞检测的前置输入
 > 状态：已定稿
 
@@ -15,6 +15,7 @@
 | v0.2 | 2026-09-12 | 新增 SBOM 持久化与下载设计（5.3），补充 artifact 存储、API、前端展示 |
 | v0.3 | 2026-09-12 | 更新版本为 2.9.3（2.10.0 在 Maven Central 尚无），修正 CLI 参数 `-Dcyclonedx.outputName` → `-DoutputName`，修正 SBOM specVersion 为 1.6 |
 | v0.4 | 2026-09-13 | 默认 Maven 命令去掉 `-q`，保留流水线日志可见性 |
+| v0.5 | 2026-09-13 | 依赖组件按流水线 + purl/GAV upsert，多次执行同一流水线不再插重复行 |
 
 ---
 
@@ -414,6 +415,19 @@ CREATE TABLE IF NOT EXISTS pipeline_run_artifact (
 
 CREATE INDEX IF NOT EXISTS idx_artifact_run ON pipeline_run_artifact (run_id, artifact_type);
 ```
+
+#### 依赖组件入库去重
+
+`dependency_component` 是集中依赖视图的权威表，**不是**每次运行的流水账。
+
+| 键 | 说明 |
+|----|------|
+| 唯一 | `(pipeline_id, identity_key)` |
+| `identity_key` | 有 `purl` 用 purl；否则 `gav:{group}\|{name}\|{version}` |
+
+同一流水线再次跑 `DEPENDENCY_ANALYSIS`：命中则更新 `run_id` / `artifact_id` / 许可证 / 检测时间，不新增行。同一份 SBOM 内重复 purl 只保留一条。不同流水线出现同一组件仍各一行。
+
+本地 SQLite 启动时若旧表没有 `pipeline_id`，会丢掉该表再按新结构创建（组件可从下次 SBOM 解析回来）。Helm 侧 `05-pipeline-schema.sql` 在 checksum 变化时 `DROP` 后重建。
 
 **存储位置**：
 

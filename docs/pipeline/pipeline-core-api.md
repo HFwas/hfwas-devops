@@ -1,5 +1,17 @@
 # pipeline-core API 接口文档
 
+> 日期：2026-09-13
+> 版本：v0.2
+
+### 变更记录
+
+| 版本 | 日期 | 变更说明 |
+|------|------|----------|
+| v0.1 | 2026-09-08 | 初版：现有接口与 VO 说明 |
+| v0.2 | 2026-09-13 | 标明运行 job 的 startedAt/finishedAt 取自 Tekton step 真实起止时间，完成后不再被 watch 轮询刷新 |
+
+---
+
 ## 概述
 
 所有接口统一返回 `BaseResult<T>` 结构：
@@ -205,8 +217,8 @@ GET /pipeline/pipelines/{id}/runs?pageNo=1&pageSize=10
 | podName | String | K8s Pod 名 |
 | namespace | String | K8s 命名空间 |
 | containers | String[] | 容器列表 JSON |
-| startedAt | LocalDateTime | 开始时间 |
-| finishedAt | LocalDateTime | 结束时间 |
+| startedAt | LocalDateTime | 任务实际开始（Tekton step `startedAt`，UTC 墙钟）；排队中为空 |
+| finishedAt | LocalDateTime | 任务实际结束（Tekton step `finishedAt`）；完成后不再被后续同步刷新 |
 
 #### 运行状态枚举
 
