@@ -146,6 +146,13 @@ INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, descrip
  'export SONAR_PROJECT_KEY=app', 1, 1, 40, 'sonarsource/sonar-scanner-cli:11.2', 'sonarsource/sonar-scanner-cli:11.2');
 
 INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
+('DEPENDENCY_ANALYSIS', '依赖分析', '质量控制',
+ '生成 CycloneDX 格式的依赖清单（SBOM），为漏洞扫描提供精确的依赖树',
+ 'Java 项目使用 CycloneDX Maven Plugin，其他语言使用 cdxgen。产出 target/sbom.json。',
+ 'mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress -q',
+ 1, 1, 45, 'maven:3.9.9-eclipse-temurin-21', 'maven:3.9.9-eclipse-temurin-21');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
 ('SCAN', '安全扫描', '质量控制', '依赖与文件系统漏洞扫描', '',
  'trivy fs --exit-code 1 --scanners vuln,secret,misconfig .', 1, 1, 50, 'aquasec/trivy:0.66.0', 'aquasec/trivy:0.66.0');
 
@@ -178,3 +185,39 @@ INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, descrip
 
 CREATE INDEX IF NOT EXISTS idx_task_kind_tenant ON pipeline_task_kind (tenant_id, deleted);
 CREATE INDEX IF NOT EXISTS idx_task_kind_group ON pipeline_task_kind (task_group, sort_order);
+
+-- ============================================================
+-- 流水线运行产物表（SBOM / 测试报告 / 覆盖率报告等）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS pipeline_run_artifact (
+    id            INTEGER      NOT NULL PRIMARY KEY,
+    run_id        INTEGER      NOT NULL REFERENCES pipeline_run(id),
+    job_id        INTEGER      REFERENCES pipeline_run_job(id),
+    artifact_type TEXT         NOT NULL DEFAULT 'sbom',
+    file_name     TEXT         NOT NULL,
+    file_size     INTEGER      NOT NULL DEFAULT 0,
+    storage_path  TEXT         NOT NULL,
+    content_type  TEXT         NOT NULL DEFAULT 'application/json',
+    create_time   TEXT         NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_artifact_run ON pipeline_run_artifact (run_id, artifact_type);
+
+-- ============================================================
+-- 依赖组件表（从 SBOM 解析入库，支撑集中依赖视图）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS dependency_component (
+    id              INTEGER      NOT NULL PRIMARY KEY,
+    artifact_id     INTEGER      NOT NULL REFERENCES pipeline_run_artifact(id),
+    run_id          INTEGER      NOT NULL REFERENCES pipeline_run(id),
+    purl            TEXT         NOT NULL,
+    group_name      TEXT,
+    name            TEXT         NOT NULL,
+    version         TEXT         NOT NULL,
+    license         TEXT,
+    scope           TEXT,
+    language        TEXT         NOT NULL,
+    create_time     TEXT         NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_dep_comp_purl ON dependency_component (purl);
+CREATE INDEX IF NOT EXISTS idx_dep_comp_run  ON dependency_component (run_id);
+CREATE INDEX IF NOT EXISTS idx_dep_comp_name ON dependency_component (name, version);

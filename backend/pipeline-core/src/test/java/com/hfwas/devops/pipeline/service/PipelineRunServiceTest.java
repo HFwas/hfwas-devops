@@ -59,7 +59,7 @@ class PipelineRunServiceTest {
     void startWithoutClusterFailsWithReadableMessage() {
         PipelineRunService service = new PipelineRunService(
                 definitionService, runMapper, runJobMapper, stageMapper, jobMapper, currentUserAccessor,
-                new UnavailablePipelineExecutor());
+                new UnavailablePipelineExecutor(), 10);
 
         PipelineEntity pipeline = new PipelineEntity();
         pipeline.setId(1L);
@@ -112,7 +112,7 @@ class PipelineRunServiceTest {
     void approveWhenNotWaitingRejected() {
         PipelineRunService service = new PipelineRunService(
                 definitionService, runMapper, runJobMapper, stageMapper, jobMapper, currentUserAccessor,
-                pipelineExecutor);
+                pipelineExecutor, 10);
         stubOwned();
         PipelineRunEntity run = storedRun("RUNNING");
         when(runMapper.selectById(99L)).thenReturn(run);
@@ -127,7 +127,7 @@ class PipelineRunServiceTest {
     void approveSubmitsSegmentAfterLeadingGate() {
         PipelineRunService service = new PipelineRunService(
                 definitionService, runMapper, runJobMapper, stageMapper, jobMapper, currentUserAccessor,
-                pipelineExecutor);
+                pipelineExecutor, 10);
         stubOwned();
         when(definitionService.loadGraph(1L)).thenReturn(new PipelineGraphSpec(List.of(
                 new PipelineStageSpec(10L, "gate", 0, List.of(
@@ -154,7 +154,7 @@ class PipelineRunServiceTest {
     void approveConsecutiveGatesStayWaiting() {
         PipelineRunService service = new PipelineRunService(
                 definitionService, runMapper, runJobMapper, stageMapper, jobMapper, currentUserAccessor,
-                pipelineExecutor);
+                pipelineExecutor, 10);
         stubOwned();
         when(definitionService.loadGraph(1L)).thenReturn(new PipelineGraphSpec(List.of(
                 new PipelineStageSpec(10L, "a1", 0, List.of(

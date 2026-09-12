@@ -58,7 +58,7 @@ class TektonCompilerTest {
         ));
         CompiledStep step = TektonCompiler.compile(new CompileRequest(
                 6L, 8L, "https://github.com/acme/demo.git", "main", false, graph,
-                "http://192.168.5.2:7890", Map.of(), null
+                "http://192.168.5.2:7890", Map.<String, String>of(), null
         )).tasks().getFirst().steps().getFirst();
         assertEquals("http://192.168.5.2:7890", step.env().get("GIT_HTTP_PROXY"));
     }
@@ -111,7 +111,7 @@ class TektonCompilerTest {
                 stage("run", 0, List.of(job("echo", PipelineJobKind.CUSTOM, "echo ok", 0)))
         ));
         CompiledTekton compiled = TektonCompiler.compile(new CompileRequest(
-                1L, 8L, "", "main", false, graph, "", Map.of()));
+                1L, 8L, "", "main", false, graph, "", Map.<String, String>of(), null));
         assertEquals(1, compiled.tasks().getFirst().steps().size());
         assertTrue(compiled.tasks().getFirst().steps().getFirst().image() != null);
         assertTrue(compiled.tasks().getFirst().steps().getFirst().script().contains("mkdir -p"));
@@ -218,7 +218,7 @@ class TektonCompilerTest {
                         "npx prettier --write .", "NODE", "22", "NPM", 0)))
         ));
         CompiledStep step = TektonCompiler.compile(new CompileRequest(
-                12L, 8L, "https://github.com/acme/demo.git", "main", false, graph, "", Map.of(), null))
+                12L, 8L, "https://github.com/acme/demo.git", "main", false, graph, "", Map.<String, String>of(), null))
                 .tasks().getFirst().steps().getFirst();
         assertTrue(step.image().contains("node"), "FORMAT with NODE/NPM should use a node image, got: " + step.image());
     }

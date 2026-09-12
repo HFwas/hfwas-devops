@@ -3,7 +3,7 @@ import {
   Bell,
   Box,
   CloudUpload,
-  FileTree,
+  FolderTree,
   GitBranch,
   Hammer,
   Package,
@@ -33,7 +33,7 @@ export const JOB_KIND_ICONS: Record<JobKind, Component> = {
   APPROVAL: UserRound,
   NOTIFY: Bell,
   FORMAT: Paintbrush,
-  DEPENDENCY_ANALYSIS: FileTree,
+  DEPENDENCY_ANALYSIS: FolderTree,
 }
 
 export function jobKindIcon(kind?: string | null): Component {

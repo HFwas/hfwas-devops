@@ -23,6 +23,7 @@ import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineStageMapper;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -50,7 +51,7 @@ public class PipelineRunService {
             PipelineStageMapper stageMapper,
             PipelineJobMapper jobMapper,
             CurrentUserAccessor currentUserAccessor,
-            PipelineExecutor pipelineExecutor,
+            @Lazy PipelineExecutor pipelineExecutor,
             @Value("${pipeline.max-concurrent-runs:10}") int maxConcurrentRuns
     ) {
         this.definitionService = definitionService;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { GitBranch, KeyRound, Package, FileTree, Scan } from '@lucide/vue'
+import { GitBranch, KeyRound, Package, FolderTree, Scan } from '@lucide/vue'
 import type { MenuOption } from 'naive-ui'
 
 const route = useRoute()
@@ -12,7 +12,7 @@ const menuOptions: MenuOption[] = [
     key: 'dependency-group',
     type: 'group',
     children: [
-      { label: '依赖组件', key: '/pipeline/dependency/components', icon: () => h(FileTree, { size: 16 }) },
+      { label: '依赖组件', key: '/pipeline/dependency/components', icon: () => h(FolderTree, { size: 16 }) },
       { label: '依赖扫描', key: '/pipeline/dependency/scan', icon: () => h(Scan, { size: 16 }) },
     ],
   },

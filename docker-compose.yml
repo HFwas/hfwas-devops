@@ -116,7 +116,8 @@ services:
       PIPELINE_KUBECONFIG: /app/pipeline/kubeconfig.compose.yaml
       PIPELINE_NAMESPACE: hfwas-pipeline
       # 宿主机 git http.proxy（常为 127.0.0.1:7890）由启动脚本写入；后端会改成 Pod 可达地址
-      PIPELINE_GIT_HTTP_PROXY: ${PIPELINE_GIT_HTTP_PROXY:-}
+      # k3s Pod 内可直接访问 GitHub，此代理反而会破坏 HTTPS/TLS，故设为空
+      PIPELINE_GIT_HTTP_PROXY: ""
     volumes:
       - devops-data:/app/data
       - devops-files:/app/files
