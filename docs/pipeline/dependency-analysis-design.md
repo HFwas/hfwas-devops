@@ -1,9 +1,19 @@
 # 流水线依赖分析任务设计方案
 
 > 日期：2026-09-12
-> 版本：v0.2
+> 版本：v0.3
 > 定位：在流水线中增加一个**通用依赖分析任务**，支持多种语言项目的依赖扫描，生成标准 SBOM 作为后续漏洞检测的前置输入
 > 状态：已定稿
+
+---
+
+### 变更记录
+
+| 版本 | 日期 | 变更说明 |
+|------|------|----------|
+| v0.3 | 2026-09-12 | 更新版本为 2.9.3（2.10.0 在 Maven Central 尚无），修正 CLI 参数 `-Dcyclonedx.outputName` → `-DoutputName`，修正 SBOM specVersion 为 1.6 |
+| v0.2 | 2026-09-12 | 新增 SBOM 持久化与下载设计（5.3），补充 artifact 存储、API、前端展示 |
+| v0.1 | 2026-09-12 | 初版：多语言依赖分析任务设计，Java 用 CycloneDX Maven Plugin，其他语言用 cdxgen |
 
 ---
 
@@ -67,7 +77,7 @@ DEPENDENCY_ANALYSIS（依赖分析）                   漏洞扫描（后续设
 #### Java (Maven)：CycloneDX Maven Plugin
 
 ```
-工具：  mvn org.cyclonedx:cyclonedx-maven-plugin:2.10.0:makeAggregateBom
+工具：  mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom
 调用：  通过 Maven CLI 临时调用，不修改 pom.xml
 精度：  最高——使用 Maven Resolver API，完整呈现直接 + 传递依赖、scope、依赖仲裁
 ```
@@ -124,7 +134,7 @@ cdxgen 也支持 Maven，但它通过解析 `pom.xml` + `mvn dependency:tree` �
       → DEPENDENCY_ANALYSIS
 
           ├── pom.xml 存在 → CycloneDX Maven Plugin
-          │    mvn org.cyclonedx:cyclonedx-maven-plugin:2.10.0:makeAggregateBom \
+          │    mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom \
           │      -Dcyclonedx.outputFormat=json \
           │      -Dcyclonedx.outputName=sbom
           │    → target/sbom.json（Java 多模块聚合，精确依赖树）
@@ -151,9 +161,9 @@ cdxgen 也支持 Maven，但它通过解析 `pom.xml` + `mvn dependency:tree` �
 ```bash
 # 无需修改 pom.xml，通过 CLI 临时调用
 cd /workspace/source
-mvn org.cyclonedx:cyclonedx-maven-plugin:2.10.0:makeAggregateBom \
+mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom \
   -Dcyclonedx.outputFormat=json \
-  -Dcyclonedx.outputName=sbom \
+  -DoutputName=sbom \
   --no-transfer-progress \
   -q
 ```
@@ -162,9 +172,9 @@ mvn org.cyclonedx:cyclonedx-maven-plugin:2.10.0:makeAggregateBom \
 
 | 参数 | 作用 |
 |------|------|
-| `org.cyclonedx:cyclonedx-maven-plugin:2.10.0:makeAggregateBom` | 插件坐标 + 版本 + goal，完全限定避免搜索 |
+| `org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom` | 插件坐标 + 版本 + goal，完全限定避免搜索 |
 | `-Dcyclonedx.outputFormat=json` | 输出 JSON 格式 |
-| `-Dcyclonedx.outputName=sbom` | 输出文件名（不含后缀） |
+| `-DoutputName=sbom` | 输出文件名（不含后缀）。注意：2.9.x 使用 `-DoutputName`（不带 `cyclonedx.` 前缀）; 后续版本可能恢复为 `-Dcyclonedx.outputName` |
 | `--no-transfer-progress` | 减少 Maven 下载进度日志 |
 | `-q` | 静默模式 |
 
@@ -184,7 +194,9 @@ mvn cyclonedx:makeAggregateBom 执行时：
 
 #### 版本锁定
 
-锁定 `2.10.0`。后续升级需手动验证。不建议使用 `LATEST` 或 `RELEASE`。
+锁定 `2.9.3`。后续升级需手动验证。不建议使用 `LATEST` 或 `RELEASE`。
+
+> **注意**：设计文档原定锁定 `2.10.0`，但该版尚未发布到 Maven Central（截至 2026-09-12 最新 release 为 `2.9.3`），实际验证后回退锁定至此版。
 
 ### 3.2 其他语言：cdxgen
 
@@ -237,7 +249,7 @@ cdxgen 扫描工作区：
 |------|--------------------|---------------|
 | 输出格式 | CycloneDX JSON | CycloneDX JSON |
 | 输出路径 | `target/sbom.json` | `target/sbom.json` |
-| SBOM 版本 | 1.5（可配置） | 1.6+ |
+| SBOM 版本 | 1.6 | 1.6+ |
 | 组件标识 | purl + groupId:artifactId:version | purl + name + version |
 | 依赖树 | 完整传递依赖 + scope | 视 lockfile 而定 |
 | 多模块聚合 | 支持（makeAggregateBom） | 不支持（单目录扫描） |
@@ -507,7 +519,7 @@ job.kind == DEPENDENCY_ANALYSIS
 | `task_group` | 质量控制 |
 | `description` | 生成 CycloneDX 格式的依赖清单（SBOM），为漏洞扫描提供精确的依赖树 |
 | `hint` | Java 项目使用 CycloneDX Maven Plugin，其他语言使用 cdxgen。产出 target/sbom.json。 |
-| `default_command` | `mvn org.cyclonedx:cyclonedx-maven-plugin:2.10.0:makeAggregateBom -Dcyclonedx.outputFormat=json -Dcyclonedx.outputName=sbom --no-transfer-progress -q` |
+| `default_command` | `mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress -q` |
 | `requires_command` | 1 |
 | `enabled` | 1 |
 | `tool_image` | `maven:3.9.9-eclipse-temurin-21`（Java 默认；非 Java 项目需改为 cdxgen 镜像） |
@@ -521,7 +533,7 @@ job.kind == DEPENDENCY_ANALYSIS
 
 ```
 tool_image: maven:3.9.9-eclipse-temurin-21（或对应 Java 版本的 Maven 镜像）
-default_command: mvn org.cyclonedx:cyclonedx-maven-plugin:2.10.0:makeAggregateBom ...
+default_command: mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom ...
 ```
 
 **方式二：非 Java 项目**
@@ -540,9 +552,9 @@ command:    cdxgen -o target/sbom.json -t cyclonedx:json
 ```bash
 # 自动检测：pom.xml 存在则用 Maven Plugin，否则用 cdxgen
 if [ -f "pom.xml" ]; then
-  mvn org.cyclonedx:cyclonedx-maven-plugin:2.10.0:makeAggregateBom \
+  mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom \
     -Dcyclonedx.outputFormat=json \
-    -Dcyclonedx.outputName=sbom \
+    -DoutputName=sbom \
     --no-transfer-progress -q
 else
   cdxgen -o target/sbom.json -t cyclonedx:json
@@ -656,7 +668,7 @@ fi
 | 架构方式 | **独立 Task**，不依赖现有任务类型 | ✅ 已定 |
 | SBOM 输出格式 | **CycloneDX JSON**，统一为 `target/sbom.json` | ✅ 已定 |
 | 不动客户代码 | 全程 CLI 调用，不修改项目文件 | ✅ 已定 |
-| Java/Maven 工具 | **CycloneDX Maven Plugin**（`org.cyclonedx:cyclonedx-maven-plugin`），CLI 调用，版本锁定 2.10.0 | ✅ 已定 |
+| Java/Maven 工具 | **CycloneDX Maven Plugin**（`org.cyclonedx:cyclonedx-maven-plugin`），CLI 调用，版本锁定 2.9.3（原定 2.10.0 尚未发布） | ✅ 已定（2.9.3 已验证） |
 | 非 Java 工具 | **cdxgen**（`ghcr.io/cyclonedx/cdxgen:v11.0.0`），自动检测语言栈 | ✅ 已定 |
 | Java 镜像 | **复用 Maven 工具链镜像**（如 `maven:3.9.9-eclipse-temurin-21`） | ✅ 已定 |
 | 非 Java 镜像 | **新增 cdxgen 镜像**（`ghcr.io/cyclonedx/cdxgen:v11.0.0`） | ✅ 已定 |
@@ -669,10 +681,3 @@ fi
 2. **Maven 缓存共享**：是否将 `~/.m2` 映射为独立 workspace，实现 BUILD 和 DEPENDENCY_ANALYSIS 之间的 Maven 缓存共享？
 3. **组件计数元数据**：是否将组件总数通过 Pipeline Results 输出（如 `component_count: 128`），供下游任务或前端展示？
 4. **上传认证**：DEPENDENCY_ANALYSIS 容器的上传请求如何认证？使用 ServiceAccount token 还是平台 API token？
-
-### 9.5 变更记录
-
-| 版本 | 日期 | 变更说明 |
-|------|------|----------|
-| v0.2 | 2026-09-12 | 新增 SBOM 持久化与下载设计（5.3），补充 artifact 存储、API、前端展示 |
-| v0.1 | 2026-09-12 | 初版：多语言依赖分析任务设计，Java 用 CycloneDX Maven Plugin，其他语言用 cdxgen |

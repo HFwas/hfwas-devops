@@ -149,7 +149,7 @@ INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, descrip
 ('DEPENDENCY_ANALYSIS', '依赖分析', '质量控制',
  '生成 CycloneDX 格式的依赖清单（SBOM），为漏洞扫描提供精确的依赖树',
  'Java 项目使用 CycloneDX Maven Plugin，其他语言使用 cdxgen。产出 target/sbom.json。',
- 'mvn org.cyclonedx:cyclonedx-maven-plugin:2.10.0:makeAggregateBom -Dcyclonedx.outputFormat=json -Dcyclonedx.outputName=sbom --no-transfer-progress -q',
+ 'mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress -q',
  1, 1, 45, 'maven:3.9.9-eclipse-temurin-21', 'maven:3.9.9-eclipse-temurin-21');
 
 INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
