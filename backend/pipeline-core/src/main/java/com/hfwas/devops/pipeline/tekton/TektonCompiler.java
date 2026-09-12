@@ -27,6 +27,7 @@ public final class TektonCompiler {
     public static final String COSIGN_IMAGE = "ghcr.io/sigstore/cosign:v2.4.3";
     public static final String SEMGREP_IMAGE = "semgrep/semgrep:1.97.0";
     public static final String SONAR_IMAGE = "sonarsource/sonar-scanner-cli:11.2";
+    public static final String CDXGEN_IMAGE = "ghcr.io/cyclonedx/cdxgen:v11.0.0";
     public static final String WORKSPACE = "source";
     public static final String CACHE_WORKSPACE = "cache";
     public static final String SOURCE_DIR = "src";
@@ -166,6 +167,10 @@ public final class TektonCompiler {
         }
         if (job.kind() == PipelineJobKind.LINT_SONAR) {
             return List.of(new CompiledStep(base, resolveImage("LINT_SONAR", request.taskImages(), SONAR_IMAGE), lintSonarScript(command), env, false, false));
+        }
+        if (job.kind() == PipelineJobKind.DEPENDENCY_ANALYSIS) {
+            String script = commandScript(command);
+            return List.of(new CompiledStep(base, resolveImage("DEPENDENCY_ANALYSIS", request.taskImages(), CDXGEN_IMAGE), script, env, false, false));
         }
         String image = switch (job.kind()) {
             case LINT_SEMGREP -> resolveImage("LINT_SEMGREP", request.taskImages(), SEMGREP_IMAGE);

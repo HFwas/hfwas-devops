@@ -16,6 +16,7 @@ export type JobKind =
   | 'APPROVAL'
   | 'NOTIFY'
   | 'FORMAT'
+  | 'DEPENDENCY_ANALYSIS'
 export type RunStatus = 'QUEUED' | 'RUNNING' | 'WAITING_APPROVAL' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
 export type CredentialKind = 'PASSWORD' | 'TOKEN'
 export type PipelineStack = 'JAVA_MAVEN' | 'NODE' | 'GO' | 'PYTHON'

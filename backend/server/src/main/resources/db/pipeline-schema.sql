@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS pipeline_task_kind (
     update_time      TEXT         NOT NULL DEFAULT (datetime('now'))
 );
 
--- 初始化 14 种 Task 类型（含默认工具镜像地址）
+-- 初始化 15 种 Task 类型（含默认工具镜像地址）
 INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
 ('CLONE', '代码克隆', '代码', '从 Git 仓库拉取代码', 'Clone 命令由平台生成，在流水线里填写仓库与凭证即可。', '', 0, 1, 1, 'alpine/git:2.45.2', 'alpine/git:2.45.2');
 
@@ -144,6 +144,13 @@ INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, descrip
  'export SONAR_HOST_URL=https://sonar.example.com' || CHAR(10) ||
  'export SONAR_TOKEN=' || CHAR(10) ||
  'export SONAR_PROJECT_KEY=app', 1, 1, 40, 'sonarsource/sonar-scanner-cli:11.2', 'sonarsource/sonar-scanner-cli:11.2');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
+('DEPENDENCY_ANALYSIS', '依赖分析', '质量控制',
+ '生成 CycloneDX 格式的依赖清单（SBOM），为漏洞扫描提供精确的依赖树',
+ 'Java 项目使用 CycloneDX Maven Plugin，其他语言使用 cdxgen。产出 target/sbom.json。',
+ 'mvn org.cyclonedx:cyclonedx-maven-plugin:2.10.0:makeAggregateBom -Dcyclonedx.outputFormat=json -Dcyclonedx.outputName=sbom --no-transfer-progress -q',
+ 1, 1, 45, 'maven:3.9.9-eclipse-temurin-21', 'maven:3.9.9-eclipse-temurin-21');
 
 INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
 ('SCAN', '安全扫描', '质量控制', '依赖与文件系统漏洞扫描', '',

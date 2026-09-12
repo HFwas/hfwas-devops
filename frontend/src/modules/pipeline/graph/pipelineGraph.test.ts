@@ -17,8 +17,8 @@ import {
 } from './pipelineGraph'
 
 describe('pipeline helpers', () => {
-  it('exposes 14 job kinds in 云效-style groups and a clone/build/test template', () => {
-    expect(JOB_KIND_OPTIONS).toHaveLength(14)
+  it('exposes 15 job kinds in 云效-style groups and a clone/build/test template', () => {
+    expect(JOB_KIND_OPTIONS).toHaveLength(15)
     expect(JOB_KIND_OPTIONS.map((item) => item.value)).toEqual(
       expect.arrayContaining(['LINT_SEMGREP', 'LINT_SONAR']),
     )
