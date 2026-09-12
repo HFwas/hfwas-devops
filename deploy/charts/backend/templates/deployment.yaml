@@ -139,6 +139,12 @@ spec:
             - name: OTEL_LOGS_EXPORTER
               value: "none"
             {{- end }}
+            {{- if .Values.pipelineKubeconfig.enabled }}
+            - name: PIPELINE_KUBECONFIG
+              value: {{ .Values.pipelineKubeconfig.mountPath | quote }}
+            - name: PIPELINE_NAMESPACE
+              value: {{ .Values.pipelineKubeconfig.namespace | quote }}
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -182,6 +188,15 @@ spec:
               mountPath: /otel-agent
               readOnly: true
             {{- end }}
+            {{- if .Values.pipelineKubeconfig.enabled }}
+            - name: pipeline-kubeconfig
+              mountPath: {{ .Values.pipelineKubeconfig.mountPath }}
+              subPath: {{ .Values.pipelineKubeconfig.secretKey }}
+              readOnly: true
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         {{- if .Values.otel.enabled }}
         - name: otel-agent
@@ -216,6 +231,15 @@ spec:
           configMap:
             name: {{ include "backend.fullname" . }}-schema
             defaultMode: 0444
+        {{- end }}
+        {{- if .Values.pipelineKubeconfig.enabled }}
+        - name: pipeline-kubeconfig
+          secret:
+            secretName: {{ required "pipelineKubeconfig.secretName is required when enabled" .Values.pipelineKubeconfig.secretName }}
+            defaultMode: 0440
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- /* 合并自定义亲和性和 Pod 反亲和 */}}
       {{- $affinity := .Values.affinity | default dict }}

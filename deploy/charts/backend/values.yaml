@@ -60,6 +60,19 @@ extraEnv:
   - name: MALLOC_ARENA_MAX
     value: "2"
 
+# 流水线执行集群（与「容器管理」纳管集群无关；Phase 1 仍读文件）
+# 启用后挂载 Secret 内 kubeconfig，并设置 PIPELINE_KUBECONFIG
+pipelineKubeconfig:
+  enabled: false
+  secretName: ""
+  secretKey: kubeconfig
+  mountPath: /app/pipeline/kubeconfig
+  namespace: hfwas-pipeline
+
+# 额外 volume / volumeMount（可选）
+extraVolumes: []
+extraVolumeMounts: []
+
 # 解析集群外主机名（如 compose 里的 keycloak）
 hostAliases: []
 

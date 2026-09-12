@@ -15,7 +15,21 @@ class GitRemoteTest {
         GitRemote remote = GitRemote.parse("https://gitlab.example.com/acme/demo.git");
         assertEquals("https", remote.scheme());
         assertEquals("gitlab.example.com", remote.host());
+        assertEquals(-1, remote.port());
+        assertEquals("gitlab.example.com", remote.hostAuthority());
         assertEquals("acme/demo.git", remote.path());
+        assertEquals("https://gitlab.example.com/acme/demo.git", remote.urlWithoutAuth());
+    }
+
+    @Test
+    void preservesNonDefaultPort() {
+        GitRemote remote = GitRemote.parse("http://localhost:30880/root/hfwas-devops.git");
+        assertEquals("http", remote.scheme());
+        assertEquals("localhost", remote.host());
+        assertEquals(30880, remote.port());
+        assertEquals("localhost:30880", remote.hostAuthority());
+        assertEquals("root/hfwas-devops.git", remote.path());
+        assertEquals("http://localhost:30880/root/hfwas-devops.git", remote.urlWithoutAuth());
     }
 
     @Test

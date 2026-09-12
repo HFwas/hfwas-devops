@@ -1,0 +1,98 @@
+# Harbor 单机默认值（官方 chart 1.18.4 / Harbor v2.14.4 覆盖）
+# 安装：helm upgrade --install harbor charts/harbor-1.18.4.tgz -n harbor -f values.yaml -f values-desktop.yaml
+
+expose:
+  type: nodePort
+  tls:
+    enabled: false
+  nodePort:
+    name: harbor
+    ports:
+      http:
+        port: 80
+        nodePort: 30002
+      https:
+        port: 443
+        nodePort: 30003
+
+externalURL: http://localhost:30002
+
+harborAdminPassword: "Harbor12345"
+
+imagePullPolicy: IfNotPresent
+
+# hostPath / RWO 不支持 RollingUpdate 多副本共享盘
+updateStrategy:
+  type: Recreate
+
+persistence:
+  enabled: true
+  resourcePolicy: keep
+  persistentVolumeClaim:
+    registry:
+      storageClass: ""
+      size: 10Gi
+    jobservice:
+      jobLog:
+        storageClass: ""
+        size: 2Gi
+    database:
+      storageClass: ""
+      size: 5Gi
+    redis:
+      storageClass: ""
+      size: 2Gi
+    trivy:
+      storageClass: ""
+      size: 5Gi
+
+nginx:
+  image:
+    repository: goharbor/nginx-photon
+    tag: v2.14.4
+
+portal:
+  image:
+    repository: goharbor/harbor-portal
+    tag: v2.14.4
+
+core:
+  image:
+    repository: goharbor/harbor-core
+    tag: v2.14.4
+
+jobservice:
+  image:
+    repository: goharbor/harbor-jobservice
+    tag: v2.14.4
+
+registry:
+  registry:
+    image:
+      repository: goharbor/registry-photon
+      tag: v2.14.4
+  controller:
+    image:
+      repository: goharbor/harbor-registryctl
+      tag: v2.14.4
+
+trivy:
+  enabled: true
+  image:
+    repository: goharbor/trivy-adapter-photon
+    tag: v2.14.4
+
+database:
+  internal:
+    image:
+      repository: goharbor/harbor-db
+      tag: v2.14.4
+
+redis:
+  internal:
+    image:
+      repository: goharbor/redis-photon
+      tag: v2.14.4
+
+metrics:
+  enabled: false

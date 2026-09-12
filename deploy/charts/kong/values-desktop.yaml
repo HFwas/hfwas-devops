@@ -1,0 +1,38 @@
+# Docker Desktop Kubernetes 覆盖值
+fullnameOverride: kong
+
+image:
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: NodePort
+  proxy:
+    port: 8000
+    nodePort: 30080
+  admin:
+    enabled: true
+    port: 8001
+    nodePort: 30081
+
+upstreams:
+  backend: http://devops-backend:8089
+  frontend: http://devops-frontend:80
+  keycloak: http://keycloak:8080
+
+public:
+  proto: http
+  host: localhost:30080
+  port: "30080"
+
+config:
+  logLevel: info
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1536Mi

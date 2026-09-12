@@ -1,0 +1,57 @@
+# Docker Desktop Kubernetes 覆盖值
+fullnameOverride: devops-backend
+
+image:
+  repository: hfwas/devops-backend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: NodePort
+  port: 8089
+  nodePort: 30889
+
+# Desktop 资源偏紧（已有 GitLab），先关 OTel
+otel:
+  enabled: false
+
+livenessProbe:
+  initialDelaySeconds: 90
+readinessProbe:
+  initialDelaySeconds: 60
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 768Mi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+persistence:
+  storageClass: ""
+  size: 1Gi
+
+filePersistence:
+  storageClass: ""
+  size: 2Gi
+
+extraEnv:
+  - name: MALLOC_ARENA_MAX
+    value: "2"
+  - name: OAUTH2_JWK_SET_URI
+    value: "http://keycloak:8080/auth/realms/hfwas-devops/protocol/openid-connect/certs"
+  - name: OAUTH2_ISSUER_URI
+    value: "http://localhost:30080/auth/realms/hfwas-devops"
+
+# 与 Docker Desktop 同集群：用 Secret 挂载 in-cluster kubeconfig
+pipelineKubeconfig:
+  enabled: true
+  secretName: devops-pipeline-kubeconfig
+  secretKey: kubeconfig
+  mountPath: /app/pipeline/kubeconfig
+  namespace: hfwas-pipeline
+
+hostAliases: []

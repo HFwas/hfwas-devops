@@ -1,0 +1,63 @@
+# 单机最小 GitLab CE（Omnibus）。不拆 postgres/redis/gitaly，一个 Pod 跑起来。
+
+nameOverride: gitlab
+fullnameOverride: ""
+
+image:
+  repository: gitlab/gitlab-ce
+  tag: "18.2.0-ce.0"
+  pullPolicy: IfNotPresent
+
+# 首次登录 root 密码（至少 8 位）。仅首次初始化生效。
+rootPassword: "ChangeMe123!"
+
+# 浏览器访问地址，须与 Service 暴露方式一致
+externalUrl: "http://localhost:30880"
+
+# SSH clone 端口（对外 NodePort / 映射端口）
+sshPort: 30222
+
+service:
+  type: NodePort
+  httpPort: 80
+  sshPort: 22
+  httpNodePort: 30880
+  sshNodePort: 30222
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 20Gi
+
+resources:
+  requests:
+    cpu: "1"
+    memory: 4Gi
+  limits:
+    cpu: "2"
+    memory: 8Gi
+
+# Omnibus 额外配置（追加到 GITLAB_OMNIBUS_CONFIG）
+# 已内置：external_url、关闭 HTTPS/监控、降低并发
+extraOmnibusConfig: ""
+
+# 健康检查：首次 gitlab-ctl reconfigure 很慢
+probes:
+  startup:
+    initialDelaySeconds: 120
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 40
+  readiness:
+    periodSeconds: 20
+    timeoutSeconds: 10
+    failureThreshold: 6
+  liveness:
+    periodSeconds: 60
+    timeoutSeconds: 10
+    failureThreshold: 6
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

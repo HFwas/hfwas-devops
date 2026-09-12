@@ -8,7 +8,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # Token iss 仍是浏览器侧地址；公钥从容器内 Keycloak 取，避免 backend 访问 localhost:8000 被拒
+          # 浏览器侧 iss；容器内用 jwk-set-uri 取公钥，避免访问错误主机
+          issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:30080/auth/realms/hfwas-devops}
           jwk-set-uri: ${OAUTH2_JWK_SET_URI:http://keycloak:8080/auth/realms/hfwas-devops/protocol/openid-connect/certs}
   jackson:
     serialization:

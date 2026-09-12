@@ -124,7 +124,7 @@ spec:
           command:
             {{- include "keycloak.command" . | nindent 12 }}
           args:
-            {{- toYaml .Values.config.extraArgs | nindent 12 }}
+            {{- include "keycloak.args" . | nindent 12 }}
           ports:
             - containerPort: {{ .Values.service.port }}
               name: http

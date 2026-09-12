@@ -139,9 +139,15 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             username = meta.getUsername();
             secret = credentialService.decryptSecret(pipeline.getCredentialId());
         }
-        String proxy = GitHttpProxy.rewrite(gitHttpProxy, GitHttpProxy.dockerHostAddress(gitDockerHost));
+        String dockerHost = GitHttpProxy.dockerHostAddress(gitDockerHost);
+        String proxy = GitHttpProxy.rewrite(gitHttpProxy, dockerHost);
         if (proxy != null && !proxy.isBlank()) {
             log.info("clone 使用 git HTTP 代理 {}", proxy);
+        }
+        // Pod 内 localhost 不可达宿主机 NodePort；改写成 docker 宿主机地址并保留端口
+        String repoUrl = GitHttpProxy.rewrite(pipeline.getRepoUrl(), dockerHost);
+        if (repoUrl != null && !repoUrl.equals(pipeline.getRepoUrl())) {
+            log.info("clone 仓库地址改写 {} -> {}", pipeline.getRepoUrl(), repoUrl);
         }
         // 解析任务镜像：toolImage 优先，其次 defaultImage
         Map<String, String> taskImages = new HashMap<>();
@@ -158,7 +164,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         CompiledTekton compiled = TektonCompiler.compile(new CompileRequest(
                 run.getId(),
                 pipeline.getId(),
-                pipeline.getRepoUrl(),
+                repoUrl,
                 run.getGitRef(),
                 secret != null,
                 segment,

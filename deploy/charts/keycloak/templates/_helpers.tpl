@@ -69,9 +69,16 @@ imagePullSecrets:
 {{- define "keycloak.command" -}}
 {{- if .Values.config.command }}
 {{- toYaml .Values.config.command }}
-{{- else if .Values.postgres.enabled }}
-{{- toYaml (list "start") }}
 {{- else }}
-{{- toYaml (list "start-dev") }}
+{{- toYaml (list "/opt/keycloak/bin/kc.sh") }}
+{{- end }}
+{{- end }}
+
+{{- define "keycloak.args" -}}
+{{- $mode := ternary "start" "start-dev" .Values.postgres.enabled }}
+{{- if .Values.config.command }}
+{{- toYaml .Values.config.extraArgs }}
+{{- else }}
+{{- toYaml (prepend .Values.config.extraArgs $mode) }}
 {{- end }}
 {{- end }}

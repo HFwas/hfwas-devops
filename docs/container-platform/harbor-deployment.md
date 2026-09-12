@@ -1,8 +1,16 @@
 # Harbor 部署文档
 
-> 版本: v2.14.4（从 v2.15.2 降级）  
-> 集群: k3s v1.31.4（单节点 ARM64 + Rosetta 2 模拟 x86_64）  
-> 日期: 2026-09-10
+> 日期：2026-09-13
+> 版本：v0.2
+> Harbor：v2.14.4（从 v2.15.2 降级）
+> Helm Chart：1.18.4
+
+### 变更记录
+
+| 版本 | 日期 | 变更说明 |
+|------|------|----------|
+| v0.1 | 2026-09-10 | 初版：k3s 手工 helm + 宿主机拉镜像导入 containerd |
+| v0.2 | 2026-09-13 | 推荐改用 `deploy/charts/harbor` 部署包；补充 Docker Desktop 路径 |
 
 ---
 
@@ -21,115 +29,77 @@
 
 | 项目 | 值 |
 |------|-----|
-| Kubernetes 集群 | k3s v1.31.4 (单节点) |
-| 节点架构 | ARM64 (Apple Silicon) + Rosetta 2 模拟 x86_64 |
 | Harbor 版本 | v2.14.4 |
-| Harbor Helm Chart | 1.18.4 |
-| 存储驱动 | local-path-provisioner (rancher) |
-| 暴露方式 | NodePort (HTTP: 30002, HTTPS: 30003) |
+| Harbor Helm Chart | 1.18.4（官方，vendored 在 `deploy/charts/harbor/charts/`） |
+| 部署包 | `deploy/charts/harbor/` |
+| 暴露方式 | NodePort（HTTP: 30002，HTTPS: 30003 预留，本包关闭 TLS） |
 | 外部访问地址 | http://localhost:30002 |
-| 默认管理员 | admin / 从环境变量读取 |
+| 默认管理员 | `admin` / `Harbor12345`（见 `values.yaml` 的 `harborAdminPassword`） |
+
+| 集群 | 存储 | kubectl / helm |
+|------|------|----------------|
+| Docker Desktop Kubernetes | 默认 `hostpath` | 宿主机 |
+| k3s（Docker 容器，如 `devops-k3s`） | `local-path` | **进容器再操作**，不要用宿主机 kubeconfig |
 
 ---
 
 ## 2. 安装步骤
 
-### 2.1 前置条件
+推荐用本仓库部署包，不要每次手写一长串 `--set`。包内 README：[`deploy/charts/harbor/README.md`](../../deploy/charts/harbor/README.md)。
 
-- k3s 集群已运行
-- Helm CLI 可用（k3s 内置）
-- 本地 Docker 可用（用于拉取镜像导入 k3s）
-
-### 2.2 添加 Helm 仓库
+### 2.1 Docker Desktop（当前本机）
 
 ```bash
-# 在 k3s 内操作
-docker exec devops-k3s helm repo add harbor https://helm.goharbor.io
-docker exec devops-k3s helm repo update
+cd deploy/charts/harbor
+./deploy.sh pull
+./deploy.sh deploy
+./deploy.sh status
 ```
 
-### 2.3 创建命名空间
+Desktop 与集群共用 Docker 镜像，**不需要** `ctr import`。Values 用 `values-desktop.yaml`。
+
+手动等价：
 
 ```bash
-docker exec devops-k3s kubectl create namespace harbor
+kubectl create namespace harbor
+helm upgrade --install harbor deploy/charts/harbor/charts/harbor-1.18.4.tgz -n harbor \
+  -f deploy/charts/harbor/values.yaml \
+  -f deploy/charts/harbor/values-desktop.yaml \
+  --timeout 15m --wait=false
 ```
 
-### 2.4 准备镜像
+### 2.2 k3s（节点无外网）
 
-由于集群**无互联网访问**，需要在宿主机拉取镜像后导入 k3s containerd。
-
-#### 2.4.1 拉取镜像
+先定位 k3s 容器，不要写死名字：
 
 ```bash
-# 在宿主机执行
-docker pull goharbor/harbor-core:v2.14.4
-docker pull goharbor/harbor-db:v2.14.4
-docker pull goharbor/harbor-jobservice:v2.14.4
-docker pull goharbor/harbor-portal:v2.14.4
-docker pull goharbor/nginx-photon:v2.14.4
-docker pull goharbor/registry-photon:v2.14.4
-docker pull goharbor/harbor-registryctl:v2.14.4
-docker pull goharbor/trivy-adapter-photon:v2.14.4
-docker pull goharbor/redis-photon:v2.14.4
+docker ps | grep k3s
 ```
 
-#### 2.4.2 导入 k3s containerd
-
 ```bash
-# 逐个导入到 k8s.io 命名空间（kubelet 只读取此命名空间）
-docker save goharbor/harbor-core:v2.14.4 | docker exec -i devops-k3s ctr -n k8s.io images import -
-docker save goharbor/harbor-db:v2.14.4 | docker exec -i devops-k3s ctr -n k8s.io images import -
-docker save goharbor/harbor-jobservice:v2.14.4 | docker exec -i devops-k3s ctr -n k8s.io images import -
-docker save goharbor/harbor-portal:v2.14.4 | docker exec -i devops-k3s ctr -n k8s.io images import -
-docker save goharbor/nginx-photon:v2.14.4 | docker exec -i devops-k3s ctr -n k8s.io images import -
-docker save goharbor/registry-photon:v2.14.4 | docker exec -i devops-k3s ctr -n k8s.io images import -
-docker save goharbor/harbor-registryctl:v2.14.4 | docker exec -i devops-k3s ctr -n k8s.io images import -
-docker save goharbor/trivy-adapter-photon:v2.14.4 | docker exec -i devops-k3s ctr -n k8s.io images import -
-docker save goharbor/redis-photon:v2.14.4 | docker exec -i devops-k3s ctr -n k8s.io images import -
+cd deploy/charts/harbor
+./deploy.sh pull
+./deploy.sh import-k3s
+VALUES_FILE=./values-k3s.yaml ./deploy.sh deploy
 ```
 
-> **注意**: 必须导入到 `k8s.io` 命名空间（`ctr -n k8s.io`），否则 kubelet 找不到镜像。
+`import-k3s` 把镜像导入 containerd 的 **`k8s.io`** 命名空间。rancher/k3s 里用 `/bin/kubectl`，不要写 `k3s kubectl`。
 
-### 2.5 安装 Harbor（首次）
+手工导入示例（容器名以 `docker ps` 为准）：
 
 ```bash
-docker exec devops-k3s sh -c 'KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm install harbor harbor/harbor --version 1.18.4 -n harbor \
-  --set expose.type=nodePort \
-  --set expose.tls.enabled=false \
-  --set expose.nodePort.ports.http.nodePort=30002 \
-  --set expose.nodePort.ports.https.nodePort=30003 \
-  --set externalURL=http://localhost:30002 \
-  --set persistence.enabled=true \
-  --set persistence.resourcePolicy=keep \
-  --set persistence.persistentVolumeClaim.registry.size=10Gi \
-  --set persistence.persistentVolumeClaim.database.size=5Gi \
-  --set persistence.persistentVolumeClaim.jobservice.size=2Gi \
-  --set persistence.persistentVolumeClaim.redis.size=2Gi \
-  --set persistence.persistentVolumeClaim.trivy.size=5Gi \
-  --set persistence.persistentVolumeClaim.registry.storageClass=local-path \
-  --set persistence.persistentVolumeClaim.database.storageClass=local-path \
-  --set persistence.persistentVolumeClaim.jobservice.storageClass=local-path \
-  --set persistence.persistentVolumeClaim.redis.storageClass=local-path \
-  --set persistence.persistentVolumeClaim.trivy.storageClass=local-path \
-  --set core.image.tag=v2.14.4 \
-  --set jobservice.image.tag=v2.14.4 \
-  --set portal.image.tag=v2.14.4 \
-  --set registry.registry.image.tag=v2.14.4 \
-  --set registry.controller.image.tag=v2.14.4 \
-  --set trivy.image.tag=v2.14.4 \
-  --set nginx.image.tag=v2.14.4 \
-  --set database.internal.image.tag=v2.14.4 \
-  --set redis.internal.image.tag=v2.14.4 \
-  --set redis.internal.image.repository=goharbor/redis-photon'
+docker save goharbor/harbor-core:v2.14.4 | docker exec -i <k3s容器> ctr -n k8s.io images import -
 ```
 
-### 2.6 验证部署
+### 2.3 验证部署
 
 ```bash
-# 查看 Pod 状态
-docker exec devops-k3s kubectl -n harbor get pods -w
+# Docker Desktop
+kubectl -n harbor get pods -w
 
-# 所有 Pod 变为 Running 后访问
+# k3s
+docker exec <k3s容器> kubectl -n harbor get pods -w
+
 curl http://localhost:30002
 ```
 
@@ -344,7 +314,11 @@ kubectl -n harbor delete pvc data-harbor-redis-0 --force
 ### 6.1 Pod 状态
 
 ```bash
-docker exec devops-k3s kubectl -n harbor get pods
+# Docker Desktop
+kubectl -n harbor get pods
+
+# k3s
+docker exec <k3s容器> kubectl -n harbor get pods
 ```
 
 期望输出：
@@ -371,7 +345,11 @@ curl http://localhost:30002
 ### 6.3 查看 Helm Release
 
 ```bash
-docker exec devops-k3s sh -c 'KUBECONFIG=/etc/rancher/k3s/k3s.yaml helm list -n harbor'
+# Docker Desktop
+helm list -n harbor
+
+# k3s
+docker exec <k3s容器> helm list -n harbor
 ```
 
 ---

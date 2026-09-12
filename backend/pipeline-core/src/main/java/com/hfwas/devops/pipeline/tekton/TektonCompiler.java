@@ -113,7 +113,7 @@ public final class TektonCompiler {
                 throw BizException.of(ResultCode.BAD_REQUEST, "仓库地址不能为空");
             }
             env.put("GIT_SCHEME", remote.scheme());
-            env.put("GIT_HOST", remote.host());
+            env.put("GIT_HOST", remote.hostAuthority());
             env.put("GIT_PATH", remote.path());
             env.put("GIT_REF", request.gitRef() == null || request.gitRef().isBlank() ? "main" : request.gitRef());
             if (remote.hasEmbeddedCredentials()) {

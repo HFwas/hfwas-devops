@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 public class SysUser {
     @TableId(type = IdType.AUTO)
     private Long id;
-    /** Platform-level role: admin | user. {@code tenantId} deprecated, use tenant membership. */
+    /** Platform-level role: admin | user. 租户归属见 sys_tenant_member，非表字段。 */
+    @TableField(exist = false)
     private Long tenantId;
     private String username;
     private String password;

@@ -1,7 +1,16 @@
 import Keycloak from 'keycloak-js'
 
+/** 走当前页面同源网关（Compose :8000 / Desktop Kong :30080 的 /auth） */
+function keycloakAuthUrl() {
+  const fromEnv = import.meta.env.VITE_KEYCLOAK_URL as string | undefined
+  if (fromEnv?.trim()) {
+    return fromEnv.trim().replace(/\/$/, '')
+  }
+  return `${window.location.origin}/auth`
+}
+
 const keycloak = new Keycloak({
-  url: 'http://localhost:8000/auth',
+  url: keycloakAuthUrl(),
   realm: 'hfwas-devops',
   clientId: 'hfwas-devops-web',
 })

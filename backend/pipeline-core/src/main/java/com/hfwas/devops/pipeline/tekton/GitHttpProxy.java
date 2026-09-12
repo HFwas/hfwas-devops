@@ -15,7 +15,14 @@ public final class GitHttpProxy {
 
     public static String dockerHostAddress(String fallback) {
         try {
-            return InetAddress.getByName("host.docker.internal").getHostAddress();
+            InetAddress[] addresses = InetAddress.getAllByName("host.docker.internal");
+            for (InetAddress address : addresses) {
+                if (address instanceof java.net.Inet4Address) {
+                    return address.getHostAddress();
+                }
+            }
+            // 仅有 IPv6 时保留主机名，避免 URL 里裸 IPv6 缺括号
+            return "host.docker.internal";
         } catch (UnknownHostException e) {
             return fallback == null ? "" : fallback.trim();
         }

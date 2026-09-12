@@ -1,0 +1,29 @@
+# Docker Desktop Kubernetes 覆盖值
+fullnameOverride: keycloak
+
+image:
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: NodePort
+  port: 8080
+  nodePort: 30881
+
+config:
+  hostname: http://localhost:30080/auth
+  hostnameAdmin: http://localhost:30881/auth
+  listenerUrl: http://devops-backend:8089/internal/keycloak/events
+
+postgres:
+  persistence:
+    storageClass: ""
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1536Mi

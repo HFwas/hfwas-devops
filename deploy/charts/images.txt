@@ -16,5 +16,19 @@ hfwas/devops-frontend:latest
 otel/opentelemetry-java-agent:2.12.0
 python:3.12-alpine
 
+# ---- GitLab CE Omnibus（单机最小，deploy/charts/gitlab）----
+gitlab/gitlab-ce:18.2.0-ce.0
+
+# ---- Harbor v2.14.4（官方 chart 1.18.4，deploy/charts/harbor）----
+goharbor/harbor-core:v2.14.4
+goharbor/harbor-db:v2.14.4
+goharbor/harbor-jobservice:v2.14.4
+goharbor/harbor-portal:v2.14.4
+goharbor/nginx-photon:v2.14.4
+goharbor/registry-photon:v2.14.4
+goharbor/harbor-registryctl:v2.14.4
+goharbor/trivy-adapter-photon:v2.14.4
+goharbor/redis-photon:v2.14.4
+
 # ---- SPI 构建（不进集群，仅本地/CI 打 hfwas/keycloak-http-listener）----
 # maven:3.9.9-eclipse-temurin-21

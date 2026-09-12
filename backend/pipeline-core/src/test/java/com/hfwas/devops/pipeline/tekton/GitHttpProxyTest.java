@@ -13,6 +13,10 @@ class GitHttpProxyTest {
         assertEquals("http://192.168.5.2:7890", GitHttpProxy.rewrite("http://localhost:7890", "192.168.5.2"));
         assertEquals("http://192.168.5.2:7890", GitHttpProxy.rewrite("http://host.docker.internal:7890", "192.168.5.2"));
         assertEquals("socks5://192.168.5.2:7891", GitHttpProxy.rewrite("socks5://127.0.0.1:7891", "192.168.5.2"));
+        assertEquals(
+                "http://192.168.5.2:30880/root/hfwas-devops.git",
+                GitHttpProxy.rewrite("http://localhost:30880/root/hfwas-devops.git", "192.168.5.2")
+        );
     }
 
     @Test

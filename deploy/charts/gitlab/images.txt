@@ -1,0 +1,2 @@
+# GitLab CE Omnibus（单机最小）
+gitlab/gitlab-ce:18.2.0-ce.0

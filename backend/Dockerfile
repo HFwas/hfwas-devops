@@ -1,14 +1,36 @@
+# syntax=docker/dockerfile:1
 # =============================================================================
 # Stage 1: Build Spring Boot fat JAR
+# BuildKit cache：/root/.m2 跨构建复用，改业务代码不再全量拉依赖
 # =============================================================================
 FROM maven:3.9.9-eclipse-temurin-21 AS builder
 
 WORKDIR /build
 
 COPY backend/docker/maven-settings.xml /root/.m2/settings.xml
+
+# 先只拷 POM，最大化依赖层缓存命中
 COPY pom.xml .
+COPY backend/pom.xml backend/
+COPY backend/user-api/pom.xml backend/user-api/
+COPY backend/user-core/pom.xml backend/user-core/
+COPY backend/pm-core/pom.xml backend/pm-core/
+COPY backend/api-test-core/pom.xml backend/api-test-core/
+COPY backend/file-parser/pom.xml backend/file-parser/
+COPY backend/image-core/pom.xml backend/image-core/
+COPY backend/pipeline-core/pom.xml backend/pipeline-core/
+COPY backend/container-core/pom.xml backend/container-core/
+COPY backend/server/pom.xml backend/server/
+
+# 预拉依赖（失败不阻断：个别 optional 解析失败时仍可用缓存继续 package）
+RUN --mount=type=cache,id=hfwas-m2,target=/root/.m2/repository \
+    mvn -B -pl backend/server -am -DskipTests dependency:go-offline || true
+
+# 再拷源码；仅此处变化时跳过上面的依赖下载
 COPY backend/ backend/
-RUN mvn -B -pl backend/server -am -DskipTests package \
+
+RUN --mount=type=cache,id=hfwas-m2,target=/root/.m2/repository \
+    mvn -B -pl backend/server -am -DskipTests package \
     && cp "$(ls backend/server/target/server-*.jar | grep -v original | head -1)" /build/server.jar
 
 # =============================================================================
@@ -32,7 +54,8 @@ RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.aliyun.com#g' /etc/apk/repositories
     && rm -rf /var/cache/apk/*
 
 COPY --from=builder /build/backend/scripts /app/scripts
-RUN pip3 install --no-cache-dir --break-system-packages \
+RUN --mount=type=cache,id=hfwas-pip,target=/root/.cache/pip \
+    pip3 install --break-system-packages \
     -i https://mirrors.aliyun.com/pypi/simple/ \
     --trusted-host mirrors.aliyun.com \
     python-docx>=1.1.2 \
@@ -40,8 +63,7 @@ RUN pip3 install --no-cache-dir --break-system-packages \
     python-pptx>=1.0.0 \
     fpdf2 \
     markdown \
-    reportlab>=4.1.0 \
-    && rm -rf /root/.cache/pip
+    reportlab>=4.1.0
 
 # 图片处理：Magick 改像素，ExifTool 读标签（Perl 是 ExifTool 运行时）
 # 不装 imagemagick-pdf，降低 Magick 攻击面

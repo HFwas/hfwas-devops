@@ -7,7 +7,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Locale;
 
-public record GitRemote(String scheme, String host, String path, String userInfo) {
+public record GitRemote(String scheme, String host, int port, String path, String userInfo) {
 
     public static GitRemote parse(String repoUrl) {
         if (repoUrl == null || repoUrl.isBlank()) {
@@ -30,14 +30,22 @@ public record GitRemote(String scheme, String host, String path, String userInfo
             throw BizException.of(ResultCode.BAD_REQUEST, "仓库地址缺少主机或路径: " + trimmed);
         }
         String userInfo = uri.getUserInfo();
-        return new GitRemote(scheme.toLowerCase(Locale.ROOT), host, path, userInfo);
+        return new GitRemote(scheme.toLowerCase(Locale.ROOT), host, uri.getPort(), path, userInfo);
     }
 
     public boolean hasEmbeddedCredentials() {
         return userInfo != null && !userInfo.isBlank();
     }
 
+    /** host 或 host:port，供 clone 脚本拼 URL（保留非默认端口）。 */
+    public String hostAuthority() {
+        if (port > 0) {
+            return host + ":" + port;
+        }
+        return host;
+    }
+
     public String urlWithoutAuth() {
-        return scheme + "://" + host + "/" + path;
+        return scheme + "://" + hostAuthority() + "/" + path;
     }
 }

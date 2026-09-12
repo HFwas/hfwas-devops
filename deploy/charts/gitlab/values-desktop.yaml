@@ -1,0 +1,21 @@
+# Docker Desktop Kubernetes 单机覆盖值
+externalUrl: "http://localhost:30880"
+sshPort: 30222
+
+service:
+  type: NodePort
+  httpNodePort: 30880
+  sshNodePort: 30222
+
+# Desktop 默认 StorageClass 留空即可
+persistence:
+  storageClass: ""
+  size: 20Gi
+
+resources:
+  requests:
+    cpu: "1"
+    memory: 4Gi
+  limits:
+    cpu: "2"
+    memory: 8Gi

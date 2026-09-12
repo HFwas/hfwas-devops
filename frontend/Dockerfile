@@ -1,12 +1,15 @@
+# syntax=docker/dockerfile:1
 # =============================================================================
 # Stage 1: Build Vue 3 frontend
+# BuildKit cache：npm 缓存跨构建复用；仅 package*.json 变化时才重跑 npm ci
 # =============================================================================
 FROM node:20-alpine AS builder
 
 WORKDIR /build
 
 COPY package.json package-lock.json* ./
-RUN npm ci --no-audit --no-fund
+RUN --mount=type=cache,id=hfwas-npm,target=/root/.npm \
+    npm ci --no-audit --no-fund
 
 COPY . .
 RUN npm run build

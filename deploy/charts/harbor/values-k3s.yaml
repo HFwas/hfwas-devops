@@ -1,0 +1,36 @@
+# k3s（Docker 内 rancher/k3s）覆盖值
+externalURL: http://localhost:30002
+
+expose:
+  type: nodePort
+  tls:
+    enabled: false
+  nodePort:
+    ports:
+      http:
+        nodePort: 30002
+      https:
+        nodePort: 30003
+
+persistence:
+  persistentVolumeClaim:
+    registry:
+      storageClass: local-path
+    jobservice:
+      jobLog:
+        storageClass: local-path
+    database:
+      storageClass: local-path
+    redis:
+      storageClass: local-path
+    trivy:
+      storageClass: local-path
+
+proxy:
+  httpProxy: http://host.docker.internal:7890
+  httpsProxy: http://host.docker.internal:7890
+  noProxy: 127.0.0.1,localhost,.local,.internal,harbor,.svc,.cluster.local
+  components:
+    - core
+    - jobservice
+    - trivy

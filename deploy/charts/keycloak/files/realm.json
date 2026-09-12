@@ -28,17 +28,23 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "protocol": "openid-connect",
-      "rootUrl": "http://localhost:8000",
+      "rootUrl": "http://localhost:30080",
       "baseUrl": "/",
       "redirectUris": [
         "/*",
         "/",
+        "http://localhost:30080",
+        "http://localhost:30080/",
+        "http://localhost:30080/*",
         "http://localhost:8000",
         "http://localhost:8000/",
         "http://localhost:8000/*",
         "http://localhost:5173",
         "http://localhost:5173/",
         "http://localhost:5173/*",
+        "http://127.0.0.1:30080",
+        "http://127.0.0.1:30080/",
+        "http://127.0.0.1:30080/*",
         "http://127.0.0.1:8000",
         "http://127.0.0.1:8000/",
         "http://127.0.0.1:8000/*",
@@ -48,14 +54,16 @@
       ],
       "webOrigins": [
         "+",
+        "http://localhost:30080",
         "http://localhost:8000",
         "http://localhost:5173",
+        "http://127.0.0.1:30080",
         "http://127.0.0.1:8000",
         "http://127.0.0.1:5173"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "+##http://localhost:8000/*##http://localhost:5173/*##http://127.0.0.1:8000/*##http://127.0.0.1:5173/*"
+        "post.logout.redirect.uris": "+##http://localhost:30080/*##http://localhost:8000/*##http://localhost:5173/*##http://127.0.0.1:30080/*##http://127.0.0.1:8000/*##http://127.0.0.1:5173/*"
       }
     }
   ],

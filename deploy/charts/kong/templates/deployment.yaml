@@ -58,6 +58,8 @@ spec:
               value: {{ .Values.config.database | quote }}
             - name: KONG_DECLARATIVE_CONFIG
               value: {{ .Values.config.declarativeConfig | quote }}
+            - name: KONG_PREFIX
+              value: /kong_prefix
             - name: KONG_PROXY_LISTEN
               value: "0.0.0.0:{{ .Values.service.proxy.port }}{{- if .Values.service.proxySsl.enabled }}, 0.0.0.0:{{ .Values.service.proxySsl.port }} ssl{{- end }}"
             - name: KONG_ADMIN_LISTEN
@@ -104,7 +106,7 @@ spec:
             - name: tmp
               mountPath: /tmp
             - name: prefix
-              mountPath: /usr/local/kong
+              mountPath: /kong_prefix
       volumes:
         - name: config
           configMap:
