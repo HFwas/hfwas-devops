@@ -319,12 +319,24 @@ public final class TektonCompiler {
         if (apiEndpoint != null && !apiEndpoint.isBlank()) {
             upload = """
 
-                    if [ -f target/sbom.json ]; then
-                      size=$(stat -f%z "target/sbom.json" 2>/dev/null || stat -c%s "target/sbom.json" 2>/dev/null || echo 0)
-                      echo "uploading SBOM (${size} bytes) to ${API_ENDPOINT}"
+                    SBOM_FILE=""
+                    for f in target/sbom.json target/bom.json; do
+                      if [ -f "$f" ]; then SBOM_FILE="$f"; break; fi
+                    done
+                    if [ -z "$SBOM_FILE" ]; then
+                      SBOM_FILE=$(find . \\( -path '*/target/sbom.json' -o -path '*/target/bom.json' \\) 2>/dev/null | head -n 1 || true)
+                    fi
+                    if [ -n "$SBOM_FILE" ]; then
+                      if ! command -v curl >/dev/null 2>&1; then
+                        if command -v apt-get >/dev/null 2>&1; then
+                          apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl ca-certificates >/dev/null
+                        fi
+                      fi
+                      size=$(stat -f%z "$SBOM_FILE" 2>/dev/null || stat -c%s "$SBOM_FILE" 2>/dev/null || echo 0)
+                      echo "uploading SBOM (${size} bytes) from ${SBOM_FILE} to ${API_ENDPOINT}"
                       curl -fsS -X POST "${API_ENDPOINT}/pipeline/runs/${RUN_ID}/artifacts" \\
                         -F "type=sbom" \\
-                        -F "file=@target/sbom.json" \\
+                        -F "file=@${SBOM_FILE};filename=sbom.json" \\
                         --connect-timeout 10 \\
                         --max-time 60 && echo " SBOM uploaded" || echo " SBOM upload failed (non-fatal)"
                     else

@@ -253,7 +253,7 @@ class TektonCompilerTest {
         PipelineGraphSpec graph = new PipelineGraphSpec(List.of(
                 stage("dep", 0, List.of(job("dep", PipelineJobKind.DEPENDENCY_ANALYSIS,
                         "mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom "
-                                + "-Dcyclonedx.outputFormat=json -DoutputName=sbom -q", 0)))
+                                + "-Dcyclonedx.outputFormat=json -DoutputName=sbom", 0)))
         ));
         String apiEndpoint = "http://host.docker.internal:8089";
         CompiledStep step = TektonCompiler.compile(requestWithApi(15L, graph, false, apiEndpoint))

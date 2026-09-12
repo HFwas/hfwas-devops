@@ -45,6 +45,11 @@ extraEnv:
     value: "http://keycloak:8080/auth/realms/hfwas-devops/protocol/openid-connect/certs"
   - name: OAUTH2_ISSUER_URI
     value: "http://localhost:30080/auth/realms/hfwas-devops"
+  # Tekton 任务回传 SBOM → 依赖组件入库
+  - name: PIPELINE_API_ENDPOINT
+    value: "http://devops-backend.devops.svc.cluster.local:8089"
+  - name: PIPELINE_ARTIFACT_STORAGE
+    value: "/app/data/artifacts"
 
 # 与 Docker Desktop 同集群：用 Secret 挂载 in-cluster kubeconfig
 pipelineKubeconfig:

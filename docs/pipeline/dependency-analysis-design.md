@@ -1,7 +1,7 @@
 # 流水线依赖分析任务设计方案
 
-> 日期：2026-09-12
-> 版本：v0.3
+> 日期：2026-09-13
+> 版本：v0.4
 > 定位：在流水线中增加一个**通用依赖分析任务**，支持多种语言项目的依赖扫描，生成标准 SBOM 作为后续漏洞检测的前置输入
 > 状态：已定稿
 
@@ -11,9 +11,10 @@
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
-| v0.3 | 2026-09-12 | 更新版本为 2.9.3（2.10.0 在 Maven Central 尚无），修正 CLI 参数 `-Dcyclonedx.outputName` → `-DoutputName`，修正 SBOM specVersion 为 1.6 |
-| v0.2 | 2026-09-12 | 新增 SBOM 持久化与下载设计（5.3），补充 artifact 存储、API、前端展示 |
 | v0.1 | 2026-09-12 | 初版：多语言依赖分析任务设计，Java 用 CycloneDX Maven Plugin，其他语言用 cdxgen |
+| v0.2 | 2026-09-12 | 新增 SBOM 持久化与下载设计（5.3），补充 artifact 存储、API、前端展示 |
+| v0.3 | 2026-09-12 | 更新版本为 2.9.3（2.10.0 在 Maven Central 尚无），修正 CLI 参数 `-Dcyclonedx.outputName` → `-DoutputName`，修正 SBOM specVersion 为 1.6 |
+| v0.4 | 2026-09-13 | 默认 Maven 命令去掉 `-q`，保留流水线日志可见性 |
 
 ---
 
@@ -164,8 +165,7 @@ cd /workspace/source
 mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom \
   -Dcyclonedx.outputFormat=json \
   -DoutputName=sbom \
-  --no-transfer-progress \
-  -q
+  --no-transfer-progress
 ```
 
 #### 参数说明
@@ -175,8 +175,7 @@ mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom \
 | `org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom` | 插件坐标 + 版本 + goal，完全限定避免搜索 |
 | `-Dcyclonedx.outputFormat=json` | 输出 JSON 格式 |
 | `-DoutputName=sbom` | 输出文件名（不含后缀）。注意：2.9.x 使用 `-DoutputName`（不带 `cyclonedx.` 前缀）; 后续版本可能恢复为 `-Dcyclonedx.outputName` |
-| `--no-transfer-progress` | 减少 Maven 下载进度日志 |
-| `-q` | 静默模式 |
+| `--no-transfer-progress` | 减少 Maven 下载进度条刷屏，保留 INFO 日志便于流水线展示 |
 
 > 插件自动从 `~/.m2` 和 `target/` 中读取已解析的依赖。
 
@@ -519,7 +518,7 @@ job.kind == DEPENDENCY_ANALYSIS
 | `task_group` | 质量控制 |
 | `description` | 生成 CycloneDX 格式的依赖清单（SBOM），为漏洞扫描提供精确的依赖树 |
 | `hint` | Java 项目使用 CycloneDX Maven Plugin，其他语言使用 cdxgen。产出 target/sbom.json。 |
-| `default_command` | `mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress -q` |
+| `default_command` | `mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress` |
 | `requires_command` | 1 |
 | `enabled` | 1 |
 | `tool_image` | `maven:3.9.9-eclipse-temurin-21`（Java 默认；非 Java 项目需改为 cdxgen 镜像） |
@@ -555,7 +554,7 @@ if [ -f "pom.xml" ]; then
   mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom \
     -Dcyclonedx.outputFormat=json \
     -DoutputName=sbom \
-    --no-transfer-progress -q
+    --no-transfer-progress
 else
   cdxgen -o target/sbom.json -t cyclonedx:json
 fi

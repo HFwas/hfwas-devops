@@ -97,7 +97,7 @@ public class DependencyScanService {
 
         String stack = dto.getStack();
         if ("JAVA_MAVEN".equals(stack)) {
-            analysisJob.setCommand("mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress -q");
+            analysisJob.setCommand("mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress");
         } else {
             analysisJob.setCommand("cdxgen -o target/sbom.json -t cyclonedx:json");
         }

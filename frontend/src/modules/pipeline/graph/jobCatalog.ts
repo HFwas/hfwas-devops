@@ -77,7 +77,7 @@ export SONAR_PROJECT_KEY=app`,
     description: '生成 CycloneDX 格式的依赖清单（SBOM），为漏洞扫描提供精确的依赖树',
     hint: 'Java 项目使用 CycloneDX Maven Plugin，其他语言使用 cdxgen。产出 target/sbom.json。',
     requiresCommand: true,
-    defaultCommand: 'mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress -q',
+    defaultCommand: 'mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress',
   },
   {
     value: 'SCAN',
