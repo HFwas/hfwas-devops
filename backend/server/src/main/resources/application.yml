@@ -63,3 +63,6 @@ pipeline:
   namespace: ${PIPELINE_NAMESPACE:hfwas-pipeline}
   git-http-proxy: ${PIPELINE_GIT_HTTP_PROXY:}
   git-docker-host: ${PIPELINE_GIT_DOCKER_HOST:}
+  api-endpoint: ${PIPELINE_API_ENDPOINT:}
+  artifact:
+    storage: ${PIPELINE_ARTIFACT_STORAGE:data/artifacts}

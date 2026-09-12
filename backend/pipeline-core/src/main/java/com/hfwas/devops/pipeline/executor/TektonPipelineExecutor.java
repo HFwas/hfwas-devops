@@ -67,6 +67,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
     private final PipelineTaskKindMapper taskKindMapper;
     private final String gitHttpProxy;
     private final String gitDockerHost;
+    private final String apiEndpoint;
     private final ExecutorService watchPool = Executors.newCachedThreadPool(r -> {
         Thread thread = new Thread(r, "pipeline-tekton-watch");
         thread.setDaemon(true);
@@ -85,7 +86,8 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             PipelineCredentialService credentialService,
             PipelineTaskKindMapper taskKindMapper,
             String gitHttpProxy,
-            String gitDockerHost
+            String gitDockerHost,
+            String apiEndpoint
     ) {
         this.client = client;
         this.tekton = client.adapt(TektonClient.class);
@@ -99,6 +101,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         this.taskKindMapper = taskKindMapper;
         this.gitHttpProxy = gitHttpProxy;
         this.gitDockerHost = gitDockerHost;
+        this.apiEndpoint = apiEndpoint;
     }
 
     @Override
@@ -156,7 +159,8 @@ public class TektonPipelineExecutor implements PipelineExecutor {
                 secret != null,
                 segment,
                 proxy,
-                taskImages
+                taskImages,
+                apiEndpoint
         ));
         ensureNamespace();
         String gitSecretName = compiled.name() + "-git";

@@ -169,7 +169,11 @@ public final class TektonCompiler {
             return List.of(new CompiledStep(base, resolveImage("LINT_SONAR", request.taskImages(), SONAR_IMAGE), lintSonarScript(command), env, false, false));
         }
         if (job.kind() == PipelineJobKind.DEPENDENCY_ANALYSIS) {
-            String script = commandScript(command);
+            String script = dependencyAnalysisScript(command, request.apiEndpoint());
+            if (request.apiEndpoint() != null && !request.apiEndpoint().isBlank()) {
+                env.put("API_ENDPOINT", request.apiEndpoint());
+                env.put("RUN_ID", String.valueOf(request.runId()));
+            }
             return List.of(new CompiledStep(base, resolveImage("DEPENDENCY_ANALYSIS", request.taskImages(), CDXGEN_IMAGE), script, env, false, false));
         }
         String image = switch (job.kind()) {
@@ -302,12 +306,33 @@ public final class TektonCompiler {
 
     private static String lintSonarScript(String command) {
         return evalPrefix(command) + """
-                
+
                 : "${SONAR_HOST_URL:?SONAR_HOST_URL is required}"
                 : "${SONAR_TOKEN:?SONAR_TOKEN is required}"
                 : "${SONAR_PROJECT_KEY:=app}"
                 sonar-scanner -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.token="$SONAR_TOKEN" -Dsonar.projectKey="$SONAR_PROJECT_KEY" -Dsonar.sources=.
                 """.stripIndent();
+    }
+
+    private static String dependencyAnalysisScript(String command, String apiEndpoint) {
+        String upload = "";
+        if (apiEndpoint != null && !apiEndpoint.isBlank()) {
+            upload = """
+
+                    if [ -f target/sbom.json ]; then
+                      size=$(stat -f%z "target/sbom.json" 2>/dev/null || stat -c%s "target/sbom.json" 2>/dev/null || echo 0)
+                      echo "uploading SBOM (${size} bytes) to ${API_ENDPOINT}"
+                      curl -fsS -X POST "${API_ENDPOINT}/pipeline/runs/${RUN_ID}/artifacts" \\
+                        -F "type=sbom" \\
+                        -F "file=@target/sbom.json" \\
+                        --connect-timeout 10 \\
+                        --max-time 60 && echo " SBOM uploaded" || echo " SBOM upload failed (non-fatal)"
+                    else
+                      echo "target/sbom.json not found, skip upload"
+                    fi
+                    """;
+        }
+        return commandScript(command) + upload;
     }
 
     private static List<String> uniqueStepNames(List<CompiledStep> steps) {

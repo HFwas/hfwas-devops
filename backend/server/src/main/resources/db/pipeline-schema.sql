@@ -185,3 +185,19 @@ INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, descrip
 
 CREATE INDEX IF NOT EXISTS idx_task_kind_tenant ON pipeline_task_kind (tenant_id, deleted);
 CREATE INDEX IF NOT EXISTS idx_task_kind_group ON pipeline_task_kind (task_group, sort_order);
+
+-- ============================================================
+-- 流水线运行产物表（SBOM / 测试报告 / 覆盖率报告等）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS pipeline_run_artifact (
+    id            INTEGER      NOT NULL PRIMARY KEY,
+    run_id        INTEGER      NOT NULL REFERENCES pipeline_run(id),
+    job_id        INTEGER      REFERENCES pipeline_run_job(id),
+    artifact_type TEXT         NOT NULL DEFAULT 'sbom',
+    file_name     TEXT         NOT NULL,
+    file_size     INTEGER      NOT NULL DEFAULT 0,
+    storage_path  TEXT         NOT NULL,
+    content_type  TEXT         NOT NULL DEFAULT 'application/json',
+    create_time   TEXT         NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_artifact_run ON pipeline_run_artifact (run_id, artifact_type);

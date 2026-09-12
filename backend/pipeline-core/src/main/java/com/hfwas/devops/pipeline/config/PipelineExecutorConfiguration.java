@@ -55,6 +55,7 @@ public class PipelineExecutorConfiguration {
             @Value("${pipeline.namespace:hfwas-pipeline}") String namespace,
             @Value("${pipeline.git-http-proxy:}") String gitHttpProxy,
             @Value("${pipeline.git-docker-host:}") String gitDockerHost,
+            @Value("${pipeline.api-endpoint:}") String apiEndpoint,
             PipelineMapper pipelineMapper,
             PipelineStageMapper stageMapper,
             PipelineJobMapper jobMapper,
@@ -79,7 +80,8 @@ public class PipelineExecutorConfiguration {
                 credentialService,
                 taskKindMapper,
                 gitHttpProxy,
-                gitDockerHost
+                gitDockerHost,
+                apiEndpoint
         );
     }
 

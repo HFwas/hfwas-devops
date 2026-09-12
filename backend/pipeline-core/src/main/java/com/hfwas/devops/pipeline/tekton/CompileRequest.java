@@ -12,6 +12,7 @@ public record CompileRequest(
         boolean hasCredential,
         PipelineGraphSpec graph,
         String gitHttpProxy,
-        Map<String, String> taskImages
+        Map<String, String> taskImages,
+        String apiEndpoint
 ) {
 }
