@@ -1,7 +1,7 @@
 # Agent instructions
 
-> 日期：2026-09-12  
-> 版本：v0.4
+> 日期：2026-09-13 
+> 版本：v0.5
 
 ### 变更记录
 
@@ -11,6 +11,7 @@
 | v0.2 | 2026-09-12 | 约定：新建或改文档须带版本号与变更记录 |
 | v0.3 | 2026-09-12 | 变更记录固定放在文首（标题与元信息之后、正文之前），对齐 pod-exec-terminal |
 | v0.4 | 2026-09-12 | 新增：禁止自动 commit 和 push |
+| v0.5 | 2026-09-13 | docs 索引补充应用镜像构建与 Helm 升级 |
 
 ---
 
@@ -30,6 +31,7 @@ HFWAS DevOps：从 0 到 1 的 DevOps 平台。后端 Spring Boot 3 / Java 21，
 | 主题 | 目录 |
 |------|------|
 | Kong / 代理 / 本机安装 | `docs/devops/` |
+| 应用镜像 / Helm 升级 | `docs/devops/app-helm-deploy.md` |
 | 流水线 / Tekton / CI | `docs/pipeline/` |
 | 容器 / Harbor / 监控 | `docs/container-platform/` |
 | PM 设计与 API | `docs/pm/` |

@@ -67,7 +67,9 @@ RUN --mount=type=cache,id=hfwas-pip,target=/root/.cache/pip \
 
 # 图片处理：Magick 改像素，ExifTool 读标签（Perl 是 ExifTool 运行时）
 # 不装 imagemagick-pdf，降低 Magick 攻击面
+# 图片处理 + shell 语法验证依赖 bash
 RUN apk add --no-cache \
+    bash \
     imagemagick \
     imagemagick-jpeg \
     imagemagick-tiff \

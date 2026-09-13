@@ -287,7 +287,7 @@ if [ -n "${API_ENDPOINT:-}" ] && [ -n "${RUN_ID:-}" ]; then
     if [ -f "$f" ]; then SBOM_FILE="$f"; break; fi
   done
   if [ -z "$SBOM_FILE" ]; then
-    SBOM_FILE=$(find . \( -path '"'"'*/target/sbom.json'"'"' -o -path '"'"'*/target/bom.json'"'"' \) 2>/dev/null | head -n 1 || true)
+    SBOM_FILE=$(find . \( -path ''*/target/sbom.json'' -o -path ''*/target/bom.json'' \) 2>/dev/null | head -n 1 || true)
   fi
   if [ -n "$SBOM_FILE" ]; then
     if ! command -v curl >/dev/null 2>&1; then
@@ -311,7 +311,7 @@ WHERE kind_value = 'DEPENDENCY_ANALYSIS';
 UPDATE pipeline_task_kind SET command_template =
 'set -eu
 cd "$(workspaces.source.path)/src"
-eval "$(cat <<'"'"'HFWAS_USER'"'"'
+eval "$(cat <<''HFWAS_USER''
 ${COMMAND}
 HFWAS_USER
 )"
@@ -332,7 +332,7 @@ UPDATE pipeline_task_kind SET command_template =
 'set -eu
 mkdir -p "$(workspaces.source.path)/src"
 cd "$(workspaces.source.path)/src"
-eval "$(cat <<'"'"'HFWAS_USER'"'"'
+eval "$(cat <<''HFWAS_USER''
 ${COMMAND}
 HFWAS_USER
 )"
@@ -347,7 +347,7 @@ UPDATE pipeline_task_kind SET command_template =
 'set -eu
 mkdir -p "$(workspaces.source.path)/src"
 cd "$(workspaces.source.path)/src"
-eval "$(cat <<'"'"'HFWAS_USER'"'"'
+eval "$(cat <<''HFWAS_USER''
 ${COMMAND}
 HFWAS_USER
 )"
@@ -357,8 +357,8 @@ HFWAS_USER
 : "${DOCKERFILE:=Dockerfile}"
 
 n=0
-for p in $(echo "$IMAGE_PLATFORMS" | tr '"'"','"'"' '"'"'); do
-  p=$(echo "$p" | tr -d '"'"' '"'"')
+for p in $(echo "$IMAGE_PLATFORMS" | tr '','' ''); do
+  p=$(echo "$p" | tr -d '' '')
   [ -n "$p" ] || continue
   n=$((n + 1))
 done
@@ -368,8 +368,8 @@ if [ "$n" -eq 1 ]; then
   buildah push "$DEST"
 else
   buildah manifest create "$DEST"
-  for p in $(echo "$IMAGE_PLATFORMS" | tr '"'"','"'"' '"'"'); do
-    p=$(echo "$p" | tr -d '"'"' '"'"')
+  for p in $(echo "$IMAGE_PLATFORMS" | tr '','' ''); do
+    p=$(echo "$p" | tr -d '' '')
     [ -n "$p" ] || continue
     buildah build --manifest "$DEST" --platform "$p" --file "$DOCKERFILE" .
   done
@@ -385,6 +385,6 @@ if [ -z "${COSIGN_PRIVATE_KEY:-}" ]; then
   echo "skip cosign: COSIGN_PRIVATE_KEY empty"
   exit 0
 fi
-printf '"'"'%s'"'"' "$COSIGN_PRIVATE_KEY" > /tmp/cosign.key
+printf ''%s'' "$COSIGN_PRIVATE_KEY" > /tmp/cosign.key
 cosign sign --key /tmp/cosign.key --yes "$DEST"'
 WHERE kind_value = 'IMAGE_COSIGN';

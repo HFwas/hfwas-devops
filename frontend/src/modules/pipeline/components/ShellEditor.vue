@@ -10,7 +10,7 @@ import { pipelineTaskKindApi } from '@/modules/pipeline/api/pipeline'
 import { isApiError } from '@/shared/errors/apiError'
 
 const props = defineProps<{
-  modelValue: string
+  modelValue?: string
   kindValue: string
   defaultTemplate?: string
   height?: string

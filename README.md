@@ -1,5 +1,18 @@
 # HFWAS DevOps
 
+> 日期：2026-09-13
+> 版本：v0.3
+
+### 变更记录
+
+| 版本 | 日期 | 变更说明 |
+|------|------|----------|
+| v0.1 | 2026-09-12 | 现有 README 内容 |
+| v0.2 | 2026-09-13 | Helm 部署指向 `deploy/charts/deploy-app` 脚本 |
+| v0.3 | 2026-09-13 | 本机 GitLab 代码同步用 `scripts/sync-gitlab` |
+
+---
+
 可扩展的 DevOps 平台，当前包含 **项目管理（PM）**、**用户/租户中心**、**文档生成（Docgen）** 与 **文件解析（File Parser）** 四大子系统。后端为单体 Spring Boot 服务，前端为 Vue 3 SPA，本地开发使用 SQLite，零外部依赖即可启动。
 
 ---
@@ -378,6 +391,15 @@ tail -f logs/backend/devops.log logs/frontend/access.log logs/kong/error.log log
 产物：`artifacts/backend/server.jar`、`artifacts/frontend/`。
 
 ### Helm 部署（Kubernetes）
+
+本地改完 backend / frontend 后打镜像并升级，用 `deploy/charts/deploy-app.sh`（Windows：`deploy-app.ps1`），说明见 [`docs/devops/app-helm-deploy.md`](docs/devops/app-helm-deploy.md)。
+
+本机 GitLab 要把当前分支已提交代码推上去时，用 `scripts/sync-gitlab.ps1`（macOS / Git Bash：`scripts/sync-gitlab.sh`），说明见 [`deploy/charts/gitlab/README.md`](deploy/charts/gitlab/README.md)。
+
+```bash
+./deploy/charts/deploy-app.sh backend
+./deploy/charts/deploy-app.sh frontend
+```
 
 Chart 在 `deploy/charts/`。Keycloak / Kong 镜像清单见 [`deploy/charts/images.txt`](deploy/charts/images.txt)。
 
