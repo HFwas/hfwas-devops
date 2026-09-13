@@ -5,8 +5,9 @@ import { pipelineTaskKindApi } from '@/modules/pipeline/api/pipeline'
 import { jobKindIcon } from '@/modules/pipeline/graph/jobIcons'
 import { jobKindTone } from '@/modules/pipeline/status'
 import { useAuthStore } from '@/modules/user/stores/auth'
-import type { TaskKindVO } from '@/modules/pipeline/types/pipeline'
+import type { TaskKindParam, TaskKindVO } from '@/modules/pipeline/types/pipeline'
 import { isApiError } from '@/shared/errors/apiError'
+import JobParamEditor from '@/modules/pipeline/components/JobParamEditor.vue'
 import ShellEditor from '@/modules/pipeline/components/ShellEditor.vue'
 import '@/modules/pipeline/styles/pipeline-theme.css'
 
@@ -18,6 +19,14 @@ const activeGroup = ref<string>('全部')
 const editingItem = ref<TaskKindVO | null>(null)
 const editDrawerShow = ref(false)
 const editForm = ref<Partial<TaskKindVO>>({})
+const editParams = computed({
+  get(): TaskKindParam[] {
+    return editForm.value.params ? editForm.value.params : []
+  },
+  set(value: TaskKindParam[]) {
+    editForm.value.params = value
+  },
+})
 
 // 从数据动态提取分组，保持原有顺序
 const GROUP_ORDER = ['代码', '构建', '质量控制', '制品', '部署', '测试', '命令', '流程']
@@ -72,6 +81,10 @@ function openEdit(item: TaskKindVO) {
     cpuLimit: item.cpuLimit || '',
     memoryRequest: item.memoryRequest || '',
     memoryLimit: item.memoryLimit || '',
+    params: (item.params || []).map((p) => ({
+      ...p,
+      options: p.options ? [...p.options] : [],
+    })),
   }
   editDrawerShow.value = true
 }
@@ -79,7 +92,10 @@ function openEdit(item: TaskKindVO) {
 async function saveEdit() {
   if (!editingItem.value) return
   try {
-    await pipelineTaskKindApi.update(editingItem.value.kindValue, editForm.value)
+    await pipelineTaskKindApi.update(editingItem.value.kindValue, {
+      ...editForm.value,
+      params: editForm.value.params ? editForm.value.params : [],
+    })
     message.success('已保存')
     editDrawerShow.value = false
     editingItem.value = null
@@ -122,7 +138,9 @@ onMounted(load)
     <header class="pl-hero">
       <div class="pl-hero-main">
         <h1 class="pl-hero-title">任务市场</h1>
-        <p class="pl-hero-desc">管理平台支持的 {{ taskKinds.length }} 种任务类型，支持编辑元数据、启用或禁用</p>
+        <p class="pl-hero-desc">
+          管理平台支持的 {{ taskKinds.length }} 种任务类型，可编辑元数据、预置环境变量，以及启用或禁用
+        </p>
       </div>
     </header>
 
@@ -179,6 +197,9 @@ onMounted(load)
               <span class="tm-image-label">镜像:</span>
               <code class="tm-image-value">{{ item.defaultImage }}</code>
             </div>
+            <div v-if="item.params && item.params.length" class="tm-extra">
+              <span class="tm-kind">预置变量: {{ item.params.map((p) => p.paramKey).join('、') }}</span>
+            </div>
             <div v-if="isAdmin" class="tm-actions">
               <n-button size="tiny" quaternary @click.stop="openEdit(item)">
                 <template #icon><Edit3 :size="14" /></template>
@@ -231,6 +252,9 @@ onMounted(load)
                 <span class="tm-image-label">镜像:</span>
                 <code class="tm-image-value">{{ item.defaultImage }}</code>
               </div>
+              <div v-if="item.params && item.params.length" class="tm-extra">
+                <span class="tm-kind">预置变量: {{ item.params.map((p) => p.paramKey).join('、') }}</span>
+              </div>
               <div v-if="isAdmin" class="tm-actions">
                 <n-button size="tiny" quaternary @click.stop="openEdit(item)">
                   <template #icon><Edit3 :size="14" /></template>
@@ -261,7 +285,7 @@ onMounted(load)
     </div>
 
     <!-- 编辑抽屉 -->
-    <n-drawer v-model:show="editDrawerShow" :width="520" placement="right">
+    <n-drawer v-model:show="editDrawerShow" :width="640" placement="right">
       <n-drawer-content title="编辑任务" closable @close="cancelEdit">
         <template v-if="editingItem">
           <n-form label-placement="top">
@@ -295,6 +319,9 @@ onMounted(load)
             <n-form-item label="使用提示">
               <n-input v-model:value="editForm.hint" type="textarea" :rows="2" />
             </n-form-item>
+            <n-divider />
+            <JobParamEditor v-model:params="editParams" />
+            <n-divider />
             <n-form-item label="自定义镜像">
               <n-input v-model:value="editForm.toolImage" placeholder="留空则使用默认镜像" />
               <div style="font-size:12px;color:var(--wb-muted,#888);margin-top:4px">设置后将覆盖默认镜像，Pod 优先使用此镜像地址</div>

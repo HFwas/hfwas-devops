@@ -3,9 +3,11 @@ package com.hfwas.devops.pipeline.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.pipeline.dto.PipelinePageQuery;
+import com.hfwas.devops.pipeline.dto.PipelineRunStartDTO;
 import com.hfwas.devops.pipeline.dto.PipelineRunVO;
 import com.hfwas.devops.pipeline.dto.PipelineSaveDTO;
 import com.hfwas.devops.pipeline.dto.PipelineVO;
+import com.hfwas.devops.pipeline.dto.RunParamDefinitionVO;
 import com.hfwas.devops.pipeline.service.PipelineDefinitionService;
 import com.hfwas.devops.pipeline.service.PipelineRunService;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -16,6 +18,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/pipeline/pipelines")
@@ -66,8 +70,16 @@ public class PipelineController {
     }
 
     @PostMapping("/{id}/runs")
-    public BaseResult<PipelineRunVO> start(@PathVariable("id") Long id) {
-        return BaseResult.ok(runService.start(id));
+    public BaseResult<PipelineRunVO> start(
+            @PathVariable("id") Long id,
+            @RequestBody(required = false) PipelineRunStartDTO dto
+    ) {
+        return BaseResult.ok(runService.start(id, dto));
+    }
+
+    @GetMapping("/{id}/runs/default-params")
+    public BaseResult<List<RunParamDefinitionVO>> getDefaultParams(@PathVariable("id") Long id) {
+        return BaseResult.ok(runService.getDefaultParams(id));
     }
 
     @GetMapping("/{id}/runs/{runId}")

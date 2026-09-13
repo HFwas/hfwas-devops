@@ -15,6 +15,7 @@ public record CompileRequest(
         Map<String, String> taskImages,
         Map<String, String> taskScripts,
         Map<String, TaskResourceSpec> taskResources,
-        String apiEndpoint
+        String apiEndpoint,
+        Map<String, String> runtimeParams
 ) {
 }

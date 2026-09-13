@@ -15,9 +15,11 @@ import com.hfwas.devops.pipeline.graph.PipelineJobKind;
 import com.hfwas.devops.pipeline.graph.PipelineJobSpec;
 import com.hfwas.devops.pipeline.graph.PipelineStageSpec;
 import com.hfwas.devops.pipeline.mapper.PipelineJobMapper;
+import com.hfwas.devops.pipeline.mapper.PipelineJobParamMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunJobMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineStageMapper;
+import com.hfwas.devops.pipeline.mapper.PipelineTaskKindParamMapper;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,6 +53,10 @@ class PipelineRunServiceTest {
     @Mock
     private PipelineJobMapper jobMapper;
     @Mock
+    private PipelineJobParamMapper jobParamMapper;
+    @Mock
+    private PipelineTaskKindParamMapper taskKindParamMapper;
+    @Mock
     private CurrentUserAccessor currentUserAccessor;
     @Mock
     private PipelineExecutor pipelineExecutor;
@@ -58,7 +64,7 @@ class PipelineRunServiceTest {
     @Test
     void startWithoutClusterFailsWithReadableMessage() {
         PipelineRunService service = new PipelineRunService(
-                definitionService, runMapper, runJobMapper, stageMapper, jobMapper, currentUserAccessor,
+                definitionService, runMapper, runJobMapper, stageMapper, jobMapper, jobParamMapper, taskKindParamMapper, currentUserAccessor,
                 new UnavailablePipelineExecutor(), 10);
 
         PipelineEntity pipeline = new PipelineEntity();
@@ -111,7 +117,7 @@ class PipelineRunServiceTest {
     @Test
     void approveWhenNotWaitingRejected() {
         PipelineRunService service = new PipelineRunService(
-                definitionService, runMapper, runJobMapper, stageMapper, jobMapper, currentUserAccessor,
+                definitionService, runMapper, runJobMapper, stageMapper, jobMapper, jobParamMapper, taskKindParamMapper, currentUserAccessor,
                 pipelineExecutor, 10);
         stubOwned();
         PipelineRunEntity run = storedRun("RUNNING");
@@ -126,7 +132,7 @@ class PipelineRunServiceTest {
     @Test
     void approveSubmitsSegmentAfterLeadingGate() {
         PipelineRunService service = new PipelineRunService(
-                definitionService, runMapper, runJobMapper, stageMapper, jobMapper, currentUserAccessor,
+                definitionService, runMapper, runJobMapper, stageMapper, jobMapper, jobParamMapper, taskKindParamMapper, currentUserAccessor,
                 pipelineExecutor, 10);
         stubOwned();
         when(definitionService.loadGraph(1L)).thenReturn(new PipelineGraphSpec(List.of(
@@ -153,7 +159,7 @@ class PipelineRunServiceTest {
     @Test
     void approveConsecutiveGatesStayWaiting() {
         PipelineRunService service = new PipelineRunService(
-                definitionService, runMapper, runJobMapper, stageMapper, jobMapper, currentUserAccessor,
+                definitionService, runMapper, runJobMapper, stageMapper, jobMapper, jobParamMapper, taskKindParamMapper, currentUserAccessor,
                 pipelineExecutor, 10);
         stubOwned();
         when(definitionService.loadGraph(1L)).thenReturn(new PipelineGraphSpec(List.of(

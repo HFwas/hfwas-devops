@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ArrowLeft, LayoutTemplate, Play, Save } from '@lucide/vue'
 import { useMessage } from 'naive-ui'
-import { pipelineApi, pipelineCredentialApi } from '@/modules/pipeline/api/pipeline'
+import { pipelineApi, pipelineCredentialApi, pipelineTaskKindApi } from '@/modules/pipeline/api/pipeline'
 import JobInspector from '@/modules/pipeline/components/JobInspector.vue'
 import TaskPickerDrawer from '@/modules/pipeline/components/TaskPickerDrawer.vue'
+import RunParamDialog from '@/modules/pipeline/components/RunParamDialog.vue'
 import YunxiaoFlowCanvas from '@/modules/pipeline/components/YunxiaoFlowCanvas.vue'
 import { requiresCommand } from '@/modules/pipeline/graph/jobCatalog'
 import {
@@ -21,7 +22,7 @@ import {
   toSaveStages,
   type StageInsertTarget,
 } from '@/modules/pipeline/graph/pipelineGraph'
-import type { EditorJob, EditorStage, JobKind, PipelineCredential, ToolchainOption } from '@/modules/pipeline/types/pipeline'
+import type { EditorJob, EditorStage, JobKind, PipelineCredential, TaskKindVO, ToolchainOption } from '@/modules/pipeline/types/pipeline'
 import { isApiError } from '@/shared/errors/apiError'
 import '@/modules/pipeline/styles/pipeline-theme.css'
 
@@ -38,10 +39,11 @@ const gitRef = ref('main')
 const credentialId = ref<string | null>(null)
 const stages = ref<EditorStage[]>([])
 const selectedJobKey = ref<string | null>(null)
-const startSelected = ref(false)
+const startSelected = ref(true)
 const pickerShow = ref(false)
 const pickerTarget = ref<StageInsertTarget | null>(null)
-const configShow = ref(false)
+const runParamShow = ref(false)
+const taskKinds = ref<TaskKindVO[]>([])
 
 const pipelineId = computed(() => {
   const id = route.params.id
@@ -54,6 +56,17 @@ const configTitle = computed(() => {
   return selectedJob.value.name || '任务配置'
 })
 const inspectorMode = computed(() => (selectedJob.value && !startSelected.value ? 'job' : 'pipeline'))
+const paramCountByJobId = computed(() => {
+  const map: Record<string, number> = {}
+  for (const job of allEditorJobs(stages.value)) {
+    const bindings = job.paramBindings || {}
+    const count = Object.values(bindings).filter((item) => item && item.mode === 'runtime').length
+    if (!count) continue
+    if (job.id != null) map[String(job.id)] = count
+    map[job.clientKey] = count
+  }
+  return map
+})
 
 function errorMessage(e: unknown): string {
   if (isApiError(e)) return e.message
@@ -70,24 +83,16 @@ function openPicker(target: StageInsertTarget) {
   }
   pickerTarget.value = target
   pickerShow.value = true
-  configShow.value = false
-}
-
-function openConfig() {
-  pickerShow.value = false
-  configShow.value = true
 }
 
 function selectStart() {
   selectedJobKey.value = null
   startSelected.value = true
-  openConfig()
 }
 
 function selectJob(jobKey: string) {
   selectedJobKey.value = jobKey
   startSelected.value = false
-  openConfig()
 }
 
 function onPick(kind: JobKind) {
@@ -115,6 +120,10 @@ function patchJob(patch: Partial<EditorJob>) {
   stages.value = patchEditorJob(stages.value, selectedJobKey.value, patch)
 }
 
+function patchJobAt(jobKey: string, patch: Partial<EditorJob>) {
+  stages.value = patchEditorJob(stages.value, jobKey, patch)
+}
+
 function removeJob(jobKey: string) {
   stages.value = removeEditorJob(stages.value, jobKey)
   if (selectedJobKey.value === jobKey) {
@@ -131,6 +140,25 @@ function applyTemplate() {
   stages.value = toEditorStages(createTemplateStages())
   selectedJobKey.value = null
   startSelected.value = false
+}
+
+function restoreSelection(jobId?: EditorJob['id']) {
+  if (jobId == null) return
+  const found = allEditorJobs(stages.value).find((job) => String(job.id) === String(jobId))
+  if (found) {
+    selectedJobKey.value = found.clientKey
+    startSelected.value = false
+  }
+}
+
+async function reloadDefinition(id: string, keepJobId?: EditorJob['id']) {
+  const row = await pipelineApi.get(id)
+  name.value = row.name
+  repoUrl.value = row.repoUrl
+  gitRef.value = row.gitRef || 'main'
+  credentialId.value = row.credentialId != null ? String(row.credentialId) : null
+  stages.value = toEditorStages(row.stages)
+  restoreSelection(keepJobId)
 }
 
 async function save(thenRun = false) {
@@ -157,6 +185,7 @@ async function save(thenRun = false) {
     return
   }
   saving.value = true
+  const keepJobId = selectedJob.value?.id
   try {
     const payload = {
       name: name.value.trim(),
@@ -169,13 +198,24 @@ async function save(thenRun = false) {
       ? await pipelineApi.create(payload)
       : await pipelineApi.update(pipelineId.value, payload)
     message.success('已保存')
-    if (thenRun) {
-      const run = await pipelineApi.start(id)
-      await router.push(`/pipeline/pipelines/${id}/runs/${run.id}`)
-      return
-    }
+
     if (isNew.value) {
       await router.replace(`/pipeline/pipelines/${id}/edit`)
+    }
+    await reloadDefinition(String(id), keepJobId)
+
+    if (thenRun) {
+      try {
+        const defaultParams = await pipelineApi.getDefaultParams(id)
+        if (defaultParams && defaultParams.length > 0) {
+          runParamShow.value = true
+          return
+        }
+      } catch {
+        // 出错时直接运行
+      }
+      const run = await pipelineApi.start(id)
+      await router.push(`/pipeline/pipelines/${id}/runs/${run.id}`)
     }
   } catch (e) {
     message.error(errorMessage(e))
@@ -184,12 +224,27 @@ async function save(thenRun = false) {
   }
 }
 
+async function doRunAfterSave(runtimeParams?: Record<string, string>) {
+  const id = (isNew.value ? route.params.id : pipelineId.value) as string
+  try {
+    const run = await pipelineApi.start(id, runtimeParams)
+    await router.push(`/pipeline/pipelines/${id}/runs/${run.id}`)
+  } catch (e) {
+    message.error(errorMessage(e))
+  }
+}
+
 async function load() {
   loading.value = true
   try {
-    const [matrix, creds] = await Promise.all([pipelineApi.toolchains(), pipelineCredentialApi.list()])
+    const [matrix, creds, kinds] = await Promise.all([
+      pipelineApi.toolchains(),
+      pipelineCredentialApi.list(),
+      pipelineTaskKindApi.list(),
+    ])
     toolchains.value = matrix
     credentials.value = creds
+    taskKinds.value = kinds
     if (pipelineId.value) {
       const row = await pipelineApi.get(pipelineId.value)
       name.value = row.name
@@ -233,42 +288,53 @@ onMounted(load)
           保存并运行
         </n-button>
       </header>
-      <YunxiaoFlowCanvas
-        :stages="stages"
-        :selected-job-key="selectedJobKey"
-        :start-selected="startSelected"
-        @insert-stage="(afterIndex) => openPicker({ type: 'stage', afterIndex })"
-        @add-parallel="(stageKey) => openPicker({ type: 'parallel', stageKey })"
-        @select-job="selectJob"
-        @select-start="selectStart"
-        @remove="removeJob"
-      />
+      <div class="pl-editor-body">
+        <YunxiaoFlowCanvas
+          :stages="stages"
+          :selected-job-key="selectedJobKey"
+          :start-selected="startSelected"
+          :param-count-by-job-id="paramCountByJobId"
+          @insert-stage="(afterIndex) => openPicker({ type: 'stage', afterIndex })"
+          @add-parallel="(stageKey) => openPicker({ type: 'parallel', stageKey })"
+          @select-job="selectJob"
+          @select-start="selectStart"
+          @remove="removeJob"
+        />
+        <aside class="pl-editor-inspector">
+          <header class="pl-editor-inspector-head">{{ configTitle }}</header>
+          <div class="pl-editor-inspector-body">
+            <JobInspector
+              :mode="inspectorMode"
+              :job="selectedJob"
+              :stages="stages"
+              :selected-job-key="selectedJobKey"
+              :name="name"
+              :repo-url="repoUrl"
+              :git-ref="gitRef"
+              :credential-id="credentialId"
+              :toolchains="toolchains"
+              :credentials="credentials"
+              :task-kinds="taskKinds"
+              @update:name="name = $event"
+              @update:repo-url="repoUrl = $event"
+              @update:git-ref="gitRef = $event"
+              @update:credential-id="credentialId = $event"
+              @update:job="patchJob"
+              @patch-job="(jobKey: string, patch: Partial<EditorJob>) => patchJobAt(jobKey, patch)"
+              @kind-blocked="message.warning($event)"
+              @remove="selectedJobKey && removeJob(selectedJobKey)"
+            />
+          </div>
+        </aside>
+      </div>
     </div>
   </n-spin>
   <TaskPickerDrawer v-model:show="pickerShow" :stages="stages" :target="pickerTarget" @pick="onPick" />
-  <n-drawer v-model:show="configShow" :width="400" placement="right">
-    <n-drawer-content :title="configTitle" closable>
-      <JobInspector
-        :mode="inspectorMode"
-        :job="selectedJob"
-        :stages="stages"
-        :selected-job-key="selectedJobKey"
-        :name="name"
-        :repo-url="repoUrl"
-        :git-ref="gitRef"
-        :credential-id="credentialId"
-        :toolchains="toolchains"
-        :credentials="credentials"
-        @update:name="name = $event"
-        @update:repo-url="repoUrl = $event"
-        @update:git-ref="gitRef = $event"
-        @update:credential-id="credentialId = $event"
-        @update:job="patchJob"
-        @kind-blocked="message.warning($event)"
-        @remove="selectedJobKey && removeJob(selectedJobKey)"
-      />
-    </n-drawer-content>
-  </n-drawer>
+  <RunParamDialog
+    v-model:show="runParamShow"
+    :pipeline-id="(pipelineId || route.params.id) as string"
+    @run="(params: Record<string, string>) => doRunAfterSave(params)"
+  />
 </template>
 
 <style scoped>
@@ -300,5 +366,35 @@ onMounted(load)
 
 .pl-editor-spacer {
   flex: 1;
+}
+
+.pl-editor-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.pl-editor-inspector {
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--wb-border, #e5e7eb);
+  background: var(--wb-card-bg, #fff);
+}
+
+.pl-editor-inspector-head {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--wb-border, #e5e7eb);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pl-editor-inspector-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px 20px;
 }
 </style>

@@ -5,6 +5,7 @@ import type { DataTableColumns } from 'naive-ui'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import YunxiaoFlowCanvas from '@/modules/pipeline/components/YunxiaoFlowCanvas.vue'
 import PodTerminalDrawer from '@/modules/pipeline/components/PodTerminalDrawer.vue'
+import RunParamDialog from '@/modules/pipeline/components/RunParamDialog.vue'
 import { findEditorJob, groupRunJobs, repoShortName } from '@/modules/pipeline/graph/pipelineGraph'
 import {
   formatCommit,
@@ -39,6 +40,9 @@ let timer: number | null = null
 
 // 终端抽屉
 const terminalJobKey = ref<string | null>(null)
+
+// 运行参数对话框
+const runParamShow = ref(false)
 const terminalRunJob = computed(() => {
   const job = findEditorJob(stages.value, terminalJobKey.value)
   if (job?.runJobId == null) return null
@@ -165,8 +169,22 @@ async function approve() {
 }
 
 async function rerun() {
+  // 检查是否有运行时参数
   try {
-    const next = await pipelineApi.start(pipelineId.value)
+    const defaultParams = await pipelineApi.getDefaultParams(pipelineId.value)
+    if (defaultParams && defaultParams.length > 0) {
+      runParamShow.value = true
+      return
+    }
+  } catch {
+    // 出错时直接运行
+  }
+  await doRun()
+}
+
+async function doRun(runtimeParams?: Record<string, string>) {
+  try {
+    const next = await pipelineApi.start(pipelineId.value, runtimeParams)
     mainTab.value = 'graph'
     selectedJobKey.value = null
     await router.replace(`/pipeline/pipelines/${pipelineId.value}/runs/${next.id}`)
@@ -477,6 +495,12 @@ const historyColumns = computed<DataTableColumns<PipelineRun>>(() => [
       :job-id="String(terminalRunJob?.id ?? '')"
       :job-name="terminalRunJob?.jobName ?? ''"
       @close="closeTerminal"
+    />
+
+    <RunParamDialog
+      v-model:show="runParamShow"
+      :pipeline-id="pipelineId"
+      @run="(params: Record<string, string>) => doRun(params)"
     />
   </div>
 </template>

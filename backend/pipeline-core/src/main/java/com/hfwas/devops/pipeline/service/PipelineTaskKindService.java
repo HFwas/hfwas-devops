@@ -3,25 +3,41 @@ package com.hfwas.devops.pipeline.service;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.pipeline.config.TaskResourceLimitProperties;
+import com.hfwas.devops.pipeline.dto.TaskKindParamSaveDTO;
+import com.hfwas.devops.pipeline.dto.TaskKindParamVO;
 import com.hfwas.devops.pipeline.dto.TaskKindUpdateDTO;
 import com.hfwas.devops.pipeline.dto.TaskKindVO;
 import com.hfwas.devops.pipeline.entity.PipelineTaskKindEntity;
+import com.hfwas.devops.pipeline.entity.PipelineTaskKindParamEntity;
 import com.hfwas.devops.pipeline.mapper.PipelineTaskKindMapper;
+import com.hfwas.devops.pipeline.mapper.PipelineTaskKindParamMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Quantity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 public class PipelineTaskKindService {
 
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     private final PipelineTaskKindMapper mapper;
+    private final PipelineTaskKindParamMapper paramMapper;
     private final TaskResourceLimitProperties resourceLimits;
 
-    public PipelineTaskKindService(PipelineTaskKindMapper mapper, TaskResourceLimitProperties resourceLimits) {
+    public PipelineTaskKindService(
+            PipelineTaskKindMapper mapper,
+            PipelineTaskKindParamMapper paramMapper,
+            TaskResourceLimitProperties resourceLimits
+    ) {
         this.mapper = mapper;
+        this.paramMapper = paramMapper;
         this.resourceLimits = resourceLimits;
     }
 
@@ -86,6 +102,9 @@ public class PipelineTaskKindService {
             entity.setMemoryLimit(dto.getMemoryLimit());
         }
         mapper.updateById(entity);
+        if (dto.getParams() != null) {
+            replaceParams(kind, dto.getParams());
+        }
     }
 
     @Transactional
@@ -116,7 +135,84 @@ public class PipelineTaskKindService {
         vo.setCpuLimit(entity.getCpuLimit());
         vo.setMemoryRequest(entity.getMemoryRequest());
         vo.setMemoryLimit(entity.getMemoryLimit());
+        vo.setParams(paramMapper.selectByKindValue(entity.getKindValue()).stream()
+                .map(this::toParamVo)
+                .collect(Collectors.toList()));
         return vo;
+    }
+
+    private void replaceParams(String kind, List<TaskKindParamSaveDTO> params) {
+        paramMapper.softDeleteByKindValue(kind);
+        int order = 0;
+        for (TaskKindParamSaveDTO dto : params) {
+            if (dto.getParamKey() == null || dto.getParamKey().isBlank()) {
+                continue;
+            }
+            PipelineTaskKindParamEntity entity = new PipelineTaskKindParamEntity();
+            entity.setKindValue(kind);
+            entity.setParamKey(dto.getParamKey().trim());
+            entity.setParamLabel(dto.getParamLabel() != null && !dto.getParamLabel().isBlank()
+                    ? dto.getParamLabel().trim() : dto.getParamKey().trim());
+            entity.setParamType(dto.getParamType() != null ? dto.getParamType() : "input");
+            entity.setDefaultValue(dto.getDefaultValue() != null ? dto.getDefaultValue() : "");
+            entity.setRequired(dto.getRequired() != null && dto.getRequired() ? 1 : 0);
+            entity.setSortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : order);
+            entity.setOptionsJson(toJson(dto.getOptions()));
+            entity.setApiUrl(dto.getApiUrl() != null ? dto.getApiUrl() : "");
+            entity.setApiMethod(dto.getApiMethod() != null ? dto.getApiMethod() : "GET");
+            entity.setApiHeadersJson(toJson(dto.getApiHeaders()));
+            entity.setApiResponsePath(dto.getApiResponsePath() != null ? dto.getApiResponsePath() : "");
+            entity.setPlaceholder(dto.getPlaceholder() != null ? dto.getPlaceholder() : "");
+            entity.setDeleted(0);
+            paramMapper.insert(entity);
+            order++;
+        }
+    }
+
+    private TaskKindParamVO toParamVo(PipelineTaskKindParamEntity entity) {
+        TaskKindParamVO vo = new TaskKindParamVO();
+        vo.setId(entity.getId());
+        vo.setKindValue(entity.getKindValue());
+        vo.setParamKey(entity.getParamKey());
+        vo.setParamLabel(entity.getParamLabel());
+        vo.setParamType(entity.getParamType());
+        vo.setDefaultValue(entity.getDefaultValue());
+        vo.setRequired(entity.getRequired() != null && entity.getRequired() == 1);
+        vo.setSortOrder(entity.getSortOrder());
+        vo.setOptions(parseJsonArray(entity.getOptionsJson()));
+        vo.setApiUrl(entity.getApiUrl());
+        vo.setApiMethod(entity.getApiMethod());
+        vo.setApiHeaders(parseJsonMap(entity.getApiHeadersJson()));
+        vo.setApiResponsePath(entity.getApiResponsePath());
+        vo.setPlaceholder(entity.getPlaceholder());
+        return vo;
+    }
+
+    private List<String> parseJsonArray(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            return JSON.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private Map<String, String> parseJsonMap(String json) {
+        if (json == null || json.isBlank()) return Collections.emptyMap();
+        try {
+            return JSON.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            return Collections.emptyMap();
+        }
+    }
+
+    private static String toJson(Object value) {
+        if (value == null) return "";
+        try {
+            return JSON.writeValueAsString(value);
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     /**

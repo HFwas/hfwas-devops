@@ -5,7 +5,8 @@ import type { DataTableColumns } from 'naive-ui'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import { repoShortName } from '@/modules/pipeline/graph/pipelineGraph'
 import { formatDateTime, formatGitRef, runStatusLabel, runStatusTagType } from '@/modules/pipeline/status'
-import type { PipelineSummary } from '@/modules/pipeline/types/pipeline'
+import type { EntityId, PipelineSummary } from '@/modules/pipeline/types/pipeline'
+import RunParamDialog from '@/modules/pipeline/components/RunParamDialog.vue'
 import { isApiError } from '@/shared/errors/apiError'
 import AppPagination from '@/shared/components/AppPagination.vue'
 import { usePagination } from '@/shared/composables/usePagination'
@@ -21,6 +22,8 @@ const loading = ref(false)
 const keyword = ref(typeof route.query.keyword === 'string' ? route.query.keyword : '')
 const pagination = usePagination({ pageSize: 20, pageSizes: [10, 20, 50] })
 const rows = ref<PipelineSummary[]>([])
+const runParamShow = ref(false)
+const runParamPipelineId = ref<EntityId>('')
 
 function errorMessage(e: unknown): string {
   if (isApiError(e)) return e.message
@@ -62,8 +65,22 @@ function edit(row: PipelineSummary) {
 
 async function run(row: PipelineSummary) {
   try {
-    const result = await pipelineApi.start(row.id)
-    await router.push(`/pipeline/pipelines/${row.id}/runs/${result.id}`)
+    const params = await pipelineApi.getDefaultParams(row.id)
+    if (params && params.length > 0) {
+      runParamPipelineId.value = row.id
+      runParamShow.value = true
+      return
+    }
+    await doStart(row.id)
+  } catch (e) {
+    message.error(errorMessage(e))
+  }
+}
+
+async function doStart(id: EntityId, params?: Record<string, string>) {
+  try {
+    const result = await pipelineApi.start(id, params)
+    await router.push(`/pipeline/pipelines/${id}/runs/${result.id}`)
   } catch (e) {
     message.error(errorMessage(e))
   }
@@ -216,5 +233,10 @@ watch(
     <div class="pl-footer">
       <AppPagination :pagination="pagination" :on-change="load" />
     </div>
+    <RunParamDialog
+      v-model:show="runParamShow"
+      :pipeline-id="runParamPipelineId"
+      @run="(params: Record<string, string>) => doStart(runParamPipelineId, params)"
+    />
   </div>
 </template>

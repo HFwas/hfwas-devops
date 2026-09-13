@@ -19,4 +19,5 @@ public class PipelineJobEntity {
     private String runtimeVersion;
     private String toolVersion;
     private Integer sortOrder;
+    private String paramBindings;
 }

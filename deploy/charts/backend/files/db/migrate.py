@@ -50,7 +50,15 @@ def main() -> int:
                 log(f"skip  {path.name}")
                 continue
             log(f"apply {path.name}")
-            conn.executescript(sql)
+            try:
+                conn.executescript(sql)
+            except sqlite3.OperationalError as exc:
+                msg = str(exc)
+                # 允许 ALTER TABLE ADD COLUMN 重复列 — 表结构可能已由 CREATE TABLE 包含
+                if "duplicate column name" in msg:
+                    log(f"  warn: {msg} — skipped")
+                else:
+                    raise
             conn.execute(
                 """
                 INSERT INTO schema_migrations (filename, checksum, applied_at)

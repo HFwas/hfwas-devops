@@ -124,6 +124,15 @@ public final class TektonCompiler {
         }
         Map<String, String> env = new LinkedHashMap<>();
         env.put("GOTOOLCHAIN", "local");
+        // 注入运行时参数（非 GIT_REF、非 CMD_ 前缀）到环境变量
+        if (request.runtimeParams() != null) {
+            for (Map.Entry<String, String> entry : request.runtimeParams().entrySet()) {
+                String key = entry.getKey();
+                if (!"GIT_REF".equals(key) && !key.startsWith("CMD_")) {
+                    env.put(key, entry.getValue() != null ? entry.getValue() : "");
+                }
+            }
+        }
         String base = DnsNames.uniqueName(DnsNames.stepName(job.name(), job.kind().name()), usedNames);
         String command = job.command() == null ? "" : job.command();
 

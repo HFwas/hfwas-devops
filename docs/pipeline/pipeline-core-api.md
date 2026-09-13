@@ -1,7 +1,7 @@
 # pipeline-core API 接口文档
 
 > 日期：2026-09-13
-> 版本：v0.2
+> 版本：v0.3
 
 ### 变更记录
 
@@ -9,6 +9,7 @@
 |------|------|----------|
 | v0.1 | 2026-09-08 | 初版：现有接口与 VO 说明 |
 | v0.2 | 2026-09-13 | 标明运行 job 的 startedAt/finishedAt 取自 Tekton step 真实起止时间，完成后不再被 watch 轮询刷新 |
+| v0.3 | 2026-09-13 | TaskKindVO / 更新接口增加预置环境变量 `params` |
 
 ---
 
@@ -348,7 +349,18 @@ GET /pipeline/task-kinds
     "sortOrder": 1,
     "toolImage": "",
     "defaultImage": "alpine/git:latest",
-    "commandTemplate": ""
+    "commandTemplate": "",
+    "params": [
+      {
+        "paramKey": "GIT_REF",
+        "paramLabel": "代码分支",
+        "paramType": "input",
+        "defaultValue": "main",
+        "required": true,
+        "sortOrder": 0,
+        "placeholder": "main / develop / commit SHA"
+      }
+    ]
   }
 ]
 ```
@@ -377,11 +389,21 @@ PUT /pipeline/task-kinds/{kind}
   "defaultCommand": "git clone {{repoUrl}} .",
   "toolImage": "",
   "commandTemplate": "",
-  "sortOrder": 1
+  "sortOrder": 1,
+  "params": [
+    {
+      "paramKey": "GIT_REF",
+      "paramLabel": "代码分支",
+      "paramType": "input",
+      "defaultValue": "main",
+      "required": true,
+      "placeholder": "main / develop / commit SHA"
+    }
+  ]
 }
 ```
 
-**Validation:** `label` 字段不可为空（`@NotBlank`）
+**Validation:** `label` 字段不可为空（`@NotBlank`）。`params` 若传入则为该 Kind 预置环境变量的全量替换（静态值 / 枚举 / 远程接口）。
 
 ### 3.4 启用/禁用
 

@@ -33,6 +33,9 @@ public class SqliteSchemaInitializer implements ApplicationRunner {
         Files.createDirectories(Path.of("data"));
         dropStaleDependencyComponentTable();
         migrateTaskKindTable();
+        migratePipelineRunTable();
+        migratePipelineJobParamTable();
+        migratePipelineJobBindings();
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
         populator.addScript(new ClassPathResource("db/pm-schema.sql"));
         populator.addScript(new ClassPathResource("db/api-test-schema.sql"));
@@ -101,6 +104,87 @@ public class SqliteSchemaInitializer implements ApplicationRunner {
             }
         } catch (Exception e) {
             log.warn("migrate pipeline_task_kind failed: {}", e.getMessage());
+        }
+    }
+
+    /** 为 pipeline_run 表追加 runtime_params 列。 */
+    private void migratePipelineRunTable() {
+        try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            boolean exists;
+            try (ResultSet rs = stmt.executeQuery(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pipeline_run'")) {
+                exists = rs.next();
+            }
+            if (!exists) return;
+            boolean hasRuntimeParams = false;
+            try (ResultSet rs = stmt.executeQuery("PRAGMA table_info(pipeline_run)")) {
+                while (rs.next()) {
+                    if ("runtime_params".equalsIgnoreCase(rs.getString("name"))) {
+                        hasRuntimeParams = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasRuntimeParams) {
+                stmt.execute("ALTER TABLE pipeline_run ADD COLUMN runtime_params TEXT NOT NULL DEFAULT ''");
+                log.info("migrated pipeline_run: added runtime_params column");
+            }
+        } catch (Exception e) {
+            log.warn("migrate pipeline_run failed: {}", e.getMessage());
+        }
+    }
+
+    /** 为 pipeline_job_param 表追加 value_mode 列。 */
+    private void migratePipelineJobParamTable() {
+        try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            boolean exists;
+            try (ResultSet rs = stmt.executeQuery(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pipeline_job_param'")) {
+                exists = rs.next();
+            }
+            if (!exists) return;
+            boolean hasValueMode = false;
+            try (ResultSet rs = stmt.executeQuery("PRAGMA table_info(pipeline_job_param)")) {
+                while (rs.next()) {
+                    if ("value_mode".equalsIgnoreCase(rs.getString("name"))) {
+                        hasValueMode = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasValueMode) {
+                stmt.execute("ALTER TABLE pipeline_job_param ADD COLUMN value_mode TEXT NOT NULL DEFAULT 'runtime'");
+                log.info("migrated pipeline_job_param: added value_mode column");
+            }
+        } catch (Exception e) {
+            log.warn("migrate pipeline_job_param failed: {}", e.getMessage());
+        }
+    }
+
+    /** 为 pipeline_job 追加 param_bindings 列。 */
+    private void migratePipelineJobBindings() {
+        try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            boolean exists;
+            try (ResultSet rs = stmt.executeQuery(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pipeline_job'")) {
+                exists = rs.next();
+            }
+            if (!exists) return;
+            boolean hasBindings = false;
+            try (ResultSet rs = stmt.executeQuery("PRAGMA table_info(pipeline_job)")) {
+                while (rs.next()) {
+                    if ("param_bindings".equalsIgnoreCase(rs.getString("name"))) {
+                        hasBindings = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasBindings) {
+                stmt.execute("ALTER TABLE pipeline_job ADD COLUMN param_bindings TEXT NOT NULL DEFAULT '{}'");
+                log.info("migrated pipeline_job: added param_bindings column");
+            }
+        } catch (Exception e) {
+            log.warn("migrate pipeline_job bindings failed: {}", e.getMessage());
         }
     }
 }

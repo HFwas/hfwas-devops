@@ -3,11 +3,14 @@ import type { PageResult } from '@/shared/types/common'
 import type {
   CredentialSavePayload,
   EntityId,
+  JobParamDefinition,
+  JobParamSavePayload,
   PipelineCredential,
   PipelineRun,
   PipelineSavePayload,
   PipelineSummary,
   PodContainersVO,
+  RunParamValue,
   TaskKindVO,
   ToolchainOption,
 } from '@/modules/pipeline/types/pipeline'
@@ -24,7 +27,10 @@ export const pipelineApi = {
   create: (data: PipelineSavePayload) => post<EntityId>('/pipeline/pipelines', data),
   update: (id: EntityId, data: PipelineSavePayload) => put<EntityId>(`/pipeline/pipelines/${asId(id)}`, data),
   delete: (id: EntityId) => del<void>(`/pipeline/pipelines/${asId(id)}`),
-  start: (id: EntityId) => post<PipelineRun>(`/pipeline/pipelines/${asId(id)}/runs`),
+  start: (id: EntityId, params?: Record<string, string>) =>
+    post<PipelineRun>(`/pipeline/pipelines/${asId(id)}/runs`, params ? { params } : {}),
+  getDefaultParams: (id: EntityId) =>
+    get<RunParamValue[]>(`/pipeline/pipelines/${asId(id)}/runs/default-params`),
   getRun: (id: EntityId, runId: EntityId) =>
     get<PipelineRun>(`/pipeline/pipelines/${asId(id)}/runs/${asId(runId)}`),
   pageRuns: (id: EntityId, params?: { pageNo?: number; pageSize?: number }) =>
@@ -35,6 +41,21 @@ export const pipelineApi = {
     post<PipelineRun>(`/pipeline/pipelines/${asId(id)}/runs/${asId(runId)}/approve`),
   getContainers: (id: EntityId, runId: EntityId, jobId: EntityId) =>
     get<PodContainersVO>(`/pipeline/pipelines/${asId(id)}/runs/${asId(runId)}/jobs/${asId(jobId)}/containers`),
+}
+
+export const pipelineJobParamApi = {
+  list: (pipelineId: EntityId) =>
+    get<JobParamDefinition[]>(`/pipeline/job-params`, { pipelineId }),
+  get: (id: EntityId) =>
+    get<JobParamDefinition>(`/pipeline/job-params/${asId(id)}`),
+  create: (data: JobParamSavePayload) =>
+    post<EntityId>('/pipeline/job-params', data),
+  update: (id: EntityId, data: JobParamSavePayload) =>
+    put<void>(`/pipeline/job-params/${asId(id)}`, data),
+  delete: (id: EntityId) =>
+    del<void>(`/pipeline/job-params/${asId(id)}`),
+  previewApi: (data: { apiUrl: string; apiMethod?: string; apiHeaders?: Record<string, string>; apiResponsePath?: string }) =>
+    post<{ success: boolean; options: string[]; errorMessage?: string }>('/pipeline/job-params/preview-api', data),
 }
 
 export const pipelineCredentialApi = {

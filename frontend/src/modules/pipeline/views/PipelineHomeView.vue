@@ -3,6 +3,7 @@ import { ArrowLeft, Pencil, Play } from '@lucide/vue'
 import { useMessage } from 'naive-ui'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import { isApiError } from '@/shared/errors/apiError'
+import RunParamDialog from '@/modules/pipeline/components/RunParamDialog.vue'
 import '@/modules/pipeline/styles/pipeline-theme.css'
 
 const router = useRouter()
@@ -11,6 +12,7 @@ const message = useMessage()
 const loading = ref(false)
 const name = ref('')
 const ready = ref(false)
+const runParamShow = ref(false)
 
 const pipelineId = computed(() => String(route.params.id ?? ''))
 
@@ -52,7 +54,20 @@ async function load() {
 
 async function run() {
   try {
-    const result = await pipelineApi.start(pipelineId.value)
+    const params = await pipelineApi.getDefaultParams(pipelineId.value)
+    if (params && params.length > 0) {
+      runParamShow.value = true
+      return
+    }
+    await doStart()
+  } catch (e) {
+    message.error(errorMessage(e))
+  }
+}
+
+async function doStart(runtimeParams?: Record<string, string>) {
+  try {
+    const result = await pipelineApi.start(pipelineId.value, runtimeParams)
     await router.replace(`/pipeline/pipelines/${pipelineId.value}/runs/${result.id}`)
   } catch (e) {
     message.error(errorMessage(e))
@@ -89,6 +104,11 @@ watch(pipelineId, load)
       <n-empty description="暂无执行记录" />
     </div>
   </n-spin>
+  <RunParamDialog
+    v-model:show="runParamShow"
+    :pipeline-id="pipelineId"
+    @run="(params: Record<string, string>) => doStart(params)"
+  />
 </template>
 
 <style scoped>

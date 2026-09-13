@@ -1,15 +1,25 @@
 <script setup lang="ts">
 import { jobKindMeta, requiresCommand } from '@/modules/pipeline/graph/jobCatalog'
-import { canChangeJobKind, kindSelectOptions } from '@/modules/pipeline/graph/pipelineGraph'
+import { allEditorJobs, canChangeJobKind, kindSelectOptions } from '@/modules/pipeline/graph/pipelineGraph'
 import {
-  coerceToolchain,
   findToolchain,
   runtimesFor,
   stackLabel,
   toolsFor,
   uniqueStacks,
 } from '@/modules/pipeline/graph/toolchainCascade'
-import type { EditorJob, EditorStage, JobKind, PipelineCredential, ToolchainOption } from '@/modules/pipeline/types/pipeline'
+import type {
+  EditorJob,
+  EditorStage,
+  JobKind,
+  JobParamBinding,
+  JobParamValueMode,
+  PipelineCredential,
+  TaskKindParam,
+  TaskKindVO,
+  ToolchainOption,
+} from '@/modules/pipeline/types/pipeline'
+import JobParamBinder from './JobParamBinder.vue'
 
 const props = defineProps<{
   mode: 'pipeline' | 'job'
@@ -22,6 +32,7 @@ const props = defineProps<{
   credentialId: string | null
   toolchains: ToolchainOption[]
   credentials: PipelineCredential[]
+  taskKinds?: TaskKindVO[]
 }>()
 
 const emit = defineEmits<{
@@ -30,6 +41,7 @@ const emit = defineEmits<{
   'update:gitRef': [value: string]
   'update:credentialId': [value: string | null]
   'update:job': [patch: Partial<EditorJob>]
+  'patch-job': [jobKey: string, patch: Partial<EditorJob>]
   'kind-blocked': [message: string]
   remove: []
 }>()
@@ -60,6 +72,64 @@ const credentialOptions = computed(() =>
 )
 const showSourceFields = computed(() => props.mode === 'pipeline' || props.job?.kind === 'CLONE')
 
+const kindParams = computed<TaskKindParam[]>(() => {
+  const kind = props.job?.kind
+  if (!kind) return []
+  const found = (props.taskKinds || []).find((item) => item.kindValue === kind)
+  return found?.params ? found.params : []
+})
+
+const binderParams = computed(() => {
+  if (props.job?.kind === 'CLONE') {
+    return kindParams.value.filter((item) => item.paramKey !== 'GIT_REF')
+  }
+  return kindParams.value
+})
+
+const cloneJob = computed(() => allEditorJobs(props.stages).find((item) => item.kind === 'CLONE') ?? null)
+
+const gitRefDef = computed(() => {
+  const found = (props.taskKinds || []).find((item) => item.kindValue === 'CLONE')
+  const params = found?.params ? found.params : []
+  return params.find((item) => item.paramKey === 'GIT_REF') ?? null
+})
+
+const gitRefMode = computed<JobParamValueMode>(() =>
+  cloneJob.value?.paramBindings?.GIT_REF?.mode === 'runtime' ? 'runtime' : 'fixed',
+)
+
+function gitRefTypeLabel() {
+  const type = gitRefDef.value?.paramType
+  if (type === 'select') return '枚举'
+  if (type === 'api_select') return '远程接口'
+  return '静态值'
+}
+
+function applyClonePatch(patch: Partial<EditorJob>) {
+  const job = cloneJob.value
+  if (!job) return
+  if (job.clientKey === props.selectedJobKey) {
+    emit('update:job', patch)
+    return
+  }
+  emit('patch-job', job.clientKey, patch)
+}
+
+function setGitRefMode(mode: JobParamValueMode) {
+  const job = cloneJob.value
+  if (!job) return
+  applyClonePatch({
+    paramBindings: {
+      ...(job.paramBindings || {}),
+      GIT_REF: { mode },
+    },
+  })
+}
+
+function onBindingsChange(bindings: Record<string, JobParamBinding>) {
+  emit('update:job', { paramBindings: bindings })
+}
+
 function onKindChange(kind: JobKind) {
   if (!props.selectedJobKey) return
   const blocked = canChangeJobKind(props.stages, props.selectedJobKey, kind)
@@ -78,6 +148,7 @@ function onKindChange(kind: JobKind) {
     stack: requiresToolchain(kind) ? (props.job?.stack ?? null) : null,
     runtimeVersion: requiresToolchain(kind) ? (props.job?.runtimeVersion ?? null) : null,
     toolVersion: requiresToolchain(kind) ? (props.job?.toolVersion ?? null) : null,
+    paramBindings: {},
   })
 }
 
@@ -98,7 +169,7 @@ function onJobStackChange(value: string) {
 function onJobRuntimeChange(value: string) {
   const tools = toolsFor(props.toolchains, props.job?.stack ?? '', value)
   const tool = tools.includes(props.job?.toolVersion ?? '') ? props.job?.toolVersion : (tools[0] ?? null)
-  const option = findToolchain(props.toolchains, props.job?.stack ?? '', value, tool)
+  const option = findToolchain(props.toolchains, props.job?.stack ?? '', props.job?.runtimeVersion ?? '', value)
   emit('update:job', {
     runtimeVersion: value,
     toolVersion: tool,
@@ -126,7 +197,6 @@ function onJobToolChange(value: string | null) {
           <n-select :value="job.kind" :options="kindOptions" @update:value="onKindChange" />
         </n-form-item>
 
-        <!-- 代码构建类任务：语言、版本、工具选择 -->
         <template v-if="showToolchain">
           <n-form-item label="技术栈">
             <n-select :value="job.stack" :options="stackOptions" @update:value="onJobStackChange" />
@@ -139,6 +209,18 @@ function onJobToolChange(value: string | null) {
           </n-form-item>
         </template>
 
+        <n-divider />
+        <JobParamBinder
+          v-if="binderParams.length > 0 || kindParams.length === 0"
+          :kind-params="binderParams"
+          :bindings="job.paramBindings || {}"
+          @update:bindings="onBindingsChange"
+        />
+        <p v-else class="job-inspector-hint">
+          代码分支请在下方「分支 / SHA」点「设为变量」。其它环境变量请到任务市场配置。
+        </p>
+        <n-divider />
+
         <n-form-item v-if="showJobCommand" label="命令">
           <n-input
             :value="job.command"
@@ -149,6 +231,7 @@ function onJobToolChange(value: string | null) {
         </n-form-item>
         <p v-if="meta?.hint" class="job-inspector-hint">{{ meta.hint }}</p>
       </n-form>
+
       <n-button block type="error" ghost style="margin-top: 8px" @click="emit('remove')">删除任务</n-button>
     </template>
 
@@ -158,6 +241,9 @@ function onJobToolChange(value: string | null) {
           <n-input :value="name" placeholder="例如 checkout-ci" @update:value="(value) => emit('update:name', value)" />
         </n-form-item>
       </n-form>
+      <p class="job-inspector-hint">
+        点击任务卡片，可将任务市场预置的环境变量「写死」或「设为变量」。变量在运行时按任务市场的枚举 / 远程接口 / 静态值选择。
+      </p>
     </template>
 
     <n-divider v-if="showSourceFields" />
@@ -169,8 +255,29 @@ function onJobToolChange(value: string | null) {
           @update:value="(value) => emit('update:repoUrl', value)"
         />
       </n-form-item>
-      <n-form-item label="分支 / SHA">
-        <n-input :value="gitRef" placeholder="main" @update:value="(value) => emit('update:gitRef', value)" />
+      <n-form-item>
+        <template #label>
+          <div class="job-inspector-label-row">
+            <span>分支 / SHA</span>
+            <n-radio-group
+              v-if="gitRefDef && cloneJob"
+              :value="gitRefMode"
+              size="small"
+              @update:value="(v: JobParamValueMode) => setGitRefMode(v)"
+            >
+              <n-radio-button value="fixed">写死</n-radio-button>
+              <n-radio-button value="runtime">设为变量</n-radio-button>
+            </n-radio-group>
+          </div>
+        </template>
+        <n-input
+          :value="gitRef"
+          :placeholder="gitRefMode === 'runtime' ? '运行时默认值，如 main' : 'main'"
+          @update:value="(value) => emit('update:gitRef', value)"
+        />
+        <p v-if="gitRefMode === 'runtime'" class="job-inspector-hint" style="margin-top: 6px">
+          运行时选择，选项来自任务市场「代码克隆」的 {{ gitRefDef?.paramLabel || 'GIT_REF' }}（{{ gitRefTypeLabel() }}）
+        </p>
       </n-form-item>
       <n-form-item label="克隆凭证">
         <n-select
@@ -191,5 +298,13 @@ function onJobToolChange(value: string | null) {
   font-size: 12px;
   line-height: 1.5;
   color: var(--wb-muted, #646a73);
+}
+
+.job-inspector-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
 }
 </style>

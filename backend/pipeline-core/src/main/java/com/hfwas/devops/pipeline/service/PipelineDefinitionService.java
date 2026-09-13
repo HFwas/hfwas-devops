@@ -110,7 +110,7 @@ public class PipelineDefinitionService {
             jobMapper.delete(new LambdaQueryWrapper<PipelineJobEntity>()
                     .eq(PipelineJobEntity::getPipelineId, row.getId()));
         }
-        persistGraph(row.getId(), graph);
+        persistStages(row.getId(), dto);
         return row.getId();
     }
 
@@ -150,34 +150,34 @@ public class PipelineDefinitionService {
         return row;
     }
 
-    private void persistGraph(Long pipelineId, PipelineGraphSpec graph) {
-        List<PipelineStageSpec> stages = graph.stages().stream()
-                .sorted(Comparator.comparingInt(PipelineStageSpec::sortOrder))
-                .toList();
+    private void persistStages(Long pipelineId, PipelineSaveDTO dto) {
+        if (dto.getStages() == null) {
+            return;
+        }
         int stageOrder = 0;
-        for (PipelineStageSpec stageSpec : stages) {
+        for (PipelineStageDTO stageDto : dto.getStages()) {
             PipelineStageEntity stage = new PipelineStageEntity();
             stage.setPipelineId(pipelineId);
-            stage.setName(stageSpec.name());
-            stage.setSortOrder(stageOrder++);
+            stage.setName(stageDto.getName());
+            stage.setSortOrder(stageDto.getSortOrder() == null ? stageOrder : stageDto.getSortOrder());
             stageMapper.insert(stage);
             int jobOrder = 0;
-            List<PipelineJobSpec> jobs = stageSpec.jobs().stream()
-                    .sorted(Comparator.comparingInt(PipelineJobSpec::sortOrder))
-                    .toList();
-            for (PipelineJobSpec jobSpec : jobs) {
+            for (PipelineJobDTO jobDto : stageDto.getJobs() == null ? List.<PipelineJobDTO>of() : stageDto.getJobs()) {
                 PipelineJobEntity job = new PipelineJobEntity();
                 job.setPipelineId(pipelineId);
                 job.setStageId(stage.getId());
-                job.setName(jobSpec.name());
-                job.setKind(jobSpec.kind().name());
-                job.setCommand(jobSpec.command());
-                job.setStack(jobSpec.stack());
-                job.setRuntimeVersion(jobSpec.runtimeVersion());
-                job.setToolVersion(jobSpec.toolVersion());
-                job.setSortOrder(jobOrder++);
+                job.setName(jobDto.getName());
+                job.setKind(jobDto.getKind());
+                job.setCommand(jobDto.getCommand());
+                job.setStack(jobDto.getStack());
+                job.setRuntimeVersion(jobDto.getRuntimeVersion());
+                job.setToolVersion(jobDto.getToolVersion());
+                job.setSortOrder(jobDto.getSortOrder() == null ? jobOrder : jobDto.getSortOrder());
+                job.setParamBindings(com.hfwas.devops.pipeline.param.ParamBindings.toJson(jobDto.getParamBindings()));
                 jobMapper.insert(job);
+                jobOrder++;
             }
+            stageOrder++;
         }
     }
 
@@ -237,6 +237,7 @@ public class PipelineDefinitionService {
                 item.setRuntimeVersion(job.getRuntimeVersion());
                 item.setToolVersion(job.getToolVersion());
                 item.setSortOrder(job.getSortOrder());
+                item.setParamBindings(com.hfwas.devops.pipeline.param.ParamBindings.parse(job.getParamBindings()));
                 return item;
             }).toList());
             result.add(dto);

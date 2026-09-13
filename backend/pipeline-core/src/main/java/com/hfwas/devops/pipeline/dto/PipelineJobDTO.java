@@ -12,4 +12,5 @@ public class PipelineJobDTO {
     private String runtimeVersion;
     private String toolVersion;
     private Integer sortOrder;
+    private java.util.Map<String, JobParamBindingDTO> paramBindings;
 }

@@ -20,4 +20,5 @@ public class TaskKindVO {
     private String cpuLimit;
     private String memoryRequest;
     private String memoryLimit;
+    private java.util.List<TaskKindParamVO> params;
 }

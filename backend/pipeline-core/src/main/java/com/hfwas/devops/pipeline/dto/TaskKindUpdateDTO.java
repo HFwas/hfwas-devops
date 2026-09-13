@@ -17,4 +17,5 @@ public class TaskKindUpdateDTO {
     private String cpuLimit;
     private String memoryRequest;
     private String memoryLimit;
+    private java.util.List<TaskKindParamSaveDTO> params;
 }

@@ -30,6 +30,8 @@ import com.hfwas.devops.pipeline.tekton.LogMasker;
 import com.hfwas.devops.pipeline.tekton.TektonCompiler;
 import com.hfwas.devops.pipeline.tekton.TektonManifests;
 import com.hfwas.devops.pipeline.tekton.TektonMode;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.knative.pkg.apis.Condition;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
@@ -48,6 +50,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -61,6 +64,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(TektonPipelineExecutor.class);
     private static final int MAX_LOG_BYTES = 512 * 1024;
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final KubernetesClient client;
     private final TektonClient tekton;
@@ -188,6 +192,9 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         // 集群感知校验：检查 task 资源配置是否超过最大节点容量
         warnIfExceedsNodeCapacity(taskResources);
 
+        // 解析运行时参数
+        Map<String, String> runtimeParams = parseRuntimeParams(run.getRuntimeParams());
+
         CompiledTekton compiled = TektonCompiler.compile(new CompileRequest(
                 run.getId(),
                 pipeline.getId(),
@@ -199,7 +206,8 @@ public class TektonPipelineExecutor implements PipelineExecutor {
                 taskImages,
                 taskScripts,
                 taskResources,
-                apiEndpoint
+                apiEndpoint,
+                runtimeParams
         ));
         ensureNamespace();
         String gitSecretName = compiled.name() + "-git";
@@ -935,6 +943,21 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             return CONTAINER_MAPPER.writeValueAsString(names);
         } catch (Exception e) {
             return "[]";
+        }
+    }
+
+    /**
+     * 解析运行时参数 JSON，返回 key-value map。
+     */
+    private static Map<String, String> parseRuntimeParams(String json) {
+        if (json == null || json.isBlank()) {
+            return Collections.emptyMap();
+        }
+        try {
+            return JSON.readValue(json, new TypeReference<Map<String, String>>() {});
+        } catch (Exception e) {
+            log.warn("parse runtime params failed: {}", e.getMessage());
+            return Collections.emptyMap();
         }
     }
 

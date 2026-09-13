@@ -13,8 +13,9 @@ const props = withDefaults(
     startSelected?: boolean
     editable?: boolean
     now?: number
+    paramCountByJobId?: Record<string, number>
   }>(),
-  { selectedJobKey: null, startSelected: false, editable: true, now: 0 },
+  { selectedJobKey: null, startSelected: false, editable: true, now: 0, paramCountByJobId: () => ({}) },
 )
 
 const emit = defineEmits<{
@@ -48,6 +49,12 @@ function statusClass(job: EditorJob) {
 
 function toneClass(kind?: string | null): string {
   return `tone-${jobKindTone(kind)}`
+}
+
+function paramCount(job: EditorJob) {
+  const byId = job.id != null ? props.paramCountByJobId[String(job.id)] : 0
+  if (byId) return byId
+  return props.paramCountByJobId[job.clientKey] ?? 0
 }
 </script>
 
@@ -130,13 +137,13 @@ function toneClass(kind?: string | null): string {
             <!-- 底部元数据 -->
             <div class="yx-job-foot">
               <span class="yx-job-kind">类型: {{ job.kind }}</span>
+              <span v-if="paramCount(job)" class="yx-job-param-badge">{{ paramCount(job) }} 个变量</span>
               <span v-if="jobDuration(job) && !editable" class="yx-job-dur">{{ jobDuration(job) }}</span>
             </div>
 
-            <!-- 操作按钮 -->
-            <div class="yx-job-actions">
+            <!-- 操作按钮（运行态） -->
+            <div v-if="!editable" class="yx-job-actions">
               <button
-                v-if="!editable"
                 type="button"
                 class="yx-job-action-btn"
                 @click.stop="emit('view-log', job.clientKey)"
@@ -144,21 +151,11 @@ function toneClass(kind?: string | null): string {
                 查看日志
               </button>
               <button
-                v-if="!editable"
                 type="button"
                 class="yx-job-action-btn"
                 @click.stop="emit('open-terminal', job.clientKey)"
               >
                 终端
-              </button>
-              <button
-                v-else
-                type="button"
-                class="yx-job-action-btn"
-                @click.stop="emit('add-parallel', stage.clientKey)"
-              >
-                <Plus :size="12" style="margin-right: 4px" />
-                增加并行
               </button>
             </div>
           </article>
@@ -167,9 +164,11 @@ function toneClass(kind?: string | null): string {
             v-if="editable"
             type="button"
             class="yx-parallel"
+            title="在本列追加并行任务，将与上方任务同时执行"
             @click.stop="emit('add-parallel', stage.clientKey)"
           >
-            增加并行阶段
+            <Plus :size="16" />
+            <span>增加并行任务</span>
           </button>
         </div>
 
@@ -486,6 +485,17 @@ function toneClass(kind?: string | null): string {
   flex-shrink: 0;
 }
 
+.yx-job-param-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--wb-primary, #3370ff) 12%, #fff);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--wb-primary, #3370ff);
+}
+
 .yx-job.is-ok .yx-job-dur {
   color: var(--wb-success);
 }
@@ -545,20 +555,30 @@ function toneClass(kind?: string | null): string {
   background: var(--wb-error-soft);
 }
 
-/* Stage Add Parallel Button */
+/* Stage Add Parallel Button — dashed drop-zone, high contrast */
 .yx-parallel {
-  height: 36px;
-  border: none;
-  border-radius: var(--wb-radius-sm);
-  background: var(--wb-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1.5px dashed var(--wb-primary, #3370ff);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--wb-primary, #3370ff) 8%, #fff);
   font: inherit;
   font-size: 13px;
-  color: var(--wb-card-bg);
+  font-weight: 600;
+  color: var(--wb-primary, #3370ff);
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
 .yx-parallel:hover {
-  background: var(--wb-primary-hover);
+  background: color-mix(in srgb, var(--wb-primary, #3370ff) 16%, #fff);
+  border-style: solid;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wb-primary, #3370ff) 18%, transparent);
 }
 
 /* Running Pulse Animation */

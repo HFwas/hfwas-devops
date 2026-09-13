@@ -22,5 +22,6 @@ public class PipelineRunVO {
     private String errorMessage;
     private LocalDateTime startedAt;
     private LocalDateTime finishedAt;
+    private String runtimeParams;
     private List<PipelineRunJobVO> jobs;
 }

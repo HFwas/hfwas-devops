@@ -40,6 +40,7 @@ export interface PipelineJob {
   runtimeVersion?: string | null
   toolVersion?: string | null
   sortOrder: number
+  paramBindings?: Record<string, JobParamBinding>
 }
 
 export interface PipelineStage {
@@ -152,6 +153,80 @@ export interface TaskKindVO {
   cpuLimit?: string
   memoryRequest?: string
   memoryLimit?: string
+  params?: TaskKindParam[]
+}
+
+export type JobParamType = 'input' | 'select' | 'api_select'
+export type JobParamValueMode = 'fixed' | 'runtime'
+
+export interface TaskKindParam {
+  id?: EntityId
+  kindValue?: string
+  paramKey: string
+  paramLabel: string
+  paramType: JobParamType
+  defaultValue: string
+  required: boolean
+  sortOrder: number
+  options?: string[]
+  apiUrl?: string
+  apiMethod?: string
+  apiHeaders?: Record<string, string>
+  apiResponsePath?: string
+  placeholder?: string
+}
+
+export interface JobParamBinding {
+  mode: JobParamValueMode
+  value?: string
+}
+
+export interface JobParamDefinition {
+  id?: EntityId
+  pipelineId: EntityId
+  jobId: EntityId
+  paramKey: string
+  paramLabel: string
+  paramType: JobParamType
+  valueMode: JobParamValueMode
+  defaultValue: string
+  required: boolean
+  sortOrder: number
+  options?: string[]
+  apiUrl?: string
+  apiMethod?: string
+  apiHeaders?: Record<string, string>
+  apiResponsePath?: string
+  placeholder?: string
+}
+
+export interface JobParamSavePayload {
+  pipelineId: EntityId
+  jobId: EntityId
+  paramKey: string
+  paramLabel: string
+  paramType: JobParamType
+  valueMode?: JobParamValueMode
+  defaultValue?: string
+  required?: boolean
+  sortOrder?: number
+  options?: string[]
+  apiUrl?: string
+  apiMethod?: string
+  apiHeaders?: Record<string, string>
+  apiResponsePath?: string
+  placeholder?: string
+}
+
+export interface RunParamValue {
+  paramKey: string
+  paramLabel: string
+  paramType: JobParamType
+  defaultValue: string
+  required: boolean
+  options?: string[]
+  loading?: boolean
+  placeholder?: string
 }
 
 export interface ContainerInfo {

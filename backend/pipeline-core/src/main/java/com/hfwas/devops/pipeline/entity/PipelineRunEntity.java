@@ -28,6 +28,7 @@ public class PipelineRunEntity {
     private String tektonName;
     private Integer segmentIndex;
     private String errorMessage;
+    private String runtimeParams;
     private LocalDateTime startedAt;
     private LocalDateTime finishedAt;
     @TableField(fill = FieldFill.INSERT)

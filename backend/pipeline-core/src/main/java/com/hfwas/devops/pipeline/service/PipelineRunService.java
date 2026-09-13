@@ -7,21 +7,34 @@ import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.pipeline.dto.PipelinePageQuery;
 import com.hfwas.devops.pipeline.dto.PipelineRunJobVO;
+import com.hfwas.devops.pipeline.dto.PipelineRunStartDTO;
 import com.hfwas.devops.pipeline.dto.PipelineRunVO;
+import com.hfwas.devops.pipeline.dto.RunParamDefinitionVO;
 import com.hfwas.devops.pipeline.entity.PipelineEntity;
 import com.hfwas.devops.pipeline.entity.PipelineJobEntity;
+import com.hfwas.devops.pipeline.entity.PipelineJobParamEntity;
 import com.hfwas.devops.pipeline.entity.PipelineRunEntity;
 import com.hfwas.devops.pipeline.entity.PipelineRunJobEntity;
 import com.hfwas.devops.pipeline.entity.PipelineStageEntity;
+import com.hfwas.devops.pipeline.entity.PipelineTaskKindParamEntity;
+import com.hfwas.devops.pipeline.dto.JobParamBindingDTO;
 import com.hfwas.devops.pipeline.executor.PipelineExecutor;
 import com.hfwas.devops.pipeline.graph.ApprovalPlan;
 import com.hfwas.devops.pipeline.graph.PipelineJobKind;
 import com.hfwas.devops.pipeline.graph.PipelineGraphSpec;
 import com.hfwas.devops.pipeline.mapper.PipelineJobMapper;
+import com.hfwas.devops.pipeline.mapper.PipelineJobParamMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunJobMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineStageMapper;
+import com.hfwas.devops.pipeline.mapper.PipelineTaskKindParamMapper;
+import com.hfwas.devops.pipeline.param.ParamBindings;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -30,16 +43,26 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class PipelineRunService {
+
+    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final Logger log = LoggerFactory.getLogger(PipelineRunService.class);
 
     private final PipelineDefinitionService definitionService;
     private final PipelineRunMapper runMapper;
     private final PipelineRunJobMapper runJobMapper;
     private final PipelineStageMapper stageMapper;
     private final PipelineJobMapper jobMapper;
+    private final PipelineJobParamMapper jobParamMapper;
+    private final PipelineTaskKindParamMapper taskKindParamMapper;
     private final CurrentUserAccessor currentUserAccessor;
     private final PipelineExecutor pipelineExecutor;
     private final int maxConcurrentRuns;
@@ -50,6 +73,8 @@ public class PipelineRunService {
             PipelineRunJobMapper runJobMapper,
             PipelineStageMapper stageMapper,
             PipelineJobMapper jobMapper,
+            PipelineJobParamMapper jobParamMapper,
+            PipelineTaskKindParamMapper taskKindParamMapper,
             CurrentUserAccessor currentUserAccessor,
             @Lazy PipelineExecutor pipelineExecutor,
             @Value("${pipeline.max-concurrent-runs:10}") int maxConcurrentRuns
@@ -59,13 +84,190 @@ public class PipelineRunService {
         this.runJobMapper = runJobMapper;
         this.stageMapper = stageMapper;
         this.jobMapper = jobMapper;
+        this.jobParamMapper = jobParamMapper;
+        this.taskKindParamMapper = taskKindParamMapper;
         this.currentUserAccessor = currentUserAccessor;
         this.pipelineExecutor = pipelineExecutor;
         this.maxConcurrentRuns = maxConcurrentRuns;
     }
 
+    // ---- 运行时参数查询 ----
+
+    /**
+     * 获取流水线所有可调参数的默认值 + 选项，供前端弹框渲染。
+     * 对 api_select 类型，会预调用远程 API 获取选项列表。
+     */
+    public List<RunParamDefinitionVO> getDefaultParams(Long pipelineId) {
+        PipelineEntity pipeline = definitionService.requireOwned(pipelineId);
+        List<PipelineJobEntity> jobs = jobMapper.selectList(new LambdaQueryWrapper<PipelineJobEntity>()
+                .eq(PipelineJobEntity::getPipelineId, pipelineId)
+                .orderByAsc(PipelineJobEntity::getSortOrder));
+        Map<String, List<PipelineTaskKindParamEntity>> byKind = taskKindParamMapper.selectAll().stream()
+                .collect(Collectors.groupingBy(PipelineTaskKindParamEntity::getKindValue));
+        List<RunParamDefinitionVO> result = new java.util.ArrayList<>();
+        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        for (PipelineJobEntity job : jobs) {
+            Map<String, JobParamBindingDTO> bindings = ParamBindings.parse(job.getParamBindings());
+            List<PipelineTaskKindParamEntity> defs = byKind.getOrDefault(job.getKind(), List.of());
+            for (PipelineTaskKindParamEntity def : defs) {
+                JobParamBindingDTO binding = bindings.get(def.getParamKey());
+                if (!ParamBindings.isRuntime(binding)) {
+                    continue;
+                }
+                if (!seen.add(def.getParamKey())) {
+                    continue;
+                }
+                RunParamDefinitionVO vo = toRunParamVo(def);
+                if ("GIT_REF".equals(def.getParamKey()) && pipeline.getGitRef() != null && !pipeline.getGitRef().isBlank()) {
+                    vo.setDefaultValue(pipeline.getGitRef());
+                }
+                if ("api_select".equals(def.getParamType())
+                        && def.getApiUrl() != null && !def.getApiUrl().isBlank()) {
+                    try {
+                        List<String> options = fetchApiOptions(
+                                def.getApiUrl(),
+                                def.getApiMethod(),
+                                parseJsonMap(def.getApiHeadersJson()),
+                                def.getApiResponsePath()
+                        );
+                        vo.setOptions(options);
+                    } catch (Exception e) {
+                        log.warn("pre-fetch api options failed for param {}: {}", def.getParamKey(), e.getMessage());
+                    }
+                }
+                vo.setLoading(false);
+                result.add(vo);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 调用远程 API 获取选项列表。
+     */
+    private static List<String> fetchApiOptions(String apiUrl, String apiMethod,
+                                                  Map<String, String> apiHeaders,
+                                                  String apiResponsePath) {
+        if (apiUrl == null || apiUrl.isBlank()) return List.of();
+        try {
+            java.net.http.HttpRequest.Builder builder = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(apiUrl))
+                    .timeout(java.time.Duration.ofSeconds(10));
+            if ("POST".equalsIgnoreCase(apiMethod)) {
+                builder = builder.method("POST", java.net.http.HttpRequest.BodyPublishers.noBody());
+            } else {
+                builder = builder.GET();
+            }
+            if (apiHeaders != null) {
+                for (Map.Entry<String, String> entry : apiHeaders.entrySet()) {
+                    builder = builder.header(entry.getKey(), entry.getValue());
+                }
+            }
+            java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(10))
+                    .build();
+            java.net.http.HttpResponse<String> response = client.send(
+                    builder.build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                return List.of();
+            }
+            return parseApiResponse(response.body(), apiResponsePath);
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> parseApiResponse(String body, String jsonPath) {
+        if (body == null || body.isBlank()) return List.of();
+        try {
+            if (jsonPath == null || jsonPath.isBlank()) {
+                return JSON.readValue(body, new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+            }
+            // 简易 JSONPath: $[].name 或 $.data[].name
+            String path = jsonPath.trim();
+            if (path.startsWith("$")) path = path.substring(1);
+            if (path.startsWith(".")) path = path.substring(1);
+            Object root = JSON.readValue(body, Object.class);
+            Object current = root;
+            for (String seg : path.split("\\.")) {
+                if (seg.isEmpty()) continue;
+                if (seg.contains("[]")) {
+                    String key = seg.replace("[]", "");
+                    if (current instanceof Map) current = ((Map<String, Object>) current).get(key);
+                    if (current instanceof List) {
+                        return ((List<Object>) current).stream()
+                                .map(Object::toString)
+                                .collect(Collectors.toList());
+                    }
+                } else {
+                    if (current instanceof Map) current = ((Map<String, Object>) current).get(seg);
+                }
+            }
+            if (current instanceof List) {
+                return ((List<Object>) current).stream()
+                        .map(Object::toString)
+                        .collect(Collectors.toList());
+            }
+            return List.of();
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private static RunParamDefinitionVO toRunParamVo(PipelineTaskKindParamEntity entity) {
+        RunParamDefinitionVO vo = new RunParamDefinitionVO();
+        vo.setParamKey(entity.getParamKey());
+        vo.setParamLabel(entity.getParamLabel());
+        vo.setParamType(entity.getParamType());
+        vo.setDefaultValue(entity.getDefaultValue());
+        vo.setRequired(entity.getRequired() != null && entity.getRequired() == 1);
+        vo.setPlaceholder(entity.getPlaceholder());
+        if ("select".equals(entity.getParamType())) {
+            vo.setOptions(parseJsonArray(entity.getOptionsJson()));
+        } else if ("api_select".equals(entity.getParamType())) {
+            vo.setLoading(true);
+        }
+        return vo;
+    }
+
+    private static RunParamDefinitionVO toRunParamVo(PipelineJobParamEntity entity) {
+        RunParamDefinitionVO vo = new RunParamDefinitionVO();
+        vo.setParamKey(entity.getParamKey());
+        vo.setParamLabel(entity.getParamLabel());
+        vo.setParamType(entity.getParamType());
+        vo.setDefaultValue(entity.getDefaultValue());
+        vo.setRequired(entity.getRequired() != null && entity.getRequired() == 1);
+        vo.setPlaceholder(entity.getPlaceholder());
+        if ("select".equals(entity.getParamType())) {
+            vo.setOptions(parseJsonArray(entity.getOptionsJson()));
+        } else if ("api_select".equals(entity.getParamType())) {
+            vo.setLoading(true);
+        }
+        return vo;
+    }
+
+    // ---- 启动运行（带运行时参数） ----
+
+    @Transactional
+    public PipelineRunVO start(Long pipelineId, Map<String, String> runtimeParams) {
+        return doStart(pipelineId, runtimeParams);
+    }
+
+    /**
+     * 向后兼容：无参数启动。
+     */
     @Transactional
     public PipelineRunVO start(Long pipelineId) {
+        return doStart(pipelineId, null);
+    }
+
+    @Transactional
+    public PipelineRunVO start(Long pipelineId, PipelineRunStartDTO dto) {
+        return doStart(pipelineId, dto != null ? dto.getParams() : null);
+    }
+
+    private PipelineRunVO doStart(Long pipelineId, Map<String, String> runtimeParams) {
         PipelineEntity pipeline = definitionService.requireOwned(pipelineId);
         List<PipelineStageEntity> stages = stageMapper.selectList(new LambdaQueryWrapper<PipelineStageEntity>()
                 .eq(PipelineStageEntity::getPipelineId, pipelineId)
@@ -74,6 +276,9 @@ public class PipelineRunService {
                 .eq(PipelineJobEntity::getPipelineId, pipelineId)
                 .orderByAsc(PipelineJobEntity::getSortOrder));
 
+        Map<String, String> effectiveParams = mergeRuntimeParams(pipelineId, runtimeParams);
+        validateRuntimeParams(pipelineId, effectiveParams);
+
         boolean clusterReady = pipelineExecutor.isReady();
         PipelineGraphSpec graph = definitionService.loadGraph(pipelineId);
         ApprovalPlan plan = ApprovalPlan.of(graph);
@@ -81,15 +286,21 @@ public class PipelineRunService {
         String status = !clusterReady ? "FAILED" : (waitFirst ? "WAITING_APPROVAL" : "QUEUED");
         String error = clusterReady ? null : "未配置执行集群（pipeline.kubeconfig），定义已保存，暂不能真正执行";
 
+        // 合并运行时参数 — GIT_REF 特殊处理
+        String effectiveGitRef = effectiveParams.containsKey("GIT_REF")
+                ? effectiveParams.get("GIT_REF")
+                : pipeline.getGitRef();
+
         PipelineRunEntity run = new PipelineRunEntity();
         run.setPipelineId(pipelineId);
         run.setTenantId(pipeline.getTenantId());
         run.setStatus(status);
         run.setTrigger("MANUAL");
-        run.setGitRef(pipeline.getGitRef());
+        run.setGitRef(effectiveGitRef);
         run.setTriggeredByName(currentUserAccessor.currentDisplayName());
         run.setErrorMessage(error);
         run.setStartedAt(LocalDateTime.now());
+        run.setRuntimeParams(toJson(effectiveParams));
         if (!clusterReady) {
             run.setFinishedAt(LocalDateTime.now());
         }
@@ -102,9 +313,7 @@ public class PipelineRunService {
                     .sorted(java.util.Comparator.comparingInt(PipelineJobEntity::getSortOrder))
                     .toList();
             for (PipelineJobEntity job : stageJobs) {
-                String command = job.getKind().equals(PipelineJobKind.CLONE.name())
-                        ? "git clone"
-                        : job.getCommand();
+                String command = buildCommand(job, effectiveParams);
                 PipelineRunJobEntity runJob = new PipelineRunJobEntity();
                 runJob.setRunId(run.getId());
                 runJob.setJobId(job.getId());
@@ -343,6 +552,7 @@ public class PipelineRunService {
         vo.setErrorMessage(run.getErrorMessage());
         vo.setStartedAt(run.getStartedAt());
         vo.setFinishedAt(run.getFinishedAt());
+        vo.setRuntimeParams(run.getRuntimeParams());
         if (includeJobs) {
             vo.setJobs(runJobMapper.selectList(new LambdaQueryWrapper<PipelineRunJobEntity>()
                             .eq(PipelineRunJobEntity::getRunId, run.getId())
@@ -354,6 +564,125 @@ public class PipelineRunService {
             vo.setJobs(List.of());
         }
         return vo;
+    }
+
+    // ---- 运行时参数 ----
+
+    /**
+     * 写死参数用默认值填入，再覆盖用户在弹框里选的变量。
+     */
+    private Map<String, String> mergeRuntimeParams(Long pipelineId, Map<String, String> userParams) {
+        Map<String, String> merged = new LinkedHashMap<>();
+        List<PipelineJobEntity> jobs = jobMapper.selectList(new LambdaQueryWrapper<PipelineJobEntity>()
+                .eq(PipelineJobEntity::getPipelineId, pipelineId)
+                .orderByAsc(PipelineJobEntity::getSortOrder));
+        Map<String, List<PipelineTaskKindParamEntity>> byKind = taskKindParamMapper.selectAll().stream()
+                .collect(Collectors.groupingBy(PipelineTaskKindParamEntity::getKindValue));
+        for (PipelineJobEntity job : jobs) {
+            Map<String, JobParamBindingDTO> bindings = ParamBindings.parse(job.getParamBindings());
+            for (PipelineTaskKindParamEntity def : byKind.getOrDefault(job.getKind(), List.of())) {
+                JobParamBindingDTO binding = bindings.get(def.getParamKey());
+                if (ParamBindings.isRuntime(binding)) {
+                    continue;
+                }
+                if ("GIT_REF".equals(def.getParamKey())) {
+                    continue;
+                }
+                String value = binding != null && binding.getValue() != null
+                        ? binding.getValue()
+                        : (def.getDefaultValue() != null ? def.getDefaultValue() : "");
+                merged.put(def.getParamKey(), value);
+            }
+        }
+        if (userParams != null) {
+            merged.putAll(userParams);
+        }
+        return merged;
+    }
+
+    private void validateRuntimeParams(Long pipelineId, Map<String, String> runtimeParams) {
+        List<PipelineJobEntity> jobs = jobMapper.selectList(new LambdaQueryWrapper<PipelineJobEntity>()
+                .eq(PipelineJobEntity::getPipelineId, pipelineId)
+                .orderByAsc(PipelineJobEntity::getSortOrder));
+        Map<String, List<PipelineTaskKindParamEntity>> byKind = taskKindParamMapper.selectAll().stream()
+                .collect(Collectors.groupingBy(PipelineTaskKindParamEntity::getKindValue));
+        for (PipelineJobEntity job : jobs) {
+            Map<String, JobParamBindingDTO> bindings = ParamBindings.parse(job.getParamBindings());
+            for (PipelineTaskKindParamEntity param : byKind.getOrDefault(job.getKind(), List.of())) {
+                if (!ParamBindings.isRuntime(bindings.get(param.getParamKey()))) {
+                    continue;
+                }
+                String key = param.getParamKey();
+                boolean isRequired = param.getRequired() != null && param.getRequired() == 1;
+                boolean hasValue = runtimeParams.containsKey(key) && runtimeParams.get(key) != null
+                        && !runtimeParams.get(key).isBlank();
+                if (isRequired && !hasValue) {
+                    throw BizException.of(ResultCode.BAD_REQUEST,
+                            "运行时参数 [" + param.getParamLabel() + "] 为必填项");
+                }
+                if (hasValue && "select".equals(param.getParamType())) {
+                    List<String> options = parseJsonArray(param.getOptionsJson());
+                    if (!options.isEmpty() && !options.contains(runtimeParams.get(key))) {
+                        throw BizException.of(ResultCode.BAD_REQUEST,
+                                "参数 [" + param.getParamLabel() + "] 的值不在可选范围内");
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 构建 job 的运行命令：
+     * - CLONE 类型固定返回 "git clone"
+     * - 若有 CMD_ 前缀的运行时参数，替换 command 中的 ${KEY} 占位符
+     */
+    private static String buildCommand(PipelineJobEntity job, Map<String, String> runtimeParams) {
+        if (PipelineJobKind.CLONE.name().equals(job.getKind())) {
+            return "git clone";
+        }
+        String command = job.getCommand();
+        if (command == null) {
+            return "";
+        }
+        if (runtimeParams == null || runtimeParams.isEmpty()) {
+            return command;
+        }
+        for (Map.Entry<String, String> entry : runtimeParams.entrySet()) {
+            if (entry.getKey().startsWith("CMD_")) {
+                String placeholder = "${" + entry.getKey() + "}";
+                if (command.contains(placeholder)) {
+                    command = command.replace(placeholder, entry.getValue() != null ? entry.getValue() : "");
+                }
+            }
+        }
+        return command;
+    }
+
+    private static List<String> parseJsonArray(String json) {
+        if (json == null || json.isBlank()) return Collections.emptyList();
+        try {
+            return JSON.readValue(json, new TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
+    }
+
+    private static Map<String, String> parseJsonMap(String json) {
+        if (json == null || json.isBlank()) return Collections.emptyMap();
+        try {
+            return JSON.readValue(json, new TypeReference<Map<String, String>>() {});
+        } catch (Exception e) {
+            return Collections.emptyMap();
+        }
+    }
+
+    private static String toJson(Map<String, String> map) {
+        if (map == null || map.isEmpty()) return "";
+        try {
+            return JSON.writeValueAsString(map);
+        } catch (JsonProcessingException e) {
+            return "";
+        }
     }
 
     private PipelineRunJobVO toJobVo(PipelineRunJobEntity row) {

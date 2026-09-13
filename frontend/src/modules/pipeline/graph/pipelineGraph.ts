@@ -89,6 +89,7 @@ export function createEditorJob(
     runtimeVersion: extras?.runtimeVersion ?? null,
     toolVersion: extras?.toolVersion ?? null,
     sortOrder: extras?.sortOrder ?? 0,
+    paramBindings: extras?.paramBindings ?? {},
     status: extras?.status,
     runJobId: extras?.runJobId,
   }
@@ -107,6 +108,7 @@ export function toEditorStages(stages?: PipelineStage[] | null): EditorStage[] {
       stack: job.stack ?? null,
       runtimeVersion: job.runtimeVersion ?? null,
       toolVersion: job.toolVersion ?? null,
+      paramBindings: job.paramBindings ?? {},
       sortOrder: jobIndex,
     })),
   }))
@@ -126,6 +128,7 @@ export function toSaveStages(stages: EditorStage[]): PipelineStage[] {
       runtimeVersion: job.runtimeVersion ?? null,
       toolVersion: job.toolVersion ?? null,
       sortOrder: jobIndex,
+      paramBindings: job.paramBindings ?? {},
     })),
   }))
 }

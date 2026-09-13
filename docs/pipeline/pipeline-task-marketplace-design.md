@@ -1,8 +1,15 @@
 # 任务市场（Task Marketplace）设计方案
 
-> 版本：v1.1  
-> 日期：2026-09-09  
+> 日期：2026-09-13
+> 版本：v1.2
 > 状态：定稿
+
+### 变更记录
+
+| 版本 | 日期 | 变更说明 |
+|------|------|----------|
+| v1.1 | 2026-09-09 | 定稿：任务类型元数据入库与管理页 |
+| v1.2 | 2026-09-13 | 任务可配置预置环境变量（静态值 / 枚举 / 远程接口），流水线编辑时绑定写死或设为变量 |
 
 ---
 
@@ -126,7 +133,21 @@ INSERT INTO pipeline_task_kind (kind_value, label, task_group, description, hint
  'curl -fsS -X POST ''https://example.com/hook'' -H ''Content-Type: application/json'' -d ''{"status":"done"}''', 1, 1, 130);
 ```
 
-### 2.3 索引
+### 2.3 预置环境变量 `pipeline_task_kind_param`
+
+每种 Task 可配置若干环境变量，供流水线编辑时绑定（写死 / 设为变量）。取值来源：
+
+| param_type | 含义 | 运行时控件 |
+|------------|------|-----------|
+| `input` | 静态值（文本） | 输入框 |
+| `select` | 枚举 | 下拉，选项来自 `options_json` |
+| `api_select` | 远程接口 | 下拉，选项由后端按 `api_url` + JSONPath 拉取 |
+
+默认种子：`CLONE.GIT_REF`（代码分支，静态值，默认 `main`）。
+
+流水线 Job 只保存 `param_bindings`，不在流水线里新增定义。详见 `docs/pipeline/runtime-param-design.md`。
+
+### 2.4 索引
 
 ```sql
 CREATE INDEX IF NOT EXISTS idx_task_kind_tenant ON pipeline_task_kind (tenant_id, deleted);
@@ -178,6 +199,7 @@ public class TaskKindUpdateDTO {
     private String toolImage;
     private String commandTemplate;
     private Integer sortOrder;
+    private java.util.List<TaskKindParamSaveDTO> params;
 }
 ```
 
