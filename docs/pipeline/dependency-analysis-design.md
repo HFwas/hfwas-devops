@@ -1,7 +1,7 @@
 # 流水线依赖分析任务设计方案
 
 > 日期：2026-09-13
-> 版本：v0.5
+> 版本：v0.6
 > 定位：在流水线中增加一个**通用依赖分析任务**，支持多种语言项目的依赖扫描，生成标准 SBOM 作为后续漏洞检测的前置输入
 > 状态：已定稿
 
@@ -16,6 +16,7 @@
 | v0.3 | 2026-09-12 | 更新版本为 2.9.3（2.10.0 在 Maven Central 尚无），修正 CLI 参数 `-Dcyclonedx.outputName` → `-DoutputName`，修正 SBOM specVersion 为 1.6 |
 | v0.4 | 2026-09-13 | 默认 Maven 命令去掉 `-q`，保留流水线日志可见性 |
 | v0.5 | 2026-09-13 | 依赖组件按流水线 + purl/GAV upsert，多次执行同一流水线不再插重复行 |
+| v0.6 | 2026-09-13 | 补充 Monorepo 多语言方案交叉引用，参阅 `monorepo-dependency-analysis-design.md` |
 
 ---
 
@@ -667,6 +668,7 @@ fi
 | 任务类型目录 | `docs/superpowers/specs/2026-09-07-pipeline-job-kind-design.md` | 任务枚举的完整目录与校验逻辑 |
 | Tekton 详解 | `docs/pipeline/tekton-intro.md` | Tekton 对象模型、数据传递、运行时序 |
 | Pipeline API | `docs/pipeline/pipeline-core-api.md` | 流水线创建、运行、任务管理等 REST API |
+| Monorepo 多语言方案 | `docs/pipeline/monorepo-dependency-analysis-design.md` | Monorepo 混合项目的模块选择 + 自动检测方案 |
 
 ### 9.2 外部链接
 

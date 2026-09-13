@@ -20,7 +20,10 @@ import java.util.List;
 
 /**
  * 批量依赖扫描服务 — 创建精简流水线（CLONE + BUILD + DEPENDENCY_ANALYSIS）
- * 用户无需手动配置流水线，提交仓库 URL 即可自动扫描依赖。
+ * <p>
+ * 支持按模块扫描：指定 modulePath（如 backend/、frontend/），
+ * 运行时自动检测该模块的语言栈（pom.xml → Maven, package.json → cdxgen），
+ * 也可以直接指定 stack 跳过自动检测。
  */
 @Service
 public class DependencyScanService {
@@ -58,6 +61,9 @@ public class DependencyScanService {
         pipelineDto.setGitRef(dto.getGitRef() != null ? dto.getGitRef() : "main");
         pipelineDto.setCredentialId(dto.getCredentialId());
 
+        String modulePath = normalizeModulePath(dto.getModulePath());
+        String stack = dto.getStack();
+
         List<PipelineStageDTO> stages = new ArrayList<>();
 
         // Stage 1: 代码克隆
@@ -79,9 +85,8 @@ public class DependencyScanService {
         PipelineJobDTO buildJob = new PipelineJobDTO();
         buildJob.setName("Build");
         buildJob.setKind("BUILD");
-        String buildCommand = defaultBuildCommand(dto.getStack());
-        buildJob.setCommand(buildCommand);
-        buildJob.setStack(dto.getStack());
+        buildJob.setCommand(buildCommand(stack, modulePath));
+        buildJob.setStack(stack);
         buildJob.setRuntimeVersion(dto.getRuntimeVersion());
         buildJob.setSortOrder(1);
         buildStage.setJobs(List.of(buildJob));
@@ -94,13 +99,7 @@ public class DependencyScanService {
         PipelineJobDTO analysisJob = new PipelineJobDTO();
         analysisJob.setName("DependencyAnalysis");
         analysisJob.setKind("DEPENDENCY_ANALYSIS");
-
-        String stack = dto.getStack();
-        if ("JAVA_MAVEN".equals(stack)) {
-            analysisJob.setCommand("mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress");
-        } else {
-            analysisJob.setCommand("cdxgen -o target/sbom.json -t cyclonedx:json");
-        }
+        analysisJob.setCommand(dependencyAnalysisCommand(stack, modulePath));
         analysisJob.setSortOrder(1);
         analysisStage.setJobs(List.of(analysisJob));
         stages.add(analysisStage);
@@ -127,20 +126,118 @@ public class DependencyScanService {
     }
 
     public List<DependencyScanVO> listRecent(int limit) {
-        // 查询最近创建的依赖扫描流水线及其最近一次运行
-        // 简化为查询当前用户最近运行的流水线
         return List.of();
     }
 
-    private static String defaultBuildCommand(String stack) {
-        if (stack == null) return "echo 'no build needed'";
-        return switch (stack) {
-            case "JAVA_MAVEN" -> "mvn dependency:resolve -q --no-transfer-progress";
-            case "NODE" -> "npm ci || npm install";
-            case "GO" -> "go mod download";
-            case "PYTHON" -> "pip install -r requirements.txt 2>/dev/null || pip install -r requirements/*.txt 2>/dev/null || echo 'no requirements found'";
-            default -> "echo 'no build needed'";
-        };
+    // ========================
+    //  命令生成
+    // ========================
+
+    /**
+     * 构建命令：按 stack 或自动检测
+     */
+    static String buildCommand(String stack, String modulePath) {
+        String prefix = modulePath != null ? "cd " + modulePath + " && " : "";
+        if (stack != null && !stack.isBlank()) {
+            return prefix + switch (stack) {
+                case "JAVA_MAVEN" -> "mvn dependency:resolve -q --no-transfer-progress";
+                case "NODE" -> "npm ci || npm install";
+                case "GO" -> "go mod download";
+                case "PYTHON" ->
+                        "pip install -r requirements.txt 2>/dev/null || pip install -r requirements/*.txt 2>/dev/null || echo 'no requirements found'";
+                default -> "echo 'no build needed'";
+            };
+        }
+        // stack 为空 → 自动检测
+        if (modulePath != null) {
+            return prefix + autoDetectBuild();
+        }
+        return "echo 'no build needed'";
+    }
+
+    /**
+     * 依赖分析命令：按 stack 或自动检测
+     */
+    static String dependencyAnalysisCommand(String stack, String modulePath) {
+        String prefix = modulePath != null ? "cd " + modulePath + " && " : "";
+        if (stack != null && !stack.isBlank()) {
+            return prefix + switch (stack) {
+                case "JAVA_MAVEN" ->
+                        "mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress";
+                default -> "cdxgen -o target/sbom.json -t cyclonedx:json";
+            };
+        }
+        // stack 为空 → 运行时自动检测
+        return prefix + autoDetectAnalysis();
+    }
+
+    /**
+     * 自动检测语言栈 + 执行正确的 BUILD 命令（运行时脚本）
+     */
+    private static String autoDetectBuild() {
+        return """
+                if [ -f pom.xml ]; then
+                  mvn dependency:resolve -q --no-transfer-progress
+                elif [ -f package.json ]; then
+                  npm ci || npm install
+                elif [ -f go.mod ]; then
+                  go mod download
+                elif [ -f requirements.txt ]; then
+                  pip install -r requirements.txt 2>/dev/null || echo 'no requirements found'
+                elif [ -f pyproject.toml ]; then
+                  pip install -e . 2>/dev/null || echo 'no setup found'
+                else
+                  echo 'no supported language detected, skip build'
+                fi
+                """.stripIndent();
+    }
+
+    /**
+     * 自动检测语言栈 + 执行正确的 DEPENDENCY_ANALYSIS 命令（运行时脚本）
+     * <p>
+     * Java/Maven → CycloneDX Maven Plugin（精度最高，Maven Resolver API）
+     * Node → cdxgen
+     * Go/Python/其他 → cdxgen
+     */
+    private static String autoDetectAnalysis() {
+        return """
+                if [ -f pom.xml ]; then
+                  echo "detected Maven project, using CycloneDX Maven Plugin"
+                  mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom \
+                    -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress
+                elif [ -f package.json ]; then
+                  echo "detected Node.js project, using cdxgen"
+                  cdxgen -o target/sbom.json -t cyclonedx:json
+                elif [ -f go.mod ]; then
+                  echo "detected Go project, using cdxgen"
+                  cdxgen -o target/sbom.json -t cyclonedx:json
+                elif [ -f requirements.txt ] || [ -f Pipfile ] || [ -f pyproject.toml ]; then
+                  echo "detected Python project, using cdxgen"
+                  cdxgen -o target/sbom.json -t cyclonedx:json
+                else
+                  echo "no supported language manifest detected in module, skip dependency analysis"
+                  exit 0
+                fi
+                """.stripIndent();
+    }
+
+    // ========================
+    //  工具方法
+    // ========================
+
+    /**
+     * 规范化模块路径：去掉首尾空格/斜杠，保证干净路径
+     */
+    static String normalizeModulePath(String modulePath) {
+        if (modulePath == null || modulePath.isBlank()) {
+            return null;
+        }
+        String normalized = modulePath.trim();
+        // 去掉尾部斜杠（保留可能的中间路径如 frontend/src）
+        while (normalized.endsWith("/") || normalized.endsWith("\\")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized.isBlank() ? null : normalized;
     }
 
     private static String extractRepoName(String repoUrl) {
