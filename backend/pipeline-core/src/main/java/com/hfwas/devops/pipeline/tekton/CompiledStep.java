@@ -8,9 +8,14 @@ public record CompiledStep(
         String script,
         Map<String, String> env,
         boolean usesGitSecret,
-        boolean usesKanikoCache
+        boolean usesKanikoCache,
+        boolean usesKubeconfig
 ) {
     public CompiledStep(String name, String image, String script, Map<String, String> env, boolean usesGitSecret) {
-        this(name, image, script, env, usesGitSecret, false);
+        this(name, image, script, env, usesGitSecret, false, false);
+    }
+
+    public CompiledStep(String name, String image, String script, Map<String, String> env, boolean usesGitSecret, boolean usesKanikoCache) {
+        this(name, image, script, env, usesGitSecret, usesKanikoCache, false);
     }
 }

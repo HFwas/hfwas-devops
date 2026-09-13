@@ -27,7 +27,10 @@ function errorMessage(e: unknown): string {
 }
 
 function kindLabel(kind: string): string {
-  return kind === 'TOKEN' ? 'Token' : '用户名密码'
+  if (kind === 'TOKEN') return 'Token'
+  if (kind === 'PASSWORD') return '用户名密码'
+  if (kind === 'KUBECONFIG') return 'Kubeconfig'
+  return kind
 }
 
 async function load() {
@@ -100,7 +103,7 @@ watch(
     <header class="pl-hero">
       <div class="pl-hero-main">
         <h1 class="pl-hero-title">凭证</h1>
-        <p class="pl-hero-desc">GitHub HTTPS 克隆使用的用户名密码或 Token，密钥不会回传</p>
+        <p class="pl-hero-desc">Git、Kubernetes 等平台使用的凭证，密钥不会回传</p>
       </div>
       <div class="pl-hero-extra">
         <n-button type="primary" @click="openCreate">
@@ -115,7 +118,7 @@ watch(
       <div v-else class="pl-grid">
         <article v-for="row in rows" :key="String(row.id)" class="pl-tile">
           <div class="pl-tile-top">
-            <span class="pl-tile-icon" :class="row.kind === 'TOKEN' ? 'tone-token' : 'tone-password'">
+            <span class="pl-tile-icon" :class="row.kind === 'TOKEN' ? 'tone-token' : row.kind === 'KUBECONFIG' ? 'tone-kubeconfig' : 'tone-password'">
               <KeyRound :size="18" />
             </span>
             <n-tag size="small" :bordered="false">{{ kindLabel(row.kind) }}</n-tag>
@@ -149,15 +152,23 @@ watch(
           :options="[
             { label: 'Token', value: 'TOKEN' },
             { label: '用户名密码', value: 'PASSWORD' },
+            { label: 'Kubeconfig', value: 'KUBECONFIG' },
           ]"
         />
       </n-form-item>
-      <n-form-item :label="form.kind === 'TOKEN' ? '用户名（可空，默认 x-access-token）' : '用户名'">
-        <n-input v-model:value="form.username" />
-      </n-form-item>
-      <n-form-item :label="form.kind === 'TOKEN' ? 'Token' : '密码'">
-        <n-input v-model:value="form.secret" type="password" show-password-on="mousedown" />
-      </n-form-item>
+      <template v-if="form.kind === 'KUBECONFIG'">
+        <n-form-item label="Kubeconfig YAML">
+          <n-input v-model:value="form.secret" type="textarea" :rows="10" placeholder="粘贴 kubeconfig YAML 内容" />
+        </n-form-item>
+      </template>
+      <template v-else>
+        <n-form-item :label="form.kind === 'TOKEN' ? '用户名（可空，默认 x-access-token）' : '用户名'">
+          <n-input v-model:value="form.username" />
+        </n-form-item>
+        <n-form-item :label="form.kind === 'TOKEN' ? 'Token' : '密码'">
+          <n-input v-model:value="form.secret" type="password" show-password-on="mousedown" />
+        </n-form-item>
+      </template>
     </n-form>
     <template #footer>
       <n-space justify="end">

@@ -138,10 +138,12 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         PipelineGraphSpec segment = plan.segments().get(segmentIndex);
         String username = null;
         String secret = null;
+        boolean kubeconfigCredential = false;
         if (pipeline.getCredentialId() != null) {
             CredentialVO meta = credentialService.get(pipeline.getCredentialId());
             username = meta.getUsername();
             secret = credentialService.decryptSecret(pipeline.getCredentialId());
+            kubeconfigCredential = "KUBECONFIG".equals(meta.getKind());
         }
         String dockerHost = GitHttpProxy.dockerHostAddress(gitDockerHost);
         String proxy = GitHttpProxy.rewrite(gitHttpProxy, dockerHost);
@@ -184,16 +186,25 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         ));
         ensureNamespace();
         String gitSecretName = compiled.name() + "-git";
+        String kubeconfigSecretName = compiled.name() + "-kube";
         if (secret != null) {
-            client.secrets().inNamespace(namespace)
-                    .resource(TektonManifests.gitSecret(namespace, gitSecretName, username == null ? "" : username, secret))
-                    .serverSideApply();
+            if (kubeconfigCredential) {
+                client.secrets().inNamespace(namespace)
+                        .resource(TektonManifests.kubeconfigSecret(namespace, kubeconfigSecretName, secret))
+                        .serverSideApply();
+            } else {
+                client.secrets().inNamespace(namespace)
+                        .resource(TektonManifests.gitSecret(namespace, gitSecretName, username == null ? "" : username, secret))
+                        .serverSideApply();
+            }
         }
         String cacheClaim = null;
+        String gitSecretEffective = (secret != null && !kubeconfigCredential) ? gitSecretName : null;
+        String kubeconfigSecretEffective = (secret != null && kubeconfigCredential) ? kubeconfigSecretName : null;
         if (compiled.mode() == TektonMode.TASK) {
             var task = compiled.tasks().getFirst();
             tekton.v1().tasks().inNamespace(namespace)
-                    .resource(TektonManifests.task(namespace, task, secret == null ? null : gitSecretName))
+                    .resource(TektonManifests.task(namespace, task, gitSecretEffective, kubeconfigSecretEffective))
                     .serverSideApply();
             tekton.v1().taskRuns().inNamespace(namespace)
                     .resource(TektonManifests.taskRun(namespace, compiled.name(), task.name()))
@@ -209,7 +220,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             }
             for (var task : compiled.tasks()) {
                 tekton.v1().tasks().inNamespace(namespace)
-                        .resource(TektonManifests.task(namespace, task, secret == null ? null : gitSecretName))
+                        .resource(TektonManifests.task(namespace, task, gitSecretEffective, kubeconfigSecretEffective))
                         .serverSideApply();
             }
             tekton.v1().pipelines().inNamespace(namespace)

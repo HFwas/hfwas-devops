@@ -164,6 +164,13 @@ public final class TektonCompiler {
             return List.of(new CompiledStep(base, resolveImage("DEPENDENCY_ANALYSIS", request.taskImages(), CDXGEN_IMAGE), script, env, false, false));
         }
 
+        // ---- 分支：KUBECTL — 挂载 kubeconfig 凭证执行 kubectl ----
+        if (job.kind() == PipelineJobKind.KUBECTL) {
+            String script = resolveScript("KUBECTL", request.taskScripts(), command);
+            String image = resolveImage("KUBECTL", request.taskImages(), DEPLOY_IMAGE);
+            return List.of(new CompiledStep(base, image, script, env, false, false, true));
+        }
+
         // ---- 通用分支：所有其他任务走模板替换 ----
         String image = switch (job.kind()) {
             case LINT_SEMGREP -> resolveImage("LINT_SEMGREP", request.taskImages(), SEMGREP_IMAGE);

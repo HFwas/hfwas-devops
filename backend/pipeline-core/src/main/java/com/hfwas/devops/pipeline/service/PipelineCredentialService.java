@@ -62,8 +62,8 @@ public class PipelineCredentialService {
             throw BizException.of(ResultCode.BAD_REQUEST, "凭证类型不能为空");
         }
         String kind = dto.getKind().trim().toUpperCase();
-        if (!"PASSWORD".equals(kind) && !"TOKEN".equals(kind)) {
-            throw BizException.of(ResultCode.BAD_REQUEST, "凭证类型必须是 PASSWORD 或 TOKEN");
+        if (!"PASSWORD".equals(kind) && !"TOKEN".equals(kind) && !"KUBECONFIG".equals(kind)) {
+            throw BizException.of(ResultCode.BAD_REQUEST, "凭证类型必须是 PASSWORD、TOKEN 或 KUBECONFIG");
         }
         row.setTenantId(tenantId);
         row.setName(dto.getName().trim());

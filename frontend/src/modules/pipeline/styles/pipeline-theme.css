@@ -144,6 +144,7 @@
 
 .pl-tile-icon.tone-token { background: #eff6ff; color: #2563eb; }
 .pl-tile-icon.tone-password { background: #f5f3ff; color: #7c3aed; }
+.pl-tile-icon.tone-kubeconfig { background: #ecfdf5; color: #059669; }
 
 .pl-tile-status {
   flex-shrink: 0;

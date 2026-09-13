@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.SecretKeySelectorBuilder;
+import io.fabric8.kubernetes.api.model.SecretVolumeSourceBuilder;
 import io.fabric8.tekton.v1.Pipeline;
 import io.fabric8.tekton.v1.PipelineBuilder;
 import io.fabric8.tekton.v1.PipelineRun;
@@ -35,6 +36,9 @@ import java.util.Map;
 
 public final class TektonManifests {
 
+    private static final String KUBECONFIG_VOLUME = "kubeconfig";
+    private static final String KUBECONFIG_MOUNT_PATH = "/etc/kubeconfig";
+
     private TektonManifests() {
     }
 
@@ -44,6 +48,14 @@ public final class TektonManifests {
                 .withType("Opaque")
                 .addToStringData("username", username)
                 .addToStringData("password", password)
+                .build();
+    }
+
+    public static Secret kubeconfigSecret(String namespace, String name, String kubeconfig) {
+        return new SecretBuilder()
+                .withNewMetadata().withNamespace(namespace).withName(name).endMetadata()
+                .withType("Opaque")
+                .addToStringData("config", kubeconfig)
                 .build();
     }
 
@@ -63,8 +75,9 @@ public final class TektonManifests {
                 .build();
     }
 
-    public static Task task(String namespace, CompiledTask compiled, String gitSecretName) {
+    public static Task task(String namespace, CompiledTask compiled, String gitSecretName, String kubeconfigSecretName) {
         List<Step> steps = new ArrayList<>();
+        boolean needsKubeconfig = false;
         for (CompiledStep step : compiled.steps()) {
             StepBuilder builder = new StepBuilder()
                     .withName(step.name())
@@ -79,10 +92,33 @@ public final class TektonManifests {
                 env.add(secretEnv("GIT_PASSWORD", gitSecretName, "password"));
             }
             builder.withEnv(env);
+            if (step.usesKubeconfig() && kubeconfigSecretName != null) {
+                needsKubeconfig = true;
+                builder.addNewVolumeMount()
+                        .withName(KUBECONFIG_VOLUME)
+                        .withMountPath(KUBECONFIG_MOUNT_PATH)
+                        .withReadOnly(true)
+                        .endVolumeMount();
+            }
             steps.add(builder.build());
         }
         List<io.fabric8.tekton.v1.WorkspaceDeclaration> workspaces = new ArrayList<>();
         workspaces.add(new WorkspaceDeclarationBuilder().withName(TektonCompiler.WORKSPACE).build());
+        if (needsKubeconfig) {
+            return new TaskBuilder()
+                    .withNewMetadata().withNamespace(namespace).withName(compiled.name()).endMetadata()
+                    .withNewSpec()
+                    .withSteps(steps)
+                    .addNewVolume()
+                    .withName(KUBECONFIG_VOLUME)
+                    .withSecret(new SecretVolumeSourceBuilder()
+                            .withSecretName(kubeconfigSecretName)
+                            .build())
+                    .endVolume()
+                    .withWorkspaces(workspaces)
+                    .endSpec()
+                    .build();
+        }
         return new TaskBuilder()
                 .withNewMetadata().withNamespace(namespace).withName(compiled.name()).endMetadata()
                 .withNewSpec()

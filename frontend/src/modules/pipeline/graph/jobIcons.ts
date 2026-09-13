@@ -14,6 +14,7 @@ import {
   Terminal,
   UserRound,
   CheckCircle,
+  Container,
 } from '@lucide/vue'
 import type { JobKind } from '@/modules/pipeline/types/pipeline'
 
@@ -34,6 +35,7 @@ export const JOB_KIND_ICONS: Record<JobKind, Component> = {
   NOTIFY: Bell,
   FORMAT: Paintbrush,
   DEPENDENCY_ANALYSIS: FolderTree,
+  KUBECTL: Container,
 }
 
 export function jobKindIcon(kind?: string | null): Component {

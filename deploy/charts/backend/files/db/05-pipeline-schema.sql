@@ -183,6 +183,11 @@ INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, descrip
 ('NOTIFY', '通知', '流程', 'Webhook / HTTP 通知', '',
  'curl -fsS -X POST ''https://example.com/hook'' -H ''Content-Type: application/json'' -d ''{"status":"done"}''', 1, 1, 130, 'curlimages/curl:8.11.1', 'curlimages/curl:8.11.1');
 
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
+('KUBECTL', 'K8s 命令', '部署', '使用用户提供的 kubeconfig 执行 kubectl 命令',
+ '填写任意 kubectl 命令，如 kubectl get pods -A',
+ 'kubectl get pods -A', 1, 1, 95, 'bitnami/kubectl:1.31.4', 'bitnami/kubectl:1.31.4');
+
 CREATE INDEX IF NOT EXISTS idx_task_kind_tenant ON pipeline_task_kind (tenant_id, deleted);
 CREATE INDEX IF NOT EXISTS idx_task_kind_group ON pipeline_task_kind (task_group, sort_order);
 
@@ -388,3 +393,14 @@ fi
 printf ''%s'' "$COSIGN_PRIVATE_KEY" > /tmp/cosign.key
 cosign sign --key /tmp/cosign.key --yes "$DEST"'
 WHERE kind_value = 'IMAGE_COSIGN';
+
+-- KUBECTL
+UPDATE pipeline_task_kind SET command_template =
+'set -eu
+mkdir -p /root/.kube
+if [ -f /etc/kubeconfig/config ]; then
+  cp /etc/kubeconfig/config /root/.kube/config
+fi
+cd "$(workspaces.source.path)/src"
+${COMMAND}'
+WHERE kind_value = 'KUBECTL';
