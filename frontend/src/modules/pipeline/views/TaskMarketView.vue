@@ -7,6 +7,7 @@ import { jobKindTone } from '@/modules/pipeline/status'
 import { useAuthStore } from '@/modules/user/stores/auth'
 import type { TaskKindVO } from '@/modules/pipeline/types/pipeline'
 import { isApiError } from '@/shared/errors/apiError'
+import ShellEditor from '@/modules/pipeline/components/ShellEditor.vue'
 import '@/modules/pipeline/styles/pipeline-theme.css'
 
 const message = useMessage()
@@ -97,6 +98,14 @@ async function toggle(item: TaskKindVO) {
   } catch (e: unknown) {
     message.error(isApiError(e) ? e.message : '操作失败')
   }
+}
+
+function defaultTemplateForKind(item: TaskKindVO): string {
+  // 各任务类型的内置缺省模板，仅作为"重置默认"的参考值
+  if (item.commandTemplate && item.commandTemplate.length > 0) {
+    return item.commandTemplate
+  }
+  return ''
 }
 
 const isAdmin = computed(() => auth.isAdmin)
@@ -288,6 +297,20 @@ onMounted(load)
             </n-form-item>
             <n-form-item label="默认命令">
               <n-input v-model:value="editForm.defaultCommand" type="textarea" :rows="4" :autosize="{ minRows: 4 }" />
+            </n-form-item>
+            <n-form-item label="脚本模板">
+              <div class="tm-template-editor">
+                <ShellEditor
+                  v-model="editForm.commandTemplate"
+                  :kind-value="editingItem.kindValue"
+                  :default-template="defaultTemplateForKind(editingItem)"
+                  height="280px"
+                />
+                <div style="font-size:12px;color:var(--wb-muted,#888);margin-top:6px">
+                  使用 <code>${COMMAND}</code> 引用用户填写的默认命令。
+                  留空则使用系统缺省模板（仅 <code>cd workspace && ${COMMAND}</code>）。
+                </div>
+              </div>
             </n-form-item>
             <n-form-item label="排序">
               <n-input-number v-model:value="editForm.sortOrder" :min="0" style="width: 120px" />

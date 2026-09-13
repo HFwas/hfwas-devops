@@ -51,4 +51,6 @@ export const pipelineTaskKindApi = {
     put<void>(`/pipeline/task-kinds/${kind}`, data),
   toggle: (kind: string) =>
     put<void>(`/pipeline/task-kinds/${kind}/toggle`, {}),
+  validateTemplate: (kind: string, data: { script: string }) =>
+    post<{ valid: boolean; errors: string[] }>(`/pipeline/task-kinds/${kind}/validate`, data),
 }

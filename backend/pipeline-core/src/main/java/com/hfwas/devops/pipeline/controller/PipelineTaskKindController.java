@@ -8,12 +8,19 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/pipeline/task-kinds")
@@ -49,4 +56,46 @@ public class PipelineTaskKindController {
         taskKindService.toggle(kind);
         return BaseResult.ok(null);
     }
+
+    @PostMapping("/{kind}/validate")
+    public BaseResult<ValidationResult> validateTemplate(
+            @PathVariable("kind") String kind,
+            @RequestBody Map<String, String> body
+    ) {
+        String script = body != null ? body.get("script") : null;
+        if (script == null || script.isBlank()) {
+            return BaseResult.ok(new ValidationResult(true, List.of()));
+        }
+        return BaseResult.ok(validateShell(script));
+    }
+
+    private ValidationResult validateShell(String script) {
+        Path tmp = null;
+        try {
+            tmp = Files.createTempFile("sh-validate-", ".sh");
+            Files.writeString(tmp, script);
+            Process process = new ProcessBuilder("bash", "-n", tmp.toString())
+                    .redirectErrorStream(true)
+                    .start();
+            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            boolean valid = process.waitFor() == 0;
+            List<String> errors = valid ? List.of() :
+                    Arrays.stream(output.split("\n"))
+                            .filter(line -> line.contains("error:") || line.contains("line "))
+                            .map(String::trim)
+                            .toList();
+            return new ValidationResult(valid, errors);
+        } catch (IOException | InterruptedException e) {
+            return new ValidationResult(false, List.of("验证失败: " + e.getMessage()));
+        } finally {
+            if (tmp != null) {
+                try {
+                    Files.deleteIfExists(tmp);
+                } catch (IOException ignored) {
+                }
+            }
+        }
+    }
+
+    public record ValidationResult(boolean valid, List<String> errors) {}
 }

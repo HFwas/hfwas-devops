@@ -236,3 +236,155 @@ UPDATE pipeline_job
 SET command = replace(command, ' -q', '')
 WHERE kind = 'DEPENDENCY_ANALYSIS'
   AND instr(command, ' -q') > 0;
+
+-- ============================================================
+-- 初始化 command_template：定义各任务的完整 Shell 脚本行为
+-- 用户可在任务市场编辑覆盖，留空则使用 DEFAULT_TEMPLATE
+-- ============================================================
+
+-- CLONE
+UPDATE pipeline_task_kind SET command_template =
+'set -eu
+cd "$(workspaces.source.path)"
+git config --global http.version HTTP/1.1
+git config --global http.postBuffer 524288000
+if [ -n "${GIT_HTTP_PROXY:-}" ]; then
+  git config --global http.proxy "${GIT_HTTP_PROXY}"
+  git config --global https.proxy "${GIT_HTTP_PROXY}"
+fi
+AUTH=""
+if [ -n "${GIT_USERNAME:-}" ]; then
+  AUTH="${GIT_USERNAME}:${GIT_PASSWORD}@"
+elif [ -n "${GIT_EMBEDDED_AUTH:-}" ]; then
+  AUTH="${GIT_EMBEDDED_AUTH}@"
+fi
+URL="${GIT_SCHEME}://${AUTH}${GIT_HOST}/${GIT_PATH}"
+attempt=1
+until git clone --depth 1 --branch "${GIT_REF}" "$URL" src; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -gt 3 ]; then
+    echo "git clone failed after 3 attempts"
+    exit 1
+  fi
+  echo "git clone retry ${attempt}/3 ..."
+  rm -rf src
+  sleep $((attempt * 2))
+done
+echo "HFWAS_GIT_REF=${GIT_REF}"
+echo "HFWAS_COMMIT=$(git -C src rev-parse HEAD)"'
+WHERE kind_value = 'CLONE';
+
+-- DEPENDENCY_ANALYSIS
+UPDATE pipeline_task_kind SET command_template =
+'set -eu
+mkdir -p "$(workspaces.source.path)/src"
+cd "$(workspaces.source.path)/src"
+${COMMAND}
+
+if [ -n "${API_ENDPOINT:-}" ] && [ -n "${RUN_ID:-}" ]; then
+  SBOM_FILE=""
+  for f in target/sbom.json target/bom.json; do
+    if [ -f "$f" ]; then SBOM_FILE="$f"; break; fi
+  done
+  if [ -z "$SBOM_FILE" ]; then
+    SBOM_FILE=$(find . \( -path '"'"'*/target/sbom.json'"'"' -o -path '"'"'*/target/bom.json'"'"' \) 2>/dev/null | head -n 1 || true)
+  fi
+  if [ -n "$SBOM_FILE" ]; then
+    if ! command -v curl >/dev/null 2>&1; then
+      apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl ca-certificates >/dev/null 2>&1 || true
+    fi
+    size=$(stat -f%z "$SBOM_FILE" 2>/dev/null || stat -c%s "$SBOM_FILE" 2>/dev/null || echo 0)
+    echo "uploading SBOM (${size} bytes) from ${SBOM_FILE}"
+    curl -fsS -X POST "${API_ENDPOINT}/pipeline/runs/${RUN_ID}/artifacts" \
+      -F "type=sbom" -F "file=@${SBOM_FILE};filename=sbom.json" \
+      --connect-timeout 10 --max-time 60 \
+      && echo " SBOM uploaded" || echo " SBOM upload failed (non-fatal)"
+  else
+    echo "target/sbom.json not found, skip upload"
+  fi
+else
+  echo "API_ENDPOINT not configured, skip SBOM upload"
+fi'
+WHERE kind_value = 'DEPENDENCY_ANALYSIS';
+
+-- FORMAT
+UPDATE pipeline_task_kind SET command_template =
+'set -eu
+cd "$(workspaces.source.path)/src"
+eval "$(cat <<'"'"'HFWAS_USER'"'"'
+${COMMAND}
+HFWAS_USER
+)"
+if [ -z "$(git status --porcelain)" ]; then
+  echo "no changes after formatter, skip commit"
+  exit 0
+fi
+git add .
+git config user.name "HFwas Pipeline"
+git config user.email "pipeline@hfwas.com"
+git commit -m "style: auto format code [skip ci]"
+git pull --rebase
+git push'
+WHERE kind_value = 'FORMAT';
+
+-- LINT_SONAR
+UPDATE pipeline_task_kind SET command_template =
+'set -eu
+mkdir -p "$(workspaces.source.path)/src"
+cd "$(workspaces.source.path)/src"
+eval "$(cat <<'"'"'HFWAS_USER'"'"'
+${COMMAND}
+HFWAS_USER
+)"
+: "${SONAR_HOST_URL:?SONAR_HOST_URL is required}"
+: "${SONAR_TOKEN:?SONAR_TOKEN is required}"
+: "${SONAR_PROJECT_KEY:=app}"
+sonar-scanner -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.token="$SONAR_TOKEN" -Dsonar.projectKey="$SONAR_PROJECT_KEY" -Dsonar.sources=.'
+WHERE kind_value = 'LINT_SONAR';
+
+-- IMAGE (buildah step)
+UPDATE pipeline_task_kind SET command_template =
+'set -eu
+mkdir -p "$(workspaces.source.path)/src"
+cd "$(workspaces.source.path)/src"
+eval "$(cat <<'"'"'HFWAS_USER'"'"'
+${COMMAND}
+HFWAS_USER
+)"
+
+: "${DEST:?DEST is required}"
+: "${IMAGE_PLATFORMS:=linux/amd64,linux/arm64}"
+: "${DOCKERFILE:=Dockerfile}"
+
+n=0
+for p in $(echo "$IMAGE_PLATFORMS" | tr '"'"','"'"' '"'"'); do
+  p=$(echo "$p" | tr -d '"'"' '"'"')
+  [ -n "$p" ] || continue
+  n=$((n + 1))
+done
+
+if [ "$n" -eq 1 ]; then
+  buildah build --file "$DOCKERFILE" --platform "$IMAGE_PLATFORMS" -t "$DEST" .
+  buildah push "$DEST"
+else
+  buildah manifest create "$DEST"
+  for p in $(echo "$IMAGE_PLATFORMS" | tr '"'"','"'"' '"'"'); do
+    p=$(echo "$p" | tr -d '"'"' '"'"')
+    [ -n "$p" ] || continue
+    buildah build --manifest "$DEST" --platform "$p" --file "$DOCKERFILE" .
+  done
+  buildah manifest push --all "$DEST" "docker://$DEST"
+fi'
+WHERE kind_value = 'IMAGE';
+
+-- IMAGE_COSIGN (cosign signature step)
+UPDATE pipeline_task_kind SET command_template =
+'set -eu
+: "${DEST:?DEST is required}"
+if [ -z "${COSIGN_PRIVATE_KEY:-}" ]; then
+  echo "skip cosign: COSIGN_PRIVATE_KEY empty"
+  exit 0
+fi
+printf '"'"'%s'"'"' "$COSIGN_PRIVATE_KEY" > /tmp/cosign.key
+cosign sign --key /tmp/cosign.key --yes "$DEST"'
+WHERE kind_value = 'IMAGE_COSIGN';

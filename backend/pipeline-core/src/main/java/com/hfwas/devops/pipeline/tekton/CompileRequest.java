@@ -13,6 +13,7 @@ public record CompileRequest(
         PipelineGraphSpec graph,
         String gitHttpProxy,
         Map<String, String> taskImages,
+        Map<String, String> taskScripts,
         String apiEndpoint
 ) {
 }

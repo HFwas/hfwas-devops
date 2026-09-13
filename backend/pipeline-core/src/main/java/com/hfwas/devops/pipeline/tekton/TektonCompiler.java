@@ -32,6 +32,17 @@ public final class TektonCompiler {
     public static final String CACHE_WORKSPACE = "cache";
     public static final String SOURCE_DIR = "src";
 
+    /**
+     * 缺省通用模板 — 仅当数据库 command_template 为空时使用。
+     * 不含任何任务特定逻辑。
+     */
+    private static final String DEFAULT_TEMPLATE = """
+            set -eu
+            mkdir -p "$(workspaces.source.path)/src"
+            cd "$(workspaces.source.path)/src"
+            ${COMMAND}
+            """.stripIndent();
+
     private static final ToolchainCatalog TOOLCHAIN = new ToolchainCatalog();
 
     private TektonCompiler() {
@@ -96,6 +107,10 @@ public final class TektonCompiler {
                 .anyMatch(job -> job.kind() == PipelineJobKind.CLONE);
     }
 
+    // ========================================================================
+    //  Step 生成 & 模板替换
+    // ========================================================================
+
     private static List<CompiledStep> toSteps(
             PipelineJobSpec job,
             CompileRequest request,
@@ -108,6 +123,9 @@ public final class TektonCompiler {
         Map<String, String> env = new LinkedHashMap<>();
         env.put("GOTOOLCHAIN", "local");
         String base = DnsNames.uniqueName(DnsNames.stepName(job.name(), job.kind().name()), usedNames);
+        String command = job.command() == null ? "" : job.command();
+
+        // ---- 分支：CLONE — 保留 env 注入，脚本走模板 ----
         if (job.kind() == PipelineJobKind.CLONE) {
             if (remote == null) {
                 throw BizException.of(ResultCode.BAD_REQUEST, "仓库地址不能为空");
@@ -122,70 +140,56 @@ public final class TektonCompiler {
             if (request.gitHttpProxy() != null && !request.gitHttpProxy().isBlank()) {
                 env.put("GIT_HTTP_PROXY", request.gitHttpProxy().trim());
             }
-            String script = """
-                    set -eu
-                    cd "$(workspaces.source.path)"
-                    git config --global http.version HTTP/1.1
-                    git config --global http.postBuffer 524288000
-                    if [ -n "${GIT_HTTP_PROXY:-}" ]; then
-                      git config --global http.proxy "${GIT_HTTP_PROXY}"
-                      git config --global https.proxy "${GIT_HTTP_PROXY}"
-                    fi
-                    AUTH=""
-                    if [ -n "${GIT_USERNAME:-}" ]; then
-                      AUTH="${GIT_USERNAME}:${GIT_PASSWORD}@"
-                    elif [ -n "${GIT_EMBEDDED_AUTH:-}" ]; then
-                      AUTH="${GIT_EMBEDDED_AUTH}@"
-                    fi
-                    URL="${GIT_SCHEME}://${AUTH}${GIT_HOST}/${GIT_PATH}"
-                    attempt=1
-                    until git clone --depth 1 --branch "${GIT_REF}" "$URL" src; do
-                      attempt=$((attempt + 1))
-                      if [ "$attempt" -gt 3 ]; then
-                        echo "git clone failed after 3 attempts"
-                        exit 1
-                      fi
-                      echo "git clone retry ${attempt}/3 ..."
-                      rm -rf src
-                      sleep $((attempt * 2))
-                    done
-                    echo "HFWAS_GIT_REF=${GIT_REF}"
-                    echo "HFWAS_COMMIT=$(git -C src rev-parse HEAD)"
-                    """.stripIndent();
+            String script = resolveScript("CLONE", request.taskScripts(), "");
             return List.of(new CompiledStep(base, resolveImage("CLONE", request.taskImages(), CLONE_IMAGE), script, env, request.hasCredential(), false));
         }
-        String command = job.command() == null ? "" : job.command();
+
+        // ---- 分支：IMAGE — 保留多步骤编排，每个 Step 脚本走模板 ----
         if (job.kind() == PipelineJobKind.IMAGE) {
+            String buildahScript = resolveScript("IMAGE", request.taskScripts(), command);
+            String cosignScript = resolveScript("IMAGE_COSIGN", request.taskScripts(), command);
             return List.of(
-                    new CompiledStep(base, resolveImage("IMAGE", request.taskImages(), BUILDAH_IMAGE), imageBuildahScript(command), env, false, false),
-                    new CompiledStep(base + "-cosign", resolveImage("IMAGE", request.taskImages(), COSIGN_IMAGE), imageCosignScript(command), env, false, false)
+                    new CompiledStep(base, resolveImage("IMAGE", request.taskImages(), BUILDAH_IMAGE), buildahScript, env, false, false),
+                    new CompiledStep(base + "-cosign", resolveImage("IMAGE", request.taskImages(), COSIGN_IMAGE), cosignScript, env, false, false)
             );
         }
-        if (job.kind() == PipelineJobKind.FORMAT) {
-            String formatScript = formatCommandScript(command);
-            return List.of(new CompiledStep(base, toolchainImageForJob(job), formatScript, env, true, false));
-        }
-        if (job.kind() == PipelineJobKind.LINT_SONAR) {
-            return List.of(new CompiledStep(base, resolveImage("LINT_SONAR", request.taskImages(), SONAR_IMAGE), lintSonarScript(command), env, false, false));
-        }
+
+        // ---- 分支：DEPENDENCY_ANALYSIS — 保留 API_ENDPOINT env 注入，脚本走模板 ----
         if (job.kind() == PipelineJobKind.DEPENDENCY_ANALYSIS) {
-            String script = dependencyAnalysisScript(command, request.apiEndpoint());
             if (request.apiEndpoint() != null && !request.apiEndpoint().isBlank()) {
                 env.put("API_ENDPOINT", request.apiEndpoint());
                 env.put("RUN_ID", String.valueOf(request.runId()));
             }
+            String script = resolveScript("DEPENDENCY_ANALYSIS", request.taskScripts(), command);
             return List.of(new CompiledStep(base, resolveImage("DEPENDENCY_ANALYSIS", request.taskImages(), CDXGEN_IMAGE), script, env, false, false));
         }
+
+        // ---- 通用分支：所有其他任务走模板替换 ----
         String image = switch (job.kind()) {
             case LINT_SEMGREP -> resolveImage("LINT_SEMGREP", request.taskImages(), SEMGREP_IMAGE);
+            case LINT_SONAR -> resolveImage("LINT_SONAR", request.taskImages(), SONAR_IMAGE);
             case SCAN -> resolveImage("SCAN", request.taskImages(), SCAN_IMAGE);
             case UPLOAD -> resolveImage("UPLOAD", request.taskImages(), UPLOAD_IMAGE);
             case DEPLOY -> resolveImage("DEPLOY", request.taskImages(), DEPLOY_IMAGE);
             case NOTIFY -> resolveImage("NOTIFY", request.taskImages(), NOTIFY_IMAGE);
             default -> toolchainImageForJob(job);
         };
-        String script = commandScript(command);
-        return List.of(new CompiledStep(base, image, script, env, false, false));
+        String script = resolveScript(job.kind().name(), request.taskScripts(), command);
+        boolean formatCredential = job.kind() == PipelineJobKind.FORMAT;
+        return List.of(new CompiledStep(base, image, script, env, formatCredential, false));
+    }
+
+    /**
+     * 解析任务的最终执行脚本。
+     * 优先级：taskScripts 模板替换 &gt; 缺省通用模板。
+     * 替换 {@code ${COMMAND}} 为用户命令。
+     */
+    private static String resolveScript(String kindValue, Map<String, String> taskScripts, String command) {
+        String template = taskScripts != null ? taskScripts.get(kindValue) : null;
+        if (template == null || template.isBlank()) {
+            template = DEFAULT_TEMPLATE;
+        }
+        return template.replace("${COMMAND}", command != null ? command : "");
     }
 
     /**
@@ -214,137 +218,6 @@ public final class TektonCompiler {
         } catch (Exception e) {
             return TOOLCHAIN.list().getFirst().image();
         }
-    }
-
-    private static String commandScript(String command) {
-        return """
-                set -eu
-                mkdir -p "$(workspaces.source.path)/src"
-                cd "$(workspaces.source.path)/src"
-                %s
-                """.formatted(command).stripIndent();
-    }
-
-    private static String formatCommandScript(String command) {
-        return """
-                set -eu
-                cd "$(workspaces.source.path)/src"
-                eval "$(cat <<'HFWAS_USER'
-                %s
-                HFWAS_USER
-                )"
-                if [ -z "$(git status --porcelain)" ]; then
-                  echo "no changes after formatter, skip commit"
-                  exit 0
-                fi
-                git add .
-                git config user.name "HFwas Pipeline"
-                git config user.email "pipeline@hfwas.com"
-                git commit -m "style: auto format code [skip ci]"
-                git pull --rebase
-                git push
-                """.formatted(command).stripIndent();
-    }
-
-    private static String evalPrefix(String command) {
-        return """
-                set -eu
-                mkdir -p "$(workspaces.source.path)/src"
-                cd "$(workspaces.source.path)/src"
-                eval "$(cat <<'HFWAS_USER'
-                %s
-                HFWAS_USER
-                )"
-                """.formatted(command).stripIndent();
-    }
-
-    private static String imageBuildahScript(String command) {
-        return evalPrefix(command) + """
-
-                : "${DEST:?DEST is required}"
-                : "${IMAGE_PLATFORMS:=linux/amd64,linux/arm64}"
-                : "${DOCKERFILE:=Dockerfile}"
-
-                n=0
-                for p in $(echo "$IMAGE_PLATFORMS" | tr ',' ' '); do
-                  p=$(echo "$p" | tr -d ' ')
-                  [ -n "$p" ] || continue
-                  n=$((n + 1))
-                done
-
-                if [ "$n" -eq 1 ]; then
-                  buildah build --file "$DOCKERFILE" --platform "$IMAGE_PLATFORMS" -t "$DEST" .
-                  buildah push "$DEST"
-                else
-                  buildah manifest create "$DEST"
-                  for p in $(echo "$IMAGE_PLATFORMS" | tr ',' ' '); do
-                    p=$(echo "$p" | tr -d ' ')
-                    [ -n "$p" ] || continue
-                    buildah build \\\\
-                      --manifest "$DEST" \\\\
-                      --platform "$p" \\\\
-                      --file "$DOCKERFILE" \\\\
-                      .
-                  done
-                  buildah manifest push --all "$DEST" "docker://$DEST"
-                fi
-                """.stripIndent();
-    }
-
-    private static String imageCosignScript(String command) {
-        return evalPrefix(command) + """
-                
-                : "${DEST:?DEST is required}"
-                if [ -z "${COSIGN_PRIVATE_KEY:-}" ]; then
-                  echo skip cosign: COSIGN_PRIVATE_KEY empty
-                  exit 0
-                fi
-                printf '%s' "$COSIGN_PRIVATE_KEY" > /tmp/cosign.key
-                cosign sign --key /tmp/cosign.key --yes "$DEST"
-                """.stripIndent();
-    }
-
-    private static String lintSonarScript(String command) {
-        return evalPrefix(command) + """
-
-                : "${SONAR_HOST_URL:?SONAR_HOST_URL is required}"
-                : "${SONAR_TOKEN:?SONAR_TOKEN is required}"
-                : "${SONAR_PROJECT_KEY:=app}"
-                sonar-scanner -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.token="$SONAR_TOKEN" -Dsonar.projectKey="$SONAR_PROJECT_KEY" -Dsonar.sources=.
-                """.stripIndent();
-    }
-
-    private static String dependencyAnalysisScript(String command, String apiEndpoint) {
-        String upload = "";
-        if (apiEndpoint != null && !apiEndpoint.isBlank()) {
-            upload = """
-
-                    SBOM_FILE=""
-                    for f in target/sbom.json target/bom.json; do
-                      if [ -f "$f" ]; then SBOM_FILE="$f"; break; fi
-                    done
-                    if [ -z "$SBOM_FILE" ]; then
-                      SBOM_FILE=$(find . \\( -path '*/target/sbom.json' -o -path '*/target/bom.json' \\) 2>/dev/null | head -n 1 || true)
-                    fi
-                    if [ -n "$SBOM_FILE" ]; then
-                      if ! command -v curl >/dev/null 2>&1; then
-                        if command -v apt-get >/dev/null 2>&1; then
-                          apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl ca-certificates >/dev/null
-                        fi
-                      fi
-                      size=$(stat -f%z "$SBOM_FILE" 2>/dev/null || stat -c%s "$SBOM_FILE" 2>/dev/null || echo 0)
-                      echo "uploading SBOM (${size} bytes) from ${SBOM_FILE} to ${API_ENDPOINT}"
-                      curl -fsS -X POST "${API_ENDPOINT}/pipeline/runs/${RUN_ID}/artifacts" \\
-                        -F "type=sbom" \\
-                        -F "file=@${SBOM_FILE};filename=sbom.json" \\
-                        --connect-timeout 10 \\
-                        --max-time 60 && echo " SBOM uploaded" || echo " SBOM upload failed (non-fatal)"
-                    else
-                      echo "target/sbom.json not found, skip upload"
-                    fi
-                    """;
-        }
-        return commandScript(command) + upload;
     }
 
     private static List<String> uniqueStepNames(List<CompiledStep> steps) {

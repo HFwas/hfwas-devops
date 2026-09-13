@@ -155,6 +155,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         }
         // 解析任务镜像：toolImage 优先，其次 defaultImage
         Map<String, String> taskImages = new HashMap<>();
+        Map<String, String> taskScripts = new HashMap<>();
         for (PipelineTaskKindEntity kind : taskKindMapper.selectList(null)) {
             String effective = kind.getToolImage();
             if (effective == null || effective.isBlank()) {
@@ -162,6 +163,10 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             }
             if (effective != null && !effective.isBlank()) {
                 taskImages.put(kind.getKindValue(), effective);
+            }
+            // 脚本模板
+            if (kind.getCommandTemplate() != null && !kind.getCommandTemplate().isBlank()) {
+                taskScripts.put(kind.getKindValue(), kind.getCommandTemplate());
             }
         }
 
@@ -174,6 +179,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
                 segment,
                 proxy,
                 taskImages,
+                taskScripts,
                 apiEndpoint
         ));
         ensureNamespace();
