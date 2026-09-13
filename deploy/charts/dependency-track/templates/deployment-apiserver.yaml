@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "dependency-track.fullname" . }}-apiserver
+  labels:
+    {{- include "dependency-track.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+  selector:
+    matchLabels:
+      {{- include "dependency-track.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "dependency-track.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- include "dependency-track.imagePullSecrets" . | nindent 6 }}
+      {{- with .Values.hostAliases }}
+      hostAliases:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.postgres.enabled }}
+      initContainers:
+        - name: wait-postgres
+          image: "{{ include "dependency-track.imageRegistry" . }}{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          imagePullPolicy: {{ .Values.postgres.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - until pg_isready -h {{ include "dependency-track.postgresHost" . }} -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do sleep 2; done
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dependency-track.fullname" . }}
+                  key: postgres-database
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dependency-track.fullname" . }}
+                  key: postgres-username
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      {{- end }}
+      containers:
+        - name: apiserver
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          image: "{{ include "dependency-track.imageRegistry" . }}{{ .Values.apiServer.image.repository }}:{{ .Values.apiServer.image.tag }}"
+          imagePullPolicy: {{ .Values.apiServer.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.apiServer.containerPort }}
+              name: http
+              protocol: TCP
+          env:
+            - name: ALPINE_DATABASE_MODE
+              value: {{ .Values.apiServer.databaseMode | quote }}
+            {{- if .Values.postgres.enabled }}
+            - name: ALPINE_DATABASE_DRIVER
+              value: org.postgresql.Driver
+            - name: ALPINE_DATABASE_URL
+              value: "jdbc:postgresql://{{ include "dependency-track.postgresHost" . }}:5432/{{ .Values.postgres.database }}"
+            - name: ALPINE_DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dependency-track.fullname" . }}
+                  key: postgres-username
+            - name: ALPINE_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dependency-track.fullname" . }}
+                  key: postgres-password
+            {{- end }}
+            - name: ALPINE_DATABASE_POOL_ENABLED
+              value: {{ .Values.apiServer.databasePoolEnabled | quote }}
+            - name: ALPINE_DATABASE_POOL_MAX_SIZE
+              value: {{ .Values.apiServer.databasePoolMaxSize | quote }}
+            {{- with .Values.apiServer.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.apiServer.resources | nindent 12 }}
+          {{- if .Values.apiServer.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.apiServer.livenessProbe.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.apiServer.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.apiServer.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.apiServer.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.apiServer.livenessProbe.failureThreshold }}
+          {{- end }}
+          {{- if .Values.apiServer.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.apiServer.readinessProbe.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.apiServer.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.apiServer.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.apiServer.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.apiServer.readinessProbe.failureThreshold }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /opt/alpine/data
+      volumes:
+        - name: data
+          {{- if .Values.apiServer.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.apiServer.persistence.existingClaim | default (printf "%s-data" (include "dependency-track.fullname" .)) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

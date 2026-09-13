@@ -18,6 +18,7 @@ export type JobKind =
   | 'FORMAT'
   | 'DEPENDENCY_ANALYSIS'
   | 'KUBECTL'
+  | 'DEPENDENCY_TRACK'
 export type RunStatus = 'QUEUED' | 'RUNNING' | 'WAITING_APPROVAL' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
 export type CredentialKind = 'PASSWORD' | 'TOKEN' | 'KUBECONFIG'
 export type PipelineStack = 'JAVA_MAVEN' | 'NODE' | 'GO' | 'PYTHON'

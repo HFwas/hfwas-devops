@@ -3,7 +3,8 @@ package com.hfwas.devops.pipeline.graph;
 public enum PipelineJobKind {
     CLONE, LINT_SEMGREP, LINT_SONAR, BUILD, TEST,
     SCAN, PACKAGE, CUSTOM, IMAGE, PUBLISH,
-    UPLOAD, DEPLOY, APPROVAL, NOTIFY, FORMAT, DEPENDENCY_ANALYSIS, KUBECTL;
+    UPLOAD, DEPLOY, APPROVAL, NOTIFY, FORMAT,
+    DEPENDENCY_ANALYSIS, KUBECTL, DEPENDENCY_TRACK;
 
     /**
      * 不需要命令的任务类型（命令由平台生成或无需命令）。

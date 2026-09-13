@@ -1,0 +1,17 @@
+{{- if and .Values.apiServer.persistence.enabled (not .Values.apiServer.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-data" (include "dependency-track.fullname" .) }}
+  labels:
+    {{- include "dependency-track.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.apiServer.persistence.accessMode }}
+  {{- if .Values.apiServer.persistence.storageClass }}
+  storageClassName: {{ .Values.apiServer.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.apiServer.persistence.size }}
+{{- end }}

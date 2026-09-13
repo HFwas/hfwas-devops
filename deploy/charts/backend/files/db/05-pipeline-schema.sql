@@ -177,7 +177,18 @@ INSERT OR IGNORE INTO pipeline_task_kind_param (
 -- UPLOAD
 (30, 'UPLOAD', 'S3_ENDPOINT',   'S3 端点',        'input', '', 1, 0, ''),
 (31, 'UPLOAD', 'S3_ACCESS_KEY', 'S3 Access Key', 'input', '', 1, 1, ''),
-(32, 'UPLOAD', 'S3_SECRET_KEY', 'S3 Secret Key', 'input', '', 1, 2, '');
+(32, 'UPLOAD', 'S3_SECRET_KEY', 'S3 Secret Key', 'input', '', 1, 2, ''),
+-- DEPENDENCY_TRACK
+(40, 'DEPENDENCY_TRACK', 'DT_HOST_URL',        'DT 服务地址',       'input', 'http://dependency-track:8080', 1, 0, 'http://dependency-track:8080'),
+(41, 'DEPENDENCY_TRACK', 'DT_API_KEY',         'DT API Key',        'input', '',                             1, 1, ''),
+(42, 'DEPENDENCY_TRACK', 'DT_PROJECT_NAME',    '项目名称',          'input', '',                             1, 2, ''),
+(43, 'DEPENDENCY_TRACK', 'DT_PROJECT_VERSION', '项目版本',          'input', 'latest',                       0, 3, 'latest'),
+(44, 'DEPENDENCY_TRACK', 'DT_SBOM_PATH',       'SBOM 文件路径',     'input', 'target/sbom.json',              0, 4, 'target/sbom.json'),
+(45, 'DEPENDENCY_TRACK', 'DT_FAIL_ON',         '失败阈值',          'select', 'none',                        0, 5, '');
+
+-- DT_FAIL_ON 选项
+UPDATE pipeline_task_kind_param SET options_json = '[{"value":"none","label":"不检查（仅记录）"},{"value":"critical","label":"Critical 以上"},{"value":"high","label":"High 以上"},{"value":"medium","label":"Medium 以上"},{"value":"low","label":"Low 以上"}]'
+WHERE kind_value = 'DEPENDENCY_TRACK' AND param_key = 'DT_FAIL_ON';
 
 -- ============================================================
 -- 任务市场：存储平台支持的 Task 类型元数据
@@ -276,6 +287,12 @@ INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, descrip
 ('KUBECTL', 'K8s 命令', '部署', '使用用户提供的 kubeconfig 执行 kubectl 命令',
  '填写任意 kubectl 命令，如 kubectl get pods -A',
  'kubectl get pods -A', 1, 1, 95, 'bitnami/kubectl:1.31.4', 'bitnami/kubectl:1.31.4');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
+('DEPENDENCY_TRACK', '依赖漏洞扫描', '质量控制',
+ '上传 SBOM 到 Dependency-Track 进行组件漏洞分析，支持按严重等级控制流水线门禁',
+ '需要先执行依赖分析（DEPENDENCY_ANALYSIS）生成 target/sbom.json。预置参数：DT_HOST_URL / DT_API_KEY / DT_PROJECT_NAME / DT_PROJECT_VERSION / DT_SBOM_PATH / DT_FAIL_ON',
+ '', 1, 1, 55, 'curlimages/curl:8.11.1', 'curlimages/curl:8.11.1');
 
 CREATE INDEX IF NOT EXISTS idx_task_kind_tenant ON pipeline_task_kind (tenant_id, deleted);
 CREATE INDEX IF NOT EXISTS idx_task_kind_group ON pipeline_task_kind (task_group, sort_order);
@@ -493,3 +510,123 @@ fi
 cd "$(workspaces.source.path)/src"
 ${COMMAND}'
 WHERE kind_value = 'KUBECTL';
+
+-- DEPENDENCY_TRACK
+UPDATE pipeline_task_kind SET command_template =
+'set -eu
+cd "$(workspaces.source.path)/src"
+
+: "${DT_HOST_URL:?DT_HOST_URL is required}"
+: "${DT_API_KEY:?DT_API_KEY is required}"
+: "${DT_PROJECT_NAME:?DT_PROJECT_NAME is required}"
+: "${DT_PROJECT_VERSION:=latest}"
+: "${DT_SBOM_PATH:=target/sbom.json}"
+: "${DT_FAIL_ON:=none}"
+
+SBOM_FILE="${DT_SBOM_PATH}"
+if [ ! -f "$SBOM_FILE" ]; then
+  echo "SBOM file not found: ${SBOM_FILE}"
+  echo "Please run DEPENDENCY_ANALYSIS task first, or check DT_SBOM_PATH"
+  exit 1
+fi
+
+API_BASE="${DT_HOST_URL%/}/api/v1"
+AUTH="-H X-Api-Key: ${DT_API_KEY}"
+
+PROJECT_INFO=$(curl -sfG "${API_BASE}/project" ${AUTH} \
+  --data-urlencode "name=${DT_PROJECT_NAME}" \
+  --data-urlencode "version=${DT_PROJECT_VERSION}" || echo "")
+PROJECT_UUID=$(echo "${PROJECT_INFO}" | grep -o ''"uuid":"[^"]*"'' | head -1 | cut -d''"'' -f4)
+
+if [ -z "${PROJECT_UUID}" ]; then
+  echo "Creating project: ${DT_PROJECT_NAME}:${DT_PROJECT_VERSION}"
+  BODY=$(cat <<ENDJSON
+{"name":"${DT_PROJECT_NAME}","version":"${DT_PROJECT_VERSION}"}
+ENDJSON
+)
+  CREATE_RESP=$(curl -sfX PUT "${API_BASE}/project" ${AUTH} \
+    -H "Content-Type: application/json" -d "${BODY}" || echo "{}")
+  PROJECT_UUID=$(echo "${CREATE_RESP}" | grep -o ''"uuid":"[^"]*"'' | head -1 | cut -d''"'' -f4)
+  echo "Created project UUID: ${PROJECT_UUID}"
+else
+  echo "Found project UUID: ${PROJECT_UUID}"
+fi
+
+if [ -z "${PROJECT_UUID}" ]; then
+  echo "Failed to find or create project"
+  exit 1
+fi
+
+echo "Uploading SBOM: ${SBOM_FILE}"
+SBOM_CONTENT=$(cat "${SBOM_FILE}")
+UPLOAD_BODY=$(cat <<ENDJSON
+{"project":"${PROJECT_UUID}","bom":${SBOM_CONTENT}}
+ENDJSON
+)
+UPLOAD_RESP=$(curl -sfX POST "${API_BASE}/bom" ${AUTH} \
+  -H "Content-Type: application/json" -d "${UPLOAD_BODY}" || echo "{}")
+TOKEN=$(echo "${UPLOAD_RESP}" | grep -o ''"token":"[^"]*"'' | cut -d''"'' -f4)
+echo "Upload token: ${TOKEN}"
+
+MAX_RETRIES=30
+RETRY=0
+while [ "${RETRY}" -lt "${MAX_RETRIES}" ]; do
+  RETRY=$((RETRY + 1))
+  STATUS_RESP=$(curl -sf "${API_BASE}/bom/token/${TOKEN}" ${AUTH} || echo ''{"processing":true}'')
+  PROCESSING=$(echo "${STATUS_RESP}" | grep -o ''"processing":[a-z]*'' | cut -d: -f2)
+  if [ "${PROCESSING}" = "false" ]; then
+    echo "Analysis complete (after ${RETRY} polls)"
+    break
+  fi
+  echo "Waiting for analysis... (${RETRY}/${MAX_RETRIES})"
+  sleep 5
+done
+
+if [ "${RETRY}" -ge "${MAX_RETRIES}" ]; then
+  echo "Warning: Analysis did not finish within timeout, continuing with partial results"
+fi
+
+echo ""
+echo "=== Vulnerability Summary ==="
+VULNS=$(curl -sf "${API_BASE}/vulnerability/project/${PROJECT_UUID}" ${AUTH} || echo "[]")
+
+CRITICAL=$(echo "${VULNS}" | grep -o ''"severity":"Critical"'' | wc -l)
+HIGH=$(echo "${VULNS}" | grep -o ''"severity":"High"'' | wc -l)
+MEDIUM=$(echo "${VULNS}" | grep -o ''"severity":"Medium"'' | wc -l)
+LOW=$(echo "${VULNS}" | grep -o ''"severity":"Low"'' | wc -l)
+TOTAL=$((CRITICAL + HIGH + MEDIUM + LOW))
+echo "Total vulnerabilities: ${TOTAL}"
+echo "  Critical: ${CRITICAL}"
+echo "  High:     ${HIGH}"
+echo "  Medium:   ${MEDIUM}"
+echo "  Low:      ${LOW}"
+echo ""
+
+FAIL_THRESHOLD=99
+case "${DT_FAIL_ON}" in
+  critical) FAIL_THRESHOLD=0 ;;
+  high)     FAIL_THRESHOLD=1 ;;
+  medium)   FAIL_THRESHOLD=2 ;;
+  low)      FAIL_THRESHOLD=3 ;;
+  none|*)   FAIL_THRESHOLD=99 ;;
+esac
+
+if [ "${FAIL_THRESHOLD}" -le 0 ] && [ "${CRITICAL}" -gt 0 ]; then
+  echo "FAIL: ${CRITICAL} critical vulnerabilities found (threshold: ${DT_FAIL_ON})"
+  exit 1
+fi
+if [ "${FAIL_THRESHOLD}" -le 1 ] && [ "${HIGH}" -gt 0 ]; then
+  echo "FAIL: ${HIGH} high vulnerabilities found (threshold: ${DT_FAIL_ON})"
+  exit 1
+fi
+if [ "${FAIL_THRESHOLD}" -le 2 ] && [ "${MEDIUM}" -gt 0 ]; then
+  echo "FAIL: ${MEDIUM} medium vulnerabilities found (threshold: ${DT_FAIL_ON})"
+  exit 1
+fi
+if [ "${FAIL_THRESHOLD}" -le 3 ] && [ "${LOW}" -gt 0 ]; then
+  echo "FAIL: ${LOW} low vulnerabilities found (threshold: ${DT_FAIL_ON})"
+  exit 1
+fi
+
+echo "Dependency-Track analysis passed (threshold: ${DT_FAIL_ON})"'
+WHERE kind_value = 'DEPENDENCY_TRACK';

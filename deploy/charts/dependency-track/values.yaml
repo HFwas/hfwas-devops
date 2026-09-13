@@ -1,0 +1,149 @@
+# =============================================================================
+# Dependency-Track — 默认值
+# 参考：https://docs.dependencytrack.org/
+# =============================================================================
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+replicaCount: 1
+
+strategy:
+  type: Recreate
+
+service:
+  type: ClusterIP
+  annotations: {}
+  apiServer:
+    port: 8081
+    nodePort: null
+  frontend:
+    port: 8080
+    nodePort: null
+
+admin:
+  username: admin
+  password: admin
+
+# API Server
+apiServer:
+  containerPort: 8080
+  image:
+    repository: dependencytrack/apiserver
+    tag: "4.12.6"
+    pullPolicy: IfNotPresent
+  databaseMode: external
+  databasePoolEnabled: "true"
+  databasePoolMaxSize: "20"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: 2
+      memory: 4Gi
+  persistence:
+    enabled: false
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    existingClaim: ""
+  extraEnv: []
+  livenessProbe:
+    enabled: true
+    path: /api/version
+    initialDelaySeconds: 180
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 10
+  readinessProbe:
+    enabled: true
+    path: /api/version
+    initialDelaySeconds: 120
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 10
+
+# Frontend（可选，默认不部署）
+frontend:
+  enabled: false
+  replicaCount: 1
+  image:
+    repository: dependencytrack/frontend
+    tag: "4.12.6"
+    pullPolicy: IfNotPresent
+  apiBaseUrl: http://localhost:8081
+  basePath: /
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  extraEnv: []
+
+# 生产建议开 Postgres；关闭则走内置 H2（仅开发）
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 16-alpine
+    pullPolicy: IfNotPresent
+  database: dtrack
+  username: dtrack
+  password: dtrack
+  persistence:
+    enabled: false
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    existingClaim: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+extraEnv: []
+
+hostAliases: []
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 1000
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+  runAsNonRoot: true
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: devops.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []

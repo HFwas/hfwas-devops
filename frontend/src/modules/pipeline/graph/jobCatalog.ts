@@ -161,6 +161,15 @@ export SONAR_PROJECT_KEY=app`,
     requiresCommand: true,
     defaultCommand: `curl -fsS -X POST 'https://example.com/hook' -H 'Content-Type: application/json' -d '{"status":"done"}'`,
   },
+  {
+    value: 'DEPENDENCY_TRACK',
+    label: '依赖漏洞扫描',
+    group: '质量控制',
+    description: '上传 SBOM 到 Dependency-Track 进行组件漏洞分析',
+    hint: '需要先执行依赖分析（DEPENDENCY_ANALYSIS）生成 target/sbom.json。预置参数：DT_HOST_URL / DT_API_KEY / DT_PROJECT_NAME / DT_PROJECT_VERSION / DT_SBOM_PATH / DT_FAIL_ON',
+    requiresCommand: true,
+    defaultCommand: '',
+  },
 ]
 
 export const JOB_KIND_GROUPS = ['代码', '构建', '质量控制', '制品', '部署', '测试', '命令', '流程'] as const

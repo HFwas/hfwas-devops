@@ -36,6 +36,7 @@ export const JOB_KIND_ICONS: Record<JobKind, Component> = {
   FORMAT: Paintbrush,
   DEPENDENCY_ANALYSIS: FolderTree,
   KUBECTL: Container,
+  DEPENDENCY_TRACK: Shield,
 }
 
 export function jobKindIcon(kind?: string | null): Component {

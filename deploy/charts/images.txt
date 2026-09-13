@@ -30,5 +30,10 @@ goharbor/harbor-registryctl:v2.14.4
 goharbor/trivy-adapter-photon:v2.14.4
 goharbor/redis-photon:v2.14.4
 
+# ---- Dependency-Track v4.12（deploy/charts/dependency-track）----
+dependencytrack/apiserver:4.12.6
+dependencytrack/frontend:4.12.6
+postgres:16-alpine
+
 # ---- SPI 构建（不进集群，仅本地/CI 打 hfwas/keycloak-http-listener）----
 # maven:3.9.9-eclipse-temurin-21

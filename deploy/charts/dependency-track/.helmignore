@@ -1,0 +1,10 @@
+# Patterns to ignore when building packages.
+# This file supports glob matching or relative path matching.
+# Files and directories that match any pattern are excluded.
+
+.DS_Store
+.git/
+.gitignore
+*.md
+images.txt
+values-*.yaml

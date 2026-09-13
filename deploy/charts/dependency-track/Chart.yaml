@@ -1,0 +1,21 @@
+apiVersion: v2
+name: hfwas-devops-dependency-track
+description: HFWAS DevOps Platform — Dependency-Track (SBOM 组件漏洞分析平台)
+type: application
+version: 0.1.0
+appVersion: "4.12.6"
+
+keywords:
+  - devops
+  - dependency-track
+  - sbom
+  - vulnerability
+
+home: https://github.com/HFwas/hfwas-devops
+sources:
+  - https://github.com/HFwas/hfwas-devops
+  - https://github.com/DependencyTrack/dependency-track
+
+maintainers:
+  - name: HFwas
+    email: hfwas@example.com

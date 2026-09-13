@@ -1,0 +1,58 @@
+# k3s（devops-k3s）本地部署覆盖值
+fullnameOverride: dependency-track
+
+replicaCount: 1
+
+service:
+  type: NodePort
+  apiServer:
+    port: 8081
+    nodePort: 30882
+  frontend:
+    port: 8080
+    nodePort: null
+
+admin:
+  username: admin
+  password: admin
+
+apiServer:
+  containerPort: 8080
+  image:
+    repository: dependencytrack/apiserver
+    tag: "4.12.6"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 500m
+      memory: 4Gi
+    limits:
+      cpu: "2"
+      memory: 6Gi
+  # DT 首次启动较慢（DB 初始化 + 索引重建），调大探测窗口
+  livenessProbe:
+    initialDelaySeconds: 180
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 10
+  readinessProbe:
+    initialDelaySeconds: 120
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 10
+
+frontend:
+  enabled: false
+  apiBaseUrl: http://dependency-track-apiserver:8081
+
+postgres:
+  persistence:
+    storageClass: local-path
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 4Gi
+  limits:
+    cpu: "2"
+    memory: 6Gi

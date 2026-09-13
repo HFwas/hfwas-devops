@@ -1,0 +1,4 @@
+# Dependency-Track 运行时镜像清单
+dependencytrack/apiserver:4.12.6
+dependencytrack/frontend:4.12.6
+postgres:16-alpine

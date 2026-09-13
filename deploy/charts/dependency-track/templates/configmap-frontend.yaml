@@ -1,0 +1,55 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "dependency-track.fullname" . }}-frontend-nginx
+  labels:
+    {{- include "dependency-track.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+data:
+  default.conf: |
+    server {
+      listen      8080;
+      server_name _;
+
+      location / {
+        root      /opt/owasp/dependency-track-frontend;
+        index     index.html;
+        try_files $uri $uri/ /index.html;
+
+        location ~ (config\.json|index\.html)$ {
+          add_header Cache-Control "max-age=0, no-cache, no-store, must-revalidate";
+          add_header Pragma "no-cache";
+          add_header Expires 0;
+        }
+
+        sub_filter '<base href=/'  '<base href={{ .Values.frontend.basePath }}';
+        sub_filter_once on;
+      }
+
+      error_page 500 502 503 504 /50x.html;
+
+      location = /50x.html {
+        root /usr/share/nginx/html;
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "dependency-track.fullname" . }}-frontend-config
+  labels:
+    {{- include "dependency-track.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+data:
+  config.json: |
+    {
+      "API_BASE_URL": "{{ .Values.frontend.apiBaseUrl }}",
+      "API_WITH_CREDENTIALS": "",
+      "OIDC_CLIENT_ID": "",
+      "OIDC_FLOW": "code",
+      "OIDC_ISSUER": "",
+      "OIDC_LOGIN_BUTTON_TEXT": "",
+      "OIDC_SCOPE": "openid email profile"
+    }
+{{- end }}

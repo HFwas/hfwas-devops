@@ -272,6 +272,12 @@ INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, descrip
 ('NOTIFY', '通知', '流程', 'Webhook / HTTP 通知', '',
  'curl -fsS -X POST ''https://example.com/hook'' -H ''Content-Type: application/json'' -d ''{"status":"done"}''', 1, 1, 130, 'curlimages/curl:8.11.1', 'curlimages/curl:8.11.1');
 
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
+('DEPENDENCY_TRACK', '依赖漏洞扫描', '质量控制',
+ '上传 SBOM 到 Dependency-Track 进行组件漏洞分析，支持按严重等级控制流水线门禁',
+ '需要先执行依赖分析（DEPENDENCY_ANALYSIS）生成 target/sbom.json。预置参数：DT_HOST_URL / DT_API_KEY / DT_PROJECT_NAME / DT_PROJECT_VERSION / DT_SBOM_PATH / DT_FAIL_ON',
+ '', 1, 1, 55, 'curlimages/curl:8.11.1', 'curlimages/curl:8.11.1');
+
 CREATE INDEX IF NOT EXISTS idx_task_kind_tenant ON pipeline_task_kind (tenant_id, deleted);
 CREATE INDEX IF NOT EXISTS idx_task_kind_group ON pipeline_task_kind (task_group, sort_order);
 
