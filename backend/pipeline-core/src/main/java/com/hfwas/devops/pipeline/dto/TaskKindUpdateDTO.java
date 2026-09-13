@@ -13,4 +13,8 @@ public class TaskKindUpdateDTO {
     private String toolImage;
     private String commandTemplate;
     private Integer sortOrder;
+    private String cpuRequest;
+    private String cpuLimit;
+    private String memoryRequest;
+    private String memoryLimit;
 }

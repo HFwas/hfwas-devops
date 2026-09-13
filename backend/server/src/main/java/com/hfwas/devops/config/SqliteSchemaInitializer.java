@@ -32,6 +32,7 @@ public class SqliteSchemaInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) throws Exception {
         Files.createDirectories(Path.of("data"));
         dropStaleDependencyComponentTable();
+        migrateTaskKindTable();
         ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
         populator.addScript(new ClassPathResource("db/pm-schema.sql"));
         populator.addScript(new ClassPathResource("db/api-test-schema.sql"));
@@ -70,6 +71,36 @@ public class SqliteSchemaInitializer implements ApplicationRunner {
             }
         } catch (Exception e) {
             log.warn("check dependency_component schema failed: {}", e.getMessage());
+        }
+    }
+
+    /** 为 pipeline_task_kind 表追加 4 个资源配额列（v0.2 新增）。 */
+    private void migrateTaskKindTable() {
+        try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            boolean exists;
+            try (ResultSet rs = stmt.executeQuery(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='pipeline_task_kind'")) {
+                exists = rs.next();
+            }
+            if (!exists) return;
+            boolean hasCpuRequest = false;
+            try (ResultSet rs = stmt.executeQuery("PRAGMA table_info(pipeline_task_kind)")) {
+                while (rs.next()) {
+                    if ("cpu_request".equalsIgnoreCase(rs.getString("name"))) {
+                        hasCpuRequest = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasCpuRequest) {
+                stmt.execute("ALTER TABLE pipeline_task_kind ADD COLUMN cpu_request TEXT NOT NULL DEFAULT ''");
+                stmt.execute("ALTER TABLE pipeline_task_kind ADD COLUMN cpu_limit TEXT NOT NULL DEFAULT ''");
+                stmt.execute("ALTER TABLE pipeline_task_kind ADD COLUMN memory_request TEXT NOT NULL DEFAULT ''");
+                stmt.execute("ALTER TABLE pipeline_task_kind ADD COLUMN memory_limit TEXT NOT NULL DEFAULT ''");
+                log.info("migrated pipeline_task_kind: added cpu/memory columns");
+            }
+        } catch (Exception e) {
+            log.warn("migrate pipeline_task_kind failed: {}", e.getMessage());
         }
     }
 }

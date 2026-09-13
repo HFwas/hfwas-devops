@@ -14,6 +14,7 @@ public record CompileRequest(
         String gitHttpProxy,
         Map<String, String> taskImages,
         Map<String, String> taskScripts,
+        Map<String, TaskResourceSpec> taskResources,
         String apiEndpoint
 ) {
 }

@@ -212,7 +212,7 @@ class TektonCompilerTest {
         ));
         CompiledStep step = TektonCompiler.compile(new CompileRequest(
                 6L, 8L, "https://github.com/acme/demo.git", "main", false, graph,
-                "http://192.168.5.2:7890", Map.of(), fullTaskScripts(), null
+                "http://192.168.5.2:7890", Map.of(), fullTaskScripts(), Map.of(), null
         )).tasks().getFirst().steps().getFirst();
         assertEquals("http://192.168.5.2:7890", step.env().get("GIT_HTTP_PROXY"));
     }
@@ -265,7 +265,7 @@ class TektonCompilerTest {
                 stage("run", 0, List.of(job("echo", PipelineJobKind.CUSTOM, "echo ok", 0)))
         ));
         CompiledTekton compiled = TektonCompiler.compile(new CompileRequest(
-                1L, 8L, "", "main", false, graph, "", Map.of(), Map.of(), null));
+                1L, 8L, "", "main", false, graph, "", Map.of(), Map.of(), Map.of(), null));
         assertEquals(1, compiled.tasks().getFirst().steps().size());
         assertNotNull(compiled.tasks().getFirst().steps().getFirst().image());
         assertTrue(compiled.tasks().getFirst().steps().getFirst().script().contains("mkdir -p"));
@@ -373,7 +373,7 @@ class TektonCompilerTest {
         ));
         CompiledStep step = TektonCompiler.compile(new CompileRequest(
                 12L, 8L, "https://github.com/acme/demo.git", "main", false, graph, "",
-                Map.of(), fullTaskScripts(), null))
+                Map.of(), fullTaskScripts(), Map.of(), null))
                 .tasks().getFirst().steps().getFirst();
         assertTrue(step.image().contains("node"), "FORMAT with NODE/NPM should use a node image, got: " + step.image());
     }
@@ -443,7 +443,7 @@ class TektonCompilerTest {
                 stage("run", 0, List.of(job("echo", PipelineJobKind.BUILD, "echo hello world", 0)))
         ));
         CompiledStep step = TektonCompiler.compile(new CompileRequest(
-                20L, 8L, "", "main", false, graph, "", Map.of(), null, null))
+                20L, 8L, "", "main", false, graph, "", Map.of(), null, Map.of(), null))
                 .tasks().getFirst().steps().getFirst();
         assertTrue(step.script().contains("echo hello world"), "${COMMAND} should be replaced");
         assertTrue(step.script().contains("mkdir -p"), "DEFAULT_TEMPLATE should include mkdir");
@@ -455,7 +455,7 @@ class TektonCompilerTest {
         String script = TektonCompiler.compile(new CompileRequest(
                 21L, 8L, "", "main", false,
                 new PipelineGraphSpec(List.of(stage("run", 0, List.of(job("echo", PipelineJobKind.BUILD, "echo ok", 0))))),
-                "", Map.of(), Map.of(), null))
+                "", Map.of(), Map.of(), Map.of(), null))
                 .tasks().getFirst().steps().getFirst().script();
         // ${COMMAND} 已经在编译期被替换为 "echo ok"，脚本里不应该再有 ${COMMAND}
         assertFalse(script.contains("${COMMAND}"), "${COMMAND} should be replaced at compile time");
@@ -476,7 +476,7 @@ class TektonCompilerTest {
                                           Map<String, String> taskScripts, String apiEndpoint) {
         return new CompileRequest(
                 runId, 8L, "https://github.com/acme/demo.git", "main", credential, graph,
-                "", Map.of(), taskScripts, apiEndpoint
+                "", Map.of(), taskScripts, Map.of(), apiEndpoint
         );
     }
 
@@ -484,7 +484,7 @@ class TektonCompilerTest {
                                                   String apiEndpoint, Map<String, String> taskScripts) {
         return new CompileRequest(
                 runId, 8L, "https://github.com/acme/demo.git", "main", credential, graph,
-                "", Map.of(), taskScripts, apiEndpoint
+                "", Map.of(), taskScripts, Map.of(), apiEndpoint
         );
     }
 

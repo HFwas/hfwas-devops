@@ -111,6 +111,10 @@ CREATE TABLE IF NOT EXISTS pipeline_task_kind (
     tool_image       TEXT         NOT NULL DEFAULT '',
     default_image    TEXT         NOT NULL DEFAULT '',
     command_template TEXT         NOT NULL DEFAULT '',
+    cpu_request      TEXT         NOT NULL DEFAULT '',
+    cpu_limit        TEXT         NOT NULL DEFAULT '',
+    memory_request   TEXT         NOT NULL DEFAULT '',
+    memory_limit     TEXT         NOT NULL DEFAULT '',
 
     deleted          INTEGER      NOT NULL DEFAULT 0,
     create_by        INTEGER,
@@ -235,3 +239,12 @@ UPDATE pipeline_job
 SET command = replace(command, ' -q', '')
 WHERE kind = 'DEPENDENCY_ANALYSIS'
   AND instr(command, ' -q') > 0;
+
+-- ============================================================
+-- 迁移：pipeline_task_kind 追加资源配额列（v0.2）
+-- CREATE TABLE 已包含这些列，ALTER TABLE 仅对旧库生效
+-- ============================================================
+ALTER TABLE pipeline_task_kind ADD COLUMN cpu_request TEXT NOT NULL DEFAULT '';
+ALTER TABLE pipeline_task_kind ADD COLUMN cpu_limit TEXT NOT NULL DEFAULT '';
+ALTER TABLE pipeline_task_kind ADD COLUMN memory_request TEXT NOT NULL DEFAULT '';
+ALTER TABLE pipeline_task_kind ADD COLUMN memory_limit TEXT NOT NULL DEFAULT '';

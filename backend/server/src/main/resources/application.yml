@@ -65,5 +65,9 @@ pipeline:
   git-docker-host: ${PIPELINE_GIT_DOCKER_HOST:}
   api-endpoint: ${PIPELINE_API_ENDPOINT:}
   max-concurrent-runs: ${PIPELINE_MAX_CONCURRENT_RUNS:10}
+  task:
+    resource-limits:
+      max-cpu: ${PIPELINE_TASK_MAX_CPU:8}
+      max-memory: ${PIPELINE_TASK_MAX_MEMORY:32Gi}
   artifact:
     storage: ${PIPELINE_ARTIFACT_STORAGE:data/artifacts}

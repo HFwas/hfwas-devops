@@ -68,6 +68,10 @@ function openEdit(item: TaskKindVO) {
     toolImage: item.toolImage,
     commandTemplate: item.commandTemplate,
     sortOrder: item.sortOrder,
+    cpuRequest: item.cpuRequest || '',
+    cpuLimit: item.cpuLimit || '',
+    memoryRequest: item.memoryRequest || '',
+    memoryLimit: item.memoryLimit || '',
   }
   editDrawerShow.value = true
 }
@@ -315,6 +319,33 @@ onMounted(load)
             <n-form-item label="排序">
               <n-input-number v-model:value="editForm.sortOrder" :min="0" style="width: 120px" />
             </n-form-item>
+            <n-divider />
+            <template v-if="isAdmin">
+              <n-form-item label="CPU 请求">
+                <n-input v-model:value="editForm.cpuRequest" placeholder="例如: 500m, 1, 2000m" clearable />
+                <div style="font-size:12px;color:var(--wb-muted,#888);margin-top:4px">
+                  留空表示不限制（使用集群默认值）。格式参考 Kubernetes 资源量。
+                </div>
+              </n-form-item>
+              <n-form-item label="CPU 限制">
+                <n-input v-model:value="editForm.cpuLimit" placeholder="例如: 1, 2000m, 4" clearable />
+                <div style="font-size:12px;color:var(--wb-muted,#888);margin-top:4px">
+                  留空表示不限制。
+                </div>
+              </n-form-item>
+              <n-form-item label="内存请求">
+                <n-input v-model:value="editForm.memoryRequest" placeholder="例如: 256Mi, 512Mi, 1Gi" clearable />
+                <div style="font-size:12px;color:var(--wb-muted,#888);margin-top:4px">
+                  留空表示不限制。
+                </div>
+              </n-form-item>
+              <n-form-item label="内存限制">
+                <n-input v-model:value="editForm.memoryLimit" placeholder="例如: 512Mi, 1Gi, 2Gi" clearable />
+                <div style="font-size:12px;color:var(--wb-muted,#888);margin-top:4px">
+                  留空表示不限制。
+                </div>
+              </n-form-item>
+            </template>
           </n-form>
           <div class="tm-edit-footer">
             <n-button @click="cancelEdit">

@@ -22,6 +22,7 @@ import com.hfwas.devops.pipeline.mapper.PipelineStageMapper;
 import com.hfwas.devops.pipeline.service.PipelineCredentialService;
 import com.hfwas.devops.pipeline.service.PipelineRunService;
 import com.hfwas.devops.pipeline.tekton.CompileRequest;
+import com.hfwas.devops.pipeline.tekton.TaskResourceSpec;
 import com.hfwas.devops.pipeline.tekton.CompiledTekton;
 import com.hfwas.devops.pipeline.tekton.DnsNames;
 import com.hfwas.devops.pipeline.tekton.GitHttpProxy;
@@ -32,6 +33,7 @@ import com.hfwas.devops.pipeline.tekton.TektonMode;
 import io.fabric8.knative.pkg.apis.Condition;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.tekton.client.TektonClient;
 import io.fabric8.tekton.v1.PipelineRun;
@@ -172,6 +174,20 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             }
         }
 
+        // 解析任务资源配额
+        Map<String, TaskResourceSpec> taskResources = new HashMap<>();
+        for (PipelineTaskKindEntity kind : taskKindMapper.selectList(null)) {
+            taskResources.put(kind.getKindValue(), new TaskResourceSpec(
+                    kind.getCpuRequest() != null ? kind.getCpuRequest() : "",
+                    kind.getCpuLimit() != null ? kind.getCpuLimit() : "",
+                    kind.getMemoryRequest() != null ? kind.getMemoryRequest() : "",
+                    kind.getMemoryLimit() != null ? kind.getMemoryLimit() : ""
+            ));
+        }
+
+        // 集群感知校验：检查 task 资源配置是否超过最大节点容量
+        warnIfExceedsNodeCapacity(taskResources);
+
         CompiledTekton compiled = TektonCompiler.compile(new CompileRequest(
                 run.getId(),
                 pipeline.getId(),
@@ -182,6 +198,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
                 proxy,
                 taskImages,
                 taskScripts,
+                taskResources,
                 apiEndpoint
         ));
         ensureNamespace();
@@ -919,5 +936,62 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         } catch (Exception e) {
             return "[]";
         }
+    }
+
+    /**
+     * 校验任务资源配置是否超过集群中最大节点的可分配容量。
+     * 超过时只打 warn 日志，不阻止运行 — 最终由 K8s 调度器决策。
+     */
+    private void warnIfExceedsNodeCapacity(Map<String, TaskResourceSpec> taskResources) {
+        if (taskResources == null || taskResources.isEmpty()) return;
+        try {
+            double maxNodeCpu = 0;
+            long maxNodeMemory = 0;
+            var nodes = client.nodes().list();
+            if (nodes == null || nodes.getItems() == null || nodes.getItems().isEmpty()) return;
+            for (var node : nodes.getItems()) {
+                var alloc = node.getStatus() != null ? node.getStatus().getAllocatable() : null;
+                if (alloc == null) continue;
+                if (alloc.get("cpu") != null) {
+                    double c = alloc.get("cpu").getNumericalAmount().doubleValue();
+                    if (c > maxNodeCpu) maxNodeCpu = c;
+                }
+                if (alloc.get("memory") != null) {
+                    long m = alloc.get("memory").getNumericalAmount().longValue();
+                    if (m > maxNodeMemory) maxNodeMemory = m;
+                }
+            }
+            if (maxNodeCpu <= 0 && maxNodeMemory <= 0) return;
+            for (var entry : taskResources.entrySet()) {
+                String kind = entry.getKey();
+                TaskResourceSpec spec = entry.getValue();
+                if (spec.cpuLimit() != null && !spec.cpuLimit().isBlank() && maxNodeCpu > 0) {
+                    try {
+                        double val = new Quantity(spec.cpuLimit()).getNumericalAmount().doubleValue();
+                        if (val > maxNodeCpu) {
+                            log.warn("[{}] cpuLimit={} 超过集群最大节点可分配 CPU={}，Pod 可能无法调度", kind, spec.cpuLimit(), maxNodeCpu);
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+                if (spec.memoryLimit() != null && !spec.memoryLimit().isBlank() && maxNodeMemory > 0) {
+                    try {
+                        long val = new Quantity(spec.memoryLimit()).getNumericalAmount().longValue();
+                        if (val > maxNodeMemory) {
+                            log.warn("[{}] memoryLimit={} 超过集群最大节点可分配内存={}，Pod 可能无法调度", kind, spec.memoryLimit(), readableBytes(maxNodeMemory));
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("检查节点容量失败: {}", e.getMessage());
+        }
+    }
+
+    private static String readableBytes(long bytes) {
+        if (bytes >= 1L << 30) return (bytes >> 30) + "Gi";
+        if (bytes >= 1L << 20) return (bytes >> 20) + "Mi";
+        return bytes + "";
     }
 }

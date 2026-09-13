@@ -33,6 +33,10 @@ public class PipelineTaskKindEntity {
     private String toolImage;
     private String defaultImage;
     private String commandTemplate;
+    private String cpuRequest;
+    private String cpuLimit;
+    private String memoryRequest;
+    private String memoryLimit;
 
     @TableLogic
     private Integer deleted;

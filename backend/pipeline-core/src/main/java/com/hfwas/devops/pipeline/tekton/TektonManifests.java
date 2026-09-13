@@ -8,6 +8,8 @@ import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.SecretKeySelectorBuilder;
@@ -31,6 +33,7 @@ import io.fabric8.tekton.v1.WorkspaceDeclarationBuilder;
 import io.fabric8.tekton.v1.WorkspacePipelineTaskBindingBuilder;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -92,6 +95,24 @@ public final class TektonManifests {
                 env.add(secretEnv("GIT_PASSWORD", gitSecretName, "password"));
             }
             builder.withEnv(env);
+            // Apply resource requests/limits if configured
+            boolean hasCpuRequest = step.cpuRequest() != null && !step.cpuRequest().isBlank();
+            boolean hasCpuLimit = step.cpuLimit() != null && !step.cpuLimit().isBlank();
+            boolean hasMemRequest = step.memoryRequest() != null && !step.memoryRequest().isBlank();
+            boolean hasMemLimit = step.memoryLimit() != null && !step.memoryLimit().isBlank();
+            if (hasCpuRequest || hasCpuLimit || hasMemRequest || hasMemLimit) {
+                Map<String, Quantity> requests = new HashMap<>();
+                Map<String, Quantity> limits = new HashMap<>();
+                if (hasCpuRequest) requests.put("cpu", new Quantity(step.cpuRequest()));
+                if (hasMemRequest) requests.put("memory", new Quantity(step.memoryRequest()));
+                if (hasCpuLimit) limits.put("cpu", new Quantity(step.cpuLimit()));
+                if (hasMemLimit) limits.put("memory", new Quantity(step.memoryLimit()));
+                ResourceRequirements res = new ResourceRequirementsBuilder()
+                        .withRequests(requests)
+                        .withLimits(limits)
+                        .build();
+                builder.withComputeResources(res);
+            }
             if (step.usesKubeconfig() && kubeconfigSecretName != null) {
                 needsKubeconfig = true;
                 builder.addNewVolumeMount()

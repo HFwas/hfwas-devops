@@ -148,6 +148,10 @@ export interface TaskKindVO {
   toolImage: string
   defaultImage: string
   commandTemplate: string
+  cpuRequest?: string
+  cpuLimit?: string
+  memoryRequest?: string
+  memoryLimit?: string
 }
 
 export interface ContainerInfo {

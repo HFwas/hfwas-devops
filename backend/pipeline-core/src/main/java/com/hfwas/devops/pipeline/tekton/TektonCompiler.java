@@ -55,10 +55,11 @@ public final class TektonCompiler {
         boolean serial = stages.stream().allMatch(stage -> stage.jobs() != null && stage.jobs().size() == 1);
         String name = DnsNames.objectName(request.runId());
         GitRemote remote = hasClone(stages) ? GitRemote.parse(request.repoUrl()) : null;
+        Map<String, TaskResourceSpec> taskResources = request.taskResources();
         if (serial) {
             List<CompiledStep> steps = new ArrayList<>();
             for (PipelineStageSpec stage : stages) {
-                steps.addAll(toSteps(stage.jobs().getFirst(), request, remote, uniqueStepNames(steps)));
+                steps.addAll(toSteps(stage.jobs().getFirst(), request, remote, uniqueStepNames(steps), taskResources));
             }
             if (steps.isEmpty()) {
                 throw BizException.of(ResultCode.BAD_REQUEST, "流水线没有可执行任务");
@@ -78,7 +79,7 @@ public final class TektonCompiler {
                     .toList();
             List<String> current = new ArrayList<>();
             for (PipelineJobSpec job : jobs) {
-                List<CompiledStep> steps = toSteps(job, request, remote, List.of());
+                List<CompiledStep> steps = toSteps(job, request, remote, List.of(), taskResources);
                 if (steps.isEmpty()) {
                     continue;
                 }
@@ -115,7 +116,8 @@ public final class TektonCompiler {
             PipelineJobSpec job,
             CompileRequest request,
             GitRemote remote,
-            List<String> usedNames
+            List<String> usedNames,
+            Map<String, TaskResourceSpec> taskResources
     ) {
         if (job.kind() == PipelineJobKind.APPROVAL) {
             return List.of();
@@ -141,16 +143,18 @@ public final class TektonCompiler {
                 env.put("GIT_HTTP_PROXY", request.gitHttpProxy().trim());
             }
             String script = resolveScript("CLONE", request.taskScripts(), "");
-            return List.of(new CompiledStep(base, resolveImage("CLONE", request.taskImages(), CLONE_IMAGE), script, env, request.hasCredential(), false));
+            TaskResourceSpec res = resolveResources("CLONE", taskResources);
+            return List.of(new CompiledStep(base, resolveImage("CLONE", request.taskImages(), CLONE_IMAGE), script, env, request.hasCredential(), false, false, res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit()));
         }
 
         // ---- 分支：IMAGE — 保留多步骤编排，每个 Step 脚本走模板 ----
         if (job.kind() == PipelineJobKind.IMAGE) {
             String buildahScript = resolveScript("IMAGE", request.taskScripts(), command);
             String cosignScript = resolveScript("IMAGE_COSIGN", request.taskScripts(), command);
+            TaskResourceSpec res = resolveResources("IMAGE", taskResources);
             return List.of(
-                    new CompiledStep(base, resolveImage("IMAGE", request.taskImages(), BUILDAH_IMAGE), buildahScript, env, false, false),
-                    new CompiledStep(base + "-cosign", resolveImage("IMAGE", request.taskImages(), COSIGN_IMAGE), cosignScript, env, false, false)
+                    new CompiledStep(base, resolveImage("IMAGE", request.taskImages(), BUILDAH_IMAGE), buildahScript, env, false, false, false, res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit()),
+                    new CompiledStep(base + "-cosign", resolveImage("IMAGE", request.taskImages(), COSIGN_IMAGE), cosignScript, env, false, false, false, res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit())
             );
         }
 
@@ -161,14 +165,16 @@ public final class TektonCompiler {
                 env.put("RUN_ID", String.valueOf(request.runId()));
             }
             String script = resolveScript("DEPENDENCY_ANALYSIS", request.taskScripts(), command);
-            return List.of(new CompiledStep(base, resolveImage("DEPENDENCY_ANALYSIS", request.taskImages(), CDXGEN_IMAGE), script, env, false, false));
+            TaskResourceSpec res = resolveResources("DEPENDENCY_ANALYSIS", taskResources);
+            return List.of(new CompiledStep(base, resolveImage("DEPENDENCY_ANALYSIS", request.taskImages(), CDXGEN_IMAGE), script, env, false, false, false, res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit()));
         }
 
         // ---- 分支：KUBECTL — 挂载 kubeconfig 凭证执行 kubectl ----
         if (job.kind() == PipelineJobKind.KUBECTL) {
             String script = resolveScript("KUBECTL", request.taskScripts(), command);
             String image = resolveImage("KUBECTL", request.taskImages(), DEPLOY_IMAGE);
-            return List.of(new CompiledStep(base, image, script, env, false, false, true));
+            TaskResourceSpec res = resolveResources("KUBECTL", taskResources);
+            return List.of(new CompiledStep(base, image, script, env, false, false, true, res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit()));
         }
 
         // ---- 通用分支：所有其他任务走模板替换 ----
@@ -183,7 +189,8 @@ public final class TektonCompiler {
         };
         String script = resolveScript(job.kind().name(), request.taskScripts(), command);
         boolean formatCredential = job.kind() == PipelineJobKind.FORMAT;
-        return List.of(new CompiledStep(base, image, script, env, formatCredential, false));
+        TaskResourceSpec res = resolveResources(job.kind().name(), taskResources);
+        return List.of(new CompiledStep(base, image, script, env, formatCredential, false, false, res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit()));
     }
 
     /**
@@ -210,6 +217,19 @@ public final class TektonCompiler {
             }
         }
         return fallback;
+    }
+
+    /**
+     * 解析任务的资源配置，优先级：taskResources 中的显式配置 &gt; 空（集群默认）。
+     */
+    private static TaskResourceSpec resolveResources(String kindValue, Map<String, TaskResourceSpec> taskResources) {
+        if (taskResources != null) {
+            TaskResourceSpec spec = taskResources.get(kindValue);
+            if (spec != null && !spec.isEmpty()) {
+                return spec;
+            }
+        }
+        return TaskResourceSpec.EMPTY;
     }
 
     private static String toolchainImageForJob(PipelineJobSpec job) {
