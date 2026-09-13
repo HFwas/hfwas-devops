@@ -91,8 +91,18 @@ public final class TektonManifests {
                 env.add(new EnvVarBuilder().withName(entry.getKey()).withValue(entry.getValue()).build());
             }
             if (step.usesGitSecret() && gitSecretName != null) {
-                env.add(secretEnv("GIT_USERNAME", gitSecretName, "username"));
-                env.add(secretEnv("GIT_PASSWORD", gitSecretName, "password"));
+                // 仅当 params 中已显式设置非空用户名/密码时才跳过 secret 注入
+                // runtimeParams 可能传了空字符串（""），此时仍需从凭证 secret 注入
+                boolean hasGitUser = env.stream().anyMatch(e ->
+                        "GIT_USERNAME".equals(e.getName()) && e.getValue() != null && !e.getValue().isBlank());
+                boolean hasGitPass = env.stream().anyMatch(e ->
+                        "GIT_PASSWORD".equals(e.getName()) && e.getValue() != null && !e.getValue().isBlank());
+                if (!hasGitUser) {
+                    env.add(secretEnv("GIT_USERNAME", gitSecretName, "username"));
+                }
+                if (!hasGitPass) {
+                    env.add(secretEnv("GIT_PASSWORD", gitSecretName, "password"));
+                }
             }
             builder.withEnv(env);
             // Apply resource requests/limits if configured

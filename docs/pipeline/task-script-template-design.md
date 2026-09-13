@@ -1,7 +1,7 @@
 # Tekton 任务脚本模板化方案
 
 > 日期：2026-09-13
-> 版本：v0.2
+> 版本：v0.3
 > 定位：将 TektonCompiler 中硬编码的脚本逻辑（`*Script()` 方法）全部抽取到 `pipeline_task_kind.command_template` 字段中，实现任务行为的数据库化管理，所有 14 种任务脚本全由数据库控制，用户可在前端编辑并验证
 > 状态：待实施
 
@@ -13,6 +13,7 @@
 |------|------|----------|
 | v0.1 | 2026-09-13 | 初版：模板化方案设计 |
 | v0.2 | 2026-09-13 | CLONE 也进模板；新增前端 CodeMirror 脚本编辑器设计；新增 `bash -n` 服务端 shell 校验设计 |
+| v0.3 | 2026-09-13 | 模板中的 env 变量（DEST/IMAGE_PLATFORMS/SONAR_HOST_URL 等）迁移到 `pipeline_task_kind_param` 预置参数管理，`default_command` 不再包含 export 语句 |
 
 ---
 

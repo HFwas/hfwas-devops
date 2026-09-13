@@ -150,6 +150,11 @@ public class TektonPipelineExecutor implements PipelineExecutor {
             username = meta.getUsername();
             secret = credentialService.decryptSecret(pipeline.getCredentialId());
             kubeconfigCredential = "KUBECONFIG".equals(meta.getKind());
+            log.info("凭证解析: id={}, name={}, kind={}, username={}, hasSecret={}, kubeconfig={}",
+                    pipeline.getCredentialId(), meta.getName(), meta.getKind(),
+                    username, secret != null && !secret.isBlank(), kubeconfigCredential);
+        } else {
+            log.info("流水线 #{} 未关联凭证", pipeline.getCredentialId());
         }
         String dockerHost = GitHttpProxy.dockerHostAddress(gitDockerHost);
         String proxy = GitHttpProxy.rewrite(gitHttpProxy, dockerHost);
@@ -226,6 +231,7 @@ public class TektonPipelineExecutor implements PipelineExecutor {
         String cacheClaim = null;
         String gitSecretEffective = (secret != null && !kubeconfigCredential) ? gitSecretName : null;
         String kubeconfigSecretEffective = (secret != null && kubeconfigCredential) ? kubeconfigSecretName : null;
+        log.info("Tekton 任务凭证注入: gitSecret={}, kubeconfigSecret={}", gitSecretEffective, kubeconfigSecretEffective);
         if (compiled.mode() == TektonMode.TASK) {
             var task = compiled.tasks().getFirst();
             tekton.v1().tasks().inNamespace(namespace)

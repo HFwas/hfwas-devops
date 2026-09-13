@@ -158,9 +158,26 @@ CREATE INDEX IF NOT EXISTS idx_task_kind_param ON pipeline_task_kind_param (kind
 
 INSERT OR IGNORE INTO pipeline_task_kind_param (
     id, kind_value, param_key, param_label, param_type, default_value, required, sort_order, placeholder
-) VALUES (
-    1, 'CLONE', 'GIT_REF', '代码分支', 'input', 'main', 1, 0, 'main / develop / commit SHA'
-);
+) VALUES
+-- CLONE
+(1,  'CLONE', 'GIT_REF',            '代码分支',        'input', 'main',                                 1, 0,  'main / develop / commit SHA'),
+(2,  'CLONE', 'GIT_USERNAME',       'Git 用户名',      'input', '',                                     0, 1,  ''),
+(3,  'CLONE', 'GIT_PASSWORD',       'Git 密码',        'input', '',                                     0, 2,  ''),
+(4,  'CLONE', 'GIT_EMBEDDED_AUTH',  'Git Token',       'input', '',                                     0, 3,  ''),
+(5,  'CLONE', 'GIT_HTTP_PROXY',     'Git HTTP 代理',   'input', '',                                     0, 4,  ''),
+-- IMAGE
+(10, 'IMAGE', 'DEST',               '镜像推送目标',     'input', 'registry.example.com/app:tag',          1, 0,  '如 registry.example.com/app:tag'),
+(11, 'IMAGE', 'IMAGE_PLATFORMS',    '构建平台',         'input', 'linux/amd64,linux/arm64',              0, 1,  '逗号分隔，如 linux/amd64,linux/arm64'),
+(12, 'IMAGE', 'DOCKERFILE',         'Dockerfile 路径',  'input', 'Dockerfile',                          0, 2,  ''),
+(13, 'IMAGE', 'COSIGN_PRIVATE_KEY', 'Cosign 私钥',     'input', '',                                     0, 3,  ''),
+-- LINT_SONAR
+(20, 'LINT_SONAR', 'SONAR_HOST_URL',    'Sonar 服务地址','input', 'https://sonar.example.com',           1, 0,  ''),
+(21, 'LINT_SONAR', 'SONAR_TOKEN',       'Sonar Token',   'input', '',                                   1, 1,  ''),
+(22, 'LINT_SONAR', 'SONAR_PROJECT_KEY', 'Sonar 项目 Key','input', 'app',                                 0, 2,  ''),
+-- UPLOAD
+(30, 'UPLOAD', 'S3_ENDPOINT',   'S3 端点',        'input', '', 1, 0, ''),
+(31, 'UPLOAD', 'S3_ACCESS_KEY', 'S3 Access Key', 'input', '', 1, 1, ''),
+(32, 'UPLOAD', 'S3_SECRET_KEY', 'S3 Secret Key', 'input', '', 1, 2, '');
 
 -- ============================================================
 -- 任务市场：存储平台支持的 Task 类型元数据
@@ -203,10 +220,8 @@ INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, descrip
 ('BUILD', '构建', '构建', '编译与打包源码', '', '', 1, 1, 10, '', '');
 
 INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('IMAGE', '镜像构建', '构建', 'Buildah 多架构构建并签名镜像', '填写 DEST / IMAGE_PLATFORMS / DOCKERFILE；可选 COSIGN_PRIVATE_KEY。支持 linux/amd64,linux/arm64 等多架构。',
- 'export DEST=registry.example.com/app:tag' || CHAR(10) ||
- 'export IMAGE_PLATFORMS=linux/amd64,linux/arm64' || CHAR(10) ||
- 'export DOCKERFILE=Dockerfile', 1, 1, 20, 'quay.io/containers/buildah:v1.37.0', 'quay.io/containers/buildah:v1.37.0');
+('IMAGE', '镜像构建', '构建', 'Buildah 多架构构建并签名镜像', '使用任务市场预置的 DEST / IMAGE_PLATFORMS / DOCKERFILE / COSIGN_PRIVATE_KEY 参数。支持 linux/amd64,linux/arm64 等多架构。',
+ '', 0, 1, 20, 'quay.io/containers/buildah:v1.37.0', 'quay.io/containers/buildah:v1.37.0');
 
 INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
 ('LINT_SEMGREP', 'Semgrep 检查', '质量控制', 'Semgrep 静态检查', '填写 Semgrep CLI。', 'semgrep scan --error --config=auto .', 1, 1, 30, 'semgrep/semgrep:1.97.0', 'semgrep/semgrep:1.97.0');
@@ -216,10 +231,8 @@ INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, descrip
  'npx prettier --write .', 1, 1, 35, '', '');
 
 INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('LINT_SONAR', 'Sonar 检查', '质量控制', 'SonarScanner 静态检查', '填写 SONAR_HOST_URL / SONAR_TOKEN / SONAR_PROJECT_KEY。',
- 'export SONAR_HOST_URL=https://sonar.example.com' || CHAR(10) ||
- 'export SONAR_TOKEN=' || CHAR(10) ||
- 'export SONAR_PROJECT_KEY=app', 1, 1, 40, 'sonarsource/sonar-scanner-cli:11.2', 'sonarsource/sonar-scanner-cli:11.2');
+('LINT_SONAR', 'Sonar 检查', '质量控制', 'SonarScanner 静态检查', '使用任务市场预置的 SONAR_HOST_URL / SONAR_TOKEN / SONAR_PROJECT_KEY 参数。',
+ '', 0, 1, 40, 'sonarsource/sonar-scanner-cli:11.2', 'sonarsource/sonar-scanner-cli:11.2');
 
 INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
 ('DEPENDENCY_ANALYSIS', '依赖分析', '质量控制',

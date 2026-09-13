@@ -1,7 +1,7 @@
 # Agent instructions
 
 > 日期：2026-09-13 
-> 版本：v0.5
+> 版本：v0.6
 
 ### 变更记录
 
@@ -12,6 +12,7 @@
 | v0.3 | 2026-09-12 | 变更记录固定放在文首（标题与元信息之后、正文之前），对齐 pod-exec-terminal |
 | v0.4 | 2026-09-12 | 新增：禁止自动 commit 和 push |
 | v0.5 | 2026-09-13 | docs 索引补充应用镜像构建与 Helm 升级 |
+| v0.6 | 2026-09-13 | 本地部署按 OS 区分：macOS 用 k3s 容器；Windows 用 Docker Desktop `docker-desktop`；日志优先 `logs/`，Windows 集群日志走 `kubectl -n devops logs` |
 
 ---
 
@@ -54,7 +55,11 @@ HFWAS DevOps：从 0 到 1 的 DevOps 平台。后端 Spring Boot 3 / Java 21，
 - 需要清库或重跑 schema / 启动脚本时，优先重建，不要打补丁兼容脏数据。
 - 用户明确要求兼容某版本或线上迁移时，写一次性脚本，并在文档标明可删除期限。
 
-## 本地部署（k3s）
+## 本地部署
+
+按操作系统走不同集群，**不要混用**（不要把 macOS 的 k3s 容器操作套到 Windows 上）。
+
+### macOS：Docker 里的 k3s
 
 本地集群跑在 Docker 里的 k3s。查集群、装 Helm、看 Pod、导入镜像时：
 
@@ -76,6 +81,30 @@ docker exec -i <k3s容器> ctr -n k8s.io images import -
 # 错误：本机 kubectl / 本机 kubeconfig
 kubectl get pods
 kubectl --kubeconfig ~/.kube/config get pods
+```
+
+### Windows：Docker Desktop（`docker-desktop`）
+
+本地集群是 Docker Desktop 自带的 Kubernetes，kube-context 为 **`docker-desktop`**。查集群、装 Helm、看 Pod 时用**宿主机** `kubectl` / `helm`，不要按 macOS 去 `docker exec` k3s 容器，也不要 `ctr import`（Desktop 与集群共用 Docker 镜像）。
+
+```bash
+kubectl config current-context   # 应为 docker-desktop
+kubectl get ns
+kubectl -n devops get pods
+```
+
+### 查看日志
+
+1. **优先读仓库根目录 `logs/`**（docker-compose / 本机进程把文件日志写在这里），例如 `logs/backend/devops.log`、`logs/kong/`、`logs/frontend/`、`logs/keycloak/`。
+2. 集群 Pod 日志（应用在 `devops` 命名空间）：
+   - **macOS（k3s）**：本地 `logs/` 没有对应内容时，进 k3s 容器再 `kubectl -n devops logs <pod>`。
+   - **Windows（docker-desktop）**：宿主机直接查：
+
+```bash
+kubectl -n devops get pods
+kubectl -n devops logs <pod>
+kubectl -n devops logs -f <pod>
+kubectl -n devops logs deploy/devops-backend
 ```
 
 ## 外网与本地代理

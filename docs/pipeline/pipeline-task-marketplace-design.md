@@ -1,7 +1,7 @@
 # 任务市场（Task Marketplace）设计方案
 
 > 日期：2026-09-13
-> 版本：v1.2
+> 版本：v1.3
 > 状态：定稿
 
 ### 变更记录
@@ -10,6 +10,7 @@
 |------|------|----------|
 | v1.1 | 2026-09-09 | 定稿：任务类型元数据入库与管理页 |
 | v1.2 | 2026-09-13 | 任务可配置预置环境变量（静态值 / 枚举 / 远程接口），流水线编辑时绑定写死或设为变量 |
+| v1.3 | 2026-09-13 | IMAGE/LINT_SONAR 的 export 默认命令迁移到 `pipeline_task_kind_param` 预置参数；IMAGE 更新为 Buildah 描述 |
 
 ---
 
@@ -86,19 +87,15 @@ INSERT INTO pipeline_task_kind (kind_value, label, task_group, description, hint
 INSERT INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order) VALUES
 ('BUILD', '构建', '构建', '编译与打包源码', '', '', 1, 1, 10);
 INSERT INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order) VALUES
-('IMAGE', '镜像构建', '构建', 'Kaniko 构建并签名镜像', '填写 DEST / IMAGE_PLATFORMS / DOCKERFILE；可选 COSIGN_PRIVATE_KEY。',
- 'export DEST=registry.example.com/app:tag\n'
- 'export IMAGE_PLATFORMS=linux/amd64\n'
- 'export DOCKERFILE=Dockerfile', 1, 1, 20);
+('IMAGE', '镜像构建', '构建', 'Buildah 多架构构建并签名镜像', '使用任务市场预置的 DEST / IMAGE_PLATFORMS / DOCKERFILE / COSIGN_PRIVATE_KEY 参数。',
+ '', 0, 1, 20);
 
 -- 质量控制组
 INSERT INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order) VALUES
 ('LINT_SEMGREP', 'Semgrep 检查', '质量控制', 'Semgrep 静态检查', '填写 Semgrep CLI。', 'semgrep scan --error --config=auto .', 1, 1, 30);
 INSERT INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order) VALUES
-('LINT_SONAR', 'Sonar 检查', '质量控制', 'SonarScanner 静态检查', '填写 SONAR_HOST_URL / SONAR_TOKEN / SONAR_PROJECT_KEY。',
- 'export SONAR_HOST_URL=https://sonar.example.com\n'
- 'export SONAR_TOKEN=\n'
- 'export SONAR_PROJECT_KEY=app', 1, 1, 40);
+('LINT_SONAR', 'Sonar 检查', '质量控制', 'SonarScanner 静态检查', '使用任务市场预置的 SONAR_HOST_URL / SONAR_TOKEN / SONAR_PROJECT_KEY 参数。',
+ '', 0, 1, 40);
 INSERT INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order) VALUES
 ('SCAN', '安全扫描', '质量控制', '依赖与文件系统漏洞扫描', '',
  'trivy fs --exit-code 1 --scanners vuln,secret,misconfig .', 1, 1, 50);

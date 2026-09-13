@@ -145,11 +145,13 @@ public final class TektonCompiler {
             env.put("GIT_HOST", remote.hostAuthority());
             env.put("GIT_PATH", remote.path());
             env.put("GIT_REF", request.gitRef() == null || request.gitRef().isBlank() ? "main" : request.gitRef());
+            // GIT_EMBEDDED_AUTH / GIT_HTTP_PROXY: 仅当 params 未定义时才注入
+            // params 在 toSteps 开头已由 runtimeParams 写入 env，优先级更高
             if (remote.hasEmbeddedCredentials()) {
-                env.put("GIT_EMBEDDED_AUTH", remote.userInfo());
+                env.putIfAbsent("GIT_EMBEDDED_AUTH", remote.userInfo());
             }
             if (request.gitHttpProxy() != null && !request.gitHttpProxy().isBlank()) {
-                env.put("GIT_HTTP_PROXY", request.gitHttpProxy().trim());
+                env.putIfAbsent("GIT_HTTP_PROXY", request.gitHttpProxy().trim());
             }
             String script = resolveScript("CLONE", request.taskScripts(), "");
             TaskResourceSpec res = resolveResources("CLONE", taskResources);
