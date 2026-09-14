@@ -112,6 +112,8 @@ services:
       DEVOPS_SCHEMA_INIT: external
       # 容器内 localhost:8000 是 backend 自己；JWT 公钥直接打 Keycloak
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/auth/realms/hfwas-devops/protocol/openid-connect/certs
+      # issuer-uri 需与 JWT token 的 iss 字段一致，生产由 Helm values 注入
+      OAUTH2_ISSUER_URI: http://localhost:8000/auth/realms/hfwas-devops
       # 由 start-pipeline-cluster.sh 写出；文件不存在时后端仍可启动，运行记「未配置执行集群」
       PIPELINE_KUBECONFIG: /app/pipeline/kubeconfig.compose.yaml
       PIPELINE_NAMESPACE: hfwas-pipeline
