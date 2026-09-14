@@ -15,6 +15,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public final class TektonCompiler {
 
@@ -44,6 +45,81 @@ public final class TektonCompiler {
             """.stripIndent();
 
     private static final ToolchainCatalog TOOLCHAIN = new ToolchainCatalog();
+
+    private record SubStepDef(
+            String nameSuffix,
+            String kindKey,
+            String defaultImage,
+            boolean formatCredential,
+            boolean usesKanikoCache,
+            boolean usesKubeConfig
+    ) {}
+
+    private static final Map<PipelineJobKind, List<SubStepDef>> MULTI_STEP_KINDS = Map.of(
+            PipelineJobKind.IMAGE, List.of(
+                    new SubStepDef("", "IMAGE", BUILDAH_IMAGE, false, false, false),
+                    new SubStepDef("-cosign", "IMAGE_COSIGN", COSIGN_IMAGE, false, false, false)
+            )
+    );
+
+    @FunctionalInterface
+    private interface StepHandler {
+        List<CompiledStep> create(
+                String base,
+                CompileRequest request,
+                GitRemote remote,
+                Map<String, String> env,
+                String command,
+                Map<String, TaskResourceSpec> taskResources
+        );
+    }
+
+    private static final Map<PipelineJobKind, StepHandler> STEP_HANDLERS = new LinkedHashMap<>();
+
+    private static final Map<PipelineJobKind, String> GENERIC_IMAGES = new LinkedHashMap<>();
+
+    private static final Set<PipelineJobKind> FORMAT_KINDS = Set.of(PipelineJobKind.FORMAT);
+
+    static {
+        STEP_HANDLERS.put(PipelineJobKind.CLONE, (base, req, remote, env, command, taskResources) -> {
+            if (remote == null) {
+                throw BizException.of(ResultCode.BAD_REQUEST, "仓库地址不能为空");
+            }
+            GitRemote r = remote;
+            env.put("GIT_SCHEME", r.scheme());
+            env.put("GIT_HOST", r.hostAuthority());
+            env.put("GIT_PATH", r.path());
+            env.put("GIT_REF", req.gitRef() == null || req.gitRef().isBlank() ? "main" : req.gitRef());
+            if (r.hasEmbeddedCredentials()) {
+                env.putIfAbsent("GIT_EMBEDDED_AUTH", r.userInfo());
+            }
+            if (req.gitHttpProxy() != null && !req.gitHttpProxy().isBlank()) {
+                env.putIfAbsent("GIT_HTTP_PROXY", req.gitHttpProxy().trim());
+            }
+            return List.of(
+                    buildStep(base, "CLONE", req, env, "", CLONE_IMAGE, taskResources, req.hasCredential(), false, false));
+        });
+
+        STEP_HANDLERS.put(PipelineJobKind.DEPENDENCY_ANALYSIS, (base, req, remote, env, command, taskResources) -> {
+            if (req.apiEndpoint() != null && !req.apiEndpoint().isBlank()) {
+                env.put("API_ENDPOINT", req.apiEndpoint());
+                env.put("RUN_ID", String.valueOf(req.runId()));
+            }
+            return List.of(
+                    buildStep(base, "DEPENDENCY_ANALYSIS", req, env, command, CDXGEN_IMAGE, taskResources, false, false, false));
+        });
+
+        STEP_HANDLERS.put(PipelineJobKind.KUBECTL, (base, req, remote, env, command, taskResources) ->
+                List.of(buildStep(base, "KUBECTL", req, env, command, DEPLOY_IMAGE, taskResources, false, false, true)));
+
+        GENERIC_IMAGES.put(PipelineJobKind.LINT_SEMGREP, SEMGREP_IMAGE);
+        GENERIC_IMAGES.put(PipelineJobKind.LINT_SONAR, SONAR_IMAGE);
+        GENERIC_IMAGES.put(PipelineJobKind.SCAN, SCAN_IMAGE);
+        GENERIC_IMAGES.put(PipelineJobKind.UPLOAD, UPLOAD_IMAGE);
+        GENERIC_IMAGES.put(PipelineJobKind.DEPLOY, DEPLOY_IMAGE);
+        GENERIC_IMAGES.put(PipelineJobKind.NOTIFY, NOTIFY_IMAGE);
+        GENERIC_IMAGES.put(PipelineJobKind.DEPENDENCY_TRACK, NOTIFY_IMAGE);
+    }
 
     private TektonCompiler() {
     }
@@ -136,72 +212,33 @@ public final class TektonCompiler {
         String base = DnsNames.uniqueName(DnsNames.stepName(job.name(), job.kind().name()), usedNames);
         String command = job.command() == null ? "" : job.command();
 
-        // ---- 分支：CLONE — 保留 env 注入，脚本走模板 ----
-        if (job.kind() == PipelineJobKind.CLONE) {
-            if (remote == null) {
-                throw BizException.of(ResultCode.BAD_REQUEST, "仓库地址不能为空");
-            }
-            env.put("GIT_SCHEME", remote.scheme());
-            env.put("GIT_HOST", remote.hostAuthority());
-            env.put("GIT_PATH", remote.path());
-            env.put("GIT_REF", request.gitRef() == null || request.gitRef().isBlank() ? "main" : request.gitRef());
-            // GIT_EMBEDDED_AUTH / GIT_HTTP_PROXY: 仅当 params 未定义时才注入
-            // params 在 toSteps 开头已由 runtimeParams 写入 env，优先级更高
-            if (remote.hasEmbeddedCredentials()) {
-                env.putIfAbsent("GIT_EMBEDDED_AUTH", remote.userInfo());
-            }
-            if (request.gitHttpProxy() != null && !request.gitHttpProxy().isBlank()) {
-                env.putIfAbsent("GIT_HTTP_PROXY", request.gitHttpProxy().trim());
-            }
-            String script = resolveScript("CLONE", request.taskScripts(), "");
-            TaskResourceSpec res = resolveResources("CLONE", taskResources);
-            return List.of(new CompiledStep(base, resolveImage("CLONE", request.taskImages(), CLONE_IMAGE), script, env, request.hasCredential(), false, false, res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit()));
+        // ---- Step 类型分发：MULTI_STEP_KINDS → STEP_HANDLERS → GENERIC_IMAGES 兜底 ----
+        // 1) 多步骤任务（注册表驱动）
+        List<SubStepDef> multiSteps = MULTI_STEP_KINDS.get(job.kind());
+        if (multiSteps != null) {
+            return multiSteps.stream()
+                    .map(sub -> buildStep(
+                            sub.nameSuffix().isEmpty() ? base : base + sub.nameSuffix(),
+                            sub.kindKey(), request, env, command,
+                            sub.defaultImage(), taskResources,
+                            sub.formatCredential(), sub.usesKanikoCache(), sub.usesKubeConfig()
+                    ))
+                    .toList();
         }
 
-        // ---- 分支：IMAGE — 保留多步骤编排，每个 Step 脚本走模板 ----
-        if (job.kind() == PipelineJobKind.IMAGE) {
-            String buildahScript = resolveScript("IMAGE", request.taskScripts(), command);
-            String cosignScript = resolveScript("IMAGE_COSIGN", request.taskScripts(), command);
-            TaskResourceSpec res = resolveResources("IMAGE", taskResources);
-            return List.of(
-                    new CompiledStep(base, resolveImage("IMAGE", request.taskImages(), BUILDAH_IMAGE), buildahScript, env, false, false, false, res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit()),
-                    new CompiledStep(base + "-cosign", resolveImage("IMAGE", request.taskImages(), COSIGN_IMAGE), cosignScript, env, false, false, false, res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit())
-            );
+        // 2) 特殊逻辑任务（StepHandler 注册表驱动）
+        StepHandler handler = STEP_HANDLERS.get(job.kind());
+        if (handler != null) {
+            return handler.create(base, request, remote, env, command, taskResources);
         }
 
-        // ---- 分支：DEPENDENCY_ANALYSIS — 保留 API_ENDPOINT env 注入，脚本走模板 ----
-        if (job.kind() == PipelineJobKind.DEPENDENCY_ANALYSIS) {
-            if (request.apiEndpoint() != null && !request.apiEndpoint().isBlank()) {
-                env.put("API_ENDPOINT", request.apiEndpoint());
-                env.put("RUN_ID", String.valueOf(request.runId()));
-            }
-            String script = resolveScript("DEPENDENCY_ANALYSIS", request.taskScripts(), command);
-            TaskResourceSpec res = resolveResources("DEPENDENCY_ANALYSIS", taskResources);
-            return List.of(new CompiledStep(base, resolveImage("DEPENDENCY_ANALYSIS", request.taskImages(), CDXGEN_IMAGE), script, env, false, false, false, res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit()));
-        }
-
-        // ---- 分支：KUBECTL — 挂载 kubeconfig 凭证执行 kubectl ----
-        if (job.kind() == PipelineJobKind.KUBECTL) {
-            String script = resolveScript("KUBECTL", request.taskScripts(), command);
-            String image = resolveImage("KUBECTL", request.taskImages(), DEPLOY_IMAGE);
-            TaskResourceSpec res = resolveResources("KUBECTL", taskResources);
-            return List.of(new CompiledStep(base, image, script, env, false, false, true, res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit()));
-        }
-
-        // ---- 通用分支：所有其他任务走模板替换 ----
-        String image = switch (job.kind()) {
-            case LINT_SEMGREP -> resolveImage("LINT_SEMGREP", request.taskImages(), SEMGREP_IMAGE);
-            case LINT_SONAR -> resolveImage("LINT_SONAR", request.taskImages(), SONAR_IMAGE);
-            case SCAN -> resolveImage("SCAN", request.taskImages(), SCAN_IMAGE);
-            case UPLOAD -> resolveImage("UPLOAD", request.taskImages(), UPLOAD_IMAGE);
-            case DEPLOY -> resolveImage("DEPLOY", request.taskImages(), DEPLOY_IMAGE);
-            case NOTIFY -> resolveImage("NOTIFY", request.taskImages(), NOTIFY_IMAGE);
-            default -> toolchainImageForJob(job);
-        };
-        String script = resolveScript(job.kind().name(), request.taskScripts(), command);
-        boolean formatCredential = job.kind() == PipelineJobKind.FORMAT;
-        TaskResourceSpec res = resolveResources(job.kind().name(), taskResources);
-        return List.of(new CompiledStep(base, image, script, env, formatCredential, false, false, res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit()));
+        // 3) 通用兜底 — 仅镜像选型不同，新增种类只需加 GENERIC_IMAGES 一行
+        String defaultImage = GENERIC_IMAGES.get(job.kind());
+        String image = defaultImage != null
+                ? resolveImage(job.kind().name(), request.taskImages(), defaultImage)
+                : toolchainImageForJob(job);
+        boolean formatCredential = FORMAT_KINDS.contains(job.kind());
+        return List.of(buildStep(base, job.kind().name(), request, env, command, image, taskResources, formatCredential, false, false));
     }
 
     /**
@@ -256,6 +293,29 @@ public final class TektonCompiler {
         } catch (Exception e) {
             return TOOLCHAIN.list().getFirst().image();
         }
+    }
+
+    /**
+     * 通用 Step 构建方法：解析脚本、镜像、资源，收敛 {@code new CompiledStep(...)} 的重复。
+     */
+    private static CompiledStep buildStep(
+            String name,
+            String kindKey,
+            CompileRequest request,
+            Map<String, String> env,
+            String command,
+            String defaultImage,
+            Map<String, TaskResourceSpec> taskResources,
+            boolean formatCredential,
+            boolean usesKanikoCache,
+            boolean usesKubeConfig
+    ) {
+        String script = resolveScript(kindKey, request.taskScripts(), command);
+        String image = resolveImage(kindKey, request.taskImages(), defaultImage);
+        TaskResourceSpec res = resolveResources(kindKey, taskResources);
+        return new CompiledStep(name, image, script, env,
+                formatCredential, usesKanikoCache, usesKubeConfig,
+                res.cpuRequest(), res.cpuLimit(), res.memoryRequest(), res.memoryLimit());
     }
 
     private static List<String> uniqueStepNames(List<CompiledStep> steps) {
