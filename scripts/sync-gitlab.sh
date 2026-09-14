@@ -2,13 +2,15 @@
 # 把当前分支已提交代码推到本机 GitLab
 #
 # 用法:
-#   ./scripts/sync-gitlab.sh              # 推当前分支
-#   ./scripts/sync-gitlab.sh status       # 只看本地 vs GitLab，不推
-#   ./scripts/sync-gitlab.sh -b dev       # 指定分支
+#   ./scripts/sync-gitlab.sh                    # 推当前仓库当前分支
+#   ./scripts/sync-gitlab.sh -d /other/repo     # 推其他仓库
+#   ./scripts/sync-gitlab.sh -p some/project    # 推到不同项目名
+#   ./scripts/sync-gitlab.sh status             # 只看本地 vs GitLab，不推
+#   ./scripts/sync-gitlab.sh -b dev             # 指定分支
 #
 # 环境变量:
 #   GITLAB_URL       默认 http://localhost:30880
-#   GITLAB_PROJECT   默认 root/hfwas-devops
+#   GITLAB_PROJECT   默认 root/hfwas-devops（-p 参数可覆盖）
 #   GITLAB_USER      默认 root
 #   GITLAB_PASSWORD  默认读 deploy/charts/gitlab/values.yaml 的 rootPassword
 #   GITLAB_TOKEN     若设置则优先于密码（推荐 PAT）
@@ -23,6 +25,8 @@ VALUES_FILE="$ROOT_DIR/deploy/charts/gitlab/values.yaml"
 COMMAND="push"
 BRANCH=""
 REMOTE="${GITLAB_REMOTE:-gitlab}"
+SOURCE_DIR="$ROOT_DIR"
+PROJECT_OVERRIDE=""
 
 log() { printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -36,6 +40,8 @@ while [ $# -gt 0 ]; do
     push|status) COMMAND="$1" ;;
     -b|--branch) BRANCH="${2:-}"; shift ;;
     -r|--remote) REMOTE="${2:-}"; shift ;;
+    -d|--dir)    SOURCE_DIR="$(cd "${2:-}" 2>/dev/null && pwd || echo "${2:-}")"; shift ;;
+    -p|--project) PROJECT_OVERRIDE="${2:-}"; shift ;;
     -h|--help|help) usage; exit 0 ;;
     *) die "未知参数: $1" ;;
   esac
@@ -48,7 +54,19 @@ export NO_PROXY='*' no_proxy='*'
 
 GITLAB_URL="${GITLAB_URL:-http://localhost:30880}"
 GITLAB_URL="${GITLAB_URL%/}"
-GITLAB_PROJECT="${GITLAB_PROJECT:-root/hfwas-devops}"
+
+# 项目名推导：
+#   -p 显式指定 → 直接用
+#   未指定但给了 -d 不同目录 → root/<目录名>
+#   均未指定 → 默认 root/hfwas-devops
+if [ -n "$PROJECT_OVERRIDE" ]; then
+  GITLAB_PROJECT="${PROJECT_OVERRIDE}"
+elif [ "$SOURCE_DIR" != "$ROOT_DIR" ]; then
+  local_dirname="$(basename "$SOURCE_DIR")"
+  GITLAB_PROJECT="${GITLAB_PROJECT:-root/${local_dirname}}"
+else
+  GITLAB_PROJECT="${GITLAB_PROJECT:-root/hfwas-devops}"
+fi
 GITLAB_PROJECT="${GITLAB_PROJECT#/}"
 
 if [ -n "${GITLAB_TOKEN:-}" ]; then
@@ -106,8 +124,8 @@ ensure_remote() {
     local current
     current="$(git remote get-url "$REMOTE")"
     if [ "$current" != "$PUSH_URL" ]; then
-      log "远程 $REMOTE 当前是 $current"
-      log "本次仍推到该地址。要改成 $PUSH_URL 可执行: git remote set-url $REMOTE $PUSH_URL"
+      log "远程 $REMOTE URL 不匹配，修正: $current -> $PUSH_URL"
+      git remote set-url "$REMOTE" "$PUSH_URL"
     fi
   else
     git remote add "$REMOTE" "$PUSH_URL"
@@ -160,7 +178,8 @@ show_status() {
   dirty_warning
 }
 
-cd "$ROOT_DIR"
+cd "$SOURCE_DIR"
+[ "$SOURCE_DIR" != "$ROOT_DIR" ] && log "源目录: $SOURCE_DIR"
 command -v git >/dev/null 2>&1 || die "未找到 git"
 command -v curl >/dev/null 2>&1 || die "未找到 curl"
 

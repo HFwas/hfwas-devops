@@ -286,6 +286,8 @@ services:
       - ./deploy/tekton:/tekton:ro
     ports:
       - "6443:6443"
+      - "30880:30880"
+      - "30222:30222"
     healthcheck:
       # rancher/k3s 里 /bin/kubectl 是 k3s 的 symlink；写 `k3s kubectl` 会变成 `kubectl kubectl`。
       test: ["CMD", "kubectl", "get", "--raw=/readyz"]

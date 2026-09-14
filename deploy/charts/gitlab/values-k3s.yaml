@@ -1,0 +1,37 @@
+# k3s (macOS Docker) 单机覆盖值
+externalUrl: "http://localhost:30880"
+sshPort: 30222
+
+service:
+  type: NodePort
+  httpNodePort: 30880
+  sshNodePort: 30222
+
+# k3s 默认 storage-class: local-path
+persistence:
+  storageClass: "local-path"
+  size: 20Gi
+
+resources:
+  requests:
+    cpu: "1"
+    memory: 4Gi
+  limits:
+    cpu: "2"
+    memory: 8Gi
+
+# k3s 本地环境，启动探测可稍快
+probes:
+  startup:
+    initialDelaySeconds: 60
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 60
+  readiness:
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 8
+  liveness:
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 8
