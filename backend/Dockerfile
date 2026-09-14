@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # =============================================================================
 # Stage 1: Build Spring Boot fat JAR
 # BuildKit cache：/root/.m2 跨构建复用，改业务代码不再全量拉依赖
