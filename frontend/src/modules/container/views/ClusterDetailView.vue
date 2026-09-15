@@ -153,6 +153,10 @@ onMounted(load)
             <n-descriptions-item label="提供商">{{ cluster.provider || '-' }}</n-descriptions-item>
             <n-descriptions-item label="版本">{{ cluster.version || '-' }}</n-descriptions-item>
             <n-descriptions-item label="模式">{{ cluster.mode }}</n-descriptions-item>
+            <n-descriptions-item label="Prometheus 地址">
+              <n-tag v-if="cluster.labels?.prometheusUrl" size="small" type="info">{{ cluster.labels.prometheusUrl }}</n-tag>
+              <span v-else style="color: var(--n-text-color-3)">未配置</span>
+            </n-descriptions-item>
           </n-descriptions>
 
           <n-grid v-if="stats" :cols="4" :x-gap="12" style="margin-top: 16px">

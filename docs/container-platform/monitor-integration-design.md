@@ -1,8 +1,8 @@
 # 容器管理平台监控接入 — 设计方案
 
-> 日期：2026-09-10  
+> 日期：2026-09-15  
 > 状态：待实施  
-> 版本：v0.1  
+> 版本：v0.2  
 > 关联：[container-platform-design.md](./container-platform-design.md)、[prometheus-deployment.md](./prometheus-deployment.md)
 
 ### 变更记录
@@ -10,6 +10,7 @@
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-09-10 | 初版：监控接入架构、API、页面设计 |
+| v0.2 | 2026-09-15 | prometheusUrl 应使用 Docker DNS 名而非 IP 地址，避免容器重启后失效 |
 
 ---
 
@@ -131,10 +132,17 @@ MonitorService (解析、格式化)
 
 ```json
 {
-  "prometheusUrl": "http://<k3s-node-ip>:30090",
+  "prometheusUrl": "http://<k3s-service-name>:30090",
   "prometheusHeaders": ""
 }
 ```
+
+> **⚠️ 重要：使用 DNS 名而非 IP 地址**  
+> Docker Compose 环境下，prometheusUrl **必须使用容器服务名**（如 `http://devops-k3s:30090`），**不要**写 Docker 内网 IP（如 `http://172.19.0.2:30090`）。
+> 
+> 原因：Docker bridge 网络为容器动态分配 IP，容器重启后 IP 可能变化。使用 Docker DNS 名（服务名）可以保证重启后自动解析到正确地址。
+>
+> 如果后端容器与 k3s 不在同一 Docker 网络，可使用宿主机地址 `http://host.docker.internal:30090`（macOS）或 `http://<宿主机IP>:30090`。
 
 > 后续可通过集群详情页编辑 labels 或单独的表单配置，Phase 1 直接用 JSON 写死。
 

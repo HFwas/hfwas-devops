@@ -22,12 +22,13 @@ const modalMode = ref<'create' | 'edit'>('create')
 const editingId = ref<string | null>(null)
 const formRef = ref<FormInst | null>(null)
 
-const form = reactive<ClusterSaveDTO>({
+const form = reactive<ClusterSaveDTO & { prometheusUrl: string }>({
   name: '',
   alias: '',
   provider: '',
   kubeconfig: '',
   mode: 'proxy',
+  prometheusUrl: '',
 })
 
 const rules: FormRules = {
@@ -62,6 +63,7 @@ function openCreate() {
   form.provider = ''
   form.kubeconfig = ''
   form.mode = 'proxy'
+  form.prometheusUrl = ''
   form.labels = undefined
   showModal.value = true
 }
@@ -74,6 +76,7 @@ function openEdit(row: ClusterVO) {
   form.provider = row.provider || ''
   form.kubeconfig = ''
   form.mode = row.mode as 'proxy' | 'direct'
+  form.prometheusUrl = row.labels?.prometheusUrl || ''
   showModal.value = true
 }
 
@@ -88,16 +91,19 @@ async function submit() {
   } catch {
     return
   }
+  // Build labels from prometheusUrl
+  const labels: Record<string, string> = {}
+  if (form.prometheusUrl) labels.prometheusUrl = form.prometheusUrl
   try {
     if (modalMode.value === 'create') {
-      await clusterApi.create({ ...form })
+      await clusterApi.create({ ...form, labels })
       message.success('集群创建成功')
     } else if (editingId.value) {
       await clusterApi.update(editingId.value, {
         alias: form.alias || undefined,
         provider: form.provider || undefined,
         kubeconfig: form.kubeconfig || undefined,
-        labels: form.labels,
+        labels,
       })
       message.success('集群已更新')
     }
@@ -209,6 +215,9 @@ onMounted(load)
         </n-form-item>
         <n-form-item label="连接模式" path="mode">
           <n-select v-model:value="form.mode" :options="[{ label: '代理 (proxy)', value: 'proxy' }, { label: '直连 (direct)', value: 'direct' }]" />
+        </n-form-item>
+        <n-form-item label="Prometheus 地址" path="prometheusUrl">
+          <n-input v-model:value="form.prometheusUrl" placeholder="http://devops-k3s:30090" />
         </n-form-item>
         <n-form-item label="Kubeconfig" path="kubeconfig" v-if="modalMode === 'create' || form.kubeconfig">
           <n-input v-model:value="form.kubeconfig" type="textarea" :rows="6" placeholder="集群 kubeconfig YAML/JSON 内容" />

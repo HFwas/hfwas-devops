@@ -1,10 +1,20 @@
 # Prometheus 部署文档
 
-> 版本: kube-prometheus-stack 62.x（Prometheus v2.55.x / node-exporter v1.8.x / kube-state-metrics v2.15.x）  
-> 集群: k3s v1.31.4（单节点 ARM64 + Rosetta 2 模拟 x86_64）  
-> 日期: 2026-09-10
+> 版本：v0.2  
+> 日期：2026-09-15  
+> 关联：[container-platform-design.md](./container-platform-design.md)、[monitor-integration-design.md](./monitor-integration-design.md)
+
+### 变更记录
+
+| 版本 | 日期 | 变更说明 |
+|------|------|----------|
+| v0.1 | 2026-09-10 | 初版：安装步骤、JMX 配置、PromQL 查询 |
+| v0.2 | 2026-09-15 | 配置 prometheusUrl 应使用 Docker DNS 名而非 IP 地址 |
 
 ---
+
+> 环境: kube-prometheus-stack 62.x（Prometheus v2.55.x / node-exporter v1.8.x / kube-state-metrics v2.15.x）  
+> 集群: k3s v1.31.4（单节点 ARM64 + Rosetta 2 模拟 x86_64）
 
 ## 目录
 
@@ -943,7 +953,7 @@ jvm_buffer_pool_total_capacity_bytes
 
 ### 7.1 配置平台 Prometheus 数据源
 
-容器管理平台（后端 Java 服务）通过 Prometheus HTTP API（NodePort 30090）获取指标数据。
+容器管理平台（后端 Java 服务）通过 Prometheus HTTP API（NodePort 30090）获取指标数据。Prometheus 地址配置在 `cluster_info` 表的 `labels` 字段中（`prometheusUrl`），可通过平台集群编辑页面修改。
 
 ```yaml
 # 容器平台后端配置（application-prod.yml 或环境变量）
@@ -956,6 +966,19 @@ prometheus:
   timeout: 30s
   max-query-concurrency: 10
 ```
+
+> **⚠️ 重要：prometheusUrl 应使用容器服务名而非 IP**  
+> 
+> Docker Compose 环境下，`prometheusUrl` **必须使用 k3s 容器的 Docker 服务名**（如 `http://devops-k3s:30090`），不要写 Docker 内网 IP（如 `http://172.19.0.2:30090`）。
+>
+> **原因**：Docker bridge 网络为容器动态分配 IP，重启 k3s 容器后 IP 可能变化。使用 Docker DNS 名（`devops-k3s`）可保证重启后自动解析到正确地址。
+>
+> **验证方法**：
+> ```bash
+> # 从后端容器测试连通性
+> docker exec devops-backend wget -q -O - "http://devops-k3s:30090/api/v1/query?query=up"
+> # 返回 {"status":"success",...} 说明连通正常
+> ```
 
 ### 7.2 平台需实现的监控接口
 

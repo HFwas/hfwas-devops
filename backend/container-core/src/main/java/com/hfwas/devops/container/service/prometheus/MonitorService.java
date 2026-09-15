@@ -10,6 +10,7 @@ import com.hfwas.devops.container.dto.MonitorSeriesVO;
 import com.hfwas.devops.container.entity.ClusterEntity;
 import com.hfwas.devops.container.error.ContainerErrorCode;
 import com.hfwas.devops.container.service.cluster.ClusterService;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,51 @@ public class MonitorService {
     private final ClusterService clusterService;
     private final PrometheusClient prometheusClient;
     private final ObjectMapper objectMapper;
+
+    /**
+     * Startup self-check: verify Prometheus connectivity for all registered clusters.
+     * Logs a clear warning if any cluster has a missing or unreachable prometheusUrl.
+     */
+    @PostConstruct
+    public void checkPrometheusConnectivity() {
+        List<Long> clusterIds = clusterService.listAllClusterIds();
+        if (clusterIds.isEmpty()) {
+            log.info("Prometheus connectivity check skipped: no clusters registered");
+            return;
+        }
+        int total = 0, ok = 0, fail = 0;
+        for (Long clusterId : clusterIds) {
+            total++;
+            ClusterEntity entity = clusterService.getByIdInternal(clusterId);
+            if (entity == null) continue;
+            String url;
+            try {
+                url = extractPrometheusUrl(entity.getLabels());
+            } catch (BizException e) {
+                log.warn("[Cluster {}] {} — 监控数据不可用，请配置 Prometheus 地址", entity.getName(), e.getMessage());
+                fail++;
+                continue;
+            }
+            try {
+                Optional<JsonNode> result = prometheusClient.query(url, "up");
+                if (result.isPresent()) {
+                    log.info("[Cluster {}] Prometheus 连通性检查通过: {}", entity.getName(), url);
+                    ok++;
+                } else {
+                    log.warn("[Cluster {}] Prometheus 查询异常 (up 返回空): {}", entity.getName(), url);
+                    fail++;
+                }
+            } catch (Exception e) {
+                log.error("[Cluster {}] Prometheus 连接失败: {} — 请检查 prometheusUrl 配置", entity.getName(), url);
+                fail++;
+            }
+        }
+        if (fail > 0) {
+            log.warn("Prometheus 连通性检查: {}/{} 通过, {}/{} 失败 — 监控数据可能不可用", ok, total, fail, total);
+        } else {
+            log.info("Prometheus 连通性检查: 全部通过 ({}/{})", ok, total);
+        }
+    }
 
     /**
      * Get prometheusUrl from cluster labels, or throw.

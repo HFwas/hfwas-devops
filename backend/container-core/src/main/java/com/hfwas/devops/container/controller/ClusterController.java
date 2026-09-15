@@ -1,6 +1,8 @@
 package com.hfwas.devops.container.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.container.dto.ClusterComponentVO;
 import com.hfwas.devops.container.dto.ClusterSaveDTO;
@@ -22,6 +24,7 @@ import java.util.Map;
 public class ClusterController {
 
     private final ClusterService clusterService;
+    private final ObjectMapper objectMapper;
 
     @PostMapping("/page")
     public BaseResult<IPage<ClusterVO>> page(@RequestBody Map<String, Object> params) {
@@ -51,7 +54,7 @@ public class ClusterController {
         entity.setMode(dto.getMode() != null ? dto.getMode() : "proxy");
         if (dto.getLabels() != null) {
             try {
-                entity.setLabels(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(dto.getLabels()));
+                entity.setLabels(objectMapper.writeValueAsString(dto.getLabels()));
             } catch (Exception ignored) {
                 entity.setLabels("{}");
             }
@@ -69,7 +72,7 @@ public class ClusterController {
         entity.setKubeconfig(dto.getKubeconfig());
         if (dto.getLabels() != null) {
             try {
-                entity.setLabels(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(dto.getLabels()));
+                entity.setLabels(objectMapper.writeValueAsString(dto.getLabels()));
             } catch (Exception ignored) {
                 entity.setLabels("{}");
             }
@@ -124,6 +127,17 @@ public class ClusterController {
         vo.setStatus(entity.getStatus());
         vo.setCreatedAt(entity.getCreatedAt());
         vo.setUpdatedAt(entity.getUpdatedAt());
+        // Parse labels JSON → Map (safe for empty / invalid)
+        if (entity.getLabels() != null && !entity.getLabels().isBlank()) {
+            try {
+                vo.setLabels(objectMapper.readValue(entity.getLabels(),
+                    new TypeReference<Map<String, String>>() {}));
+            } catch (Exception ignored) {
+                vo.setLabels(Map.of());
+            }
+        } else {
+            vo.setLabels(Map.of());
+        }
         // kubeconfig is NEVER exposed
         return vo;
     }

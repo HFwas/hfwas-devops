@@ -266,6 +266,7 @@ services:
     profiles: ["pipeline"]
     image: rancher/k3s:v1.31.4-k3s1
     container_name: devops-k3s
+    hostname: k3s-server
     privileged: true
     tmpfs:
       - /run
