@@ -116,9 +116,16 @@ EXPOSE 8089
 USER devops:devops
 
 ENTRYPOINT ["java", \
-    "-Xms512m", "-Xmx1g", \
+    "-XX:MaxRAMPercentage=75.0", \
+    "-XX:InitialRAMPercentage=40.0", \
     "-XX:MaxDirectMemorySize=512m", \
+    "-XX:MaxMetaspaceSize=256m", \
+    "-Xss512k", \
+    "-XX:+UseG1GC", \
+    "-XX:MaxGCPauseMillis=200", \
     "-XX:+ExitOnOutOfMemoryError", \
     "-XX:+HeapDumpOnOutOfMemoryError", \
     "-XX:HeapDumpPath=/app/dumps", \
+    "-Xlog:gc*:file=/app/logs/gc.log:time,uptime,level,tags:filecount=5,filesize=10m", \
+    "-Djava.security.egd=file:/dev/./urandom", \
     "-jar", "/app/server.jar"]

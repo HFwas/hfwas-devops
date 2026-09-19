@@ -85,9 +85,14 @@ log "启动后端 (http://localhost:$BACKEND_PORT) ..."
 cd "$ROOT_DIR/backend/server"
 exec mvn spring-boot:run -DskipTests \
   -Dspring-boot.run.jvmArguments="\
-    -Xms512m -Xmx4g \
-    -XX:MaxDirectMemorySize=1g \
+    -Xms512m -Xmx1g \
+    -XX:MaxDirectMemorySize=512m \
+    -XX:MaxMetaspaceSize=256m \
+    -Xss512k \
+    -XX:+UseG1GC \
+    -XX:MaxGCPauseMillis=200 \
     -XX:+ExitOnOutOfMemoryError \
     -XX:+HeapDumpOnOutOfMemoryError \
-    -XX:HeapDumpPath=$RUN_DIR/dumps" \
+    -XX:HeapDumpPath=$RUN_DIR/dumps \
+    -Xlog:gc*:file=$RUN_DIR/logs/gc.log:time,uptime,level,tags:filecount=3,filesize=5m" \
   -Dspring-boot.run.arguments="$BOOT_ARGS"
