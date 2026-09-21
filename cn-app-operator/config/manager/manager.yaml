@@ -1,0 +1,71 @@
+# cn-app-operator Manager Deployment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cn-app-operator
+  namespace: devops
+  labels:
+    app.kubernetes.io/name: cn-app-operator
+    app.kubernetes.io/managed-by: cn-app-operator
+    delivery.hfwas.io/managed-by: cn-app-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cn-app-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cn-app-operator
+        delivery.hfwas.io/managed-by: cn-app-operator
+    spec:
+      serviceAccountName: cn-app-operator
+      containers:
+        - name: operator
+          image: hfwas/cn-app-operator:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /operator
+          args:
+            - --metrics-bind-address=:8080
+            - --health-probe-bind-address=:8081
+            - --leader-elect=false
+          ports:
+            - containerPort: 8080
+              name: metrics
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cn-app-operator-metrics
+  namespace: devops
+  labels:
+    app.kubernetes.io/name: cn-app-operator
+spec:
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: 8080
+  selector:
+    app.kubernetes.io/name: cn-app-operator

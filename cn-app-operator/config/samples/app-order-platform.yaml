@@ -1,0 +1,27 @@
+# cn-app-operator 示例：App - 顶层聚合
+---
+apiVersion: delivery.hfwas.io/v1
+kind: App
+metadata:
+  name: order-platform
+  namespace: devops
+  labels:
+    delivery.hfwas.io/managed-by: cn-app-operator
+spec:
+  displayName: "订单服务平台"
+  description: "订单服务平台完整产品套件"
+  version: "2.1.0"
+  services:
+    - name: order-core
+      alias: "Order Core"
+      parameters:
+        replicaCount: 3
+        image.registry: "registry.example.com"
+    # - name: order-monitor
+    #   alias: "监控"
+    #   parameters: {}
+  globalParameters:
+    imageRegistry: "registry.example.com"
+    defaultStorageClass: "standard"
+    domainSuffix: "order.example.com"
+  terminationPolicy: Delete

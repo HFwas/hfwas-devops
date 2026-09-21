@@ -1,0 +1,371 @@
+# cn-app-operator CRD - CloudComponent (组件实例)
+# API Group: delivery.hfwas.io
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: cloudcomponents.delivery.hfwas.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.0
+spec:
+  group: delivery.hfwas.io
+  names:
+    kind: CloudComponent
+    listKind: CloudComponentList
+    plural: cloudcomponents
+    singular: cloudcomponent
+    shortNames:
+      - cc
+      - ccmp
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Status
+          type: string
+          jsonPath: .status.phase
+        - name: Component Type
+          type: string
+          jsonPath: .spec.componentType
+        - name: Chart Version
+          type: string
+          jsonPath: .spec.chartVersion
+        - name: Helm Release
+          type: string
+          jsonPath: .status.helmReleaseName
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          description: "CloudComponent 对应一个 Helm Chart 的部署实例。"
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - chartName
+                - chartVersion
+                - componentType
+              properties:
+                displayName:
+                  type: string
+                  maxLength: 128
+                componentType:
+                  type: string
+                  enum:
+                    - Service
+                    - Cluster
+                    - Project
+                  description: "组件类型"
+                serviceRef:
+                  type: string
+                  description: "所属 CloudService 名称"
+                chartName:
+                  type: string
+                  description: "Chart 名称"
+                chartVersion:
+                  type: string
+                  description: "Chart 版本号"
+                  pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[a-zA-Z0-9]+)?$'
+                chartRepo:
+                  type: string
+                  format: uri
+                  description: "Chart 仓库 URL"
+                chartRepoName:
+                  type: string
+                  description: "仓库别名"
+                releaseName:
+                  type: string
+                  description: "Helm release 名称（默认自动生成）"
+                  pattern: '^[a-z]([a-z0-9-]*[a-z0-9])?$'
+                  maxLength: 53
+                targetNamespace:
+                  type: string
+                  description: "Helm release 部署的目标命名空间"
+                  pattern: '^[a-z]([a-z0-9-]*[a-z0-9])?$'
+                values:
+                  type: object
+                  description: "合并后的完整 values"
+                  x-kubernetes-preserve-unknown-fields: true
+                valuesOverlay:
+                  type: object
+                  description: "上层传入的参数覆盖"
+                  x-kubernetes-preserve-unknown-fields: true
+                deploymentStrategy:
+                  type: object
+                  properties:
+                    updateType:
+                      type: string
+                      enum:
+                        - RollingUpdate
+                        - Recreate
+                      default: RollingUpdate
+                    timeout:
+                      type: string
+                      default: "600s"
+                    rollback:
+                      type: object
+                      properties:
+                        enabled:
+                          type: boolean
+                          default: true
+                        maxRetries:
+                          type: integer
+                          default: 3
+                    retry:
+                      type: object
+                      properties:
+                        maxRetries:
+                          type: integer
+                          default: 3
+                        backoffStrategy:
+                          type: string
+                          enum:
+                            - Linear
+                            - Exponential
+                          default: Exponential
+                    revisionHistoryLimit:
+                      type: integer
+                      default: 10
+                    atomic:
+                      type: boolean
+                      default: false
+                dependencies:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      component:
+                        type: string
+                        description: "被依赖的 CloudComponent 名称"
+                      serviceRef:
+                        type: string
+                        description: "跨 CloudService 引用时指定目标服务"
+                      type:
+                        type: string
+                        enum:
+                          - Hard
+                          - Soft
+                          - Optional
+                        default: Hard
+                      condition:
+                        type: string
+                        enum:
+                          - Ready
+                          - Deployed
+                        default: Ready
+                healthCheck:
+                  type: object
+                  properties:
+                    prometheus:
+                      type: object
+                      properties:
+                        query:
+                          type: string
+                        interval:
+                          type: string
+                          default: "30s"
+                        timeout:
+                          type: string
+                          default: "10s"
+                    http:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                        interval:
+                          type: string
+                          default: "30s"
+                        timeout:
+                          type: string
+                          default: "10s"
+                        expectedCodes:
+                          type: array
+                          items:
+                            type: integer
+                          default: [200]
+                    pod:
+                      type: object
+                      properties:
+                        minReadySeconds:
+                          type: integer
+                          default: 0
+                        requiredReplicasRatio:
+                          type: number
+                          default: 1.0
+                clusterAffinity:
+                  type: object
+                  properties:
+                    clusterLabelSelector:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    placement:
+                      type: string
+                      enum:
+                        - ControlPlane
+                        - Workload
+                        - Both
+                      default: ControlPlane
+
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum:
+                    - Pending
+                    - Deploying
+                    - Ready
+                    - Degraded
+                    - Failed
+                    - Unknown
+                    - Deleting
+                    - Suspended
+                  default: Pending
+                helmReleaseName:
+                  type: string
+                  description: "实际的 Helm release 名称"
+                helmStatus:
+                  type: string
+                  description: "Helm release 状态（deployed, failed, pending-install 等）"
+                helmRevision:
+                  type: integer
+                  description: "Helm release revision 号"
+                chartVersion:
+                  type: string
+                  description: "当前已部署的 chart 版本"
+                observedChartVersion:
+                  type: string
+                  description: "实际 chart 版本"
+                workloadStatus:
+                  type: object
+                  properties:
+                    totalWorkloads:
+                      type: integer
+                    readyWorkloads:
+                      type: integer
+                    degradedWorkloads:
+                      type: integer
+                    workloads:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          kind:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                          apiVersion:
+                            type: string
+                          ready:
+                            type: boolean
+                          status:
+                            type: string
+                installCount:
+                  type: integer
+                  minimum: 0
+                upgradeCount:
+                  type: integer
+                  minimum: 0
+                rollbackCount:
+                  type: integer
+                  minimum: 0
+                failureMessage:
+                  type: string
+                failureReason:
+                  type: string
+                retryCount:
+                  type: integer
+                  minimum: 0
+                lastRetryTime:
+                  type: string
+                  format: date-time
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                      - lastTransitionTime
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - Available
+                          - Progressing
+                          - Degraded
+                          - HelmDeployed
+                          - Healthy
+                          - ResourceReady
+                      status:
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - "Unknown"
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      observedGeneration:
+                        type: integer
+                observedGeneration:
+                  type: integer
+                  format: int64
+                lastAppliedRevision:
+                  type: string
+                  description: "最后应用的 ControllerRevision 名称"
+                currentRevision:
+                  type: string
+                  description: "当前 ControllerRevision 名称"
+                healthCheckResult:
+                  type: object
+                  properties:
+                    healthy:
+                      type: boolean
+                    lastCheckTime:
+                      type: string
+                      format: date-time
+                    message:
+                      type: string
+                history:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      revision:
+                        type: integer
+                      operation:
+                        type: string
+                        enum:
+                          - Install
+                          - Upgrade
+                          - Rollback
+                          - Failed
+                      chartVersion:
+                        type: string
+                      valuesHash:
+                        type: string
+                      message:
+                        type: string
+                      operator:
+                        type: string
+                      startTime:
+                        type: string
+                        format: date-time
+                      completionTime:
+                        type: string
+                        format: date-time

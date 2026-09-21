@@ -1,0 +1,223 @@
+# cn-app-operator CRD - App (顶层聚合)
+# API Group: delivery.hfwas.io
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: apps.delivery.hfwas.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.0
+spec:
+  group: delivery.hfwas.io
+  names:
+    kind: App
+    listKind: AppList
+    plural: apps
+    singular: app
+    shortNames:
+      - app
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Display Name
+          type: string
+          jsonPath: .spec.displayName
+        - name: Status
+          type: string
+          jsonPath: .status.phase
+        - name: Services
+          type: integer
+          jsonPath: .status.aggregatedSummary.totalServices
+        - name: Ready
+          type: integer
+          jsonPath: .status.aggregatedSummary.readyServices
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          description: "App 是用户面向的顶层聚合资源，聚合下属 CloudService 的状态。"
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - displayName
+              properties:
+                displayName:
+                  description: "应用显示名称"
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                description:
+                  description: "应用描述"
+                  type: string
+                  maxLength: 2048
+                version:
+                  description: "应用版本标识"
+                  type: string
+                  pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[a-zA-Z0-9]+)?$'
+                  example: "1.2.0"
+                services:
+                  description: "关联的 CloudService 列表"
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                    properties:
+                      name:
+                        type: string
+                        description: "CloudService 名称（同一 namespace）"
+                        minLength: 1
+                        maxLength: 63
+                        pattern: '^[a-z]([a-z0-9-]*[a-z0-9])?$'
+                      alias:
+                        type: string
+                        description: "可选别名，用于 UI 展示"
+                        maxLength: 128
+                      parameters:
+                        type: object
+                        description: "服务级参数覆盖"
+                        x-kubernetes-preserve-unknown-fields: true
+                globalParameters:
+                  description: "全局参数（跨所有服务生效）"
+                  type: object
+                  properties:
+                    imageRegistry:
+                      type: string
+                      description: "全局镜像仓库前缀"
+                    defaultStorageClass:
+                      type: string
+                      description: "默认 StorageClass 名称"
+                    domainSuffix:
+                      type: string
+                      description: "全局域名后缀"
+                  x-kubernetes-preserve-unknown-fields: true
+                terminationPolicy:
+                  description: "删除 App 时是否级联删除下属资源"
+                  type: string
+                  enum:
+                    - Delete
+                    - Orphan
+                  default: Delete
+
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  description: "总体阶段"
+                  enum:
+                    - Pending
+                    - Deploying
+                    - Ready
+                    - Degraded
+                    - Failed
+                    - Unknown
+                    - Deleting
+                  default: Pending
+                aggregatedSummary:
+                  type: object
+                  description: "聚合摘要"
+                  properties:
+                    totalServices:
+                      type: integer
+                      minimum: 0
+                    readyServices:
+                      type: integer
+                      minimum: 0
+                    degradedServices:
+                      type: integer
+                      minimum: 0
+                    failedServices:
+                      type: integer
+                      minimum: 0
+                    totalComponents:
+                      type: integer
+                      minimum: 0
+                    readyComponents:
+                      type: integer
+                      minimum: 0
+                serviceStatuses:
+                  type: array
+                  description: "每个下属服务的简要状态"
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      phase:
+                        type: string
+                      errorMessage:
+                        type: string
+                      lastUpdateTime:
+                        type: string
+                        format: date-time
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                      - lastTransitionTime
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - Available
+                          - Progressing
+                          - Degraded
+                      status:
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - "Unknown"
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      observedGeneration:
+                        type: integer
+                observedGeneration:
+                  type: integer
+                  format: int64
+                history:
+                  type: array
+                  description: "操作审计历史"
+                  items:
+                    type: object
+                    properties:
+                      revision:
+                        type: integer
+                      version:
+                        type: string
+                      operation:
+                        type: string
+                        enum:
+                          - Created
+                          - Updated
+                          - Deleted
+                          - RolledBack
+                      operator:
+                        type: string
+                      message:
+                        type: string
+                      parameterSnapshot:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                      timestamp:
+                        type: string
+                        format: date-time

@@ -1,0 +1,184 @@
+# cn-app-operator 示例：CloudService - 订单核心服务
+# 包含多个组件的有依赖关系的完整产品
+---
+apiVersion: delivery.hfwas.io/v1
+kind: CloudService
+metadata:
+  name: order-core
+  namespace: devops
+  labels:
+    delivery.hfwas.io/app: order-platform
+    delivery.hfwas.io/managed-by: cn-app-operator
+spec:
+  displayName: "订单核心服务"
+  version: "2.1.0"
+  description: "订单核心服务套件（Redis + PostgreSQL + Backend + Frontend）"
+  icon: "https://example.com/icons/order-platform.png"
+  components:
+    - name: redis
+      displayName: "Redis 缓存"
+      componentType: Service
+      chart:
+        repository: oci://registry-1.docker.io/bitnamicharts
+        version: "17.3.0"
+        name: redis
+      defaultValues:
+        architecture: standalone
+        auth:
+          enabled: false
+        master:
+          persistence:
+            size: 8Gi
+      parameters:
+        - name: redisPersistenceSize
+          displayName: "Redis 存储大小"
+          description: "Redis 持久卷大小"
+          type: string
+          defaultValue: "8Gi"
+          required: true
+          path: "master.persistence.size"
+          validation:
+            pattern: '^[0-9]+(Mi|Gi|Ti)$'
+      deploymentStrategy:
+        timeout: 600s
+        rollback:
+          enabled: true
+      healthCheck:
+        pod:
+          minReadySeconds: 5
+
+    - name: postgresql
+      displayName: "PostgreSQL 数据库"
+      componentType: Service
+      chart:
+        repository: oci://registry-1.docker.io/bitnamicharts
+        version: "13.2.0"
+        name: postgresql
+      defaultValues:
+        primary:
+          persistence:
+            size: 20Gi
+        readReplicas:
+          replicaCount: 0
+      parameters:
+        - name: postgresStorage
+          displayName: "数据库存储大小"
+          type: string
+          defaultValue: "20Gi"
+          path: "primary.persistence.size"
+          validation:
+            pattern: '^[0-9]+(Mi|Gi|Ti)$'
+        - name: postgresPassword
+          displayName: "数据库密码"
+          type: password
+          required: true
+          path: "global.postgresql.auth.postgresPassword"
+      dependencies:
+        - component: redis
+          type: Soft
+          condition: Ready
+      deploymentStrategy:
+        timeout: 900s
+
+    - name: backend
+      displayName: "后端服务"
+      componentType: Service
+      chart:
+        repository: oci://registry.example.com/charts
+        version: "2.1.0"
+        name: order-backend
+      defaultValues:
+        replicaCount: 2
+        image:
+          repository: registry.example.com/order/backend
+          tag: "2.1.0"
+      parameters:
+        - name: replicaCount
+          displayName: "后端副本数"
+          type: integer
+          defaultValue: 2
+          path: "replicaCount"
+          validation:
+            minimum: 1
+            maximum: 10
+        - name: jvmMemory
+          displayName: "JVM 内存"
+          type: string
+          defaultValue: "512m"
+          path: "javaOpts.xmx"
+      dependencies:
+        - component: postgresql
+          type: Hard
+          condition: Ready
+        - component: redis
+          type: Hard
+          condition: Ready
+      deploymentStrategy:
+        updateType: RollingUpdate
+        timeout: 600s
+        rollback:
+          enabled: true
+
+    - name: frontend
+      displayName: "前端页面"
+      componentType: Service
+      chart:
+        repository: oci://registry.example.com/charts
+        version: "2.1.0"
+        name: order-frontend
+      defaultValues:
+        replicaCount: 2
+        image:
+          repository: registry.example.com/order/frontend
+          tag: "2.1.0"
+      parameters:
+        - name: replicaCount
+          displayName: "前端副本数"
+          type: integer
+          defaultValue: 2
+          path: "replicaCount"
+        - name: domain
+          displayName: "访问域名"
+          type: string
+          defaultValue: "order.example.com"
+          path: "ingress.host"
+      dependencies:
+        - component: backend
+          type: Hard
+          condition: Ready
+
+  parameters:
+    - name: imageRegistry
+      displayName: "镜像仓库地址"
+      type: string
+      defaultValue: "registry.example.com"
+      path: "image.registry"
+      targetComponents:
+        - backend
+        - frontend
+    - name: defaultStorageClass
+      displayName: "默认 StorageClass"
+      type: string
+      defaultValue: ""
+      path: "global.storageClass"
+      targetComponents:
+        - redis
+        - postgresql
+
+  imageList:
+    - name: backend
+      image: registry.example.com/order/backend
+      tag: "2.1.0"
+      component: backend
+    - name: frontend
+      image: registry.example.com/order/frontend
+      tag: "2.1.0"
+      component: frontend
+    - name: redis
+      image: docker.io/bitnami/redis
+      tag: "7.2.0"
+      component: redis
+    - name: postgresql
+      image: docker.io/bitnami/postgresql
+      tag: "16.0.0"
+      component: postgresql

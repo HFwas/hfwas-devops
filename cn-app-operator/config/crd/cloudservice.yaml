@@ -1,0 +1,467 @@
+# cn-app-operator CRD - CloudService (产品/云服务定义)
+# API Group: delivery.hfwas.io
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: cloudservices.delivery.hfwas.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.0
+spec:
+  group: delivery.hfwas.io
+  names:
+    kind: CloudService
+    listKind: CloudServiceList
+    plural: cloudservices
+    singular: cloudservice
+    shortNames:
+      - cs
+      - csvc
+  scope: Namespaced
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Display Name
+          type: string
+          jsonPath: .spec.displayName
+        - name: Status
+          type: string
+          jsonPath: .status.phase
+        - name: Components
+          type: integer
+          jsonPath: .status.componentCount
+        - name: Ready
+          type: integer
+          jsonPath: .status.readyCount
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          description: "CloudService 定义了一个产品/云服务的完整蓝图。"
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - displayName
+                - components
+              properties:
+                displayName:
+                  description: "产品显示名称"
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                version:
+                  description: "CloudService 版本号"
+                  type: string
+                  pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[a-zA-Z0-9]+)?$'
+                description:
+                  description: "产品描述"
+                  type: string
+                  maxLength: 4096
+                icon:
+                  description: "图标 URL"
+                  type: string
+                  format: uri
+                components:
+                  description: "组件定义列表"
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - chart
+                      - componentType
+                    properties:
+                      name:
+                        type: string
+                        description: "组件名称（在 CloudService 内唯一）"
+                        pattern: '^[a-z]([a-z0-9-]*[a-z0-9])?$'
+                        maxLength: 63
+                      displayName:
+                        type: string
+                        maxLength: 128
+                      componentType:
+                        type: string
+                        enum:
+                          - Service
+                          - Cluster
+                          - Project
+                        description: "组件类型：Service(云服务)、Cluster(集群组件)、Project(项目组件)"
+                      chart:
+                        type: object
+                        required:
+                          - repository
+                          - version
+                        properties:
+                          repository:
+                            type: string
+                            description: "Chart 仓库 URL 或 OCI 引用"
+                            example: "oci://registry.example.com/charts/redis"
+                          version:
+                            type: string
+                            description: "Chart 版本号"
+                            example: "17.3.0"
+                          name:
+                            type: string
+                            description: "Helm Chart 名称"
+                      defaultValues:
+                        type: object
+                        description: "组件默认 values，将与 chart 默认 values.yaml merge"
+                        x-kubernetes-preserve-unknown-fields: true
+                      parameters:
+                        description: "该组件暴露给用户的可覆盖参数 schema"
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              description: "参数名"
+                            displayName:
+                              type: string
+                              description: "UI 展示名称"
+                            description:
+                              type: string
+                            type:
+                              type: string
+                              enum:
+                                - string
+                                - integer
+                                - number
+                                - boolean
+                                - array
+                                - object
+                            defaultValue: {}
+                            required:
+                              type: boolean
+                              default: false
+                            path:
+                              type: string
+                              description: "在 values 中的点号路径"
+                            validation:
+                              type: object
+                              properties:
+                                pattern:
+                                  type: string
+                                minLength:
+                                  type: integer
+                                maxLength:
+                                  type: integer
+                                minimum:
+                                  type: number
+                                maximum:
+                                  type: number
+                                enum:
+                                  type: array
+                                  items:
+                                    type: string
+                            scope:
+                              type: string
+                              enum:
+                                - global
+                                - service
+                                - component
+                              default: component
+                      dependencies:
+                        description: "组件依赖声明"
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            component:
+                              type: string
+                              description: "被依赖的组件名称"
+                            type:
+                              type: string
+                              enum:
+                                - Hard
+                                - Soft
+                                - Optional
+                              default: Hard
+                              description: "Hard(必须就绪)、Soft(先部署)、Optional(可选)"
+                            condition:
+                              type: string
+                              enum:
+                                - Ready
+                                - Deployed
+                              default: Ready
+                      healthCheck:
+                        description: "健康检查配置"
+                        type: object
+                        properties:
+                          prometheus:
+                            type: object
+                            properties:
+                              query:
+                                type: string
+                              interval:
+                                type: string
+                                default: "30s"
+                              timeout:
+                                type: string
+                                default: "10s"
+                          http:
+                            type: object
+                            properties:
+                              url:
+                                type: string
+                              interval:
+                                type: string
+                                default: "30s"
+                              timeout:
+                                type: string
+                                default: "10s"
+                              expectedCodes:
+                                type: array
+                                items:
+                                  type: integer
+                                default: [200]
+                          pod:
+                            type: object
+                            properties:
+                              minReadySeconds:
+                                type: integer
+                                default: 0
+                              requiredReplicasRatio:
+                                type: number
+                                default: 1.0
+                      deploymentStrategy:
+                        description: "部署策略"
+                        type: object
+                        properties:
+                          updateType:
+                            type: string
+                            enum:
+                              - RollingUpdate
+                              - Recreate
+                            default: RollingUpdate
+                          timeout:
+                            type: string
+                            default: "600s"
+                          rollback:
+                            type: object
+                            properties:
+                              enabled:
+                                type: boolean
+                                default: true
+                              maxRetries:
+                                type: integer
+                                default: 3
+                                minimum: 1
+                              waitForReady:
+                                type: boolean
+                                default: true
+                          retry:
+                            type: object
+                            properties:
+                              maxRetries:
+                                type: integer
+                                default: 3
+                              backoffStrategy:
+                                type: string
+                                enum:
+                                  - Linear
+                                  - Exponential
+                                default: Exponential
+                          revisionHistoryLimit:
+                            type: integer
+                            default: 10
+                            minimum: 1
+                          atomic:
+                            type: boolean
+                            default: false
+                      clusterAffinity:
+                        description: "多集群分发配置"
+                        type: object
+                        properties:
+                          clusterLabelSelector:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          placement:
+                            type: string
+                            enum:
+                              - ControlPlane
+                              - Workload
+                              - Both
+                            default: ControlPlane
+                      resourceRequirements:
+                        description: "资源需求（工堪用）"
+                        type: object
+                        properties:
+                          cpu:
+                            type: string
+                            pattern: '^[0-9]+m?$'
+                          memory:
+                            type: string
+                            pattern: '^[0-9]+(Mi|Gi)$'
+                          storage:
+                            type: string
+                            pattern: '^[0-9]+(Mi|Gi|Ti)$'
+                          minNodeCount:
+                            type: integer
+                            minimum: 1
+
+                parameters:
+                  description: "产品级参数覆盖"
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      displayName:
+                        type: string
+                      defaultValue: {}
+                      description:
+                        type: string
+                      path:
+                        type: string
+                      targetComponents:
+                        type: array
+                        items:
+                          type: string
+                      required:
+                        type: boolean
+                        default: false
+
+                imageList:
+                  description: "镜像清单"
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      image:
+                        type: string
+                      tag:
+                        type: string
+                      digest:
+                        type: string
+                      component:
+                        type: string
+
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum:
+                    - Pending
+                    - Deploying
+                    - Ready
+                    - Degraded
+                    - Failed
+                    - Unknown
+                    - Deleting
+                  default: Pending
+                componentCount:
+                  type: integer
+                  minimum: 0
+                readyCount:
+                  type: integer
+                  minimum: 0
+                componentStatuses:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      phase:
+                        type: string
+                      chartVersion:
+                        type: string
+                      deployedVersion:
+                        type: string
+                      errorMessage:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                observedVersion:
+                  type: string
+                reconciliationOrder:
+                  type: array
+                  items:
+                    type: string
+                  description: "按依赖排序后的组件名称列表"
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                      - lastTransitionTime
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - Available
+                          - Progressing
+                          - Degraded
+                          - DependenciesResolved
+                          - Deploying
+                      status:
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - "Unknown"
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      observedGeneration:
+                        type: integer
+                observedGeneration:
+                  type: integer
+                  format: int64
+                history:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      revision:
+                        type: integer
+                      version:
+                        type: string
+                      operation:
+                        type: string
+                        enum:
+                          - Installed
+                          - Upgraded
+                          - RolledBack
+                          - Failed
+                      componentChanges:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            component:
+                              type: string
+                            oldVersion:
+                              type: string
+                            newVersion:
+                              type: string
+                      parameterSnapshot:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                      operator:
+                        type: string
+                      timestamp:
+                        type: string
+                        format: date-time

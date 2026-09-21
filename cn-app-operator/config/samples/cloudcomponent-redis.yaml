@@ -1,0 +1,96 @@
+# cn-app-operator 示例：CloudComponent - Redis 和 PostgreSQL 组件
+# 部署 OCI 上的 bitnami/redis 和 bitnami/postgresql chart
+---
+apiVersion: delivery.hfwas.io/v1
+kind: CloudComponent
+metadata:
+  name: order-redis
+  namespace: devops
+  labels:
+    delivery.hfwas.io/component: redis
+    delivery.hfwas.io/managed-by: cn-app-operator
+spec:
+  displayName: "Redis 缓存"
+  componentType: Service
+  serviceRef: "order-core"
+  chartName: redis
+  chartVersion: 17.3.0
+  chartRepo: oci://registry-1.docker.io/bitnamicharts
+  releaseName: order-redis
+  targetNamespace: devops
+  valuesOverlay:
+    architecture: standalone
+    auth:
+      enabled: false
+    master:
+      persistence:
+        size: 8Gi
+        storageClass: ""
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 512Mi
+        cpu: 500m
+  deploymentStrategy:
+    updateType: RollingUpdate
+    timeout: 600s
+    rollback:
+      enabled: true
+      maxRetries: 3
+      waitForReady: true
+    retry:
+      maxRetries: 3
+      backoffStrategy: Exponential
+    revisionHistoryLimit: 10
+    atomic: false
+  healthCheck:
+    pod:
+      minReadySeconds: 5
+      requiredReplicasRatio: 1.0
+---
+apiVersion: delivery.hfwas.io/v1
+kind: CloudComponent
+metadata:
+  name: order-postgresql
+  namespace: devops
+  labels:
+    delivery.hfwas.io/component: postgresql
+    delivery.hfwas.io/managed-by: cn-app-operator
+spec:
+  displayName: "PostgreSQL 数据库"
+  componentType: Service
+  serviceRef: "order-core"
+  chartName: postgresql
+  chartVersion: 13.2.0
+  chartRepo: oci://registry-1.docker.io/bitnamicharts
+  releaseName: order-postgresql
+  targetNamespace: devops
+  valuesOverlay:
+    global:
+      postgresql:
+        auth:
+          postgresPassword: "devops123"
+          database: orderdb
+    primary:
+      persistence:
+        size: 20Gi
+    readReplicas:
+      replicaCount: 0
+  deploymentStrategy:
+    timeout: 900s
+    rollback:
+      enabled: true
+      maxRetries: 2
+    retry:
+      maxRetries: 2
+      backoffStrategy: Exponential
+  dependencies:
+    - component: "order-redis"
+      type: Soft
+      condition: Ready
+  healthCheck:
+    pod:
+      minReadySeconds: 10
+      requiredReplicasRatio: 1.0
