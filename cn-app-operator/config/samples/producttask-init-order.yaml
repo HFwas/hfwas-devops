@@ -1,0 +1,75 @@
+# cn-app-operator 示例：ProductTask - 用集群级步骤队列表达顺序
+#
+# 场景：BIZGATEWAY 的拓扑要求「两个初始化任务先跑完，网关再起」。
+# 顺序不写进 Deployment，而是落成三份 ProductTask：
+#
+#   bizstack-init ─┐
+#                  ├─▶ bizgateway-gate（把 bizgateway 组件闸住）
+#   iamaccore-init ┘
+#
+# 生效方式：
+#   1. ProductTask 控制器按 releaseID 取出同一批任务，用 before/after 解出层次
+#   2. 前置未完成的任务停在 Pending
+#   3. 声明了 resource 的任务读该对象的完成状态（kind: Job 读 status.conditions）
+#   4. CloudComponent（bizgateway）调和前发现存在以它为 refComponent 且未 Succeeded
+#      的任务，就 requeue 等待 —— 网关不会先于 init job 起来
+---
+# 步骤 1：bizstack 初始化，作用对象是一个 Job
+apiVersion: delivery.hfwas.io/v1
+kind: ProductTask
+metadata:
+  name: bizstack-init
+spec:
+  releaseID: "rel-20260922-001"
+  opsType: "init"
+  resource:
+    group: batch
+    version: v1
+    kind: Job
+    name: bizstackinit
+    namespace: dlv-order
+  refComponent:
+    serviceRef: bizgateway
+    component: bizgateway
+    namespace: dlv-order
+  taskOrder:
+    # 本步骤要排在网关之前
+    before:
+      - bizgateway-gate
+---
+# 步骤 2：iamaccore 初始化，同样排在网关之前（与步骤 1 无先后，可并行）
+apiVersion: delivery.hfwas.io/v1
+kind: ProductTask
+metadata:
+  name: iamaccore-init
+spec:
+  releaseID: "rel-20260922-001"
+  opsType: "init"
+  resource:
+    group: batch
+    version: v1
+    kind: Job
+    name: iamaccoreinit
+    namespace: dlv-order
+  taskOrder:
+    before:
+      - bizgateway-gate
+---
+# 步骤 3：网关放行闸。自己没有作用对象（纯顺序标记），
+# 只负责把 bizgateway 组件闸住，直到上面两个 init 完成。
+apiVersion: delivery.hfwas.io/v1
+kind: ProductTask
+metadata:
+  name: bizgateway-gate
+spec:
+  releaseID: "rel-20260922-001"
+  opsType: "gate"
+  refComponent:
+    serviceRef: bizgateway
+    component: bizgateway
+    namespace: dlv-order
+  taskOrder:
+    # 用 after 表达同一条边，与上面的 before 等价（控制器会去重）
+    after:
+      - bizstack-init
+      - iamaccore-init

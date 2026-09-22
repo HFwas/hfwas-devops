@@ -119,6 +119,10 @@ spec:
                         maxRetries:
                           type: integer
                           default: 3
+                        waitForReady:
+                          type: boolean
+                          default: false
+                          description: "回滚后是否等待就绪"
                     retry:
                       type: object
                       properties:
@@ -161,6 +165,67 @@ spec:
                           - Ready
                           - Deployed
                         default: Ready
+                # 所属发布号，由上级下发
+                releaseID:
+                  type: string
+                  description: "所属发布号"
+                  maxLength: 128
+                # 引用集群里已存在的对象，只断言存在
+                refResources:
+                  type: array
+                  description: "引用集群里已存在的对象（只断言存在，不参与排序）"
+                  items:
+                    type: object
+                    required:
+                      - kind
+                      - name
+                    properties:
+                      group:
+                        type: string
+                      version:
+                        type: string
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                        description: "集群级对象留空"
+                      clusterScoped:
+                        type: boolean
+                        default: false
+                # 持久化配置：retain 与跨发布复用
+                persistentVolumeConfigs:
+                  type: array
+                  description: "持久化配置。retain 通过 helm.sh/resource-policy: keep 实现"
+                  items:
+                    type: object
+                    properties:
+                      volumeName:
+                        type: string
+                      storageClass:
+                        type: string
+                      size:
+                        type: string
+                        description: "如 10Gi"
+                      accessModes:
+                        type: array
+                        items:
+                          type: string
+                          enum:
+                            - ReadWriteOnce
+                            - ReadOnlyMany
+                            - ReadWriteMany
+                      retain:
+                        type: boolean
+                        default: false
+                        description: "卸载时保留 PVC"
+                      useEmptyDir:
+                        type: boolean
+                        default: false
+                      reuseFromRelease:
+                        type: string
+                        description: "从哪一次发布复用已有 PVC（按 release-id 标签匹配）"
                 healthCheck:
                   type: object
                   properties:
@@ -244,6 +309,9 @@ spec:
                 observedChartVersion:
                   type: string
                   description: "实际 chart 版本"
+                observedReleaseID:
+                  type: string
+                  description: "实际观察到的发布号"
                 workloadStatus:
                   type: object
                   properties:
@@ -270,6 +338,61 @@ spec:
                             type: boolean
                           status:
                             type: string
+                # 每个 Pod 的排障明细
+                podsDetail:
+                  type: array
+                  description: "每个 Pod 的明细，用于白屏排障"
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                      ip:
+                        type: string
+                      hostIP:
+                        type: string
+                      workloadKind:
+                        type: string
+                      workloadName:
+                        type: string
+                      ready:
+                        type: boolean
+                      phase:
+                        type: string
+                        description: "Pod phase"
+                      state:
+                        type: string
+                        description: "容器 state 摘要，如 Running / CrashLoopBackOff"
+                      restarts:
+                        type: integer
+                      updatedRevision:
+                        type: boolean
+                        description: "是否已切到当前修订"
+                      message:
+                        type: string
+                # 期望值与实际值的差异
+                workloadDiffs:
+                  type: array
+                  description: "期望与实际差异，用于排障"
+                  items:
+                    type: object
+                    properties:
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                      path:
+                        type: string
+                      expected:
+                        type: string
+                      current:
+                        type: string
+                      message:
+                        type: string
                 installCount:
                   type: integer
                   minimum: 0

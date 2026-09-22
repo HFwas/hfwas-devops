@@ -16,6 +16,10 @@ type AppSpec struct {
 	Description string `json:"description,omitempty"`
 	// Version 是应用版本标识。
 	Version string `json:"version,omitempty"`
+	// ReleaseID 是这一次发布的关联号，下属 CloudService/CloudComponent 与 ProductTask 与之对齐。
+	ReleaseID string `json:"releaseID,omitempty"`
+	// PlanRevision 是现场规划修订号，用于追溯这一次发布用的是哪一版现场规划。
+	PlanRevision string `json:"planRevision,omitempty"`
 	// Services 是关联的 CloudService 列表。
 	Services []ServiceRef `json:"services,omitempty"`
 	// GlobalParameters 是跨所有服务生效的全局参数。
@@ -44,6 +48,8 @@ type AppStatus struct {
 	AggregatedSummary *AggregatedSummary `json:"aggregatedSummary,omitempty"`
 	// ServiceStatuses 是每个下属服务的简要状态。
 	ServiceStatuses []ServiceStatus `json:"serviceStatuses,omitempty"`
+	// ObservedReleaseID 是当前实际生效的发布号，从下属 CloudComponent 收敛。
+	ObservedReleaseID string `json:"observedReleaseID,omitempty"`
 	// Conditions 是标准化条件。
 	Conditions []Condition `json:"conditions,omitempty"`
 	// ObservedGeneration 是最后处理的 spec 版本。
@@ -62,10 +68,12 @@ type AggregatedSummary struct {
 }
 
 type ServiceStatus struct {
-	Name          string      `json:"name,omitempty"`
-	Phase         Phase       `json:"phase,omitempty"`
-	ErrorMessage  string      `json:"errorMessage,omitempty"`
-	LastUpdateTime *metav1.Time `json:"lastUpdateTime,omitempty"`
+	Name              string       `json:"name,omitempty"`
+	Phase             Phase        `json:"phase,omitempty"`
+	ReleaseID         string       `json:"releaseID,omitempty"`
+	ObservedReleaseID string       `json:"observedReleaseID,omitempty"`
+	ErrorMessage      string       `json:"errorMessage,omitempty"`
+	LastUpdateTime    *metav1.Time `json:"lastUpdateTime,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -81,8 +89,8 @@ type ServiceStatus struct {
 type App struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec   AppSpec   `json:"spec,omitempty"`
-	Status AppStatus `json:"status,omitempty"`
+	Spec              AppSpec   `json:"spec,omitempty"`
+	Status            AppStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

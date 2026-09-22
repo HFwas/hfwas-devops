@@ -24,6 +24,8 @@ type CloudServiceSpec struct {
 	Parameters []ParameterSchema `json:"parameters,omitempty"`
 	// ImageList 是镜像清单。
 	ImageList []ImageSpec `json:"imageList,omitempty"`
+	// ReleaseID 是本服务所属的发布号，由上级 App 下发。
+	ReleaseID string `json:"releaseID,omitempty"`
 }
 
 // ComponentDef 是 CloudService 中的组件定义。
@@ -74,6 +76,8 @@ type CloudServiceStatus struct {
 	ComponentStatuses []ComponentStatus `json:"componentStatuses,omitempty"`
 	// ObservedVersion 是当前生效的版本。
 	ObservedVersion string `json:"observedVersion,omitempty"`
+	// ObservedReleaseID 是实际观察到的发布号。
+	ObservedReleaseID string `json:"observedReleaseID,omitempty"`
 	// ReconciliationOrder 是按依赖排序后的组件名称列表。
 	ReconciliationOrder []string `json:"reconciliationOrder,omitempty"`
 	// Conditions 是标准化条件。
@@ -85,22 +89,24 @@ type CloudServiceStatus struct {
 }
 
 type ComponentStatus struct {
-	Name              string       `json:"name,omitempty"`
-	Phase             Phase        `json:"phase,omitempty"`
-	ChartVersion      string       `json:"chartVersion,omitempty"`
-	DeployedVersion   string       `json:"deployedVersion,omitempty"`
-	ErrorMessage      string       `json:"errorMessage,omitempty"`
+	Name               string       `json:"name,omitempty"`
+	Phase              Phase        `json:"phase,omitempty"`
+	ReleaseID          string       `json:"releaseID,omitempty"`
+	ObservedReleaseID  string       `json:"observedReleaseID,omitempty"`
+	ChartVersion       string       `json:"chartVersion,omitempty"`
+	DeployedVersion    string       `json:"deployedVersion,omitempty"`
+	ErrorMessage       string       `json:"errorMessage,omitempty"`
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty"`
 }
 
 type CloudServiceHistoryEntry struct {
-	Revision          int                      `json:"revision,omitempty"`
-	Version           string                   `json:"version,omitempty"`
-	Operation         string                   `json:"operation,omitempty"`
-	ComponentChanges  []ComponentChange        `json:"componentChanges,omitempty"`
-	ParameterSnapshot map[string]interface{}   `json:"parameterSnapshot,omitempty"`
-	Operator          string                   `json:"operator,omitempty"`
-	Timestamp         metav1.Time              `json:"timestamp,omitempty"`
+	Revision          int                    `json:"revision,omitempty"`
+	Version           string                 `json:"version,omitempty"`
+	Operation         string                 `json:"operation,omitempty"`
+	ComponentChanges  []ComponentChange      `json:"componentChanges,omitempty"`
+	ParameterSnapshot map[string]interface{} `json:"parameterSnapshot,omitempty"`
+	Operator          string                 `json:"operator,omitempty"`
+	Timestamp         metav1.Time            `json:"timestamp,omitempty"`
 }
 
 type ComponentChange struct {
@@ -122,8 +128,8 @@ type ComponentChange struct {
 type CloudService struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec   CloudServiceSpec   `json:"spec,omitempty"`
-	Status CloudServiceStatus `json:"status,omitempty"`
+	Spec              CloudServiceSpec   `json:"spec,omitempty"`
+	Status            CloudServiceStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

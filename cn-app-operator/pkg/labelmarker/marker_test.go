@@ -61,7 +61,7 @@ func TestMergeLabels(t *testing.T) {
 		"existing-key": "existing-value",
 	}
 	add := Labels{
-		"new-key": "new-value",
+		"new-key":      "new-value",
 		"existing-key": "overridden",
 	}
 
@@ -192,4 +192,3 @@ func TestGetWorkloadListKey(t *testing.T) {
 		t.Errorf("expected managed-by=%s, got %v", ManagedByValue, key)
 	}
 }
-

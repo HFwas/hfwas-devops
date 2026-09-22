@@ -323,8 +323,34 @@ spec:
                       defaultValue: {}
                       description:
                         type: string
+                      type:
+                        type: string
+                        enum:
+                          - string
+                          - integer
+                          - number
+                          - boolean
+                          - array
+                          - object
                       path:
                         type: string
+                      validation:
+                        type: object
+                        properties:
+                          pattern:
+                            type: string
+                          minLength:
+                            type: integer
+                          maxLength:
+                            type: integer
+                          minimum:
+                            type: number
+                          maximum:
+                            type: number
+                          enum:
+                            type: array
+                            items:
+                              type: string
                       targetComponents:
                         type: array
                         items:
@@ -349,6 +375,11 @@ spec:
                         type: string
                       component:
                         type: string
+                # 所属发布号，由上级 App 下发
+                releaseID:
+                  description: "所属发布号；App 与 CloudComponent 与之对齐"
+                  type: string
+                  maxLength: 128
 
             status:
               type: object
@@ -379,6 +410,12 @@ spec:
                         type: string
                       phase:
                         type: string
+                      releaseID:
+                        description: "期望的发布号"
+                        type: string
+                      observedReleaseID:
+                        description: "该组件实际观察到的发布号"
+                        type: string
                       chartVersion:
                         type: string
                       deployedVersion:
@@ -389,6 +426,9 @@ spec:
                         type: string
                         format: date-time
                 observedVersion:
+                  type: string
+                observedReleaseID:
+                  description: "当前实际生效的发布号，从下属 CloudComponent 收敛"
                   type: string
                 reconciliationOrder:
                   type: array

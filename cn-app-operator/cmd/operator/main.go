@@ -82,6 +82,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 注册 ProductTask 控制器（集群级步骤排序）
+	if err := (&controllers.ProductTaskReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "Unable to create controller", "controller", "ProductTask")
+		os.Exit(1)
+	}
+
 	// 健康检查
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "Unable to set up health check")

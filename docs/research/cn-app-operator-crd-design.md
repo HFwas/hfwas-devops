@@ -1,8 +1,8 @@
 # cn-app-operator CRD 完整技术实现方案
 
-> 日期：2026-09-21
-> 版本：v0.2
-> 状态：已实施（代码在 `cn-app-operator/` 目录）
+> 日期：2026-09-22
+> 版本：v0.3
+> 状态：已实施（代码在 `cn-app-operator/`），本版增量吸收 AAP 四类 CRD 的可用机制
 > 对应实现：`cn-app-operator/`（CRD YAML + Go 控制器 + Helm 封装 + 样本）
 > 研究来源：
 >   - `docs/research/yunyou-operator-helm-package.md`
@@ -16,6 +16,7 @@
 |------|------|----------|
 | v0.1 | 2026-09-21 | 初版：三层 CRD YAML 定义、参数 merge 策略、Operator 调和循环、App 聚合逻辑、Helm 交互、依赖排序 |
 | v0.2 | 2026-09-21 | API Group 改为 delivery.hfwas.io，移除 License 校验相关字段与章节 |
+| v0.3 | 2026-09-22 | 对照 `aap-product-operator 四类 CRD.md` 增量吸收：新增 ProductTask CRD（集群级 before/after 步骤排序）；App 增 releaseID/planRevision；CloudComponent 增 podsDetail/workloadDiffs/PersistentVolumeConfigs/refResources；定论 lastAppliedManifest 不存整份 manifest；明确 enum 策略；修正 §12–§17 子节编号错位 |
 
 ---
 
@@ -26,19 +27,20 @@
 3. [App CRD 完整定义](#3-app-crd-完整定义)
 4. [CloudService CRD 完整定义](#4-cloudservice-crd-完整定义)
 5. [CloudComponent CRD 完整定义](#5-cloudcomponent-crd-完整定义)
-6. [参数 Schema 设计](#6-参数-schema-设计)
-7. [参数 Merge 策略](#7-参数-merge-策略)
-8. [Operator 调和循环](#8-operator-调和循环)
-9. [LabelMarker 打标规范](#9-labelmarker-打标规范)
-10. [状态聚合策略](#10-状态聚合策略)
-11. [失败重试与回滚策略](#11-失败重试与回滚策略)
-12. [App 聚合逻辑与 kubectl get app 展示](#12-app-聚合逻辑与-kubectl-get-app-展示)
-13. [Helm 交互](#13-helm-交互)
-14. [组件依赖排序](#14-组件依赖排序)
-15. [Webhook 集成](#15-webhook-集成)
-16. [多集群策略](#16-多集群策略)
-17. [ControllerRevision 历史管理](#17-controllerrevision-历史管理)
-18. [开放问题与建议](#18-开放问题与建议)
+6. [ProductTask CRD 完整定义](#6-producttask-crd-完整定义)
+7. [参数 Schema 设计](#7-参数-schema-设计)
+8. [参数 Merge 策略](#8-参数-merge-策略)
+9. [Operator 调和循环](#9-operator-调和循环)
+10. [LabelMarker 打标规范](#10-labelmarker-打标规范)
+11. [状态聚合策略](#11-状态聚合策略)
+12. [失败重试与回滚策略](#12-失败重试与回滚策略)
+13. [App 聚合逻辑与 kubectl get app 展示](#13-app-聚合逻辑与-kubectl-get-app-展示)
+14. [Helm 交互](#14-helm-交互)
+15. [组件依赖排序](#15-组件依赖排序)
+16. [Webhook 集成](#16-webhook-集成)
+17. [多集群策略](#17-多集群策略)
+18. [ControllerRevision 历史管理](#18-controllerrevision-历史管理)
+19. [开放问题与建议](#19-开放问题与建议)
 
 ---
 
@@ -59,6 +61,8 @@ CloudComponent (组件实例)     # ─── 部署单元：对应一个 Helm r
                                  组件分类：云服务组件、集群组件、项目组件
 ```
 
+**ProductTask 不在这条链路里**（v0.3 新增，见第 6 节）。它是集群级的旁路资源，只声明「某一次发布里各步骤的先后」，不参与 App → CloudService → CloudComponent 的聚合与状态汇总。
+
 ### 1.2 当前约束
 
 - **应用定义只支持 Helm Chart**。OAM 是预留扩展，不是当前执行模型。
@@ -68,11 +72,11 @@ CloudComponent (组件实例)     # ─── 部署单元：对应一个 Helm r
 ### 1.3 API Group 定义
 
 ```yaml
-# API 分组建议：
-# 主分组：delivery.hfwas.io（与 CNStack/ADP 一致，体现生态关系）
-# 或：delivery.hfwas.io（独立命名，不暗示与阿里云绑定）
-
-# 本方案使用 delivery.hfwas.io，适配时可通过 sed 快速替换
+# 备选：早期曾考虑与 CNStack/ADP 生态对齐的分组名（如 antstack.alipay.com，见
+#   docs/research/aap-product-operator 四类 CRD.md），最终未采用——避免暗示与阿里云绑定，
+#   并便于接入自己的控制面。
+#
+# 本方案使用 delivery.hfwas.io，适配时可通过 sed 快速替换。
 ```
 
 ---
@@ -84,6 +88,7 @@ CloudComponent (组件实例)     # ─── 部署单元：对应一个 Helm r
 | App | delivery.hfwas.io | v1 | App | Namespaced | app |
 | CloudService | delivery.hfwas.io | v1 | CloudService | Namespaced | cs, csvc |
 | CloudComponent | delivery.hfwas.io | v1 | CloudComponent | Namespaced | cc, ccmp |
+| ProductTask | delivery.hfwas.io | v1 | ProductTask | **Cluster** | pt, ptask |
 
 ---
 
@@ -145,6 +150,15 @@ spec:
                   minLength: 1
                   maxLength: 128
                   pattern: '^[a-zA-Z0-9_\-一-龥]+$'
+                # 这一次发布的关联号。下属 CloudComponent 与 ProductTask 用同一个值串起来。
+                # 留空表示「非发布态」的直接创建。
+                releaseID:
+                  type: string
+                  description: "这一次发布的关联号；ProductTask 与 CloudComponent 与之对齐"
+                # 现场规划修订号（对应 siteplan 里该产品实例的 revision）。
+                planRevision:
+                  type: string
+                  description: "现场规划修订号，用于追溯这一次发布用的是哪一版现场规划"
 
                 # 应用描述
                 description:
@@ -243,6 +257,11 @@ spec:
                       type: integer
                       minimum: 0
 
+                # 实际观察到的发布号（从下属 CloudComponent 收敛；与 spec.releaseID 不一致表示还在切换中）
+                observedReleaseID:
+                  type: string
+                  description: "当前实际生效的发布号"
+
                 # 每个下属服务的简要状态
                 serviceStatuses:
                   type: array
@@ -251,6 +270,12 @@ spec:
                     properties:
                       name:
                         type: string
+                      releaseID:
+                        type: string
+                        description: "期望的发布号"
+                      observedReleaseID:
+                        type: string
+                        description: "该服务实际观察到的发布号"
                       phase:
                         type: string
                       errorMessage:
@@ -433,7 +458,7 @@ spec:
                           - Service           # 云服务组件（随产品部署）
                           - Cluster           # 集群组件（全局唯一）
                           - Project           # 项目组件
-                        description: "组件类型决定生命周期行为，见 5.2"
+                        description: "组件类型决定生命周期行为，分类见 1.2"
 
                       # Helm Chart 引用
                       chart:
@@ -1031,6 +1056,69 @@ spec:
                           - Deployed
                         default: Ready
 
+                # 本组件所属的发布号。由上级 CloudService/App 下发，用于 status.observedReleaseID 对比。
+                releaseID:
+                  type: string
+                  description: "所属发布号"
+
+                # 引用集群里已存在的对象（不归本组件管理，但依赖其存在）
+                refResources:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - kind
+                      - name
+                    properties:
+                      group:
+                        type: string
+                      version:
+                        type: string
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                        description: "集群级对象留空"
+                      clusterScoped:
+                        type: boolean
+                        default: false
+
+                # 持久化配置。retain 通过给 PVC 打 helm.sh/resource-policy: keep 实现，
+                # 卸载时保留数据；reuseFromRelease 用于重装时复用上一次发布留下的 PVC。
+                persistentVolumeConfigs:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      volumeName:
+                        type: string
+                      storageClass:
+                        type: string
+                      size:
+                        type: string
+                        description: "如 10Gi"
+                      accessModes:
+                        type: array
+                        items:
+                          type: string
+                          enum:
+                            - ReadWriteOnce
+                            - ReadOnlyMany
+                            - ReadWriteMany
+                      retain:
+                        type: boolean
+                        default: false
+                        description: "卸载时保留 PVC（helm.sh/resource-policy: keep）"
+                      useEmptyDir:
+                        type: boolean
+                        default: false
+                        description: "不使用 PVC，改用 emptyDir"
+                      reuseFromRelease:
+                        type: string
+                        description: "从哪一次发布复用已有 PVC（按 release-id 标签匹配）"
+
                 # 健康检查
                 healthCheck:
                   type: object
@@ -1126,6 +1214,9 @@ spec:
                 observedChartVersion:
                   type: string
                   description: "可观测到的实际 chart 版本"
+                observedReleaseID:
+                  type: string
+                  description: "实际观察到的发布号（来自 spec.releaseID 或 release-id 标签）"
 
                 # Workload 状态聚合
                 workloadStatus:
@@ -1156,10 +1247,65 @@ spec:
                             type: string
                             description: "Pod 就绪摘要"
 
-                # 最后一次成功的 manifest
-                lastAppliedManifest:
-                  type: string
-                  description: "// TODO: design decision needed — 是否存储完整 manifest（影响 etcd 大小）"
+                # 每个 Pod 的明细（由 aggregator 填充，用于白屏排障）
+                podsDetail:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                      ip:
+                        type: string
+                      hostIP:
+                        type: string
+                      workloadKind:
+                        type: string
+                      workloadName:
+                        type: string
+                      ready:
+                        type: boolean
+                      phase:
+                        type: string
+                        description: "Pod phase：Pending / Running / Succeeded / Failed"
+                      state:
+                        type: string
+                        description: "容器 state 摘要，如 Running / CrashLoopBackOff / Completed"
+                      restarts:
+                        type: integer
+                      updatedRevision:
+                        type: boolean
+                        description: "是否已切到当前修订：StatefulSet 比对 controller-revision-hash，Deployment 比对 pod-template-hash"
+                      message:
+                        type: string
+
+                # 期望值与实际值的差异，用于回答「为什么没起来」「为什么没切到新版本」
+                workloadDiffs:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                      path:
+                        type: string
+                        description: "差异字段路径"
+                      expected:
+                        type: string
+                      current:
+                        type: string
+                      message:
+                        type: string
+
+                # 说明：本方案不存整份渲染后的 manifest（原 v0.1 里拟加的 lastAppliedManifest 字段取消）。
+                # 排障信息由 workloads[]（对象清单 + ready）、podsDetail[]、workloadDiffs[] 承担，
+                # 避免 status 随 chart 复杂度膨胀、撑大 etcd；需要完整 manifest 时从 Helm release secret 还原。
 
                 # 操作计数
                 installCount:
@@ -1275,9 +1421,192 @@ spec:
 
 ---
 
-## 6. 参数 Schema 设计
+## 6. ProductTask CRD 完整定义
 
-### 6.1 三层作用域
+**集群级（Cluster scope）。** 表示某一次发布（`releaseID`）上的一个运维步骤，用来表达**顺序**——例如「init job 先跑完，网关再起」——而不是把顺序写进各个 workload。
+
+设计来源：`docs/research/aap-product-operator 四类 CRD.md` 的 `ProductTask`。吸收的要点是它**可以作用于任意资源、可以跨 namespace，且顺序是一份与被排序对象解耦的独立声明**；我们原有的依赖 DAG 只能表达「组件 ↔ 组件」的依赖。
+
+### 6.1 与依赖 DAG 的分工
+
+| | 依赖 DAG（`CloudComponent.spec.dependencies`） | ProductTask |
+|---|---|---|
+| 粒度 | 组件 → 组件 | 任意步骤，可作用于任意 K8s 对象 |
+| 作用域 | 同一 namespace | 集群级，可跨 namespace |
+| 顺序表达 | 硬/软/可选依赖 + Ready/Deployed 条件 | `taskOrder.before[]` / `after[]` |
+| 是否产生动作 | 否（只等待） | 可等待，也可只作顺序标记 |
+| 典型用途 | redis 就绪后才装 backend | init job 先完成，网关后起 |
+
+两者共存：DAG 管组件间依赖，ProductTask 管一次性步骤的先后顺序。
+
+### 6.2 YAML 定义
+
+```yaml
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: producttasks.delivery.hfwas.io
+spec:
+  group: delivery.hfwas.io
+  names:
+    kind: ProductTask
+    listKind: ProductTaskList
+    plural: producttasks
+    singular: producttask
+    shortNames:
+      - pt
+      - ptask
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Release
+          type: string
+          jsonPath: .spec.releaseID
+        - name: OpsType
+          type: string
+          jsonPath: .spec.opsType
+        - name: Target
+          type: string
+          jsonPath: .spec.resource.name
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - releaseID
+              properties:
+                releaseID:
+                  type: string
+                  description: "属于哪一次发布，与 App.spec.releaseID 取同一个值"
+                opsType:
+                  type: string
+                  description: "这一步要做的操作。自由字符串，不加 enum（理由见「开放问题与建议」）"
+                resource:
+                  type: object
+                  description: "作用对象"
+                  properties:
+                    group:
+                      type: string
+                    version:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                refComponent:
+                  type: object
+                  description: "关联的 CloudComponent；同 namespace 只给 name，跨 namespace 显式给 namespace"
+                  properties:
+                    serviceRef:
+                      type: string
+                    component:
+                      type: string
+                    namespace:
+                      type: string
+                taskOrder:
+                  type: object
+                  description: "按 task 名称声明本步骤排在哪些步骤之前 / 之后"
+                  properties:
+                    before:
+                      type: array
+                      items:
+                        type: string
+                    after:
+                      type: array
+                      items:
+                        type: string
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum:
+                    - Pending
+                    - Running
+                    - Succeeded
+                    - Failed
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      observedGeneration:
+                        type: integer
+                        format: int64
+                observedGeneration:
+                  type: integer
+                  format: int64
+```
+
+### 6.3 spec 字段
+
+| 字段 | 含义 |
+|------|------|
+| `releaseID` | 属于哪一次发布。与 `App.spec.releaseID` 同值 |
+| `opsType` | 这一步要做的操作。**自由字符串，不加 enum**——理由见「开放问题与建议」 |
+| `resource.group/version/kind/name/namespace` | 作用对象。`kind: Job` 时控制器读该 Job 的完成状态 |
+| `refComponent.serviceRef/component/namespace` | 关联的 CloudComponent，控制器据此对组件做顺序放行 |
+| `taskOrder.before[]` / `after[]` | 按 task 名称声明先后 |
+
+### 6.4 status 字段
+
+| 字段 | 含义 |
+|------|------|
+| `phase` | `Pending` / `Running` / `Succeeded` / `Failed` |
+| `messages[]` | `message` + `lastTransitionTime`，记录阶段迁移原因 |
+| `conditions[]` | 与三层 CRD 共用同一套 condition 规范 |
+| `observedGeneration` | 最后处理的 spec 版本 |
+
+### 6.5 顺序如何生效
+
+1. ProductTask 控制器按 `releaseID` 取同一批任务，用 `before` / `after` 解出拓扑层次（复用与依赖 DAG 相同的 Kahn 算法，见「组件依赖排序」）。
+2. 一个任务只有在其 `after[]` 全部 `Succeeded` 后才进入 `Running`。
+3. 进入 `Running` 后：声明了 `resource` 的，读该对象的完成状态（如 Job 的 `status.succeeded`）；未声明 `resource` 的视为纯顺序标记，直接 `Succeeded`。
+4. CloudComponent 调和前，若存在以它为 `refComponent` 且尚未 `Succeeded` 的任务，则 requeue 等待——这就是「init job 先跑完，网关再起」的落地方式。
+
+---
+
+## 7. 参数 Schema 设计
+
+### 7.1 三层作用域
 
 ```
 参数作用域分层
@@ -1303,7 +1632,7 @@ spec:
 └─────────────────────────────────────────────────┘
 ```
 
-### 6.2 参数定义结构
+### 7.2 参数定义结构
 
 每个参数在 schema 中至少包含：
 
@@ -1328,9 +1657,9 @@ parameters:
 
 ---
 
-## 7. 参数 Merge 策略
+## 8. 参数 Merge 策略
 
-### 7.1 合并算法
+### 8.1 合并算法
 
 采用 **JSON Merge Patch (RFC 7386)** + 针对特定 path 的 **Simple Override** 组合策略。
 
@@ -1339,7 +1668,7 @@ parameters:
 - Simple override 对点号路径最直观
 - JSON Merge Patch 天然支持部分更新和嵌套合并
 
-### 7.2 合并顺序
+### 8.2 合并顺序
 
 ```
 Step 0: 取 Chart 默认 Values（helm show values）
@@ -1372,7 +1701,7 @@ Step 6: Webhook 改写
 最终 values → helm install/upgrade
 ```
 
-### 7.3 伪代码实现
+### 8.3 伪代码实现
 
 ```python
 def merge_values(chart_defaults, component_defaults, product_params,
@@ -1423,9 +1752,9 @@ def deep_merge(base, overlay):
 
 ---
 
-## 8. Operator 调和循环
+## 9. Operator 调和循环
 
-### 8.1 调和循环流程图
+### 9.1 调和循环流程图
 
 ```
 ┌────────────────────────────────────────────────────┐
@@ -1459,7 +1788,7 @@ def deep_merge(base, overlay):
 └────────────────────────────────────────────────────┘
 ```
 
-### 8.2 集群组件特殊处理
+### 9.2 集群组件特殊处理
 
 ```
 集群组件调和逻辑（CloudComponent.spec.componentType = "Cluster"）
@@ -1469,7 +1798,7 @@ def deep_merge(base, overlay):
     └─ 已部署且 spec.chartVersion <= 已部署版本 → 跳过（不动）
 ```
 
-### 8.3 调和子循环：CloudService → CloudComponent
+### 9.3 调和子循环：CloudService → CloudComponent
 
 Operator watch CloudService CR，自动管理下属 CloudComponent 生命周期：
 
@@ -1485,7 +1814,7 @@ Watch CloudService
     └─ 依赖变更 → 重算拓扑排序
 ```
 
-### 8.4 调和触发
+### 9.4 调和触发
 
 | 触发源 | 类型 | 说明 |
 |--------|------|------|
@@ -1498,13 +1827,13 @@ Watch CloudService
 
 ---
 
-## 9. LabelMarker 打标规范
+## 10. LabelMarker 打标规范
 
-### 9.1 打标策略
+### 10.1 打标策略
 
 Operator 在 `helm template` 渲染出 manifest 之后、执行 `helm install/upgrade` 之前，对 manifest 中的 workload 资源添加以下标签。
 
-### 9.2 标签定义
+### 10.2 标签定义
 
 | 标签 Key | 值 | 用途 |
 |----------|-----|------|
@@ -1514,8 +1843,10 @@ Operator 在 `helm template` 渲染出 manifest 之后、执行 `helm install/up
 | `delivery.hfwas.io/component-type` | Service/Cluster/Project | 组件类型 |
 | `delivery.hfwas.io/managed-by` | cn-app-operator | 标明管控主体 |
 | `delivery.hfwas.io/revision` | ControllerRevision 编号 | 追踪版本 |
+| `delivery.hfwas.io/release-id` | App.spec.releaseID | 把一次发布串起来；PV 复用与 ProductTask 按此匹配 |
+| `delivery.hfwas.io/retain` | true / false | 卸载时保留的 PVC 标记（同时给 PVC 打 `helm.sh/resource-policy: keep`） |
 
-### 9.3 打标的资源类型
+### 10.3 打标的资源类型
 
 Operator 只对以下「有意义的工作负载」打标：
 
@@ -1526,21 +1857,22 @@ Operator 只对以下「有意义的工作负载」打标：
 - `Service`（为拓扑聚合）
 - `Ingress`（为拓扑聚合）
 
-### 9.4 实现方式
+### 10.4 实现方式
 
 webhook 打标是第一道防线，Operator 层面的打标是兜底策略。
 
 ---
 
-## 10. 状态聚合策略
+## 11. 状态聚合策略
 
-### 10.1 聚合层次
+### 11.1 聚合层次
 
 ```
 CloudComponent 级别：
     helm template 解析出 workload 列表
         → 每个 workload 检查 Ready/Available 状态
         → status.workloadStatus 写入摘要
+        → status.podsDetail / status.workloadDiffs 采集 Pod 明细与期望/实际差异
         → status.phase 判断：
             - 所有 workload Ready → Ready
             - 部分 Ready → Degraded
@@ -1558,7 +1890,7 @@ App 级别：
     对所有下属 CloudService 的状态聚合（同上）
 ```
 
-### 10.2 聚合算法
+### 11.2 聚合算法
 
 ```python
 def aggregate_phase(children_statuses):
@@ -1581,9 +1913,9 @@ def aggregate_phase(children_statuses):
     return 'Unknown'
 ```
 
-### 10.3 Conditions 标准化
+### 11.3 Conditions 标准化
 
-所有三个 CRD 共用同一套 conditions 规范：
+所有四个 CRD 共用同一套 conditions 规范：
 
 | Type | True 含义 | False 含义 | Unknown |
 |------|-----------|------------|---------|
@@ -1591,11 +1923,27 @@ def aggregate_phase(children_statuses):
 | Progressing | 正在部署/升级/回滚 | 不处于变更中 | 状态未知 |
 | Degraded | 功能降级 | 运行正常 | 状态未知 |
 
+### 11.4 Pod 级明细与差异采集（v0.3）
+
+`status.workloadStatus.workloads[]` 只回答「哪个 workload 没 ready」，不回答「为什么」。因此每轮聚合同时采集两项：
+
+| 输出 | 来源 | 回答的问题 |
+|------|------|-----------|
+| `podsDetail[]` | 按 `delivery.hfwas.io/component` 标签列出 Pod | 哪个 Pod 没起来、在哪个节点、重启几次、容器处于什么 state |
+| `workloadDiffs[]` | workload spec 与 Pod / status 实际值对比 | 期望副本 vs 就绪副本、期望镜像 vs 实际运行镜像 |
+
+`podsDetail[].updatedRevision` 用于判断「是否已切到当前修订」：
+
+- **StatefulSet**：比对 Pod 的 `controller-revision-hash` 标签与 `sts.status.currentRevision`。
+- **Deployment**：比对 Pod 的 `pod-template-hash` 标签与 Deployment 当前（最新）ReplicaSet 的 hash。
+
+升级后最常见的故障是「滚动卡住 / 副本没切到新版本」，这一项是它的直接判据，白屏不必再人肉 `kubectl describe`。
+
 ---
 
-## 11. 失败重试与回滚策略
+## 12. 失败重试与回滚策略
 
-### 11.1 Helm 超时和 Pending 状态处理
+### 12.1 Helm 超时和 Pending 状态处理
 
 | Helm 状态 | Operator 行为 |
 |-----------|--------------|
@@ -1608,7 +1956,7 @@ def aggregate_phase(children_statuses):
 | uninstalled | 异常状态，重建 release |
 | unknown | 检查 release 详情 → 未知则标记 Failed |
 
-### 11.2 重试策略
+### 12.2 重试策略
 
 ```yaml
 # CloudComponent spec.deploymentStrategy.retry
@@ -1617,7 +1965,7 @@ retry:
   backoffStrategy: Exponential  # Linear / Exponential / Immediate
 ```
 
-### 11.3 回滚策略
+### 12.3 回滚策略
 
 失败后 Operator 的行为取决于 `deploymentStrategy.rollback.failureAction`：
 
@@ -1634,7 +1982,7 @@ Helm upgrade 失败
     └─ False → 标记 Failed → 等待人工干预
 ```
 
-### 11.4 熔断保护
+### 12.4 熔断保护
 
 - 连续重试达到 `maxRetries` 后暂停调和，等待人工介入
 - 人工可通过更新 CR 的 annotation `delivery.hfwas.io/reset-retry` 重置重试计数器
@@ -1643,7 +1991,7 @@ Helm upgrade 失败
 ---
 
 
-## 12. App 聚合逻辑与 kubectl get app 展示
+## 13. App 聚合逻辑与 kubectl get app 展示
 
 ### 13.1 App 聚合流程图
 
@@ -1667,7 +2015,7 @@ App Reconcile
     │      ├─ totalComponents = sum(all CC count)
     │      └─ readyComponents = sum(all CC ready count)
     │
-    ├─ 4. 聚合 Phase（见 10.2 聚合算法）
+    ├─ 4. 聚合 Phase（见 11.2 聚合算法）
     │
     └─ 5. 更新 App.status
 ```
@@ -1691,7 +2039,7 @@ devops      monitoring     监控套件       Degraded   3          2      7d
 prod        gitlab         GitLab CE      Deploying  1          0      10m
 ```
 
-`STATUS` 列取自 `status.phase`，聚合算法见 10.2。
+`STATUS` 列取自 `status.phase`，聚合算法见 11.2。
 
 ### 13.4 kubectl describe app 展示示例
 
@@ -1733,7 +2081,7 @@ Events:
 
 ---
 
-## 13. Helm 交互
+## 14. Helm 交互
 
 ### 14.1 Action 判断策略
 
@@ -1796,7 +2144,7 @@ data.release: base64(gzip(protobuf)) → 读取 Info.Status
 
 ---
 
-## 14. 组件依赖排序
+## 15. 组件依赖排序
 
 ### 15.1 拓扑排序算法
 
@@ -1838,9 +2186,22 @@ Server A/redis → (Layer 0)
 Server B/myapp → (Layer 1, 依赖 A/redis)
 ```
 
+### 15.4 与 ProductTask 的分工（v0.3）
+
+依赖 DAG 与 ProductTask 是两套并行机制，各自解决不同问题，不要互相替代：
+
+| 问题 | 交给谁 |
+|------|--------|
+| 「redis 就绪后才装 backend」 | 依赖 DAG（`dependencies` + `condition: Ready`） |
+| 「init job 跑完才起网关」 | ProductTask（`taskOrder` + `resource` 指向那个 Job） |
+| 依赖集群里**别人管的**已有对象 | `refResources`（只断言存在，不排序） |
+| 顺序涉及非本系统创建的资源 | ProductTask（集群级，可指向任意对象） |
+
+实现上两者在 CloudComponent 调和的**同一个入口**收敛：先查依赖 DAG（`checkDependencies`），再查同 `releaseID` 下以本组件为 `refComponent` 的 ProductTask，任一未满足就 requeue。排序算法复用同一套 Kahn 实现（`pkg/deps/topo.go` 与 `pkg/tasks/order.go`）。
+
 ---
 
-## 15. Webhook 集成
+## 16. Webhook 集成
 
 ### 16.1 Mutating Webhook
 
@@ -1862,7 +2223,7 @@ Server B/myapp → (Layer 1, 依赖 A/redis)
 
 ---
 
-## 16. 多集群策略
+## 17. 多集群策略
 
 ### 17.1 ClusterLabelSelector
 
@@ -1896,7 +2257,7 @@ clusterAffinity:
 
 ---
 
-## 17. ControllerRevision 历史管理
+## 18. ControllerRevision 历史管理
 
 ### 18.1 用途
 
@@ -1941,7 +2302,7 @@ revision: 1
 
 ---
 
-## 18. 开放问题与建议
+## 19. 开放问题与建议
 
 ### 19.1 设计决策待定 (TODO Items)
 
@@ -1952,7 +2313,7 @@ revision: 1
 | 1 | App 是否锁 CloudService 版本？ | 建议支持 `serviceRef.revision` 字段，空表示不锁定 | 大产品需要版本锁定，避免下游服务的变更意外触发升级 |
 | 2 | App 是否跨 namespace 引用 Service？ | 建议同一 namespace | 简化权限模型和状态聚合 |
 | 3 | 参数是否支持跨参数引用（如 `${global.imageRegistry}/myapp`）？ | 建议在 webhook 层做简单替换，不引入复杂模板引擎 | 避免双重转义问题 |
-| 4 | 是否存储完整 lastAppliedManifest？ | 建议不存储，仅存 values hash | 完整 manifest 非常大，会显著增加 etcd 负载 |
+| 4 | 是否存储完整 lastAppliedManifest？ | **已定论（v0.3）：不存储**。仅存 values hash + 对象清单 | 完整 manifest 非常大，会显著增加 etcd 负载；AAP 亦只存 `resourceStatuses[]` 对象清单 |
 | 5 | CloudService 间是否可以相互依赖？ | 建议第一期不支持 | 跨产品的依赖复杂度高 |
 | 6 | 是否支持 CloudComponent 的 pause 功能？ | 建议支持 | 允许运维人员暂停组件调和 |
 | 7 | atomic flag 是否等价于 --atomic？ | 建议等价 | 与 Helm 语义对齐 |
@@ -1994,6 +2355,48 @@ Phase 4: UI 集成 + 增强功能
 - `container-core` 模块可直接通过 fabric8 客户端操作本次定义的 CRD
 - 前端可通过 Kubernetes API 代理直接读取 CRD 状态展示
 - `deploy-app.sh` 脚本可保留为开发环境快速部署的工具，生产环境由 `cn-app-operator` 取代
+
+### 19.4 v0.3 对照 AAP 四类 CRD 的吸收结论
+
+来源：`docs/research/aap-product-operator 四类 CRD.md`。逐条取舍如下。
+
+**已吸收**
+
+| 项 | 落地位置 |
+|----|----------|
+| ProductTask：集群级、带 `before`/`after` 的步骤排序 | 第 6 节，新增第 4 个 CRD |
+| 发布实例层：`releaseID` / `planRevision` | `App.spec` + `App.status.observedReleaseID` |
+| `podsDetail[]` / `workloadDiffs[]` | `CloudComponent.status`，采集规则见 11.4 |
+| `PersistentVolumeConfigs`：`retain` 与跨发布复用 | `CloudComponent.spec` |
+| `refResources[]`：依赖集群里已存在的对象 | `CloudComponent.spec` |
+| status 只存对象清单、不存整份 manifest | TODO #4 定论，见下 |
+
+**明确不吸收**
+
+| AAP 的做法 | 为什么不跟 |
+|-----------|-----------|
+| AppInstance 由 operator 直接创建 StatefulSet/Job/Service/PVC | 与本方案「应用定义只支持 Helm Chart」「UI 不执行 Helm」的既定约束冲突；改掉等于重造 chart 的 hook / values / 子 chart 能力 |
+| meta-server + FunctionProvider 能力总线 | 那是 AAP runtime 内部的目录与能力发现；本方案的等价物是 delivery-platform 后端与自有 API，无对应关系 |
+| siteCode / siteplan 站点模型 | 本方案多集群走 ClusterLabelSelector + OCM |
+| `sideCars[]` | 走 Helm 时边车在 chart 内声明，不需要 CRD 字段 |
+
+**enum 策略**
+
+AAP 的 `phase` / `opsType` / `deployPhase` / `workload.kind` 在 CRD 里**都不加 enum**，是自由字符串。本方案有意反其道：
+
+| | 本方案（加 enum） | AAP（不加 enum） |
+|---|---|---|
+| 新增状态值 | 需改 CRD，存量 CR 可能失配 | 不用改 CRD |
+| 白屏取值域 | 稳定可枚举，可直接驱动 UI | 拿到任意字符串，UI 只能兜底 |
+| 校验强度 | CRD 层即拦截写错的 phase | 依赖 webhook / 控制器自校验 |
+
+**定论**：控制器自己写入的字段（`status.phase`、`componentType`）继续加 enum；**面向人的、语义开放的字段不加 enum**——`ProductTask.spec.opsType` 按此处理，保持自由字符串，配 `status.messages[]` 承载自由文本。
+
+注意：AAP 另有 `aap-product-webhook`，所以「CRD schema 里没有 enum」**不等于**「整链路没有校验」，不能据此推断其校验更弱。
+
+**lastAppliedManifest 定论**
+
+沿用 TODO #4 并采用 AAP 的实证做法：**不把整份渲染后的 manifest 写进 status**。AAP 的 `HelmChartInstance.status.resourceStatuses[]` 同样只列对象清单（group / version / kind / namespace / name / phase / ready / message）而不存 manifest。本方案由 `workloadStatus.workloads[]` + `podsDetail[]` + `workloadDiffs[]` 承担排障信息；需要完整 manifest 时从 Helm release secret 还原。
 
 ---
 

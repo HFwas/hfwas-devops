@@ -22,6 +22,8 @@ rules:
       - cloudcomponents
       - cloudcomponents/status
       - cloudcomponents/finalizers
+      - producttasks
+      - producttasks/status
     verbs:
       - get
       - list
@@ -31,6 +33,7 @@ rules:
       - patch
       - delete
   # Workload 资源的读写权限（用于 LabelMarker 和状态聚合）
+  # replicasets 用于判定 Deployment 的「当前修订」（pod-template-hash 比对）
   - apiGroups:
       - apps
     resources:
@@ -40,6 +43,47 @@ rules:
       - statefulsets/status
       - daemonsets
       - daemonsets/status
+      - replicasets
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  # Pod 明细采集（podsDetail）与 Job 完成度判定（ProductTask）
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+      - cronjobs
+    verbs:
+      - get
+      - list
+      - watch
+  # retain 卷标记：给 PVC 打 helm.sh/resource-policy: keep
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  # 非 Job 类型 refResources / ProductTask 作用对象的存在性判定
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
     verbs:
       - get
       - list

@@ -65,6 +65,14 @@ spec:
                   type: string
                   pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[a-zA-Z0-9]+)?$'
                   example: "1.2.0"
+                releaseID:
+                  description: "这一次发布的关联号；CloudComponent 与 ProductTask 与之对齐"
+                  type: string
+                  maxLength: 128
+                planRevision:
+                  description: "现场规划修订号，用于追溯这一次发布用的是哪一版现场规划"
+                  type: string
+                  maxLength: 128
                 services:
                   description: "关联的 CloudService 列表"
                   type: array
@@ -146,6 +154,9 @@ spec:
                     readyComponents:
                       type: integer
                       minimum: 0
+                observedReleaseID:
+                  description: "当前实际生效的发布号，从下属 CloudComponent 收敛"
+                  type: string
                 serviceStatuses:
                   type: array
                   description: "每个下属服务的简要状态"
@@ -153,6 +164,12 @@ spec:
                     type: object
                     properties:
                       name:
+                        type: string
+                      releaseID:
+                        description: "期望的发布号"
+                        type: string
+                      observedReleaseID:
+                        description: "该服务实际观察到的发布号"
                         type: string
                       phase:
                         type: string

@@ -1,0 +1,154 @@
+# cn-app-operator CRD - ProductTask (集群级发布步骤)
+# API Group: delivery.hfwas.io
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: producttasks.delivery.hfwas.io
+spec:
+  group: delivery.hfwas.io
+  names:
+    kind: ProductTask
+    listKind: ProductTaskList
+    plural: producttasks
+    singular: producttask
+    shortNames:
+      - pt
+      - ptask
+  # 集群级：步骤可能跨 namespace 作用于任意对象
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Release
+          type: string
+          jsonPath: .spec.releaseID
+        - name: OpsType
+          type: string
+          jsonPath: .spec.opsType
+        - name: Target
+          type: string
+          jsonPath: .spec.resource.name
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - releaseID
+              properties:
+                # 属于哪一次发布，与 App.spec.releaseID 取同一个值
+                releaseID:
+                  type: string
+                  minLength: 1
+                  description: "所属发布号；App / CloudComponent 与之对齐"
+                # 这一步要做的操作。按 v0.3 enum 策略保持自由字符串
+                opsType:
+                  type: string
+                  description: "操作类型，自由字符串不加 enum"
+                # 作用对象。kind: Job 时控制器读其完成状态
+                resource:
+                  type: object
+                  properties:
+                    group:
+                      type: string
+                    version:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                # 关联的 CloudComponent，控制器据此对组件做顺序放行
+                refComponent:
+                  type: object
+                  properties:
+                    serviceRef:
+                      type: string
+                    component:
+                      type: string
+                    namespace:
+                      type: string
+                      description: "留空表示与任务作用对象同 namespace"
+                # 按 task 名称声明先后
+                taskOrder:
+                  type: object
+                  properties:
+                    before:
+                      type: array
+                      items:
+                        type: string
+                    after:
+                      type: array
+                      items:
+                        type: string
+
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum:
+                    - Pending
+                    - Running
+                    - Succeeded
+                    - Failed
+                  default: Pending
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - type
+                      - status
+                      - lastTransitionTime
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - Available
+                          - Progressing
+                          - Degraded
+                      status:
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - "Unknown"
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      observedGeneration:
+                        type: integer
+                        format: int64
+                observedGeneration:
+                  type: integer
+                  format: int64

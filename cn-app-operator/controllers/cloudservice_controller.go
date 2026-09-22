@@ -75,11 +75,11 @@ func (r *CloudServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 
 		cs.Status.ComponentStatuses = append(cs.Status.ComponentStatuses, deliveryv1.ComponentStatus{
-			Name:              compName,
-			Phase:             cc.Status.Phase,
-			ChartVersion:      cc.Spec.ChartVersion,
-			DeployedVersion:   cc.Status.ChartVersion,
-			ErrorMessage:      cc.Status.FailureMessage,
+			Name:            compName,
+			Phase:           cc.Status.Phase,
+			ChartVersion:    cc.Spec.ChartVersion,
+			DeployedVersion: cc.Status.ChartVersion,
+			ErrorMessage:    cc.Status.FailureMessage,
 		})
 
 		if cc.Status.Phase == deliveryv1.PhaseReady {
@@ -120,17 +120,17 @@ func (r *CloudServiceReconciler) ensureCloudComponents(ctx context.Context, cs *
 			cc.Name = componentCRName(cs.Name, compName)
 			cc.Namespace = cs.Namespace
 			cc.Spec = deliveryv1.CloudComponentSpec{
-				DisplayName:       compDef.DisplayName,
-				ComponentType:     compDef.ComponentType,
-				ServiceRef:        cs.Name,
-				ChartName:         compDef.Chart.Name,
-				ChartVersion:      compDef.Chart.Version,
-				ChartRepo:         compDef.Chart.Repository,
-				ValuesOverlay:     compDef.DefaultValues,
+				DisplayName:        compDef.DisplayName,
+				ComponentType:      compDef.ComponentType,
+				ServiceRef:         cs.Name,
+				ChartName:          compDef.Chart.Name,
+				ChartVersion:       compDef.Chart.Version,
+				ChartRepo:          compDef.Chart.Repository,
+				ValuesOverlay:      compDef.DefaultValues,
 				DeploymentStrategy: compDef.DeploymentStrategy,
-				Dependencies:      compDef.Dependencies,
-				HealthCheck:       compDef.HealthCheck,
-				ClusterAffinity:   compDef.ClusterAffinity,
+				Dependencies:       compDef.Dependencies,
+				HealthCheck:        compDef.HealthCheck,
+				ClusterAffinity:    compDef.ClusterAffinity,
 			}
 
 			if err := r.Client.Create(ctx, cc); err != nil {

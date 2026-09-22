@@ -3,11 +3,14 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -16,12 +19,13 @@ import (
 	"github.com/hfwas/cn-app-operator/pkg/helm"
 	"github.com/hfwas/cn-app-operator/pkg/labelmarker"
 	"github.com/hfwas/cn-app-operator/pkg/status"
+	"github.com/hfwas/cn-app-operator/pkg/tasks"
 )
 
 // CloudComponentReconciler 调和 CloudComponent CR。
 type CloudComponentReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
+	Scheme     *runtime.Scheme
 	HelmClient *helm.Client
 }
 
@@ -61,6 +65,31 @@ func (r *CloudComponentReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 
+	// 2b. ProductTask 顺序放行：同 release 下以本组件为 refComponent 的任务完成前不放行
+	taskBlocked, taskReason, err := r.checkTaskGate(ctx, cc)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if taskBlocked {
+		logger.Info("Blocked by ProductTask", "reason", taskReason)
+		_ = r.updateCondition(ctx, cc, deliveryv1.ConditionProgressing, "False",
+			"BlockedByProductTask", taskReason)
+		return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+	}
+
+	// 2c. refResources：只断言集群里已存在的对象确实存在
+	missing, err := r.checkRefResources(ctx, cc)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if len(missing) > 0 {
+		reason := "引用的对象不存在: " + strings.Join(missing, "; ")
+		logger.Info("Missing referenced resources", "missing", missing)
+		_ = r.updateCondition(ctx, cc, deliveryv1.ConditionDegraded, "True",
+			"RefResourceMissing", reason)
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+
 	// 3. 判断 Helm Action
 	action, err := r.HelmClient.DetermineAction(ctx, cc)
 	if err != nil {
@@ -97,17 +126,28 @@ func (r *CloudComponentReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		logger.V(1).Info("No action needed, skipping")
 	}
 
-	// 5. 打标 + 聚合 Workload 状态
+	// 5. 打标（retain 卷用 Helm 的 resource-policy 语义实现保留）
 	if err := labelmarker.LabelResources(ctx, r.Client, cc); err != nil {
 		logger.Error(err, "Failed to label resources")
 	}
-
-	// 6. 聚合 Workload 状态
-	ws, err := status.AggregateWorkloads(ctx, r.Client, cc)
-	if err != nil {
-		logger.Error(err, "Failed to aggregate workload status")
+	if err := labelmarker.MarkRetainedVolumes(ctx, r.Client, cc); err != nil {
+		logger.Error(err, "Failed to mark retained volumes")
 	}
-	cc.Status.WorkloadStatus = ws
+
+	// 6. 采集状态：workload 摘要 + Pod 明细 + 期望/实际差异
+	snap, err := status.Collect(ctx, r.Client, cc)
+	if err != nil {
+		logger.Error(err, "Failed to collect component status")
+	}
+	var ws *deliveryv1.WorkloadStatus
+	if snap != nil {
+		ws = snap.WorkloadStatus
+		cc.Status.WorkloadStatus = snap.WorkloadStatus
+		cc.Status.PodsDetail = snap.PodsDetail
+		cc.Status.WorkloadDiffs = snap.WorkloadDiffs
+	}
+	// spec.releaseID 已下发即视为已观察，供上级比对是否还在切换中
+	cc.Status.ObservedReleaseID = cc.Spec.ReleaseID
 
 	// 7. 更新 Phase
 	if ws != nil && ws.TotalWorkloads > 0 {
@@ -167,6 +207,72 @@ func (r *CloudComponentReconciler) checkDependencies(ctx context.Context, cc *de
 		}
 	}
 	return true, nil
+}
+
+// checkTaskGate 检查是否有同 release 下的 ProductTask 尚未完成、需要挡住本组件。
+//
+// 这是「init job 先跑完，网关再起」的落地点：ProductTask 通过 spec.refComponent
+// 声明它要闸住哪个组件，本组件在调和前先读任务阶段。
+func (r *CloudComponentReconciler) checkTaskGate(ctx context.Context, cc *deliveryv1.CloudComponent) (bool, string, error) {
+	if cc.Spec.ReleaseID == "" {
+		return false, "", nil
+	}
+
+	var list deliveryv1.ProductTaskList
+	if err := r.List(ctx, &list); err != nil {
+		return false, "", err
+	}
+
+	sameRelease := make([]deliveryv1.ProductTask, 0, len(list.Items))
+	for i := range list.Items {
+		if list.Items[i].Spec.ReleaseID == cc.Spec.ReleaseID {
+			sameRelease = append(sameRelease, list.Items[i])
+		}
+	}
+	if len(sameRelease) == 0 {
+		return false, "", nil
+	}
+
+	blocked, reason := tasks.GatesComponent(sameRelease, cc.Namespace, cc.Name)
+	return blocked, reason, nil
+}
+
+// checkRefResources 返回声明了但当前不存在的引用对象。
+//
+// 只做存在性断言，不参与排序。无法判定的（如 Kind 未注册到 scheme）会记日志但不阻塞，
+// 否则一个拼错的 group/version 会让组件永久卡死。
+func (r *CloudComponentReconciler) checkRefResources(ctx context.Context, cc *deliveryv1.CloudComponent) ([]string, error) {
+	if len(cc.Spec.RefResources) == 0 {
+		return nil, nil
+	}
+	logger := log.FromContext(ctx)
+
+	missing := make([]string, 0)
+	for _, ref := range cc.Spec.RefResources {
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   ref.Group,
+			Version: ref.Version,
+			Kind:    ref.Kind,
+		})
+
+		key := client.ObjectKey{Name: ref.Name}
+		if !ref.ClusterScoped {
+			key.Namespace = ref.Namespace
+			if key.Namespace == "" {
+				key.Namespace = cc.Namespace
+			}
+		}
+
+		if err := r.Get(ctx, key, obj); err != nil {
+			if errors.IsNotFound(err) {
+				missing = append(missing, fmt.Sprintf("%s/%s", ref.Kind, ref.Name))
+				continue
+			}
+			logger.V(1).Info("Cannot verify refResource", "kind", ref.Kind, "name", ref.Name, "err", err.Error())
+		}
+	}
+	return missing, nil
 }
 
 // handleHelmFailure 处理 Helm 操作失败。

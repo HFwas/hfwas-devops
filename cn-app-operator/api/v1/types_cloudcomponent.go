@@ -40,6 +40,12 @@ type CloudComponentSpec struct {
 	HealthCheck *HealthCheck `json:"healthCheck,omitempty"`
 	// ClusterAffinity 是多集群分发配置。
 	ClusterAffinity *ClusterAffinity `json:"clusterAffinity,omitempty"`
+	// ReleaseID 是本组件所属的发布号，由上级下发。
+	ReleaseID string `json:"releaseID,omitempty"`
+	// RefResources 引用集群里已存在的对象（只断言存在，不参与排序）。
+	RefResources []RefResource `json:"refResources,omitempty"`
+	// PersistentVolumeConfigs 是持久化配置（retain / 跨发布复用）。
+	PersistentVolumeConfigs []PersistentVolumeConfig `json:"persistentVolumeConfigs,omitempty"`
 }
 
 // CloudComponentStatus 定义了 CloudComponent 的当前状态。
@@ -58,6 +64,12 @@ type CloudComponentStatus struct {
 	ObservedChartVersion string `json:"observedChartVersion,omitempty"`
 	// WorkloadStatus 是 Workload 状态聚合。
 	WorkloadStatus *WorkloadStatus `json:"workloadStatus,omitempty"`
+	// ObservedReleaseID 是实际观察到的发布号。
+	ObservedReleaseID string `json:"observedReleaseID,omitempty"`
+	// PodsDetail 是每个 Pod 的排障明细。
+	PodsDetail []PodDetail `json:"podsDetail,omitempty"`
+	// WorkloadDiffs 是期望值与实际值的差异。
+	WorkloadDiffs []WorkloadDiff `json:"workloadDiffs,omitempty"`
 	// InstallCount 是安装计数。
 	InstallCount int `json:"installCount,omitempty"`
 	// UpgradeCount 是升级计数。
@@ -87,10 +99,10 @@ type CloudComponentStatus struct {
 }
 
 type WorkloadStatus struct {
-	TotalWorkloads   int              `json:"totalWorkloads,omitempty"`
-	ReadyWorkloads   int              `json:"readyWorkloads,omitempty"`
-	DegradedWorkloads int             `json:"degradedWorkloads,omitempty"`
-	Workloads        []WorkloadInfo   `json:"workloads,omitempty"`
+	TotalWorkloads    int            `json:"totalWorkloads,omitempty"`
+	ReadyWorkloads    int            `json:"readyWorkloads,omitempty"`
+	DegradedWorkloads int            `json:"degradedWorkloads,omitempty"`
+	Workloads         []WorkloadInfo `json:"workloads,omitempty"`
 }
 
 type WorkloadInfo struct {
@@ -103,18 +115,18 @@ type WorkloadInfo struct {
 }
 
 type HealthCheckResult struct {
-	Healthy       bool        `json:"healthy,omitempty"`
+	Healthy       bool         `json:"healthy,omitempty"`
 	LastCheckTime *metav1.Time `json:"lastCheckTime,omitempty"`
-	Message       string      `json:"message,omitempty"`
+	Message       string       `json:"message,omitempty"`
 }
 
 type ComponentHistoryEntry struct {
-	Revision       int         `json:"revision,omitempty"`
-	Operation      string      `json:"operation,omitempty"`
-	ChartVersion   string      `json:"chartVersion,omitempty"`
-	ValuesHash     string      `json:"valuesHash,omitempty"`
-	Message        string      `json:"message,omitempty"`
-	Operator       string      `json:"operator,omitempty"`
+	Revision       int          `json:"revision,omitempty"`
+	Operation      string       `json:"operation,omitempty"`
+	ChartVersion   string       `json:"chartVersion,omitempty"`
+	ValuesHash     string       `json:"valuesHash,omitempty"`
+	Message        string       `json:"message,omitempty"`
+	Operator       string       `json:"operator,omitempty"`
 	StartTime      *metav1.Time `json:"startTime,omitempty"`
 	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
 }
@@ -132,8 +144,8 @@ type ComponentHistoryEntry struct {
 type CloudComponent struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec   CloudComponentSpec   `json:"spec,omitempty"`
-	Status CloudComponentStatus `json:"status,omitempty"`
+	Spec              CloudComponentSpec   `json:"spec,omitempty"`
+	Status            CloudComponentStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

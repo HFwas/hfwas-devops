@@ -517,6 +517,18 @@ func (in *CloudComponentSpec) DeepCopyInto(out *CloudComponentSpec) {
 		*out = new(ClusterAffinity)
 		**out = **in
 	}
+	if in.RefResources != nil {
+		in, out := &in.RefResources, &out.RefResources
+		*out = make([]RefResource, len(*in))
+		copy(*out, *in)
+	}
+	if in.PersistentVolumeConfigs != nil {
+		in, out := &in.PersistentVolumeConfigs, &out.PersistentVolumeConfigs
+		*out = make([]PersistentVolumeConfig, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 }
 
 func (in *CloudComponentSpec) DeepCopy() *CloudComponentSpec {
@@ -535,6 +547,16 @@ func (in *CloudComponentStatus) DeepCopyInto(out *CloudComponentStatus) {
 		in, out := &in.WorkloadStatus, &out.WorkloadStatus
 		*out = new(WorkloadStatus)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.PodsDetail != nil {
+		in, out := &in.PodsDetail, &out.PodsDetail
+		*out = make([]PodDetail, len(*in))
+		copy(*out, *in)
+	}
+	if in.WorkloadDiffs != nil {
+		in, out := &in.WorkloadDiffs, &out.WorkloadDiffs
+		*out = make([]WorkloadDiff, len(*in))
+		copy(*out, *in)
 	}
 	if in.LastRetryTime != nil {
 		in, out := &in.LastRetryTime, &out.LastRetryTime
@@ -649,4 +671,181 @@ func (in *HistoryEntry) DeepCopy() *HistoryEntry {
 	out := new(HistoryEntry)
 	in.DeepCopyInto(out)
 	return out
+}
+
+// =============================================================================
+// v0.3 新增类型（ProductTask 与 Pod 明细 / 引用 / 持久化）
+// =============================================================================
+
+// DeepCopyInto 是 PersistentVolumeConfig 的深拷贝。
+func (in *PersistentVolumeConfig) DeepCopyInto(out *PersistentVolumeConfig) {
+	*out = *in
+	if in.AccessModes != nil {
+		in, out := &in.AccessModes, &out.AccessModes
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+}
+
+// DeepCopy 是 PersistentVolumeConfig 的深拷贝。
+func (in *PersistentVolumeConfig) DeepCopy() *PersistentVolumeConfig {
+	if in == nil {
+		return nil
+	}
+	out := new(PersistentVolumeConfig)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto 是 TaskOrder 的深拷贝。
+func (in *TaskOrder) DeepCopyInto(out *TaskOrder) {
+	*out = *in
+	if in.Before != nil {
+		in, out := &in.Before, &out.Before
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.After != nil {
+		in, out := &in.After, &out.After
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+}
+
+// DeepCopy 是 TaskOrder 的深拷贝。
+func (in *TaskOrder) DeepCopy() *TaskOrder {
+	if in == nil {
+		return nil
+	}
+	out := new(TaskOrder)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto 是 TaskMessage 的深拷贝。
+func (in *TaskMessage) DeepCopyInto(out *TaskMessage) {
+	*out = *in
+	in.LastTransitionTime.DeepCopyInto(&out.LastTransitionTime)
+}
+
+// DeepCopy 是 TaskMessage 的深拷贝。
+func (in *TaskMessage) DeepCopy() *TaskMessage {
+	if in == nil {
+		return nil
+	}
+	out := new(TaskMessage)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto 是 ProductTaskSpec 的深拷贝。
+func (in *ProductTaskSpec) DeepCopyInto(out *ProductTaskSpec) {
+	*out = *in
+	if in.Resource != nil {
+		in, out := &in.Resource, &out.Resource
+		*out = new(TaskResource)
+		**out = **in
+	}
+	if in.RefComponent != nil {
+		in, out := &in.RefComponent, &out.RefComponent
+		*out = new(TaskComponentRef)
+		**out = **in
+	}
+	if in.TaskOrder != nil {
+		in, out := &in.TaskOrder, &out.TaskOrder
+		*out = new(TaskOrder)
+		(*in).DeepCopyInto(*out)
+	}
+}
+
+// DeepCopy 是 ProductTaskSpec 的深拷贝。
+func (in *ProductTaskSpec) DeepCopy() *ProductTaskSpec {
+	if in == nil {
+		return nil
+	}
+	out := new(ProductTaskSpec)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto 是 ProductTaskStatus 的深拷贝。
+func (in *ProductTaskStatus) DeepCopyInto(out *ProductTaskStatus) {
+	*out = *in
+	if in.Messages != nil {
+		in, out := &in.Messages, &out.Messages
+		*out = make([]TaskMessage, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]Condition, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopy 是 ProductTaskStatus 的深拷贝。
+func (in *ProductTaskStatus) DeepCopy() *ProductTaskStatus {
+	if in == nil {
+		return nil
+	}
+	out := new(ProductTaskStatus)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto 是 ProductTask 的深拷贝。
+func (in *ProductTask) DeepCopyInto(out *ProductTask) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	in.Spec.DeepCopyInto(&out.Spec)
+	in.Status.DeepCopyInto(&out.Status)
+}
+
+// DeepCopy 是 ProductTask 的深拷贝。
+func (in *ProductTask) DeepCopy() *ProductTask {
+	if in == nil {
+		return nil
+	}
+	out := new(ProductTask)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject 返回 ProductTask 的深拷贝。
+func (in *ProductTask) DeepCopyObject() runtime.Object {
+	return in.DeepCopy()
+}
+
+// DeepCopyInto 是 ProductTaskList 的深拷贝。
+func (in *ProductTaskList) DeepCopyInto(out *ProductTaskList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]ProductTask, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopy 是 ProductTaskList 的深拷贝。
+func (in *ProductTaskList) DeepCopy() *ProductTaskList {
+	if in == nil {
+		return nil
+	}
+	out := new(ProductTaskList)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyObject 返回 ProductTaskList 的深拷贝。
+func (in *ProductTaskList) DeepCopyObject() runtime.Object {
+	return in.DeepCopy()
 }

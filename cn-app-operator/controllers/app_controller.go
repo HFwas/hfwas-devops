@@ -52,8 +52,8 @@ func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}, cs); err != nil {
 			if errors.IsNotFound(err) {
 				serviceStatuses = append(serviceStatuses, deliveryv1.ServiceStatus{
-					Name:     svcRef.Name,
-					Phase:    deliveryv1.PhaseUnknown,
+					Name:         svcRef.Name,
+					Phase:        deliveryv1.PhaseUnknown,
 					ErrorMessage: "CloudService not found",
 				})
 				summary.FailedServices++
