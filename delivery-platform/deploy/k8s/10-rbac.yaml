@@ -1,0 +1,75 @@
+# delivery-platform 部署清单：RBAC
+#
+# 后端不是用 in-cluster ServiceAccount 直接调 API 的 —— 它按「集群」维度存
+# 用户导入的 kubeconfig（见 internal/service/kube.go）。这里的 SA + 长期 token
+# 用途是：启动后在集群内生成一份 kubeconfig（server 指向 kubernetes.default.svc），
+# 把它作为「本集群」注册进平台，UI 才有集群可用。
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: delivery-platform
+  namespace: devops
+  labels:
+    app.kubernetes.io/name: delivery-platform
+---
+# 手动创建的 SA token Secret（kubernetes.io/service-account-token 类型）
+# 由 kube-controller-manager 回填 token 与 ca.crt，不会随 Pod 生命周期过期。
+apiVersion: v1
+kind: Secret
+metadata:
+  name: delivery-platform-token
+  namespace: devops
+  annotations:
+    kubernetes.io/service-account.name: delivery-platform
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: delivery-platform
+rules:
+  # 集群/节点/存储概览（集群管理页）
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - namespaces
+      - pods
+      - services
+      - persistentvolumeclaims
+    verbs: [get, list, watch, create]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses]
+    verbs: [get, list, watch]
+  # 部署编排要读 workload 状态
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets, daemonsets, replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs, cronjobs]
+    verbs: [get, list, watch]
+  # 平台只做 CRD 读写，Helm 由 cn-app-operator 执行
+  - apiGroups: [delivery.hfwas.io]
+    resources:
+      - apps
+      - apps/status
+      - cloudservices
+      - cloudservices/status
+      - cloudcomponents
+      - cloudcomponents/status
+      - producttasks
+      - producttasks/status
+    verbs: [get, list, watch, create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: delivery-platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: delivery-platform
+subjects:
+  - kind: ServiceAccount
+    name: delivery-platform
+    namespace: devops

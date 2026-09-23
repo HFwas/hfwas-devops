@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchProductDetail, saveProductParams, deployProduct, uninstallProduct, fetchDeployments, fetchDeployment, fetchProductComponents } from '../../api/delivery'
 import type { ProductDetail, FormField, Deployment, ComponentInfo } from '../../types/delivery'
-import { ArrowLeft, Save, Play, Trash2, RotateCcw, Clock, CheckCircle2, AlertTriangle, XCircle, RefreshCw, History, Layers, Terminal, FileText, ChevronDown, ChevronRight, Boxes, ListOrdered } from 'lucide-vue-next'
+import { ArrowLeft, Save, Play, Trash2, Clock, CheckCircle2, AlertTriangle, XCircle, RefreshCw, History, Layers, Terminal, FileText, ChevronDown, ChevronRight, Boxes, ListOrdered } from 'lucide-vue-next'
 import Badge from '../../components/ui/Badge.vue'
 
 const route = useRoute()
@@ -273,7 +273,7 @@ const deployMeta = (s: string) => ({
                   <input type="checkbox" :checked="editedValues[field.path] ?? field.default ?? false"
                     @change="onFieldChange(field, ($event.target as HTMLInputElement).checked)"
                     class="w-4 h-4 rounded border-input text-primary focus:ring-primary" />
-                  <span class="text-sm text-foreground">{{ field.description || field.label }}</span>
+                  <span class="text-sm text-foreground">{{ field.label }}</span>
                 </label>
                 <!-- Select -->
                 <select v-else-if="field.type === 'select'"

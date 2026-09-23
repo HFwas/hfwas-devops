@@ -3,8 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchProducts, fetchStatus, importProduct } from '../../api/delivery'
 import type { Product } from '../../types/delivery'
-import { Package, Upload, RefreshCw, ChevronRight, ExternalLink, Search, Filter, Plus, CheckCircle2, AlertTriangle, XCircle, Clock } from 'lucide-vue-next'
-import Badge from '../../components/ui/Badge.vue'
+import { Package, Upload, RefreshCw, ChevronRight, Search, Plus, CheckCircle2, XCircle, Clock } from 'lucide-vue-next'
 
 const router = useRouter()
 const products = ref<Product[]>([])

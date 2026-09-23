@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { fetchClusters, importCluster, setCurrentCluster, deleteCluster } from '../../api/delivery'
 import type { Cluster } from '../../types/delivery'
-import { Server, Plus, Trash2, CheckCircle2, XCircle, Activity, Globe, ChevronRight, Copy, Terminal, Key } from 'lucide-vue-next'
+import { Server, Plus, Trash2, Activity, Globe, Key } from 'lucide-vue-next'
 
 const clusters = ref<Cluster[]>([])
 const loading = ref(true)

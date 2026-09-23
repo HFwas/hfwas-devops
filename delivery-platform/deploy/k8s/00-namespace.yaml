@@ -1,0 +1,11 @@
+# delivery-platform 部署清单：命名空间
+#
+# devops 是平台共用命名空间（cn-app-operator 的 config/manager 也写死在这里），
+# 放在本目录是为了让这套清单能独立 apply。
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops
+  labels:
+    app.kubernetes.io/part-of: delivery-platform

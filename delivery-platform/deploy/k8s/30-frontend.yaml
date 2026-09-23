@@ -1,0 +1,70 @@
+# delivery-platform 部署清单：前端
+#
+# nginx 托管 Vite 产物，并把 /api 反代到 delivery-backend:8180（见 frontend/nginx.conf）。
+# NodePort 30881 供本机浏览器访问，与仓库其它 NodePort 不冲突。
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: delivery-frontend
+  namespace: devops
+  labels:
+    app.kubernetes.io/name: delivery-frontend
+    app.kubernetes.io/part-of: delivery-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: delivery-frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: delivery-frontend
+        app.kubernetes.io/part-of: delivery-platform
+    spec:
+      containers:
+        - name: frontend
+          image: hfwas/delivery-platform-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: delivery-frontend
+  namespace: devops
+  labels:
+    app.kubernetes.io/name: delivery-frontend
+    app.kubernetes.io/part-of: delivery-platform
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: delivery-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30881
+      protocol: TCP
