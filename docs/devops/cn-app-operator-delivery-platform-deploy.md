@@ -1,13 +1,15 @@
 # cn-app-operator 与 delivery-platform 部署到 k3s
 
 > 日期：2026-09-23
-> 版本：v0.1
+> 版本：v0.3
 
 ### 变更记录
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-09-23 | 初版：记录两个组件在本地 k3s（devops 命名空间）的构建与部署方式、本机环境约束与遗留问题 |
+| v0.2 | 2026-09-23 | 补完「本集群」注册：改用 `kubectl create token` 签发（legacy SA token Secret 被 k3s 判 401）；新增 §8 停掉 Harbor/Tekton/Prometheus 的操作与回滚，并修正 §7 遗留问题 |
+| v0.3 | 2026-09-23 | 新增 §9：停掉 compose 的 backend/keycloak/nacos，并把 Colima VM 由 4C/8GiB 扩到 6C/16GiB；据实测结果重写 §7（内存已不再是瓶颈） |
 
 ---
 
@@ -123,13 +125,33 @@ done
 kubeconfig（`internal/service/kube.go`）。所以：
 
 - 直接导入 `data/pipeline/kubeconfig.yaml` 没用 —— 它的 `server` 是 `https://127.0.0.1:6443`，Pod 内不可达。
-- 本目录的 `10-rbac.yaml` 建了一个 SA + `kubernetes.io/service-account-token` 长期 token Secret，
-  可以据此拼一份 `server: https://kubernetes.default.svc:443` 的 kubeconfig，
-  启动后在集群内 POST 给平台即可把「本集群」注册进去。
+- 要拼一份 `server: https://kubernetes.default.svc:443` 的 kubeconfig，在集群内 POST 给
+  `/api/delivery/clusters`，把「本集群」注册进去。
+
+**token 必须用 `kubectl create token` 现签**：
 
 ```bash
-# 取出 token / CA，拼 kubeconfig 后 POST（在容器内做，浏览器侧无关）
-docker exec devops-k3s kubectl -n devops get secret delivery-platform-token -o jsonpath='{.data.token}'
+docker exec devops-k3s kubectl -n devops create token delivery-platform --duration=8760h
+```
+
+`kubernetes.io/service-account-token` 类型的 Secret（legacy 长期 token）在 k3s 上**用不了**：
+Secret 里的 token 身份与 SA uid 都对得上、JWT 也没有 `exp`，但直接打 API server 一律
+`Unauthorized`（干净 kubeconfig 复现）。换成 `kubectl create token` 的 bound token 立刻可用。
+
+CA 取 `data/pipeline/kubeconfig.yaml` 里的 `certificate-authority-data`（与集群内
+`rancher/k3s` 的 CA 一致，已比对过）。
+
+实测注册结果：
+
+```json
+{"code":0,"data":{"id":1,"name":"local-k3s","serverHost":"https://kubernetes.default.svc:443",
+                  "isCurrent":true,"status":"UP","version":"1.31"}}
+```
+
+权限自检（用签发出来的 kubeconfig）：
+
+```bash
+docker exec devops-k3s kubectl --kubeconfig=/tmp/kc.yaml auth can-i list cloudcomponents.delivery.hfwas.io
 ```
 
 ## 6. 验证
@@ -147,11 +169,113 @@ docker exec devops-k3s kubectl -n devops exec deploy/delivery-frontend -- \
 
 ## 7. 已知遗留问题
 
-1. **k3s 控制面不稳定**。VM 只有 4 vCPU / 8GiB，装了 Harbor + Tekton + Prometheus + GitLab，
-   内存长期只剩 ~90MB 可用，节点反复 Ready↔NotReady，`kubectl` 频繁
-   `TLS handshake timeout` / `http2: client connection lost`。
-   本次部署过程中 Pod 曾全部 `1/1 Running`，但集群抖动时 API 与 NodePort 会短暂不可用。
-   **这是部署之前就存在的状态**（`hfwas-devops/devops-backend` 已 Pending 8 天、Harbor 多个 Pod Pending 8 天）。
-2. **NodePort 出不了宿主机**，见 §2.3。
-3. **`devops` 命名空间下的「本集群」注册未完成**：注册接口会同步探活 `kubernetes.default.svc`，
-   在控制面抖动时该请求会长时间挂住。集群稳定后重试即可。
+1. **NodePort 出不了宿主机**，见 §2.3。集群内 `127.0.0.1:<nodePort>` 正常。
+2. **VM 内存曾经严重超卖**，按 §8 + §9 处理后已解决（详见 §9.3 的前后对比）。
+   8GiB 时期的实证：`prometheus-prometheus-node-exporter` 8 天内被 OOMKilled **92 次**、
+   `tekton-pipelines-webhook` 11 次，连 `delivery-backend` 也被 OOMKilled 过；停掉这些负载后
+   coredns 与 metrics-server 自己从 CrashLoopBackOff 恢复成 Running。
+3. **`devops-frontend` 会随 `devops-backend` 一起废掉**：它的 nginx 配置里
+   `proxy_pass http://backend:8089` 是启动期静态解析，后端容器一停就
+   `nginx: [emerg] host not found in upstream "backend"`，随即循环重启（见 §9.2）。
+   要改用变量 + `resolver` 才能在 upstream 缺失时存活，当前没改。
+4. **`hfwas-devops/devops-backend`（k8s 里那份）仍 Pending 8 天**、`hfwas-pipeline/busbox` 仍
+   ImagePullBackOff。这两个是历史遗留，与本次部署无关，未处理。
+
+## 8. 停掉 Harbor / Tekton / Prometheus
+
+用 **scale 到 0**（不是 uninstall）—— 三者里 Harbor 与 Prometheus 是 Helm 装的、Tekton 是
+manifest 装的，而**本机拉不动镜像**（§2.1），uninstall 之后装不回来。scale 是纯可逆操作。
+
+```bash
+# Prometheus：先停 operator，否则它会把 Pod 拉回来
+docker exec devops-k3s kubectl -n monitoring scale deploy \
+  prometheus-kube-prometheus-operator prometheus-kube-state-metrics --replicas=0
+docker exec devops-k3s kubectl -n monitoring scale sts \
+  prometheus-prometheus-kube-prometheus-prometheus --replicas=0
+# DaemonSet 不支持 scale，改用 nodeSelector 让它调度不到节点
+docker exec devops-k3s kubectl -n monitoring patch ds prometheus-prometheus-node-exporter \
+  --type merge -p '{"spec":{"template":{"spec":{"nodeSelector":{"delivery.hfwas.io/disabled":"true"}}}}}'
+
+# Tekton
+docker exec devops-k3s kubectl -n tekton-pipelines scale deploy \
+  tekton-pipelines-webhook tekton-pipelines-controller tekton-events-controller --replicas=0
+docker exec devops-k3s kubectl -n tekton-pipelines-resolvers scale deploy \
+  tekton-pipelines-remote-resolvers --replicas=0
+
+# Harbor
+docker exec devops-k3s kubectl -n harbor scale deploy \
+  harbor-core harbor-jobservice harbor-nginx harbor-portal harbor-registry --replicas=0
+docker exec devops-k3s kubectl -n harbor scale sts \
+  harbor-database harbor-redis harbor-trivy --replicas=0
+```
+
+三者的原副本数均为 **1**。恢复即把上面的 `--replicas=1`，并去掉 node-exporter 的 nodeSelector。
+
+**数据未受影响**：所有 PVC 仍 `Bound`，三个 StatefulSet 的
+`persistentVolumeClaimRetentionPolicy` 都是 `whenDeleted/whenScaled: Retain`，scale 到 0 不会删卷。
+
+**webhook 已实测不影响**：Tekton 的 `config.webhook.pipeline.tekton.dev`（validating）虽是
+`failurePolicy: Fail` 且 `namespaceSelector` 为空，但规则写的是 `resources: ["configmaps/*"]` —— 
+`/*` 被当作子资源解析，实际匹配不到任何对象。停掉 webhook 后实测创建 ConfigMap 与 Pod 均正常。
+
+Prometheus 的 `prometheus-kube-prometheus-admission` 两条规则 `failurePolicy` 都是 `Ignore`，
+停掉不影响。
+
+## 9. 停 compose 常驻栈 + Colima 扩容
+
+§8 只解决了 k8s 侧。VM 8GiB 的大头其实在 k8s 之外：compose 的 `devops-backend`（Spring，~1.3GB）、
+`nacos-standalone-derby`（~1.1GB）、`devops-keycloak`（~0.6GB），加起来约 3GB。
+
+### 9.1 停掉三个容器
+
+`backend` / `keycloak` 是本仓库 compose（project `hfwas-devops`）的服务；
+`nacos-standalone-derby` **不归 compose 管**（无 `com.docker.compose.project` 标签，`restart=no`），
+要单独 `docker stop`。
+
+```bash
+docker compose -p hfwas-devops -f docker-compose.yml stop backend keycloak
+docker stop nacos-standalone-derby
+```
+
+恢复：`docker compose -p hfwas-devops start backend keycloak` + `docker start nacos-standalone-derby`。
+
+### 9.2 副作用：devops-frontend 会循环重启
+
+前端容器启动时 nginx 静态解析 upstream，后端一停就：
+
+```
+nginx: [emerg] host not found in upstream "backend" in /etc/nginx/conf.d/default.conf:23
+```
+
+进程随即退出并被反复拉起。Docker 的重启退避让它几乎不占资源（实测 0% CPU / 0B），
+但要彻底安静就一并 `docker stop devops-frontend`，否则把 nginx 配置改成
+变量 + `resolver` 的形式。
+
+### 9.3 Colima 扩容
+
+宿主机 8 核 / 32GB，VM 原为 4 核 / 8GiB。改规格必须 stop → start（会重启整个 VM）：
+
+```bash
+colima stop
+colima start --memory 16 --cpu 6
+```
+
+`--memory`/`--cpu` 只覆盖这两项，其余（`runtime: docker`、`kubernetes.enabled: false`、
+`vmType: vz`、disk 50GiB）读 `~/.colima/default/colima.yaml` 保持不变。
+
+VM 重启后容器按 restart policy 自动回来（`devops-k3s` / `devops-kong` 都是
+`unless-stopped`），而 9.1 里**手动 stop 过的容器不会回来**，符合预期；
+k8s 侧工作负载也从 k3s 卷里原地恢复（`local-k3s` 的注册记录、PVC 数据都在）。
+
+前后对比（同为「§8 三个组件已停」前提）：
+
+| 指标 | 8GiB / 4C | 16GiB / 6C |
+|------|-----------|------------|
+| VM 可用内存 | ~37 MB | ~11.7 GB |
+| VM load average | 148 | 1.16 |
+| 节点状态 | 反复 Ready↔NotReady | 稳定 Ready |
+| `gitlab-0` | 0/1，卡 20 小时 | 1/1 Running |
+| `kube-system/helper-pod-delete-pvc-*` | 反复出现 | 消失 |
+
+`delivery-platform` 读到的节点容量也随之更新（`GET /api/delivery/clusters/1/nodes`）：
+`allocatableCpu: "6"`、`allocatableMemory: "16341772Ki"`。
