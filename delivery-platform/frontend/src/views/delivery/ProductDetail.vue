@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchProductDetail, saveProductParams, deployProduct, uninstallProduct, fetchDeployments, fetchDeployment, fetchProductComponents } from '../../api/delivery'
 import type { ProductDetail, FormField, Deployment, ComponentInfo } from '../../types/delivery'
-import { ArrowLeft, Save, Play, Trash2, Clock, CheckCircle2, AlertTriangle, XCircle, RefreshCw, History, Layers, Terminal, FileText, ChevronDown, ChevronRight, Boxes, ListOrdered } from 'lucide-vue-next'
+import { ArrowLeft, Save, Play, Trash2, Clock, CheckCircle2, AlertTriangle, XCircle, RefreshCw, History, Layers, Terminal, FileText, ChevronDown, ChevronRight, Boxes, ListOrdered, RotateCcw } from 'lucide-vue-next'
 import Badge from '../../components/ui/Badge.vue'
 
 const route = useRoute()
@@ -135,6 +135,31 @@ function onFieldChange(field: FormField, value: any) {
   editedValues.value[field.path] = value
 }
 
+/** 恢复字段到默认值 */
+function resetField(field: FormField) {
+  editedValues.value[field.path] = field.default ?? (field.type === 'integer' || field.type === 'number' ? 0 : field.type === 'boolean' ? false : '')
+}
+
+/** 从 path 中提取 values.yaml 里的完整参数路径
+ *  "overrides.bailian.global.imageRegistry" → "global.imageRegistry"
+ *  "overrides.demo-app.replicaCount" → "replicaCount"
+ *  "globalParams.imageRegistry" → "globalParams.imageRegistry"
+ */
+function paramFullPath(field: FormField): string {
+  // 去掉 "overrides.{compName}." 或 "globalParams." 前缀
+  const stripped = field.path.replace(/^(overrides\.[^.]+\.|globalParams\.)/, '')
+  return stripped || field.path
+}
+
+/** 格式化默认值显示 */
+function formatDefault(field: FormField): string {
+  const val = field.default
+  if (val === null || val === undefined) return '—'
+  if (typeof val === 'boolean') return val ? 'true' : 'false'
+  if (typeof val === 'string' && !val) return '—'
+  return String(val)
+}
+
 const statusMeta = (s: string) => {
   switch(s) {
     case 'READY': return { dot: 'dot-ready', label: '运行中', icon: CheckCircle2, cls: 'text-green-600 bg-green-50 border-green-200' }
@@ -237,7 +262,7 @@ const deployMeta = (s: string) => ({
         </button>
       </div>
 
-      <!-- Tab: Params -->
+      <!-- Tab: Params — table layout: name / description / value / actions -->
       <div v-if="activeTab === 'params'" class="grid grid-cols-[1fr_320px] gap-6">
         <div class="space-y-4">
           <div v-for="group in product.form?.groups" :key="group.id" class="bg-white rounded-xl border border-border overflow-hidden">
@@ -246,45 +271,82 @@ const deployMeta = (s: string) => ({
                 <Layers class="w-4 h-4 text-muted-foreground" />{{ group.title }}
               </h3>
             </div>
-            <div class="p-5 space-y-5">
-              <div v-for="field in group.fields" :key="field.path" class="space-y-1.5">
-                <label class="flex items-center gap-1 text-sm font-medium text-foreground">
-                  {{ field.label }}
-                  <span v-if="field.required" class="text-red-500 text-xs">*</span>
-                </label>
-                <p v-if="field.path === 'globalParams.imageRegistry' || field.path === 'globalParams.defaultStorageClass' || field.path === 'globalParams.domainSuffix'" class="text-xs text-muted-foreground mb-1">
-                  {{ field.path === 'globalParams.imageRegistry' ? '镜像拉取地址前缀，例如 registry.example.com' : field.path === 'globalParams.defaultStorageClass' ? '集群默认 StorageClass 名称' : '产品访问域名后缀' }}
-                </p>
-                <!-- String / Password -->
-                <div v-if="field.type === 'string' || field.type === 'password'" class="relative">
-                  <input :type="field.type === 'password' ? 'password' : 'text'" :placeholder="field.placeholder"
-                    :value="editedValues[field.path] ?? field.default ?? ''"
-                    @input="onFieldChange(field, ($event.target as HTMLInputElement).value)"
-                    class="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors" />
-                </div>
-                <!-- Integer / Number -->
-                <input v-else-if="field.type === 'integer' || field.type === 'number'" type="number"
-                  :min="field.validation?.minimum" :max="field.validation?.maximum"
-                  :value="editedValues[field.path] ?? field.default ?? ''"
-                  @input="onFieldChange(field, Number(($event.target as HTMLInputElement).value))"
-                  class="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors" />
-                <!-- Boolean -->
-                <label v-else-if="field.type === 'boolean'" class="flex items-center gap-2.5 cursor-pointer">
-                  <input type="checkbox" :checked="editedValues[field.path] ?? field.default ?? false"
-                    @change="onFieldChange(field, ($event.target as HTMLInputElement).checked)"
-                    class="w-4 h-4 rounded border-input text-primary focus:ring-primary" />
-                  <span class="text-sm text-foreground">{{ field.label }}</span>
-                </label>
-                <!-- Select -->
-                <select v-else-if="field.type === 'select'"
-                  :value="editedValues[field.path] ?? field.default ?? ''"
-                  @change="onFieldChange(field, ($event.target as HTMLSelectElement).value)"
-                  class="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors">
-                  <option value="" disabled>请选择...</option>
-                  <option v-for="opt in field.options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
-              </div>
-            </div>
+            <table class="w-full">
+              <thead>
+                <tr class="text-xs text-muted-foreground border-b border-border/40 bg-gray-50/50">
+                  <th class="text-left py-2.5 px-4 font-medium w-[220px]">参数路径</th>
+                  <th class="text-left py-2.5 px-4 font-medium">参数描述</th>
+                  <th class="text-left py-2.5 px-4 font-medium">参数值</th>
+                  <th class="text-center py-2.5 px-3 font-medium w-[56px]">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="field in group.fields" :key="field.path" class="border-b border-border/30 hover:bg-gray-50/40 transition-colors">
+                  <!-- Full parameter path: global.imageRegistry -->
+                  <td class="py-2.5 px-4 align-middle">
+                    <div class="flex items-center gap-1.5">
+                      <code class="text-xs font-mono text-foreground truncate max-w-[210px]">{{ paramFullPath(field) }}</code>
+                      <span v-if="field.required" class="text-red-500 text-xs shrink-0" title="必填">*</span>
+                    </div>
+                  </td>
+                  <!-- Description -->
+                  <td class="py-2.5 px-4 align-middle">
+                    <p class="text-xs text-muted-foreground/70 leading-relaxed">
+                      <template v-if="field.placeholder">{{ field.placeholder }}</template>
+                      <template v-else-if="field.validation?.minimum != null && field.validation?.maximum != null">
+                        范围: {{ field.validation.minimum }} ~ {{ field.validation.maximum }}
+                      </template>
+                      <template v-else-if="field.validation?.enum?.length">
+                        可选: {{ field.validation.enum.join(', ') }}
+                      </template>
+                      <template v-else-if="field.type === 'boolean'">开关</template>
+                      <template v-else>&mdash;</template>
+                    </p>
+                  </td>
+                  <!-- Value (editable) -->
+                  <td class="py-2.5 px-4 align-middle">
+                    <!-- String / Password -->
+                    <div v-if="field.type === 'string' || field.type === 'password'" class="relative max-w-[260px]">
+                      <input :type="field.type === 'password' ? 'password' : 'text'" :placeholder="'默认: ' + formatDefault(field)"
+                        :value="editedValues[field.path] ?? field.default ?? ''"
+                        @input="onFieldChange(field, ($event.target as HTMLInputElement).value)"
+                        class="w-full h-7 px-2 rounded-md border border-input bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors" />
+                    </div>
+                    <!-- Integer / Number -->
+                    <input v-else-if="field.type === 'integer' || field.type === 'number'" type="number"
+                      :min="field.validation?.minimum" :max="field.validation?.maximum"
+                      :value="editedValues[field.path] ?? field.default ?? ''"
+                      @input="onFieldChange(field, Number(($event.target as HTMLInputElement).value))"
+                      class="w-full h-7 px-2 rounded-md border border-input bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors max-w-[120px]" />
+                    <!-- Boolean -->
+                    <label v-else-if="field.type === 'boolean'" class="inline-flex items-center gap-1.5 cursor-pointer">
+                      <input type="checkbox" :checked="editedValues[field.path] ?? field.default ?? false"
+                        @change="onFieldChange(field, ($event.target as HTMLInputElement).checked)"
+                        class="w-3.5 h-3.5 rounded border-input text-primary focus:ring-primary" />
+                      <span class="text-xs text-muted-foreground">{{ editedValues[field.path] ?? field.default ?? false ? '开启' : '关闭' }}</span>
+                    </label>
+                    <!-- Select -->
+                    <select v-else-if="field.type === 'select'"
+                      :value="editedValues[field.path] ?? field.default ?? ''"
+                      @change="onFieldChange(field, ($event.target as HTMLSelectElement).value)"
+                      class="w-full h-7 px-2 rounded-md border border-input bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-ring transition-colors max-w-[140px]">
+                      <option value="" disabled>请选择...</option>
+                      <option v-for="opt in field.options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                  </td>
+                  <!-- Actions -->
+                  <td class="py-2.5 px-3 align-middle text-center">
+                    <button
+                      @click="resetField(field)"
+                      :title="'恢复默认值: ' + formatDefault(field)"
+                      class="inline-flex items-center justify-center w-6 h-6 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-secondary transition-colors"
+                    >
+                      <RotateCcw class="w-3 h-3" />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 

@@ -1026,11 +1026,12 @@ func buildFormSchema(product *model.Product) *model.FormSchema {
 		}
 		for _, param := range comp.Parameters {
 			field := model.FormField{
-				Path:     "overrides." + comp.Name + "." + param.Path,
-				Label:    param.DisplayName,
-				Type:     param.Type,
-				Default:  param.DefaultValue,
-				Required: param.Required,
+				Path:        "overrides." + comp.Name + "." + param.Path,
+				Label:       param.DisplayName,
+				Type:        param.Type,
+				Default:     param.DefaultValue,
+				Required:    param.Required,
+				Placeholder: param.Description,
 			}
 			if param.Validation != nil {
 				field.Validation = param.Validation

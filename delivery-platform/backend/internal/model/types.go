@@ -201,6 +201,7 @@ type ChartRef struct {
 type ManifestParameter struct {
 	Name             string           `json:"name"`
 	DisplayName      string           `json:"displayName,omitempty"`
+	Description      string           `json:"description,omitempty"`
 	Type             string           `json:"type"`
 	DefaultValue     interface{}      `json:"defaultValue,omitempty"`
 	Required         bool             `json:"required,omitempty"`
