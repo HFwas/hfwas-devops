@@ -1,9 +1,13 @@
 # delivery-platform 部署清单：RBAC
 #
 # 后端不是用 in-cluster ServiceAccount 直接调 API 的 —— 它按「集群」维度存
-# 用户导入的 kubeconfig（见 internal/service/kube.go）。这里的 SA + 长期 token
-# 用途是：启动后在集群内生成一份 kubeconfig（server 指向 kubernetes.default.svc），
+# 用户导入的 kubeconfig（见 internal/service/kube.go）。这里的 SA + ClusterRole
+# 用途是：在集群内签证一份 kubeconfig（server 指向 kubernetes.default.svc），
 # 把它作为「本集群」注册进平台，UI 才有集群可用。
+#
+# token 用 `kubectl create token` 现签，不要用 kubernetes.io/service-account-token
+# 类型的 Secret —— k3s 的 API server 会判 Unauthorized
+# （实测：secret 里的 token 身份/uid 都对，但直接打 API 就是 401）。
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -12,17 +16,6 @@ metadata:
   namespace: devops
   labels:
     app.kubernetes.io/name: delivery-platform
----
-# 手动创建的 SA token Secret（kubernetes.io/service-account-token 类型）
-# 由 kube-controller-manager 回填 token 与 ca.crt，不会随 Pod 生命周期过期。
-apiVersion: v1
-kind: Secret
-metadata:
-  name: delivery-platform-token
-  namespace: devops
-  annotations:
-    kubernetes.io/service-account.name: delivery-platform
-type: kubernetes.io/service-account-token
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
