@@ -151,10 +151,15 @@ type ResourceRequirements struct {
 
 // ParameterSchema 表示参数 schema 定义。
 type ParameterSchema struct {
-	Name             string               `json:"name,omitempty"`
-	DisplayName      string               `json:"displayName,omitempty"`
-	Description      string               `json:"description,omitempty"`
-	Type             string               `json:"type,omitempty"`
+	Name        string `json:"name,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+	Description string `json:"description,omitempty"`
+	Type        string `json:"type,omitempty"`
+	// DefaultValue 是参数默认值，具体类型由 Type 决定（string/integer/boolean/array/object）。
+	// 没有 Schemaless 标记时 controller-gen 会生成空的 `defaultValue: {}`，
+	// 缺 type 的 schema 会被 API Server 拒收，整份 CRD apply 不上去。
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:pruning:PreserveUnknownFields
 	DefaultValue     interface{}          `json:"defaultValue,omitempty"`
 	Required         bool                 `json:"required,omitempty"`
 	Path             string               `json:"path,omitempty"`

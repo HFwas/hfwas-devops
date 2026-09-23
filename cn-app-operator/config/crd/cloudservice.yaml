@@ -140,7 +140,8 @@ spec:
                                 - boolean
                                 - array
                                 - object
-                            defaultValue: {}
+                            defaultValue:
+                              x-kubernetes-preserve-unknown-fields: true
                             required:
                               type: boolean
                               default: false
@@ -320,7 +321,8 @@ spec:
                         type: string
                       displayName:
                         type: string
-                      defaultValue: {}
+                      defaultValue:
+                        x-kubernetes-preserve-unknown-fields: true
                       description:
                         type: string
                       type:
