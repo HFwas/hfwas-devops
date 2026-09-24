@@ -668,16 +668,44 @@ func (h *Handler) deployProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 更新产品状态
+	// 6. 创建/更新 App CR（触发 cn-app-operator 调和，执行 Helm install/upgrade/rollback）
+	appName := appCRName(product)
+	appNS := product.TargetNS
+	csName := product.CloudServiceName
+	if csName == "" {
+		csName = "csvc-" + product.ProductKey
+	}
+
+	// 解析用户填写的参数（含 params、overrides）和全局参数
+	paramsMap := make(map[string]interface{})
+	globalParamsMap := make(map[string]interface{})
+	store.ParseJSON(product.ParamsJSON, &paramsMap)
+	store.ParseJSON(product.GlobalParamsJSON, &globalParamsMap)
+
+	if err := kubeClient.CreateAppCR(appNS, appName, product.DisplayName, product.PackageVersion, csName, paramsMap, globalParamsMap); err != nil {
+		// App CR 创建/更新失败 → 部署失败，产品标记 FAILED
+		_ = h.store.UpdateDeploymentStatus(deployment.ID, "FAILED", "", "", err.Error())
+		product.Status = "FAILED"
+		_ = h.store.UpdateProduct(product)
+		writeJSON(w, http.StatusInternalServerError, model.Error("cannot create App CR: "+err.Error()))
+		return
+	}
+
+	// 记录 App CR 信息到部署记录
+	deployment.AppName = appName
+	deployment.AppNS = appNS
+
+	// 7. 更新产品状态
 	product.Status = "DEPLOYING"
 	product.ClusterID = &clusterID
 	if err := h.store.UpdateProduct(product); err != nil {
+		_ = h.store.UpdateDeploymentStatus(deployment.ID, "FAILED", "", "", err.Error())
 		writeJSON(w, http.StatusInternalServerError, model.Error(err.Error()))
 		return
 	}
 
 	// 更新部署记录
-	h.store.UpdateDeploymentStatus(deployment.ID, "PENDING", deployment.AppName, deployment.AppNS, "")
+	h.store.UpdateDeploymentStatus(deployment.ID, "PENDING", appName, appNS, "")
 
 	writeJSON(w, http.StatusOK, model.Success(deployment))
 }
@@ -1136,48 +1164,238 @@ func extractManifestFromZip(data []byte) (*model.Manifest, string, error) {
 
 // extractDefaultParams 从 manifest 中提取默认参数
 func extractDefaultParams(m *model.Manifest) map[string]interface{} {
-	params := map[string]interface{}{
-		"params":    map[string]interface{}{},
-		"overrides": map[string]interface{}{},
-	}
+	productParams := map[string]interface{}{}
+	overrides := map[string]interface{}{}
 
-	overrides := params["overrides"].(map[string]interface{})
-	for _, comp := range m.Components {
-		if len(comp.Parameters) == 0 && comp.DefaultValues == nil {
-			continue
+	// 产品级参数：取 manifest.parameters[].defaultValue
+	for _, param := range m.Parameters {
+		if param.Name != "" && param.DefaultValue != nil {
+			productParams[param.Name] = param.DefaultValue
 		}
-		overrides[comp.Name] = comp.DefaultValues
 	}
 
-	return params
+	// 组件级覆盖：取 component.DefaultValues（完整 values 对象）
+	for _, comp := range m.Components {
+		if comp.DefaultValues != nil {
+			overrides[comp.Name] = comp.DefaultValues
+		} else if len(comp.Parameters) > 0 {
+			// 没有 DefaultValues 但有参数定义时，从参数定义逐个提取默认值
+			compDefaults := make(map[string]interface{})
+			for _, param := range comp.Parameters {
+				if param.DefaultValue != nil {
+					setNestedValue(compDefaults, param.Path, param.DefaultValue)
+				}
+			}
+			if len(compDefaults) > 0 {
+				overrides[comp.Name] = compDefaults
+			}
+		}
+	}
+
+	return map[string]interface{}{
+		"params":    productParams,
+		"overrides": overrides,
+	}
 }
 
 // mergeParamsOnReimport 再导入时合并参数
+// 规则：新增的补默认值、已有的保留旧值、消失的清理掉
 func mergeParamsOnReimport(m *model.Manifest, oldParams map[string]interface{}) map[string]interface{} {
 	if oldParams == nil {
 		return extractDefaultParams(m)
 	}
 
-	overrides, _ := oldParams["overrides"].(map[string]interface{})
-	if overrides == nil {
-		overrides = map[string]interface{}{}
+	// === 产品级参数 ===
+	oldProductParams, _ := oldParams["params"].(map[string]interface{})
+	if oldProductParams == nil {
+		oldProductParams = map[string]interface{}{}
 	}
 
-	for _, comp := range m.Components {
-		if _, exists := overrides[comp.Name]; !exists && comp.DefaultValues != nil {
-			overrides[comp.Name] = comp.DefaultValues
+	// 收集新 manifest 的产品级参数名
+	newParamNames := make(map[string]bool, len(m.Parameters))
+	for _, param := range m.Parameters {
+		newParamNames[param.Name] = true
+	}
+
+	// 移除在新 manifest 中已消失的产品级参数
+	for name := range oldProductParams {
+		if !newParamNames[name] {
+			delete(oldProductParams, name)
 		}
 	}
 
-	params, _ := oldParams["params"].(map[string]interface{})
-	if params == nil {
-		params = map[string]interface{}{}
+	// 新增的产品级参数补默认值
+	for _, param := range m.Parameters {
+		if _, exists := oldProductParams[param.Name]; !exists {
+			oldProductParams[param.Name] = param.DefaultValue
+		}
+	}
+
+	// === 组件级覆盖 ===
+	oldOverrides, _ := oldParams["overrides"].(map[string]interface{})
+	if oldOverrides == nil {
+		oldOverrides = map[string]interface{}{}
+	}
+
+	// 收集新 manifest 的组件名
+	newCompNames := make(map[string]bool, len(m.Components))
+	for _, comp := range m.Components {
+		newCompNames[comp.Name] = true
+	}
+
+	// 移除在新 manifest 中已消失的组件覆盖
+	for name := range oldOverrides {
+		if !newCompNames[name] {
+			delete(oldOverrides, name)
+		}
+	}
+
+	// 处理每个组件的参数变化
+	for _, comp := range m.Components {
+		if len(comp.Parameters) == 0 {
+			// 没有可调参数，但用户可能有自定义 values，保留
+			if _, exists := oldOverrides[comp.Name]; !exists && comp.DefaultValues != nil {
+				oldOverrides[comp.Name] = comp.DefaultValues
+			}
+			continue
+		}
+
+		override, hasOverride := oldOverrides[comp.Name]
+
+		// 该组件之前没有覆盖值 → 用 DefaultValues 或逐个提取
+		if !hasOverride {
+			if comp.DefaultValues != nil {
+				oldOverrides[comp.Name] = comp.DefaultValues
+			} else {
+				compDefaults := make(map[string]interface{})
+				for _, param := range comp.Parameters {
+					if param.DefaultValue != nil {
+						setNestedValue(compDefaults, param.Path, param.DefaultValue)
+					}
+				}
+				if len(compDefaults) > 0 {
+					oldOverrides[comp.Name] = compDefaults
+				}
+			}
+			continue
+		}
+
+		// 该组件已有用户覆盖值 → 逐参数 diff
+		overrideMap, ok := override.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// 构建新 manifest 的参数路径 → 参数定义 映射
+		newParamPaths := make(map[string]*model.ManifestParameter, len(comp.Parameters))
+		for i := range comp.Parameters {
+			path := comp.Parameters[i].Path
+			if path == "" {
+				path = comp.Parameters[i].Name
+			}
+			newParamPaths[path] = &comp.Parameters[i]
+		}
+
+		// 从用户覆盖中移除已消失的参数路径
+		for _, flatPath := range flattenMapKeys(overrideMap) {
+			if _, exists := newParamPaths[flatPath]; !exists {
+				deleteNestedValue(overrideMap, flatPath)
+			}
+		}
+
+		// 新增的参数补默认值
+		for path, param := range newParamPaths {
+			if _, exists := getNestedValue(overrideMap, path); !exists {
+				if param.DefaultValue != nil {
+					setNestedValue(overrideMap, path, param.DefaultValue)
+				}
+			}
+		}
 	}
 
 	return map[string]interface{}{
-		"params":    params,
-		"overrides": overrides,
+		"params":    oldProductParams,
+		"overrides": oldOverrides,
 	}
+}
+
+// =============================================================================
+// 嵌套 map 操作辅助函数（用于参数路径合并）
+// =============================================================================
+
+// getNestedValue 从嵌套 map 中按点路径取值，如 "persistence.size"
+func getNestedValue(m map[string]interface{}, path string) (interface{}, bool) {
+	parts := strings.Split(path, ".")
+	current := m
+	for i, part := range parts {
+		if i == len(parts)-1 {
+			val, ok := current[part]
+			return val, ok
+		}
+		next, ok := current[part].(map[string]interface{})
+		if !ok {
+			return nil, false
+		}
+		current = next
+	}
+	return nil, false
+}
+
+// setNestedValue 按点路径设置值到嵌套 map 中
+func setNestedValue(m map[string]interface{}, path string, val interface{}) {
+	parts := strings.Split(path, ".")
+	current := m
+	for i, part := range parts {
+		if i == len(parts)-1 {
+			current[part] = val
+			return
+		}
+		next, ok := current[part].(map[string]interface{})
+		if !ok {
+			next = make(map[string]interface{})
+			current[part] = next
+		}
+		current = next
+	}
+}
+
+// deleteNestedValue 按点路径从嵌套 map 中删除值
+func deleteNestedValue(m map[string]interface{}, path string) {
+	parts := strings.Split(path, ".")
+	current := m
+	for i, part := range parts {
+		if i == len(parts)-1 {
+			delete(current, part)
+			return
+		}
+		next, ok := current[part].(map[string]interface{})
+		if !ok {
+			return
+		}
+		current = next
+	}
+}
+
+// flattenMapKeys 将嵌套 map 展平为所有叶子节点的点路径
+// {"a": {"b": 1}, "c": 2} → ["a.b", "c"]
+func flattenMapKeys(m map[string]interface{}) []string {
+	var keys []string
+	var walk func(prefix string, m map[string]interface{})
+	walk = func(prefix string, m map[string]interface{}) {
+		for k, v := range m {
+			key := k
+			if prefix != "" {
+				key = prefix + "." + k
+			}
+			if child, ok := v.(map[string]interface{}); ok && len(child) > 0 {
+				walk(key, child)
+			} else {
+				keys = append(keys, key)
+			}
+		}
+	}
+	walk("", m)
+	return keys
 }
 
 // syncCloudServiceCR 同步创建/更新 CloudService CR

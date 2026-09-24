@@ -109,6 +109,12 @@ async function handleSave() {
 async function handleDeploy() {
   if (!product.value) return; deploying.value = true
   try {
+    // 部署前自动保存当前表单参数，确保部署使用最新的参数值
+    await saveProductParams(product.value.id, {
+      globalParams: extractGroup('globalParams'), params: extractGroup('params'), overrides: extractGroup('overrides')
+    })
+    // 刷新产品详情（获取最新的 params_json / global_params_json）
+    product.value = await fetchProductDetail(product.value.id)
     const dep = await deployProduct(product.value.id); deployResult.value = dep; startPolling(dep.id)
   } catch (e: any) { alert('部署失败: ' + e.message) }
   deploying.value = false
