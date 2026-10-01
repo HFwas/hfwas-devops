@@ -307,6 +307,31 @@ public class ResourceService {
         client.apps().deployments().inNamespace(namespace).resource(deploy).update();
     }
 
+    public WorkloadVolumeVO getDeploymentVolumes(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        Deployment deploy = client.apps().deployments().inNamespace(namespace).withName(name).get();
+        if (deploy == null || deploy.getSpec() == null || deploy.getSpec().getTemplate() == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        return toWorkloadVolume(client, namespace, deploy.getSpec().getTemplate().getSpec(), List.of());
+    }
+
+    public void updateDeploymentVolumes(Long clusterId, String namespace, String name, WorkloadVolumeUpdateDTO dto, Long tenantId) {
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        Deployment deploy = client.apps().deployments().inNamespace(namespace).withName(name).get();
+        if (deploy == null || deploy.getSpec() == null || deploy.getSpec().getTemplate() == null
+                || deploy.getSpec().getTemplate().getSpec() == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        PodSpec spec = deploy.getSpec().getTemplate().getSpec();
+        applyVolumes(client, namespace, spec, dto);
+        client.apps().deployments().inNamespace(namespace).resource(deploy).update();
+    }
+
     public void updateDeploymentYaml(Long clusterId, String namespace, String name, String yamlBody, Long tenantId) {
         ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
@@ -466,6 +491,30 @@ public class ResourceService {
             throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
         }
         applyContainerEnv(sts.getSpec().getTemplate().getSpec(), dto);
+        client.apps().statefulSets().inNamespace(namespace).resource(sts).update();
+    }
+
+    public WorkloadVolumeVO getStatefulSetVolumes(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        StatefulSet sts = client.apps().statefulSets().inNamespace(namespace).withName(name).get();
+        if (sts == null || sts.getSpec() == null || sts.getSpec().getTemplate() == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        return toWorkloadVolume(client, namespace, sts.getSpec().getTemplate().getSpec(), List.of());
+    }
+
+    public void updateStatefulSetVolumes(Long clusterId, String namespace, String name, WorkloadVolumeUpdateDTO dto, Long tenantId) {
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        StatefulSet sts = client.apps().statefulSets().inNamespace(namespace).withName(name).get();
+        if (sts == null || sts.getSpec() == null || sts.getSpec().getTemplate() == null
+                || sts.getSpec().getTemplate().getSpec() == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        applyVolumes(client, namespace, sts.getSpec().getTemplate().getSpec(), dto);
         client.apps().statefulSets().inNamespace(namespace).resource(sts).update();
     }
 
@@ -878,6 +927,230 @@ public class ResourceService {
         }
 
         return vo;
+    }
+
+    private WorkloadVolumeVO toWorkloadVolume(KubernetesClient client, String namespace, PodSpec spec, List<String> claimTemplates) {
+        WorkloadVolumeVO vo = new WorkloadVolumeVO();
+        if (spec == null) {
+            return vo;
+        }
+        Map<String, WorkloadVolumeVO.VolumeItem> byName = new LinkedHashMap<>();
+        if (spec.getVolumes() != null) {
+            for (Volume volume : spec.getVolumes()) {
+                byName.put(volume.getName(), toVolumeItem(volume));
+            }
+        }
+        for (String template : claimTemplates) {
+            byName.computeIfAbsent(template, name -> {
+                WorkloadVolumeVO.VolumeItem item = new WorkloadVolumeVO.VolumeItem();
+                item.setName(name);
+                item.setType("claimTemplate");
+                item.setSource(name);
+                return item;
+            });
+        }
+        appendMounts(spec.getInitContainers(), true, byName);
+        appendMounts(spec.getContainers(), false, byName);
+        vo.setVolumes(byName.values().stream().filter(item -> "pvc".equals(item.getType())).collect(Collectors.toList()));
+        if (spec.getInitContainers() != null) {
+            for (Container container : spec.getInitContainers()) {
+                WorkloadVolumeVO.ContainerRef ref = new WorkloadVolumeVO.ContainerRef();
+                ref.setName(container.getName());
+                ref.setInit(true);
+                vo.getContainers().add(ref);
+            }
+        }
+        if (spec.getContainers() != null) {
+            for (Container container : spec.getContainers()) {
+                WorkloadVolumeVO.ContainerRef ref = new WorkloadVolumeVO.ContainerRef();
+                ref.setName(container.getName());
+                ref.setInit(false);
+                vo.getContainers().add(ref);
+            }
+        }
+        List<PersistentVolumeClaim> claims = client.persistentVolumeClaims().inNamespace(namespace).list().getItems();
+        for (PersistentVolumeClaim claim : claims) {
+            String phase = claim.getStatus() == null ? null : claim.getStatus().getPhase();
+            if ("Bound".equals(phase)) {
+                continue;
+            }
+            WorkloadVolumeVO.PvcOption option = new WorkloadVolumeVO.PvcOption();
+            option.setName(claim.getMetadata().getName());
+            option.setStatus(phase == null ? "Pending" : phase);
+            if (claim.getSpec() != null) {
+                option.setStorageClass(claim.getSpec().getStorageClassName());
+                if (claim.getSpec().getResources() != null && claim.getSpec().getResources().getRequests() != null
+                        && claim.getSpec().getResources().getRequests().get("storage") != null) {
+                    var storage = claim.getSpec().getResources().getRequests().get("storage");
+                    option.setCapacity(storage.getAmount() + storage.getFormat());
+                }
+            }
+            vo.getUnboundPvcs().add(option);
+        }
+        return vo;
+    }
+
+    private void appendMounts(List<Container> containers, boolean init, Map<String, WorkloadVolumeVO.VolumeItem> byName) {
+        if (containers == null) {
+            return;
+        }
+        for (Container container : containers) {
+            if (container.getVolumeMounts() == null) {
+                continue;
+            }
+            for (VolumeMount mount : container.getVolumeMounts()) {
+                WorkloadVolumeVO.VolumeItem volume = byName.computeIfAbsent(mount.getName(), name -> {
+                    WorkloadVolumeVO.VolumeItem item = new WorkloadVolumeVO.VolumeItem();
+                    item.setName(name);
+                    item.setType("other");
+                    return item;
+                });
+                WorkloadVolumeVO.MountItem item = new WorkloadVolumeVO.MountItem();
+                item.setContainer(container.getName());
+                item.setInit(init);
+                item.setMountPath(mount.getMountPath());
+                item.setSubPath(mount.getSubPath());
+                item.setReadOnly(Boolean.TRUE.equals(mount.getReadOnly()));
+                volume.getMounts().add(item);
+            }
+        }
+    }
+
+    private WorkloadVolumeVO.VolumeItem toVolumeItem(Volume volume) {
+        WorkloadVolumeVO.VolumeItem item = new WorkloadVolumeVO.VolumeItem();
+        item.setName(volume.getName());
+        if (volume.getPersistentVolumeClaim() != null) {
+            item.setType("pvc");
+            item.setSource(volume.getPersistentVolumeClaim().getClaimName());
+            item.setReadOnly(Boolean.TRUE.equals(volume.getPersistentVolumeClaim().getReadOnly()));
+        } else if (volume.getConfigMap() != null) {
+            item.setType("configMap");
+            item.setSource(volume.getConfigMap().getName());
+        } else if (volume.getSecret() != null) {
+            item.setType("secret");
+            item.setSource(volume.getSecret().getSecretName());
+        } else if (volume.getEmptyDir() != null) {
+            item.setType("emptyDir");
+        } else if (volume.getHostPath() != null) {
+            item.setType("hostPath");
+            item.setSource(volume.getHostPath().getPath());
+        } else {
+            item.setType("other");
+        }
+        return item;
+    }
+
+    private void applyVolumes(KubernetesClient client, String namespace, PodSpec spec, WorkloadVolumeUpdateDTO dto) {
+        List<Volume> volumes = new ArrayList<>();
+        Set<String> previousPvcNames = new HashSet<>();
+        Set<String> existingClaims = new HashSet<>();
+        Set<String> names = new HashSet<>();
+        if (spec.getVolumes() != null) {
+            for (Volume volume : spec.getVolumes()) {
+                if (volume.getPersistentVolumeClaim() != null) {
+                    previousPvcNames.add(volume.getName());
+                    if (volume.getPersistentVolumeClaim().getClaimName() != null) {
+                        existingClaims.add(volume.getPersistentVolumeClaim().getClaimName());
+                    }
+                } else {
+                    volumes.add(volume);
+                    names.add(volume.getName());
+                }
+            }
+        }
+        Map<String, List<VolumeMount>> mounts = new HashMap<>();
+        Set<String> claims = new HashSet<>();
+        Set<String> knownContainers = new HashSet<>();
+        if (spec.getInitContainers() != null) {
+            for (Container container : spec.getInitContainers()) {
+                knownContainers.add(containerKey(true, container.getName()));
+            }
+        }
+        if (spec.getContainers() != null) {
+            for (Container container : spec.getContainers()) {
+                knownContainers.add(containerKey(false, container.getName()));
+            }
+        }
+        List<WorkloadVolumeVO.VolumeItem> items = dto == null || dto.getVolumes() == null ? List.of() : dto.getVolumes();
+        for (WorkloadVolumeVO.VolumeItem item : items) {
+            if (!"pvc".equals(item.getType())) {
+                continue;
+            }
+            if (item.getName() == null || !item.getName().matches("[a-z0-9]([-a-z0-9]*[a-z0-9])?")) {
+                throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "卷名不合法: " + item.getName());
+            }
+            if (!names.add(item.getName())) {
+                throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "卷名重复: " + item.getName());
+            }
+            if (item.getSource() == null || item.getSource().isBlank()) {
+                throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "请选择 PVC");
+            }
+            if (!claims.add(item.getSource())) {
+                throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "PVC 重复挂载: " + item.getSource());
+            }
+            if (!existingClaims.contains(item.getSource())) {
+                PersistentVolumeClaim claim = client.persistentVolumeClaims().inNamespace(namespace).withName(item.getSource()).get();
+                if (claim == null) {
+                    throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND, "PVC 不存在: " + item.getSource());
+                }
+                String phase = claim.getStatus() == null ? null : claim.getStatus().getPhase();
+                if ("Bound".equals(phase)) {
+                    throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "只能挂载未绑定的 PVC: " + item.getSource());
+                }
+            }
+            Volume volume = new Volume();
+            volume.setName(item.getName());
+            PersistentVolumeClaimVolumeSource source = new PersistentVolumeClaimVolumeSource();
+            source.setClaimName(item.getSource());
+            source.setReadOnly(item.isReadOnly());
+            volume.setPersistentVolumeClaim(source);
+            volumes.add(volume);
+            List<WorkloadVolumeVO.MountItem> mountItems = item.getMounts() == null ? List.of() : item.getMounts();
+            for (WorkloadVolumeVO.MountItem mount : mountItems) {
+                if (mount.getMountPath() == null || !mount.getMountPath().startsWith("/")) {
+                    throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "挂载路径需要以 / 开头");
+                }
+                if (mount.getContainer() == null || mount.getContainer().isBlank()) {
+                    throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "请选择容器");
+                }
+                if (!knownContainers.contains(containerKey(mount.isInit(), mount.getContainer()))) {
+                    throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "容器不存在: " + mount.getContainer());
+                }
+                VolumeMount volumeMount = new VolumeMount();
+                volumeMount.setName(item.getName());
+                volumeMount.setMountPath(mount.getMountPath());
+                if (mount.getSubPath() != null && !mount.getSubPath().isBlank()) {
+                    volumeMount.setSubPath(mount.getSubPath());
+                }
+                volumeMount.setReadOnly(mount.isReadOnly());
+                mounts.computeIfAbsent(containerKey(mount.isInit(), mount.getContainer()), key -> new ArrayList<>()).add(volumeMount);
+            }
+        }
+        spec.setVolumes(volumes);
+        writeMounts(spec.getInitContainers(), true, mounts, previousPvcNames);
+        writeMounts(spec.getContainers(), false, mounts, previousPvcNames);
+    }
+
+    private void writeMounts(List<Container> containers, boolean init, Map<String, List<VolumeMount>> mounts, Set<String> replacedPvcNames) {
+        if (containers == null) {
+            return;
+        }
+        for (Container container : containers) {
+            List<VolumeMount> kept = new ArrayList<>();
+            if (container.getVolumeMounts() != null) {
+                for (VolumeMount mount : container.getVolumeMounts()) {
+                    if (!replacedPvcNames.contains(mount.getName())) {
+                        kept.add(mount);
+                    }
+                }
+            }
+            kept.addAll(mounts.getOrDefault(containerKey(init, container.getName()), List.of()));
+            container.setVolumeMounts(kept);
+        }
+    }
+
+    private String containerKey(boolean init, String name) {
+        return (init ? "init:" : "main:") + name;
     }
 
     private WorkloadEnvVO toWorkloadEnv(KubernetesClient client, String namespace, PodSpec spec) {

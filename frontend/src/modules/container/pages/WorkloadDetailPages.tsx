@@ -16,6 +16,7 @@ import { PodLogPanel } from '@/modules/container/components/PodLogPanel'
 import { PodShell } from '@/modules/container/components/PodShell'
 import { YamlPanel } from '@/modules/container/components/YamlPanel'
 import { WorkloadEnvPanel } from '@/modules/container/components/WorkloadEnvPanel'
+import { WorkloadVolumePanel } from '@/modules/container/components/WorkloadVolumePanel'
 import { formatBytes } from '@/modules/container/utils/format'
 import { NodeMonitor, PodMonitor } from '@/modules/container/components/ResourceMonitors'
 
@@ -302,7 +303,7 @@ export function DeploymentDetailPage() {
           </div>
         }
       />
-      <TabBar tabs={['概览', '环境变量', 'YAML']} value={tab} onChange={setTab} />
+      <TabBar tabs={['概览', '环境变量', '挂载卷', 'YAML']} value={tab} onChange={setTab} />
       {tab === '概览' && item && (
         <div className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -357,6 +358,13 @@ export function DeploymentDetailPage() {
           queryKey={['container-deployment-env', clusterId, namespace, name]}
           load={() => deploymentApi.env(clusterId, namespace, name)}
           save={(data) => deploymentApi.updateEnv(clusterId, namespace, name, data)}
+        />
+      )}
+      {tab === '挂载卷' && (
+        <WorkloadVolumePanel
+          queryKey={['container-deployment-volumes', clusterId, namespace, name]}
+          load={() => deploymentApi.volumes(clusterId, namespace, name)}
+          save={(data) => deploymentApi.updateVolumes(clusterId, namespace, name, data)}
         />
       )}
       {tab === 'YAML' && (
@@ -495,12 +503,19 @@ export function StatefulSetDetailPage() {
           </Button>
         }
       />
-      <TabBar tabs={['环境变量', 'YAML']} value={tab} onChange={setTab} />
+      <TabBar tabs={['环境变量', '挂载卷', 'YAML']} value={tab} onChange={setTab} />
       {tab === '环境变量' && (
         <WorkloadEnvPanel
           queryKey={['container-statefulset-env', clusterId, namespace, name]}
           load={() => statefulSetApi.env(clusterId, namespace, name)}
           save={(data) => statefulSetApi.updateEnv(clusterId, namespace, name, data)}
+        />
+      )}
+      {tab === '挂载卷' && (
+        <WorkloadVolumePanel
+          queryKey={['container-statefulset-volumes', clusterId, namespace, name]}
+          load={() => statefulSetApi.volumes(clusterId, namespace, name)}
+          save={(data) => statefulSetApi.updateVolumes(clusterId, namespace, name, data)}
         />
       )}
       {tab === 'YAML' && (

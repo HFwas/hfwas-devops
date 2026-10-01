@@ -5,6 +5,8 @@ import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.container.dto.StatefulSetSummaryVO;
 import com.hfwas.devops.container.dto.WorkloadEnvUpdateDTO;
 import com.hfwas.devops.container.dto.WorkloadEnvVO;
+import com.hfwas.devops.container.dto.WorkloadVolumeUpdateDTO;
+import com.hfwas.devops.container.dto.WorkloadVolumeVO;
 import com.hfwas.devops.container.service.ResourceService;
 import com.hfwas.devops.container.service.SecurityHelper;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +47,26 @@ public class StatefulSetController {
             @RequestBody WorkloadEnvUpdateDTO body) {
         Long tenantId = SecurityHelper.currentTenantId();
         resourceService.updateStatefulSetEnv(clusterId, namespace, name, body, tenantId);
+        return BaseResult.ok();
+    }
+
+    @GetMapping("/namespaces/{namespace}/statefulsets/{name}/volumes")
+    public BaseResult<WorkloadVolumeVO> getStatefulSetVolumes(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        return BaseResult.ok(resourceService.getStatefulSetVolumes(clusterId, namespace, name, tenantId));
+    }
+
+    @PutMapping("/namespaces/{namespace}/statefulsets/{name}/volumes")
+    public BaseResult<Void> updateStatefulSetVolumes(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name,
+            @RequestBody WorkloadVolumeUpdateDTO body) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        resourceService.updateStatefulSetVolumes(clusterId, namespace, name, body, tenantId);
         return BaseResult.ok();
     }
 

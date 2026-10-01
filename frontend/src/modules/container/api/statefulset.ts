@@ -1,6 +1,6 @@
 import { del, get, put } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
-import type { StatefulSetSummary, WorkloadEnv, WorkloadEnvUpdate } from '../types/resource'
+import type { StatefulSetSummary, WorkloadEnv, WorkloadEnvUpdate, WorkloadVolumeUpdate, WorkloadVolumes } from '../types/resource'
 
 export const statefulSetApi = {
   list: (clusterId: string, params: { namespace?: string; keyword?: string; pageNo?: number; pageSize?: number }) =>
@@ -15,4 +15,8 @@ export const statefulSetApi = {
     get<WorkloadEnv>(`/container/clusters/${clusterId}/namespaces/${namespace}/statefulsets/${name}/env`),
   updateEnv: (clusterId: string, namespace: string, name: string, data: WorkloadEnvUpdate) =>
     put<void>(`/container/clusters/${clusterId}/namespaces/${namespace}/statefulsets/${name}/env`, data),
+  volumes: (clusterId: string, namespace: string, name: string) =>
+    get<WorkloadVolumes>(`/container/clusters/${clusterId}/namespaces/${namespace}/statefulsets/${name}/volumes`),
+  updateVolumes: (clusterId: string, namespace: string, name: string, data: WorkloadVolumeUpdate) =>
+    put<void>(`/container/clusters/${clusterId}/namespaces/${namespace}/statefulsets/${name}/volumes`, data),
 }

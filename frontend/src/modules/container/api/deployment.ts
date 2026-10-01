@@ -1,6 +1,6 @@
 import { del, get, put } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
-import type { DeploymentDetail, DeploymentSummary, WorkloadEnv, WorkloadEnvUpdate } from '../types/resource'
+import type { DeploymentDetail, DeploymentSummary, WorkloadEnv, WorkloadEnvUpdate, WorkloadVolumeUpdate, WorkloadVolumes } from '../types/resource'
 
 export const deploymentApi = {
   list: (clusterId: string, params: { namespace?: string; keyword?: string; pageNo?: number; pageSize?: number }) =>
@@ -21,4 +21,8 @@ export const deploymentApi = {
     get<WorkloadEnv>(`/container/clusters/${clusterId}/namespaces/${namespace}/deployments/${name}/env`),
   updateEnv: (clusterId: string, namespace: string, name: string, data: WorkloadEnvUpdate) =>
     put<void>(`/container/clusters/${clusterId}/namespaces/${namespace}/deployments/${name}/env`, data),
+  volumes: (clusterId: string, namespace: string, name: string) =>
+    get<WorkloadVolumes>(`/container/clusters/${clusterId}/namespaces/${namespace}/deployments/${name}/volumes`),
+  updateVolumes: (clusterId: string, namespace: string, name: string, data: WorkloadVolumeUpdate) =>
+    put<void>(`/container/clusters/${clusterId}/namespaces/${namespace}/deployments/${name}/volumes`, data),
 }

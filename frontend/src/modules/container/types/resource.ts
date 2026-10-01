@@ -118,6 +118,44 @@ export interface WorkloadEnvUpdate {
   containers: Array<{ name: string; init: boolean; env: EnvItem[] }>
 }
 
+export interface VolumeMountItem {
+  container: string
+  init: boolean
+  mountPath: string
+  subPath?: string | null
+  readOnly: boolean
+}
+
+export interface WorkloadVolumeItem {
+  name: string
+  type: string
+  source?: string | null
+  readOnly: boolean
+  mounts: VolumeMountItem[]
+}
+
+export interface WorkloadVolumeContainer {
+  name: string
+  init: boolean
+}
+
+export interface UnboundPvc {
+  name: string
+  status?: string | null
+  storageClass?: string | null
+  capacity?: string | null
+}
+
+export interface WorkloadVolumes {
+  containers: WorkloadVolumeContainer[]
+  volumes: WorkloadVolumeItem[]
+  unboundPvcs: UnboundPvc[]
+}
+
+export interface WorkloadVolumeUpdate {
+  volumes: WorkloadVolumeItem[]
+}
+
 export interface ServiceSummary {
   name: string
   namespace: string

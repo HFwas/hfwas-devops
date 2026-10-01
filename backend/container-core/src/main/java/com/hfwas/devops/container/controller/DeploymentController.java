@@ -6,6 +6,8 @@ import com.hfwas.devops.container.dto.DeploymentDetailVO;
 import com.hfwas.devops.container.dto.DeploymentSummaryVO;
 import com.hfwas.devops.container.dto.WorkloadEnvUpdateDTO;
 import com.hfwas.devops.container.dto.WorkloadEnvVO;
+import com.hfwas.devops.container.dto.WorkloadVolumeUpdateDTO;
+import com.hfwas.devops.container.dto.WorkloadVolumeVO;
 import com.hfwas.devops.container.service.ResourceService;
 import com.hfwas.devops.container.service.SecurityHelper;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +59,26 @@ public class DeploymentController {
             @RequestBody WorkloadEnvUpdateDTO body) {
         Long tenantId = SecurityHelper.currentTenantId();
         resourceService.updateDeploymentEnv(clusterId, namespace, name, body, tenantId);
+        return BaseResult.ok();
+    }
+
+    @GetMapping("/namespaces/{namespace}/deployments/{name}/volumes")
+    public BaseResult<WorkloadVolumeVO> getDeploymentVolumes(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        return BaseResult.ok(resourceService.getDeploymentVolumes(clusterId, namespace, name, tenantId));
+    }
+
+    @PutMapping("/namespaces/{namespace}/deployments/{name}/volumes")
+    public BaseResult<Void> updateDeploymentVolumes(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name,
+            @RequestBody WorkloadVolumeUpdateDTO body) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        resourceService.updateDeploymentVolumes(clusterId, namespace, name, body, tenantId);
         return BaseResult.ok();
     }
 
