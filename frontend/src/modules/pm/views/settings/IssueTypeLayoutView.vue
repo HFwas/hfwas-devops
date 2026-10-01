@@ -375,7 +375,7 @@ watch(() => route.query.tab, syncTabFromRoute, { immediate: true })
                       size="small"
                       :disabled="saving"
                       :value="isChecked(layout.listFields, field.fieldKey)"
-                      @update:value="(v) => toggle('listFields', field.fieldKey, v)"
+                      @update:value="(v: any) => toggle('listFields', field.fieldKey, v)"
                     />
                   </td>
                   <td>
@@ -383,7 +383,7 @@ watch(() => route.query.tab, syncTabFromRoute, { immediate: true })
                       size="small"
                       :disabled="saving"
                       :value="isChecked(layout.searchFields, field.fieldKey)"
-                      @update:value="(v) => toggle('searchFields', field.fieldKey, v)"
+                      @update:value="(v: any) => toggle('searchFields', field.fieldKey, v)"
                     />
                   </td>
                   <td>
@@ -391,7 +391,7 @@ watch(() => route.query.tab, syncTabFromRoute, { immediate: true })
                       size="small"
                       :disabled="saving"
                       :value="isChecked(layout.createFields, field.fieldKey)"
-                      @update:value="(v) => toggle('createFields', field.fieldKey, v)"
+                      @update:value="(v: any) => toggle('createFields', field.fieldKey, v)"
                     />
                   </td>
                   <td>

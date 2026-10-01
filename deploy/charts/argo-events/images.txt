@@ -1,0 +1,6 @@
+# Argo Events v1.9.11 运行时镜像
+# 官方 Helm chart: https://argoproj.github.io/argo-helm (chart 2.4.27)
+quay.io/argoproj/argo-events:v1.9.11
+nats:2.10.29
+natsio/prometheus-nats-exporter:0.14.0
+natsio/nats-server-config-reloader:0.14.0

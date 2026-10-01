@@ -1,0 +1,113 @@
+# ============================================================
+# Sensor — Alert → Pod Investigation Workflow
+# ============================================================
+# Prometheus 告警触发后，创建 Pod Investigation Workflow:
+#   - 采集 Pod 元信息/Events/日志
+#   - 调用 Prometheus API 生成资源趋势图
+#   - Java 服务专项：堆外内存/GC/线程
+#   - 汇总为完整报告
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: alertmanager-sensor
+spec:
+  template:
+    serviceAccountName: argo-workflow-health-inspection
+  dependencies:
+    # Prometheus 告警事件
+    - name: alert-event
+      eventSourceName: alertmanager-webhook
+      eventName: alertmanager
+      filters:
+        data:
+          - path: body.alerts[].labels.severity
+            type: string
+            value:
+              - "warning"
+              - "critical"
+              - "info"
+  triggers:
+    # ---- OOM/NotReady/CrashLoopBackOff → 调查 Workflow ----
+    - template:
+        name: pod-investigation
+        k8s:
+          operation: create
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                generateName: investigate-
+                namespace: argo
+                labels:
+                  alert-name: "{{$input.body.alerts[0].labels.alertname}}"
+                  severity: "{{$input.body.alerts[0].labels.severity}}"
+              spec:
+                entrypoint: investigate
+                serviceAccountName: argo-workflow-health-inspection
+                arguments:
+                  parameters:
+                    - name: namespace
+                    - name: pod-name
+                    - name: container-name
+                      value: "{{$input.body.alerts[0].labels.container}}"
+                    - name: alert-name
+                    - name: severity
+                    - name: prometheus-url
+                      value: "http://prometheus-prometheus.monitoring:9090"
+                    - name: time-range
+                      value: "2h"
+                    - name: dingtalk-webhook
+                      # 在生产环境改为实际的钉钉机器人 Webhook URL
+                      value: "https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN_HERE"
+                    - name: dingtalk-secret
+                      value: "YOUR_SECRET_HERE"
+                workflowTemplateRef:
+                  name: pod-investigation
+          parameters:
+            # 从 AlertManager webhook body 提取参数
+            - dest: spec.arguments.parameters.0.value
+              src:
+                dependencyName: alert-event
+                dataKey: body.alerts[0].labels.namespace
+            - dest: spec.arguments.parameters.1.value
+              src:
+                dependencyName: alert-event
+                dataKey: body.alerts[0].labels.pod
+            - dest: spec.arguments.parameters.3.value
+              src:
+                dependencyName: alert-event
+                dataKey: body.alerts[0].labels.alertname
+            - dest: spec.arguments.parameters.4.value
+              src:
+                dependencyName: alert-event
+                dataKey: body.alerts[0].labels.severity
+            - dest: metadata.labels.alert-name
+              src:
+                dependencyName: alert-event
+                dataKey: body.alerts[0].labels.alertname
+            - dest: metadata.labels.severity
+              src:
+                dependencyName: alert-event
+                dataKey: body.alerts[0].labels.severity
+      # 触发条件：Pod/OOM/Node 事件
+      triggerSwitch:
+        any:
+          - dependencyName: alert-event
+            dataKey: body.alerts[0].labels.alertname
+            value:
+              - "PodRepeatedRestart"
+              - "KubePodCrashLooping"
+              - "KubePodNotReady"
+              - "NodeNotReady"
+              - "KubeNodeUnreachable"
+              - "JVMOutOfMemory"
+              - "JavaHeapThresholdExceeded"
+              - "JvmOomKilled"
+              - "NodeMemoryPressure"
+              - "NodeCpuHigh"
+          - dependencyName: alert-event
+            dataKey: body.alerts[0].labels.severity
+            value:
+              - "critical"

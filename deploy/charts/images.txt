@@ -37,3 +37,24 @@ postgres:16-alpine
 
 # ---- SPI 构建（不进集群，仅本地/CI 打 hfwas/keycloak-http-listener）----
 # maven:3.9.9-eclipse-temurin-21
+
+# ---- Argo Workflows v4.1.4（deploy/charts/argo-workflows, chart 2.0.8）----
+# 从官方 chart 安装: helm install argo-workflows argo/argo-workflows --version 2.0.8
+# images.txt 仅用于提前拉取镜像（docker pull）
+# quay.io/argoproj/workflow-controller:v4.1.4
+# quay.io/argoproj/argoexec:v4.1.4
+# quay.io/argoproj/argocli:v4.1.4
+# quay.io/argoproj/argo-workflows-crdinstaller:v4.1.4
+
+# ---- Argo CD v3.5.3（deploy/charts/argo-cd, chart 10.9.5）----
+# 从官方 chart 安装: helm install argo-cd argo/argo-cd --version 10.9.5
+# images.txt 仅用于提前拉取镜像（docker pull）
+# quay.io/argoproj/argocd:v3.5.3
+# redis:7.4.2
+
+# ---- Argo Events v1.9.11（deploy/charts/argo-events, chart 2.4.27）----
+# 从官方 chart 安装: helm install argo-events argo/argo-events --version 2.4.27
+# quay.io/argoproj/argo-events:v1.9.11
+# nats:2.10.29
+# natsio/prometheus-nats-exporter:0.14.0
+# natsio/nats-server-config-reloader:0.14.0

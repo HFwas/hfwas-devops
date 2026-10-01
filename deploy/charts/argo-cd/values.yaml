@@ -1,0 +1,153 @@
+# ============================================================
+# Argo CD v3.5.3 — 默认 values（对齐 chart 10.9.5）
+# ============================================================
+# 此文件覆盖官方 chart 默认值，对齐 HFWAS DevOps 部署风格。
+# 官方 chart 默认值参考:
+#   https://github.com/argoproj/argo-helm/blob/main/charts/argo-cd/values.yaml
+# ============================================================
+
+# 命名空间: deploy.sh 在 helm install 时 --namespace 指定（默认 argocd）
+
+# 全局镜像配置
+global:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: "v3.5.3"
+    imagePullPolicy: IfNotPresent
+
+# ---- CRD 安装 ----
+crds:
+  install: true
+  keep: true
+
+# ---- Argo CD 全局配置 ----
+configs:
+  params:
+    # 本地开发关闭 TLS（NodePort 直接访问 HTTP）
+    server.insecure: "true"
+    # 服务端监听地址
+    server.bindaddress: "0.0.0.0:8083"
+
+  cm:
+    create: true
+    # 默认应用实例标签
+    application.instanceLabelKey: argocd.argoproj.io/instance
+
+  rbac:
+    create: true
+    # 默认 RBAC 策略: admin 完全权限
+    policy.default: role:readonly
+    policy.csv: |
+      p, role:admin, applications, *, */*, allow
+      p, role:admin, clusters, *, *, allow
+      p, role:admin, repositories, *, *, allow
+      p, role:admin, projects, *, *, allow
+      p, role:admin, accounts, *, *, allow
+      p, role:admin, gpgkeys, *, *, allow
+      p, role:admin, certificates, *, *, allow
+      p, role:admin, logs, *, *, allow
+      p, role:admin, exec, *, *, allow
+      p, role:admin, repocreds, *, *, allow
+      g, admin, role:admin
+
+  secret:
+    # 安装后自动生成 admin.password
+    createSecret: true
+
+# ---- application-controller ----
+controller:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: "v3.5.3"
+    imagePullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 0.25
+      memory: 256Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+  metrics:
+    enabled: false
+
+# ---- argocd-server（Web UI + API + gRPC）----
+server:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: "v3.5.3"
+    imagePullPolicy: IfNotPresent
+  replicas: 1
+  # 本地开发认证简化
+  extraArgs:
+    - --insecure
+  resources:
+    requests:
+      cpu: 0.1
+      memory: 128Mi
+    limits:
+      cpu: 0.5
+      memory: 512Mi
+  ingress:
+    enabled: false
+  service:
+    type: ClusterIP
+    servicePortHttp: 80
+    servicePortHttps: 443
+
+# ---- repo-server（Git 仓库缓存）----
+repoServer:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: "v3.5.3"
+    imagePullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 0.1
+      memory: 128Mi
+    limits:
+      cpu: 0.5
+      memory: 512Mi
+  # Git 配置
+  mountSatelliteRpms: false
+  mountStaticArtifacts: false
+
+# ---- Redis（缓存）----
+redis:
+  enabled: true
+  image:
+    # 使用官方 chart 内置的 redis 镜像
+    repository: redis
+    tag: "7.4.2"
+    imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 0.05
+      memory: 64Mi
+    limits:
+      cpu: 0.2
+      memory: 256Mi
+
+# ---- Dex（SSO，本地开发不启用）----
+dex:
+  enabled: false
+
+# ---- ApplicationSet controller ----
+applicationSet:
+  enabled: true
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: "v3.5.3"
+    imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 0.1
+      memory: 64Mi
+    limits:
+      cpu: 0.3
+      memory: 256Mi
+
+# ---- Notifications controller ----
+notifications:
+  enabled: false

@@ -1,7 +1,7 @@
 # Agent instructions
 
 > 日期：2026-09-13 
-> 版本：v0.6
+> 版本：v0.7
 
 ### 变更记录
 
@@ -13,6 +13,7 @@
 | v0.4 | 2026-09-12 | 新增：禁止自动 commit 和 push |
 | v0.5 | 2026-09-13 | docs 索引补充应用镜像构建与 Helm 升级 |
 | v0.6 | 2026-09-13 | 本地部署按 OS 区分：macOS 用 k3s 容器；Windows 用 Docker Desktop `docker-desktop`；日志优先 `logs/`，Windows 集群日志走 `kubectl -n devops logs` |
+| v0.7 | 2026-09-15 | 新增：数据库变更规范 |
 
 ---
 
@@ -160,3 +161,27 @@ Docker 容器访问宿主机代理用 `host.docker.internal:7890`，不要把 `1
 ## 前端
 
 Vue SFC 里同一表达式不要混用 `??` 与 `||`，除非加括号（否则 `@vue/compiler-sfc` 编译失败）。
+
+## 数据库变更
+
+项目使用 SQLite，schema 初始化（`devops.schema.init`）分两种模式：
+
+- **`embedded`**（默认）：`SqliteSchemaInitializer` / `UserSchemaMigration` 进程内执行建表
+- **`external`**：Helm initContainer 用 `deploy/charts/backend/files/db/migrate.sh` 执行 SQL
+
+涉及 DDL / DML 变更时：
+
+1. **新增 SQL 文件，不修改已有文件。** 所有迁移脚本放在 `deploy/charts/backend/files/db/` 下，以 `.sql` 结尾。`migrate.sh` 按文件名顺序执行，并对已执行文件做 checksum 校验 —— 修改已有文件会导致 checksum 变化被检出（幂等 alter 除外），但应在新增文件中做增量变更。
+
+2. **文件命名：`<两位递增数字>-<简短描述>.sql`。**
+   - 继承当前最大编号（目前 `06-container-schema.sql`，下一个就是 `07-`）。
+   - 示例：`07-add-xx-column.sql`、`07-create-yy-table.sql`。
+   - 编码（同一级的不同变更）使用相同数字，下一级新数字。
+
+3. **SQL 应幂等。** 使用 `CREATE TABLE IF NOT EXISTS`、`ALTER TABLE ADD COLUMN`（`migrate.sh` 会静默跳过重复列错误），确保重复执行安全。
+
+4. **同步更新 Java 侧建表逻辑（`embedded` 模式）。**
+   - 实体变更 → 更新 `SqliteSchemaInitializer` 中的 schema DDL 和 `schemaVersion`。
+   - 确保两种模式建表结果一致。
+
+5. **当前仅有 SQLite。** 引入新数据库（如 MySQL、PostgreSQL）时再建立对应子目录，命名规范后续补充。

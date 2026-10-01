@@ -3,7 +3,7 @@
 #
 alpine/git:2.45.2
 aquasec/trivy:0.66.0
-bitnami/kubectl:1.31.4
+bitnami/kubectl:latest
 busybox:1.37
 curlimages/curl:8.11.1
 gcr.io/go-containerregistry/crane:v0.20.3

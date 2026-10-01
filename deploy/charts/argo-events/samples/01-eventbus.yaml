@@ -1,0 +1,21 @@
+# ============================================================
+# EventBus — JetStream（NATS 持久化）
+# ============================================================
+# Argo Events 依赖 EventBus 做 EventSource ↔ Sensor 的消息传递。
+# 推荐使用 JetStream（基于 NATS，支持持久化）。
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: EventBus
+metadata:
+  name: default
+spec:
+  jetstream:
+    version: latest
+    replicas: 1
+    persistence:
+      storageClassName: local-path
+      accessMode: ReadWriteOnce
+      volumeSize: 5Gi
+    # 单节点 dev 配置
+    nodeSelector:
+      kubernetes.io/os: linux

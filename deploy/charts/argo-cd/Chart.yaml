@@ -1,0 +1,23 @@
+apiVersion: v2
+name: hfwas-devops-argo-cd
+description: HFWAS DevOps — Argo CD v3.5.3（声明式 GitOps 持续交付）
+type: application
+version: 0.1.0
+appVersion: "3.5.3"
+
+keywords:
+  - devops
+  - argo
+  - gitops
+  - cd
+  - continuous-delivery
+
+home: https://github.com/HFwas/hfwas-devops
+sources:
+  - https://github.com/HFwas/hfwas-devops
+  - https://github.com/argoproj/argo-cd
+  - https://argoproj.github.io/argo-helm
+
+maintainers:
+  - name: HFwas
+    email: hfwas@example.com

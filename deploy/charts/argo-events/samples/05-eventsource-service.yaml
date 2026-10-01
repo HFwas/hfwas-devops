@@ -1,0 +1,26 @@
+# ============================================================
+# EventSource 的 Service 暴露方式（NodePort）
+# ============================================================
+# AlertManager 需要能 POST 到 EventSource。在 k3s/Desktop 集群中，
+# 通过 NodePort 暴露 EventSource 的 webhook 端口。
+#
+# 使用方式:
+#   kubectl apply -f 05-eventsource-service.yaml
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-webhook-nodeport
+  namespace: argo-events
+  labels:
+    app: alertmanager-webhook
+spec:
+  type: NodePort
+  ports:
+    - port: 12000
+      targetPort: 12000
+      nodePort: 31200
+      name: webhook
+  selector:
+    # 匹配 EventSource controller 自动创建的 pod label
+    eventsource-name: alertmanager-webhook

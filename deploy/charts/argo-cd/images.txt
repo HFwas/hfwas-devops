@@ -1,0 +1,4 @@
+# Argo CD v3.5.3 运行时镜像
+# 官方 Helm chart: https://argoproj.github.io/argo-helm (chart 10.9.5)
+quay.io/argoproj/argocd:v3.5.3
+redis:7.4.2

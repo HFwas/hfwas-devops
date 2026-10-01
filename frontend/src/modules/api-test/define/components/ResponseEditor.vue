@@ -25,7 +25,7 @@
               <n-select
                 :value="resp.contentType || 'application/json'"
                 :options="contentTypeOptions"
-                @update:value="(v) => updateResponse(index, 'contentType', v)"
+                @update:value="(v: any) => updateResponse(index, 'contentType', v)"
               />
             </n-form-item>
           </n-grid-item>

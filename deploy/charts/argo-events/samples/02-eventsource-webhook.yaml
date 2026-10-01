@@ -1,0 +1,30 @@
+# ============================================================
+# EventSource — AlertManager Webhook
+# ============================================================
+# 接收 Prometheus AlertManager 的 webhook 推送。
+# AlertManager 发送 POST → 本 EventSource 的 Service 地址。
+#
+# Service 名: <eventsource-name>-eventsource-svc
+# 完整地址:   alertmanager-webhook-eventsource-svc.argo-events.svc.cluster.local:12000
+# NodePort:   31200（values-desktop.yaml 中配置）
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: EventSource
+metadata:
+  name: alertmanager-webhook
+spec:
+  service:
+    ports:
+      - port: 12000
+        targetPort: 12000
+        name: webhook
+  webhook:
+    # AlertManager 告警入口
+    alertmanager:
+      port: "12000"
+      endpoint: /alert
+      method: POST
+      # 最大负载 1MB
+      maxPayloadSize: 1048576
+      # 请求体格式
+      contentType: application/json

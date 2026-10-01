@@ -1,0 +1,93 @@
+# ============================================================
+# Argo Workflows v4.1.4 — 默认 values（对齐 chart 2.0.8）
+# ============================================================
+# 此文件覆盖官方 chart 默认值，对齐 HFWAS DevOps 部署风格。
+# 官方 chart 默认值参考:
+#   https://github.com/argoproj/argo-helm/blob/main/charts/argo-workflows/values.yaml
+# ============================================================
+
+# 命名空间: deploy.sh 在 helm install 时 --namespace 指定（默认 argo）
+
+# 全局镜像配置
+images:
+  tag: "v4.1.4"
+  pullPolicy: IfNotPresent
+
+# ---- CRD 安装 ----
+crds:
+  install: true
+  keep: true
+  full: true
+
+# ---- workflow-controller ----
+controller:
+  image:
+    repository: argoproj/workflow-controller
+    tag: "v4.1.4"
+    pullPolicy: IfNotPresent
+  # 并行工作流上限（空 = 不限）
+  parallelism: 10
+  rbac:
+    create: true
+  configMap:
+    create: true
+  metricsConfig:
+    enabled: true
+    path: /metrics
+    port: 9090
+  resources:
+    requests:
+      cpu: 0.5
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+
+# ---- argo-server（Web UI + API）----
+server:
+  enabled: true
+  image:
+    repository: argoproj/argocli
+    tag: "v4.1.4"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  # 认证方式: 可 server / client / sso；同时支持多个
+  authModes:
+    - server
+  serviceType: ClusterIP
+  servicePort: 2746
+  resources:
+    requests:
+      cpu: 0.2
+      memory: 256Mi
+    limits:
+      cpu: 0.5
+      memory: 512Mi
+  ingress:
+    enabled: false
+  secure: false
+
+# ---- executor（工作流 Pod 执行器）----
+executor:
+  image:
+    repository: argoproj/argoexec
+    tag: "v4.1.4"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 0.1
+      memory: 64Mi
+    limits:
+      cpu: 0.5
+      memory: 256Mi
+
+# ---- 工作流默认 SA ----
+workflow:
+  serviceAccount:
+    create: true
+    name: argo-workflow
+  rbac:
+    create: true
+
+# ---- 单命名空间模式（v1 False = cluster 级）----
+singleNamespace: false

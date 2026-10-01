@@ -1,0 +1,12 @@
+# Argo Workflows v4.1.4 运行时镜像
+# 官方 Helm chart: https://argoproj.github.io/argo-helm (chart 2.0.8)
+quay.io/argoproj/workflow-controller:v4.1.4
+quay.io/argoproj/argoexec:v4.1.4
+quay.io/argoproj/argocli:v4.1.4
+quay.io/argoproj/argo-workflows-crdinstaller:v4.1.4
+
+# ---- 工作流 runtime 工具（用户 WorkflowTemplate 常用）----
+bitnami/kubectl:latest
+alpine:3.21
+curlimages/curl:8.11.1
+python:3.12-bookworm

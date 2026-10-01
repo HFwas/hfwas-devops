@@ -1,0 +1,335 @@
+# ============================================================
+# 巡检 WorkflowTemplate
+# ============================================================
+# 功能:
+#   1. 列出指定 Namespace 的所有 Pod
+#   2. 对每个 Pod 并行检查:
+#      a. 重启次数
+#      b. 当前资源使用 (CPU/Memory) vs 请求/限制
+#      c. 如果是 Java 服务，exec 进容器获取堆外内存
+#   3. 汇总生成巡检报告
+#
+# 前置条件:
+#   kubectl apply -f ../rbac/health-inspection-rbac.yaml
+#
+# 提交:
+#   argo submit -f health-inspection-workflowtemplate.yaml \
+#     -p namespace=devops \
+#     -p report-output=true
+#
+# 查询最新巡检:
+#   argo list
+#   argo logs <workflow-name>
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: health-inspection
+spec:
+  # 入口
+  entrypoint: health-inspection
+  # 使用专用 SA（已在 rbac/ 中创建）
+  serviceAccountName: argo-workflow-health-inspection
+
+  # ==========================================================
+  # 参数
+  # ==========================================================
+  arguments:
+    parameters:
+      - name: namespace
+        value: devops
+        description: 巡检的目标命名空间
+      - name: report-output
+        value: "true"
+        enum:
+          - "true"
+          - "false"
+        description: 是否将巡检报告输出到 Artifact
+
+  # ==========================================================
+  # 卷（可选：挂载 metrics-server 证书等）
+  # ==========================================================
+  volumes: []
+
+  # ==========================================================
+  # 模板
+  # ==========================================================
+  templates:
+    # --------------------------------------------------
+    # 主流程：顺序执行
+    # --------------------------------------------------
+    - name: health-inspection
+      steps:
+        - - name: list-pods
+            template: list-pods
+            arguments:
+              parameters:
+                - name: namespace
+                  value: "{{workflow.parameters.namespace}}"
+
+        # 并行检查每个 Pod
+        - - name: inspect-pod
+            template: inspect-pod
+            arguments:
+              parameters:
+                - name: namespace
+                  value: "{{workflow.parameters.namespace}}"
+                - name: pod-name
+                  value: "{{item.podName}}"
+                - name: restarts
+                  value: "{{item.restarts}}"
+                - name: is-java
+                  value: "{{item.isJava}}"
+                - name: cpu-request
+                  value: "{{item.cpuRequest}}"
+                - name: mem-request
+                  value: "{{item.memRequest}}"
+                - name: cpu-limit
+                  value: "{{item.cpuLimit}}"
+                - name: mem-limit
+                  value: "{{item.memLimit}}"
+            withParam: "{{steps.list-pods.outputs.parameters.pods}}"
+
+        - - name: aggregate-report
+          template: aggregate-report
+          arguments:
+            parameters:
+              - name: namespace
+                value: "{{workflow.parameters.namespace}}"
+              - name: pods-count
+                value: "{{steps.list-pods.outputs.parameters.pods-count}}"
+
+    # --------------------------------------------------
+    # Step 1: 列出 Namespace 下所有 Pod
+    # --------------------------------------------------
+    - name: list-pods
+      inputs:
+        parameters:
+          - name: namespace
+      outputs:
+        parameters:
+          - name: pods
+            valueFrom:
+              path: /tmp/pods.json
+          - name: pods-count
+            valueFrom:
+              path: /tmp/pods-count.txt
+      script:
+        image: bitnami/kubectl:latest
+        command: [bash]
+        source: |
+          set -euo pipefail
+          NS="{{inputs.parameters.namespace}}"
+
+          echo "=============================================="
+          echo "  巡检开始 — Namespace: $NS"
+          echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "=============================================="
+
+          # 获取所有 Pod 的详细信息
+          kubectl get pods -n "$NS" -o json \
+            | jq -c '
+                [.items[] | {
+                  podName:     .metadata.name,
+                  node:        .spec.nodeName,
+                  phase:       .status.phase,
+                  restarts:    ([.status.containerStatuses // [] | .[] | .restartCount] | add),
+                  age:         (now - (.metadata.creationTimestamp | fromdateiso8601)),
+                  isJava:      ([.spec.containers[].image | test("java|openjdk|jre|jdk|tomcat|spring|gradle|maven|eclipse-temurin|adoptopenjdk"; "i")] | any),
+                  cpuRequest:  ([.spec.containers[].resources.requests.cpu // "0"] | add),
+                  memRequest:  ([.spec.containers[].resources.requests.memory // "0"] | add),
+                  cpuLimit:    ([.spec.containers[].resources.limits.cpu // "0"] | add),
+                  memLimit:    ([.spec.containers[].resources.limits.memory // "0"] | add),
+                  containers:  [.spec.containers[].name]
+                }]
+              ' > /tmp/pods.json
+
+          # Pod 数量
+          jq length /tmp/pods.json > /tmp/pods-count.txt
+          POD_COUNT=$(cat /tmp/pods-count.txt)
+
+          echo ""
+          echo "共发现 $POD_COUNT 个 Pod"
+          echo ""
+          echo "Pod 清单:"
+          jq -r '.[] | "  \(.podName)  |  重启: \(.restarts)  |  Java: \(.isJava)  |  状态: \(.phase)"' /tmp/pods.json
+
+          # 标记有重启的 Pod
+          echo ""
+          echo "--- 有重启记录的 Pod ---"
+          jq -r '.[] | select(.restarts > 0) | "  ⚠️  \(.podName)  重启 \(.restarts) 次"' /tmp/pods.json || echo "  ✅ 无"
+
+          # 非 Running 的 Pod
+          echo ""
+          echo "--- 非 Running 状态的 Pod ---"
+          jq -r '.[] | select(.phase != "Running") | "  ❌  \(.podName)  状态: \(.phase)"' /tmp/pods.json || echo "  ✅ 全部 Running"
+
+    # --------------------------------------------------
+    # Step 2（并行）：检查单个 Pod
+    # --------------------------------------------------
+    - name: inspect-pod
+      inputs:
+        parameters:
+          - name: namespace
+          - name: pod-name
+          - name: restarts
+          - name: is-java
+          - name: cpu-request
+          - name: mem-request
+          - name: cpu-limit
+          - name: mem-limit
+      script:
+        image: bitnami/kubectl:latest
+        command: [bash]
+        source: |
+          set -euo pipefail
+          NS="{{inputs.parameters.namespace}}"
+          POD="{{inputs.parameters.pod-name}}"
+          RESTARTS="{{inputs.parameters.restarts}}"
+          IS_JAVA="{{inputs.parameters.is-java}}"
+
+          echo ""
+          echo "========== 检查: $POD =========="
+          echo ""
+
+          # ---- 1. 重启检查 ----
+          echo "▶ 重启检查"
+          if [ "$RESTARTS" -gt 0 ]; then
+            echo "  ⚠️ 已重启 $RESTARTS 次"
+            # 获取最近重启原因
+            kubectl get pod "$POD" -n "$NS" -o json \
+              | jq -r '.status.containerStatuses[] | select(.restartCount > 0) | "  容器: \(.name)  重启: \(.restartCount)  上次退出: \(.lastState.terminated.exitCode // "N/A")  原因: \(.lastState.terminated.reason // "N/A")"'
+          else
+            echo "  ✅ 未重启"
+          fi
+
+          # ---- 2. 资源请求/限制 ----
+          echo ""
+          echo "▶ 资源配置"
+          echo "  CPU  Request: {{inputs.parameters.cpu-request}}"
+          echo "  Mem  Request: {{inputs.parameters.mem-request}}"
+          echo "  CPU  Limit:   {{inputs.parameters.cpu-limit}}"
+          echo "  Mem  Limit:   {{inputs.parameters.mem-limit}}"
+          echo ""
+
+          # ---- 3. 当前资源使用 (kubectl top) ----
+          echo "▶ 当前资源使用 (kubectl top)"
+          if kubectl top pod "$POD" -n "$NS" --no-headers 2>/dev/null; then
+            echo "  (来自 metrics-server)"
+          else
+            echo "  ⚠️ metrics-server 不可用，跳过实时指标"
+            echo "  安装 metrics-server: kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml"
+          fi
+
+          # ---- 4. 最后 1 小时日志是否有异常 ----
+          echo ""
+          echo "▶ 最近日志异常（Error/Exception/WARN/OOM）"
+          kubectl logs --since=1h "$POD" -n "$NS" --all-containers --tail=5000 2>/dev/null \
+            | grep -iE '\b(error|exception|oomkilled|out of memory|OutOfMemoryError|OOMKilled)\b' \
+            | tail -20 || echo "  ✅ 未发现严重异常"
+
+          # ---- 5. Java 服务堆外内存检查 ----
+          if [ "$IS_JAVA" == "true" ]; then
+            echo ""
+            echo "▶ Java 堆外内存检查"
+
+            # 找到第一个 Running 容器
+            FIRST_CONTAINER=$(kubectl get pod "$POD" -n "$NS" -o json \
+              | jq -r '.status.containerStatuses[] | select(.state.running != null) | .name' | head -1)
+
+            if [ -z "$FIRST_CONTAINER" ]; then
+              echo "  ⏭️  无 Running 容器，跳过 exec"
+            else
+              echo "  目标容器: $FIRST_CONTAINER"
+
+              # 检查 jcmd 是否可用
+              if kubectl exec "$POD" -n "$NS" -c "$FIRST_CONTAINER" -- which jcmd 2>/dev/null; then
+                echo ""
+                echo "  --- JVM 内存概览 ---"
+                # 尝试 NativeMemoryTracking
+                if kubectl exec "$POD" -n "$NS" -c "$FIRST_CONTAINER" -- jcmd 1 VM.native_memory summary 2>/dev/null; then
+                  echo "  (NativeMemoryTracking 开启)"
+                else
+                  echo "  NMT 未开启，回退: jstat + ps 估算堆外内存"
+                  # 找 PID
+                  JAVA_PID=$(kubectl exec "$POD" -n "$NS" -c "$FIRST_CONTAINER" -- sh -c 'ps aux | grep java | grep -v grep | head -1 | awk "{print \$1}"' 2>/dev/null)
+                  if [ -z "$JAVA_PID" ]; then JAVA_PID=1; fi
+                  echo "  Java PID: $JAVA_PID"
+
+                  # RSS
+                  RSS=$(kubectl exec "$POD" -n "$NS" -c "$FIRST_CONTAINER" -- sh -c "ps -o rss= -p $JAVA_PID 2>/dev/null" 2>/dev/null || echo "0")
+                  RSS_MB=$((RSS / 1024))
+
+                  # 堆使用 (jstat)
+                  HEAP_USED=$(kubectl exec "$POD" -n "$NS" -c "$FIRST_CONTAINER" -- jstat -gc "$JAVA_PID" 2>/dev/null | tail -1 | awk '{print $3+$4+$5+$6+$7+$8+$9}' || echo "0")
+                  HEAP_MB=$((HEAP_USED / 1024))
+
+                  # 估算
+                  OFF_HEAP=$((RSS_MB - HEAP_MB))
+                  echo "  RSS:        ${RSS_MB} MB"
+                  echo "  堆使用:     ${HEAP_MB} MB (jstat -gc)"
+                  echo "  估算堆外:   ${OFF_HEAP} MB (RSS - 堆)"
+                  echo "  ⚠️ 堆外内存 = RSS - 堆使用，含 Metaspace、Direct Buffer、Thread Stack、Code Cache 等"
+
+                  # JVM 参数中关键项
+                  echo ""
+                  echo "  --- JVM 关键参数 ---"
+                  kubectl exec "$POD" -n "$NS" -c "$FIRST_CONTAINER" -- sh -c 'ps aux | grep java | grep -v grep | head -1 | grep -oP "(Xms|Xmx|MaxMetaspaceSize|MaxDirectMemorySize)\S+"' 2>/dev/null || echo "  未检出显式 JVM 参数"
+                fi
+              else
+                echo "  ⏭️  jcmd/jstat 不可用（非标准 JDK 镜像或有安全限制）"
+                echo "  查看进程内存映射:"
+                kubectl exec "$POD" -n "$NS" -c "$FIRST_CONTAINER" -- sh -c 'cat /proc/1/status 2>/dev/null | grep -E "VmRSS|VmSize|VmPeak|Threads"' || true
+              fi
+            fi
+          else
+            echo ""
+            echo "▶ 非 Java 服务，跳过堆外内存检查"
+          fi
+
+          echo ""
+          echo "========== $POD 检查完成 =========="
+          echo ""
+
+    # --------------------------------------------------
+    # Step 3: 汇总报告
+    # --------------------------------------------------
+    - name: aggregate-report
+      inputs:
+        parameters:
+          - name: namespace
+          - name: pods-count
+      outputs:
+        artifacts:
+          - name: report
+            path: /tmp/report.md
+            archive:
+              none: {}
+            optional: true
+            s3:
+              key: "reports/{{workflow.name}}/report.md"
+      script:
+        image: bitnami/kubectl:latest
+        command: [bash]
+        source: |
+          set -euo pipefail
+          NS="{{inputs.parameters.namespace}}"
+          POD_COUNT="{{inputs.parameters.pods-count}}"
+
+          echo "==============================================" > /tmp/report.md
+          echo "  Argo Workflows - 巡检报告"                  >> /tmp/report.md
+          echo "==============================================" >> /tmp/report.md
+          echo ""                                              >> /tmp/report.md
+          echo "- 工作流: {{workflow.name}}"                     >> /tmp/report.md
+          echo "- 命名空间: $NS"                                >> /tmp/report.md
+          echo "- Pod 总数: $POD_COUNT"                         >> /tmp/report.md
+          echo "- 执行时间: $(date '+%Y-%m-%d %H:%M:%S')"       >> /tmp/report.md
+          echo "- 状态: {{workflow.status}}"                    >> /tmp/report.md
+          echo ""                                              >> /tmp/report.md
+
+          echo "---"                                           >> /tmp/report.md
+          echo ""                                              >> /tmp/report.md
+          echo "全部检查完成。"                                 >> /tmp/report.md
+
+          # 输出到 stdout 也一份
+          cat /tmp/report.md

@@ -1,0 +1,22 @@
+apiVersion: v2
+name: hfwas-devops-argo-workflows
+description: HFWAS DevOps — Argo Workflows v4.1.4（K8s 工作流引擎）
+type: application
+version: 0.1.0
+appVersion: "4.1.4"
+
+keywords:
+  - devops
+  - argo
+  - workflow
+  - pipeline
+
+home: https://github.com/HFwas/hfwas-devops
+sources:
+  - https://github.com/HFwas/hfwas-devops
+  - https://github.com/argoproj/argo-workflows
+  - https://argoproj.github.io/argo-helm
+
+maintainers:
+  - name: HFwas
+    email: hfwas@example.com

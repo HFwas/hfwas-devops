@@ -1,0 +1,49 @@
+# ============================================================
+# 巡检 Workflow — RBAC
+# ============================================================
+# ServiceAccount + ClusterRole 赋予巡检工作流需要的权限:
+#   - 列出 Pod
+#   - 查看 Pod 状态和资源
+#   - kubectl top (metrics-server)
+#   - kubectl exec (Java 堆外内存检查)
+# ============================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argo-workflow-health-inspection
+  namespace: argo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argo-workflow-health-inspection
+rules:
+  # 列出/读取 Pod
+  - apiGroups: [""]
+    resources: [pods, pods/log, pods/status]
+    verbs: [get, list, watch]
+  # 获取节点资源 (kubectl top node/node 代理)
+  - apiGroups: [""]
+    resources: [nodes/metrics, nodes/proxy, nodes/stats]
+    verbs: [get, list, watch]
+  # exec 进容器
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [create]
+  # 获取 Pod 指标 (metrics-server)
+  - apiGroups: [metrics.k8s.io]
+    resources: [pods, nodes]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argo-workflow-health-inspection
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argo-workflow-health-inspection
+subjects:
+  - kind: ServiceAccount
+    name: argo-workflow-health-inspection
+    namespace: argo

@@ -285,7 +285,7 @@ function onJobToolChange(value: string | null) {
           clearable
           :options="credentialOptions"
           placeholder="可选"
-          @update:value="(value) => emit('update:credentialId', value)"
+          @update:value="(value: any) => emit('update:credentialId', value)"
         />
       </n-form-item>
     </n-form>

@@ -7,6 +7,7 @@ import { docgenRoutes } from '@/modules/docgen/router/docgenRoutes'
 import { imageRoutes } from '@/modules/image/router/imageRoutes'
 import { pipelineRoutes } from '@/modules/pipeline/router/pipelineRoutes'
 import { containerRoutes } from '@/modules/container/router/containerRoutes'
+import { argoRoutes } from '@/modules/argo/router/argoRoutes'
 import { useAuthStore } from '@/modules/user/stores/auth'
 import { resolveRouteProjectId } from '@/modules/pm/utils/projectRoute'
 import { appRedirectUri, isAuthenticated, login as keycloakLogin } from '@/shared/keycloak'
@@ -28,6 +29,7 @@ const router = createRouter({
     ...imageRoutes,
     ...pipelineRoutes,
     ...containerRoutes,
+    ...argoRoutes,
   ],
 })
 

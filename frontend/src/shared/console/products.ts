@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { Beaker, Boxes, FileText, FileDown, GitBranch, Image, ServerCog, ShieldCheck, SquareKanban } from '@lucide/vue'
+import { Beaker, Boxes, FileText, FileDown, GitBranch, GitGraph, Image, ServerCog, ShieldCheck, SquareKanban } from '@lucide/vue'
 
 /**
  * 控制台产品目录（顶栏左侧下拉切换）
@@ -90,6 +90,14 @@ export const CONSOLE_PRODUCTS: ConsoleProduct[] = [
     path: '/audit/overview',
     group: '安全治理',
     comingSoon: true,
+  },
+  {
+    key: 'argo',
+    name: '工作流',
+    description: '基于 Argo Workflows 的通用工作流引擎',
+    icon: GitGraph,
+    path: '/argo/workflows',
+    group: '基础设施',
   },
 ]
 

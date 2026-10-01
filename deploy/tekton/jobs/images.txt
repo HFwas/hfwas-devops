@@ -8,5 +8,5 @@ gcr.io/kaniko-project/executor:v1.23.2-debug
 gcr.io/go-containerregistry/crane:v0.20.3
 ghcr.io/sigstore/cosign:v2.4.3
 rclone/rclone:1.68.2
-bitnami/kubectl:1.31.4
+bitnami/kubectl:latest
 curlimages/curl:8.11.1

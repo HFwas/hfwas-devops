@@ -1,0 +1,961 @@
+# ============================================================
+# Pod 故障调查 WorkflowTemplate
+# ============================================================
+# 触发方式: Prometheus 告警（OOM / NotReady / CrashLoopBackOff）
+#            → AlertManager → Argo Events Sensor → 本 Workflow
+#
+# 执行流程:
+#   1. 采集 Pod 元信息（退出码/原因/镜像/Events）
+#   2. 获取崩溃前日志（kubectl logs --previous + 持久化日志）
+#   3. 调用 Prometheus API 生成资源趋势图（CPU/Memory/GC）
+#   4. Java 服务专项：堆外内存/GC频次/线程/堆
+#   5. 汇总为一份完整 HTML 报告
+# ============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: pod-investigation
+spec:
+  entrypoint: investigate
+  serviceAccountName: argo-workflow-health-inspection
+
+  arguments:
+    parameters:
+      - name: namespace
+        description: 目标 Pod 所在命名空间
+      - name: pod-name
+        description: 故障 Pod 名称
+      - name: container-name
+        value: ""
+        description: 目标容器名（为空则取第一个运行过的容器）
+      - name: prometheus-url
+        value: "http://prometheus-prometheus.monitoring:9090"
+        description: Prometheus API 地址
+      - name: time-range
+        value: "2h"
+        description: 回溯时长（PromQL range + 日志回溯）
+      - name: alert-name
+        value: "unknown"
+        description: 触发此调查的告警名
+      - name: severity
+        value: "warning"
+        description: 告警级别
+      - name: dingtalk-webhook
+        value: ""
+        description: 钉钉机器人 Webhook URL（空则不推送）
+      - name: dingtalk-secret
+        value: ""
+        description: 钉钉机器人加签密钥（空则不签名）
+
+  volumes:
+    - name: report-data
+      emptyDir: {}
+
+  templates:
+    # ==========================================================
+    # 主流程
+    # ==========================================================
+    - name: investigate
+      steps:
+        # Step 1: 采集 Pod 元信息 + Events
+        - - name: gather-pod-info
+            template: gather-pod-info
+            arguments:
+              parameters:
+                - name: namespace
+                  value: "{{workflow.parameters.namespace}}"
+                - name: pod-name
+                  value: "{{workflow.parameters.pod-name}}"
+                - name: container-name
+                  value: "{{workflow.parameters.container-name}}"
+
+        # Step 2: 并行采集 — 日志 + Prometheus 指标 + K8s Events
+        - - name: collect-k8s-events
+            template: collect-k8s-events
+            arguments:
+              parameters:
+                - name: namespace
+                  value: "{{workflow.parameters.namespace}}"
+                - name: pod-name
+                  value: "{{workflow.parameters.pod-name}}"
+          - name: collect-logs
+            template: collect-logs
+            arguments:
+              parameters:
+                - name: namespace
+                  value: "{{workflow.parameters.namespace}}"
+                - name: pod-name
+                  value: "{{workflow.parameters.pod-name}}"
+                - name: container-name
+                  value: "{{steps.gather-pod-info.outputs.parameters.first-container}}"
+                - name: time-range
+                  value: "{{workflow.parameters.time-range}}"
+          - name: prometheus-metrics
+            template: prometheus-metrics
+            arguments:
+              parameters:
+                - name: namespace
+                  value: "{{workflow.parameters.namespace}}"
+                - name: pod-name
+                  value: "{{workflow.parameters.pod-name}}"
+                - name: prometheus-url
+                  value: "{{workflow.parameters.prometheus-url}}"
+                - name: time-range
+                  value: "{{workflow.parameters.time-range}}"
+
+        # Step 3（可选）: Java 服务专项诊断
+        - - name: java-diagnostics
+            when: "{{steps.gather-pod-info.outputs.parameters.is-java}} == true"
+            template: java-diagnostics
+            arguments:
+              parameters:
+                - name: namespace
+                  value: "{{workflow.parameters.namespace}}"
+                - name: pod-name
+                  value: "{{workflow.parameters.pod-name}}"
+                - name: container-name
+                  value: "{{steps.gather-pod-info.outputs.parameters.first-container}}"
+
+        # Step 4: 汇总报告
+        - - name: aggregate-report
+            template: aggregate-report
+            arguments:
+              parameters:
+                - name: namespace
+                  value: "{{workflow.parameters.namespace}}"
+                - name: pod-name
+                  value: "{{workflow.parameters.pod-name}}"
+                - name: alert-name
+                  value: "{{workflow.parameters.alert-name}}"
+                - name: severity
+                  value: "{{workflow.parameters.severity}}"
+
+        # Step 5: 钉钉群推送（可选）
+        - - name: notify-dingtalk
+            when: "{{workflow.parameters.dingtalk-webhook}} != ''"
+            template: notify-dingtalk
+            arguments:
+              parameters:
+                - name: namespace
+                  value: "{{workflow.parameters.namespace}}"
+                - name: pod-name
+                  value: "{{workflow.parameters.pod-name}}"
+                - name: alert-name
+                  value: "{{workflow.parameters.alert-name}}"
+                - name: severity
+                  value: "{{workflow.parameters.severity}}"
+                - name: dingtalk-webhook
+                  value: "{{workflow.parameters.dingtalk-webhook}}"
+                - name: dingtalk-secret
+                  value: "{{workflow.parameters.dingtalk-secret}}"
+
+    # ==========================================================
+    # Step 1: 采集 Pod 元信息
+    # ==========================================================
+    - name: gather-pod-info
+      inputs:
+        parameters:
+          - name: namespace
+          - name: pod-name
+          - name: container-name
+      outputs:
+        parameters:
+          - name: first-container
+            valueFrom:
+              path: /tmp/first-container.txt
+          - name: is-java
+            valueFrom:
+              path: /tmp/is-java.txt
+      script:
+        image: bitnami/kubectl:latest
+        command: [bash]
+        source: |
+          set -euo pipefail
+          NS="{{inputs.parameters.namespace}}"
+          POD="{{inputs.parameters.pod-name}}"
+          CONTAINER="{{inputs.parameters.container-name}}"
+
+          echo "=============================================="
+          echo "  Pod 故障调查 — 基本信息"
+          echo "  告警: {{workflow.parameters.alert-name}}"
+          echo "  级别: {{workflow.parameters.severity}}"
+          echo "  Pod:  $POD"
+          echo "  NS:   $NS"
+          echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "=============================================="
+          echo ""
+
+          # ---- Pod 完整 YAML ----
+          echo "--- Pod Spec ---"
+          kubectl get pod "$POD" -n "$NS" -o yaml 2>/dev/null || echo "Pod 已删除，无法获取"
+
+          # ---- 容器状态（退出码/原因/镜像） ----
+          echo ""
+          echo "--- 容器状态 ---"
+          kubectl get pod "$POD" -n "$NS" -o json 2>/dev/null \
+            | jq -r '
+              .status.containerStatuses[] // .status.initContainerStatuses[] |
+              "容器: \(.name)
+              镜像: \(.image)
+              就绪: \(.ready)
+              重启: \(.restartCount)
+              状态: \(.state | keys[0])
+              退出码: \(.state.terminated.exitCode // .state.waiting.reason // "N/A")
+              退出原因: \(.state.terminated.reason // .state.waiting.reason // "N/A")
+              退出信息: \(.state.terminated.message // .state.waiting.message // "N/A")"
+            ' || echo "Pod 已删除或无容器状态"
+
+          # ---- 确定第一个容器名（用于后续步骤） ----
+          FIRST_CONTAINER="$CONTAINER"
+          if [ -z "$FIRST_CONTAINER" ]; then
+            FIRST_CONTAINER=$(kubectl get pod "$POD" -n "$NS" -o json 2>/dev/null \
+              | jq -r '.spec.containers[0].name // "app"')
+          fi
+          echo -n "$FIRST_CONTAINER" > /tmp/first-container.txt
+          echo "→ 目标容器: $FIRST_CONTAINER"
+
+          # ---- 判断是否为 Java 服务 ----
+          IS_JAVA=$(kubectl get pod "$POD" -n "$NS" -o json 2>/dev/null \
+            | jq -r '
+              ([.spec.containers[].image | test("java|openjdk|jre|jdk|tomcat|spring|gradle|maven|eclipse-temurin|adoptopenjdk";"i")]
+              | any) | tostring')
+          echo -n "$IS_JAVA" > /tmp/is-java.txt
+          echo "→ Java 服务: $IS_JAVA"
+
+          # ---- Node 信息 ----
+          echo ""
+          echo "--- 所在 Node ---"
+          NODE=$(kubectl get pod "$POD" -n "$NS" -o jsonpath='{.spec.nodeName}' 2>/dev/null)
+          echo "Node: $NODE"
+          if [ -n "$NODE" ]; then
+            kubectl describe node "$NODE" 2>/dev/null \
+              | grep -E "^\s*(Capacity|Allocatable|Conditions|Memory|CPU|Pressure|Ready)" \
+              | head -20 || true
+          fi
+
+    # ==========================================================
+    # Step 2a: 采集 K8s Events
+    # ==========================================================
+    - name: collect-k8s-events
+      inputs:
+        parameters:
+          - name: namespace
+          - name: pod-name
+      outputs:
+        artifacts:
+          - name: events
+            path: /tmp/events.txt
+            archive: { none: {} }
+            optional: true
+      script:
+        image: bitnami/kubectl:latest
+        command: [bash]
+        source: |
+          set -euo pipefail
+          NS="{{inputs.parameters.namespace}}"
+          POD="{{inputs.parameters.pod-name}}"
+          REPORT=/tmp/events.txt
+
+          echo "==============================================" > $REPORT
+          echo "  Pod 事件 (kubectl get events)"                >> $REPORT
+          echo "==============================================" >> $REPORT
+          echo ""                                               >> $REPORT
+
+          # 获取与该 Pod 相关的 Events（按时间倒序）
+          kubectl get events -n "$NS" --sort-by=.lastTimestamp \
+            --field-selector "involvedObject.name=$POD" \
+            -o wide 2>/dev/null >> $REPORT || echo "无法获取 Events" >> $REPORT
+
+          echo "" >> $REPORT
+          echo "--- 最近 1h 全部 Events（含其他资源）---" >> $REPORT
+          kubectl get events -n "$NS" --sort-by=.lastTimestamp \
+            --since=1h -o wide 2>/dev/null | head -50 >> $REPORT || true
+
+          echo "" >> $REPORT
+          echo "--- Event 详情 (describe) ---" >> $REPORT
+          kubectl describe pod "$POD" -n "$NS" 2>/dev/null \
+            | sed -n '/Events:/,$ p' >> $REPORT || true
+
+          cat $REPORT
+          echo ""
+          echo "Events 已采集: $(wc -l < $REPORT) 行"
+
+    # ==========================================================
+    # Step 2b: 采集日志
+    # ==========================================================
+    - name: collect-logs
+      inputs:
+        parameters:
+          - name: namespace
+          - name: pod-name
+          - name: container-name
+          - name: time-range
+      outputs:
+        artifacts:
+          - name: logs-crash
+            path: /tmp/logs-crash.txt
+            archive: { none: {} }
+            optional: true
+          - name: logs-persistent
+            path: /tmp/logs-persistent.txt
+            archive: { none: {} }
+            optional: true
+      script:
+        image: bitnami/kubectl:latest
+        command: [bash]
+        source: |
+          set -euo pipefail
+          NS="{{inputs.parameters.namespace}}"
+          POD="{{inputs.parameters.pod-name}}"
+          CONTAINER="{{inputs.parameters.container-name}}"
+          TIME_RANGE="{{inputs.parameters.time-range}}"
+          SINCE=$(echo "$TIME_RANGE" | sed 's/h/hours/g; s/m/minutes/g')
+
+          echo "=============================================="
+          echo "  日志采集"
+          echo "  Pod:       $POD"
+          echo "  容器:      $CONTAINER"
+          echo "  回溯:      $SINCE"
+          echo "=============================================="
+
+          # ---- 1. 崩溃前日志（kubectl logs --previous） ----
+          echo ""
+          echo "--- 崩溃前容器日志 (--previous) ---"
+          if kubectl logs --previous=true "$POD" -n "$NS" -c "$CONTAINER" \
+            --tail=5000 2>/dev/null > /tmp/logs-crash.txt; then
+            echo "✅ 获取到崩溃前日志 ($(wc -l < /tmp/logs-crash.txt) 行)"
+            # 提取异常信息
+            echo ""
+            echo "--- 日志中的异常/错误摘要(前30条) ---"
+            grep -iE '\b(Error|Exception|OOM|OutOfMemory|Killed|OOMKilled|FATAL|NullPointer|StackOverflow)\b' \
+              /tmp/logs-crash.txt | tail -30 || echo "(未发现严重异常)"
+          else
+            echo "❌ 无崩溃前日志（首次启动或 --previous 不可用）"
+            echo -n "" > /tmp/logs-crash.txt
+          fi
+
+          # ---- 2. 当前日志 ----
+          echo ""
+          echo "--- 当前容器日志(回溯 $SINCE) ---"
+          kubectl logs "$POD" -n "$NS" -c "$CONTAINER" \
+            --since="$SINCE" --tail=2000 2>/dev/null | head -200 || echo "(当前容器日志不可用)"
+
+          # ---- 3. 持久化日志检查 ----
+          echo ""
+          echo "--- 持久化日志检查 ---"
+          HAS_PERSISTENT_LOG=false
+          PERSISTENT_PATHS=()
+
+          # 检查 Pod 是否有 PVC 挂载（持久化日志常见路径）
+          while IFS= read -r mount; do
+            PERSISTENT_PATHS+=("$mount")
+          done < <(kubectl get pod "$POD" -n "$NS" -o json 2>/dev/null \
+            | jq -r '.spec.containers[].volumeMounts[]? | select(.name != "kube-api-access-*") | "\(.mountPath) → (\(.name))"' \
+            | head -10)
+
+          if [ ${#PERSISTENT_PATHS[@]} -gt 0 ]; then
+            echo "发现持久化挂载点:"
+            for p in "${PERSISTENT_PATHS[@]}"; do echo "  $p"; done
+            echo ""
+            echo "--- 持久化日志目录 (exec 检查) ---"
+            # 尝试常见日志路径
+            for try_path in "/var/log" "/logs" "/app/logs" "/data/logs" "/opt/app/logs"; do
+              if kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- sh -c \
+                "[ -d $try_path ] && echo 'EXISTS: $try_path'" 2>/dev/null; then
+                echo "  目录存在: $try_path"
+                HAS_PERSISTENT_LOG=true
+                # 列出日志文件
+                echo "  文件列表:"
+                kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- sh -c \
+                  "find $try_path -name '*.log' -o -name '*.out' -o -name '*.txt' 2>/dev/null | head -20" 2>/dev/null || true
+                # 读取最近 2 小时的日志
+                echo "  >> $try_path 中最近 $TIME_RANGE 的日志:"
+                kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- sh -c \
+                  "cat $try_path/*.log 2>/dev/null | tail -500" 2>/dev/null > /tmp/logs-persistent.txt
+                if [ -s /tmp/logs-persistent.txt ]; then
+                  echo "    已采集 $(wc -l < /tmp/logs-persistent.txt) 行"
+                  # 提取其中异常
+                  grep -iE '\b(Error|Exception|OOM|OutOfMemory|Killed|OOMKilled|FATAL)\b' \
+                    /tmp/logs-persistent.txt | tail -20 || true
+                fi
+              fi
+            done
+          else
+            echo "无持久化挂载（仅 emptyDir/tmpfs），崩溃后日志不可恢复"
+            echo "提示: 如需持久化日志可挂载 PVC 或启用节点级日志采集"
+          fi
+
+          if [ "$HAS_PERSISTENT_LOG" != "true" ]; then
+            echo -n "（无持久化日志目录）" > /tmp/logs-persistent.txt
+          fi
+
+    # ==========================================================
+    # Step 2c: Prometheus 指标 + 图表
+    # ==========================================================
+    - name: prometheus-metrics
+      inputs:
+        parameters:
+          - name: namespace
+          - name: pod-name
+          - name: prometheus-url
+          - name: time-range
+      outputs:
+        artifacts:
+          - name: report-html
+            path: /tmp/prometheus-report.html
+            archive: { none: {} }
+            optional: true
+      script:
+        image: python:3.12-bookworm
+        command: [python3]
+        source: |
+          import json, urllib.request, os, sys
+          from datetime import datetime, timezone
+          from html import escape
+
+          PROM_URL = os.environ.get('PROM_URL', '{{inputs.parameters.prometheus-url}}')
+          NAMESPACE = os.environ.get('NS', '{{inputs.parameters.namespace}}')
+          POD_NAME = os.environ.get('POD', '{{inputs.parameters.pod-name}}')
+          TIME_RANGE = os.environ.get('TIME_RANGE', '{{inputs.parameters.time-range}}')
+          REPORT_FILE = '/tmp/prometheus-report.html'
+
+          # ---- 解析时间范围 ----
+          def parse_duration(s):
+              if s.endswith('h'): return int(s[:-1]) * 3600
+              if s.endswith('m'): return int(s[:-1]) * 60
+              if s.endswith('s'): return int(s[:-1])
+              return 7200  # default 2h
+          WINDOW = parse_duration(TIME_RANGE)
+
+          # ---- 查询 Prometheus ----
+          def query_promql(promql):
+              url = f"{PROM_URL}/api/v1/query?query={urllib.parse.quote(promql)}"
+              try:
+                  resp = urllib.request.urlopen(url, timeout=30)
+                  data = json.loads(resp.read())
+                  if data['status'] == 'success':
+                      return data['data']['result']
+              except Exception as e:
+                  return [{'error': str(e)}]
+              return []
+
+          def query_range(promql, start, end, step=60):
+              url = f"{PROM_URL}/api/v1/query_range?query={urllib.parse.quote(promql)}&start={start}&end={end}&step={step}"
+              try:
+                  resp = urllib.request.urlopen(url, timeout=30)
+                  data = json.loads(resp.read())
+                  if data['status'] == 'success':
+                      return data['data']['result']
+              except Exception as e:
+                  return [{'error': str(e)}]
+              return []
+
+          now = int(datetime.now(timezone.utc).timestamp())
+          start = now - WINDOW
+
+          # ---- 构造 PromQL ----
+          pod_selector = f'{{namespace="{NAMESPACE}",pod=~"{POD_NAME}.+"}}'
+          pod_exact = f'{{namespace="{NAMESPACE}",pod="{POD_NAME}"}}'
+
+          queries = {
+              'cpu_usage': f'sum(rate(container_cpu_usage_seconds_total{json.dumps(pod_exact)}[30s])) by (container)',
+              'memory_rss': f'sum(container_memory_rss{json.dumps(pod_exact)}) by (container)',
+              'memory_ws': f'sum(container_memory_working_set_bytes{json.dumps(pod_exact)}) by (container)',
+              'memory_cache': f'sum(container_memory_cache{json.dumps(pod_exact)}) by (container)',
+              'network_rx': f'sum(rate(container_network_receive_bytes_total{json.dumps(pod_exact)}[5m]))',
+              'network_tx': f'sum(rate(container_network_transmit_bytes_total{json.dumps(pod_exact)}[5m]))',
+              'oom_events': f'increase(container_oom_events_total{json.dumps(pod_exact)}[5m])',
+              'restarts': f'kube_pod_container_status_restarts_total{json.dumps(pod_exact)}',
+          }
+
+          # ---- 执行查询 ----
+          results = {}
+          for name, promql in queries.items():
+              results[name] = query_promql(promql)
+
+          # ---- 时序数据（范围查询） ----
+          range_results = {}
+          range_queries = {
+              'cpu_trend': f'sum(rate(container_cpu_usage_seconds_total{json.dumps(pod_exact)}[2m])) by (container)',
+              'mem_trend': f'sum(container_memory_working_set_bytes{json.dumps(pod_exact)}) by (container)',
+          }
+          for name, promql in range_queries.items():
+              range_results[name] = query_range(promql, start, now)
+
+          # ---- 生成 HTML 报告 ----
+          def fmt_val(v):
+              if isinstance(v, str) and v.startswith('http'):
+                  return f'<a href="{escape(v)}">{escape(v)}</a>'
+              return escape(str(v))
+
+          def result_table(data, title, cols=['metric', 'value']):
+              html = f'<h3>{escape(title)}</h3><table border="1" cellpadding="4" style="border-collapse:collapse"><tr>'
+              for c in cols:
+                  html += f'<th>{escape(c)}</th>'
+              html += '</tr>'
+              if not data:
+                  html += '<tr><td colspan="99">无数据</td></tr>'
+                  return html + '</table>'
+              for item in data:
+                  if 'error' in item:
+                      html += f'<tr><td colspan="99">⚠️ {escape(item["error"])}</td></tr>'
+                      continue
+                  labels = ', '.join(f'{k}={v}' for k, v in item.get('metric', {}).items())
+                  if isinstance(item.get('value'), list) and len(item['value']) > 1:
+                      val = item['value'][1]
+                  else:
+                      val = str(item.get('value', item.get('values', '')))
+                  html += f'<tr><td>{fmt_val(labels)}</td><td>{fmt_val(val)}</td></tr>'
+              html += '</table>'
+              return html
+
+          html = f'''<!DOCTYPE html>
+          <html><head><meta charset="utf-8"><title>Pod 监控报告 - {escape(POD_NAME)}</title>
+          <style>
+            body {{ font-family: -apple-system, 'Segoe UI', sans-serif; margin: 20px; background: #f5f5f5; }}
+            h1 {{ color: #d32f2f; border-bottom: 2px solid #d32f2f; padding-bottom: 8px; }}
+            h2 {{ color: #333; margin-top: 30px; }}
+            h3 {{ color: #555; }}
+            table {{ background: #fff; width: 100%; margin: 8px 0; }}
+            th {{ background: #f0f0f0; text-align: left; }}
+            td, th {{ padding: 6px 10px; }}
+            .chart {{ background: #fff; padding: 15px; margin: 10px 0; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
+            .generated {{ color: #999; font-size: 12px; margin-top: 20px; }}
+            pre {{ background: #fafafa; padding: 10px; overflow-x: auto; font-size: 12px; }}
+          </style></head><body>
+          <h1>🔍 Pod 监控报告: {escape(POD_NAME)}</h1>
+          <p>命名空间: {escape(NAMESPACE)}<br>
+          生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}<br>
+          回溯范围: 过去 {TIME_RANGE}</p>
+          '''
+
+          # ---- 资源使用摘要 ----
+          html += '<h2>1. 资源使用摘要</h2>'
+          for name, data in results.items():
+              title = name.replace('_', ' ').title()
+              html += result_table(data, title)
+
+          # ---- 时序图（SVG） ----
+          html += '<h2>2. 资源趋势</h2>'
+          for name, data in range_results.items():
+              if not data or 'error' in data[0]:
+                  html += f'<p>⚠️ {name} 时序数据不可用</p>'
+                  continue
+              # 构建简单 SVG 折线图
+              points = []
+              for series in data:
+                  for ts, val in series.get('values', []):
+                      points.append((int(ts), float(val)))
+              if not points:
+                  continue
+              points.sort()
+              # SVG 参数
+              w, h = 800, 200
+              pad_l, pad_r, pad_t, pad_b = 60, 20, 20, 30
+              plot_w = w - pad_l - pad_r
+              plot_h = h - pad_t - pad_b
+              t_min = min(p[0] for p in points)
+              t_max = max(p[0] for p in points)
+              v_min = min(p[1] for p in points)
+              v_max = max(p[1] for p in points)
+              if v_max == v_min: v_max = v_min + 1
+              def px(p):
+                  x = pad_l + (p[0] - t_min) / max(t_max - t_min, 1) * plot_w
+                  y = pad_t + plot_h - (p[1] - v_min) / (v_max - v_min) * plot_h
+                  return f'{x:.1f},{y:.1f}'
+              polyline = ' '.join(px(p) for p in points)
+              # 刻度线
+              v_labels = ''
+              for i in range(5):
+                  val = v_min + (v_max - v_min) * i / 4
+                  y = pad_t + plot_h - plot_h * i / 4
+                  v_labels += f'<text x="{pad_l-8}" y="{y+4}" text-anchor="end" font-size="11">{val:.1f}</text>'
+                  v_labels += f'<line x1="{pad_l}" y1="{y}" x2="{w-pad_r}" y2="{y}" stroke="#eee" stroke-width="1"/>'
+
+              title = name.replace('_', ' ').replace('trend', '').title()
+              html += f'''<div class="chart">
+              <h3>{escape(title)} 趋势</h3>
+              <svg width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg">
+                <rect width="{w}" height="{h}" fill="#fafafa"/>
+                <polyline points="{polyline}" fill="none" stroke="#1976d2" stroke-width="2"/>
+                {v_labels}
+                <text x="{w/2}" y="{h-2}" text-anchor="middle" font-size="11">
+                  回溯 {TIME_RANGE}
+                </text>
+              </svg>
+              </div>'''
+
+          # ---- PromQL 原始数据 ----
+          html += '<h2>3. 原始 PromQL 数据</h2>'
+          html += '<pre>' + escape(json.dumps({**results, **range_results}, indent=2, default=str)[:50000]) + '</pre>'
+
+          html += f'<p class="generated">由 Argo Workflow pod-investigation 自动生成 | {datetime.now().isoformat()}</p>'
+          html += '</body></html>'
+
+          with open(REPORT_FILE, 'w') as f:
+              f.write(html)
+          print(f"✅ Prometheus 报告已生成: {REPORT_FILE} ({os.path.getsize(REPORT_FILE)} bytes)")
+
+    # ==========================================================
+    # Step 3（条件）: Java 服务专项诊断
+    # ==========================================================
+    - name: java-diagnostics
+      inputs:
+        parameters:
+          - name: namespace
+          - name: pod-name
+          - name: container-name
+      outputs:
+        artifacts:
+          - name: java-report
+            path: /tmp/java-report.txt
+            archive: { none: {} }
+      script:
+        image: bitnami/kubectl:latest
+        command: [bash]
+        source: |
+          set -euo pipefail
+          NS="{{inputs.parameters.namespace}}"
+          POD="{{inputs.parameters.pod-name}}"
+          CONTAINER="{{inputs.parameters.container-name}}"
+          REPORT=/tmp/java-report.txt
+
+          echo "==============================================" > $REPORT
+          echo "  Java 服务诊断"                               >> $REPORT
+          echo "  Pod: $POD"                                   >> $REPORT
+          echo "  Container: $CONTAINER"                       >> $REPORT
+          echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"          >> $REPORT
+          echo "==============================================" >> $REPORT
+
+          # 确认容器在运行
+          IS_RUNNING=$(kubectl get pod "$POD" -n "$NS" -o json \
+            | jq -r ".status.containerStatuses[] | select(.name==\"$CONTAINER\") | .state.running != null" 2>/dev/null)
+
+          if [ "$IS_RUNNING" != "true" ]; then
+            echo "" >> $REPORT
+            echo "❌ 容器 $CONTAINER 当前不在 Running 状态，无法 exec" >> $REPORT
+            echo "   可排查上次运行时的 stdout/stderr 日志" >> $REPORT
+            cat $REPORT
+            exit 0
+          fi
+
+          # ---- 1. 查找 Java PID ----
+          echo "" >> $REPORT
+          echo "--- 1. Java 进程 ---" >> $REPORT
+          JAVA_PS=$(kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+            sh -c 'ps aux | grep java | grep -v grep' 2>/dev/null) || JAVA_PS=""
+          if [ -z "$JAVA_PS" ]; then
+            echo "未找到 Java 进程（尝试 PID 1）" >> $REPORT
+            JAVA_PID=1
+          else
+            echo "$JAVA_PS" >> $REPORT
+            JAVA_PID=$(echo "$JAVA_PS" | head -1 | awk '{print $1}')
+          fi
+          echo "Java PID: $JAVA_PID" >> $REPORT
+
+          # ---- 2. JVM 参数 ----
+          echo "" >> $REPORT
+          echo "--- 2. JVM 关键参数 ---" >> $REPORT
+          kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+            sh -c 'cat /proc/$PID/cmdline 2>/dev/null | tr "\0" " "' \
+            > /tmp/java_cmdline.txt 2>/dev/null || true
+          if [ -s /tmp/java_cmdline.txt ]; then
+            cat /tmp/java_cmdline.txt >> $REPORT
+            echo "" >> $REPORT
+            # 提取关键参数
+            echo "" >> $REPORT
+            echo "Xms/Xmx:" >> $REPORT
+            grep -oP '(Xms|Xmx|MaxMetaspaceSize|MaxDirectMemorySize)\S+' /tmp/java_cmdline.txt >> $REPORT || echo "  未设置" >> $REPORT
+          fi
+
+          # ---- 3. 堆内存（jstat 或 jcmd） ----
+          echo "" >> $REPORT
+          echo "--- 3. 堆内存 ---" >> $REPORT
+          if kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- which jcmd 2>/dev/null; then
+            echo "--- jcmd 1 GC.heap_info ---" >> $REPORT
+            kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+              jcmd 1 GC.heap_info 2>/dev/null >> $REPORT || true
+
+            echo "" >> $REPORT
+            echo "--- jcmd 1 VM.native_memory summary (NMT) ---" >> $REPORT
+            kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+              jcmd 1 VM.native_memory summary 2>/dev/null >> $REPORT \
+              || echo "NMT 未开启（需 JVM 参数 -XX:NativeMemoryTracking=summary）" >> $REPORT
+
+            echo "" >> $REPORT
+            echo "--- jcmd 1 GC.class_histogram (Top 50) ---" >> $REPORT
+            kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+              jcmd 1 GC.class_histogram 2>/dev/null | head -50 >> $REPORT || true
+
+          elif kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- which jstat 2>/dev/null; then
+            echo "--- jstat -gc $JAVA_PID ---" >> $REPORT
+            kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+              jstat -gc "$JAVA_PID" 2>/dev/null >> $REPORT || true
+            echo "" >> $REPORT
+            echo "--- jstat -gccause $JAVA_PID (GC 原因) ---" >> $REPORT
+            kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+              jstat -gccause "$JAVA_PID" 2>/dev/null >> $REPORT || true
+          else
+            echo "jcmd/jstat 不可用（非标准 JDK 镜像）" >> $REPORT
+          fi
+
+          # ---- 4. 堆外内存估算 ----
+          echo "" >> $REPORT
+          echo "--- 4. 堆外内存估算 ---" >> $REPORT
+          RSS=$(kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+            sh -c "ps -o rss= -p $JAVA_PID 2>/dev/null || echo 0" 2>/dev/null)
+          RSS_MB=$((RSS / 1024))
+          echo "RSS: ${RSS_MB} MB" >> $REPORT
+
+          # 尝试从 /proc 获取内存映射
+          echo "" >> $REPORT
+          echo "--- /proc/$JAVA_PID/smaps 汇总 ---" >> $REPORT
+          kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+            sh -c "cat /proc/$JAVA_PID/status 2>/dev/null | grep -E 'VmRSS|VmSize|VmPeak|Threads|voluntary|nonvoluntary'" \
+            2>/dev/null >> $REPORT || true
+
+          # ---- 5. 线程 ----
+          echo "" >> $REPORT
+          echo "--- 5. 线程信息 ---" >> $REPORT
+          if kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- which jstack 2>/dev/null; then
+            echo "线程数统计:" >> $REPORT
+            kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+              jstack 1 2>/dev/null | grep '"' | head -30 >> $REPORT || true
+          fi
+          # 线程数量
+          THREAD_COUNT=$(kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+            sh -c "cat /proc/$JAVA_PID/status 2>/dev/null | grep Threads | awk '{print \$2}'" 2>/dev/null || echo "N/A")
+          echo "线程数: $THREAD_COUNT" >> $REPORT
+
+          # ---- 6. GC 概要 ----
+          echo "" >> $REPORT
+          echo "--- 6. GC 概要 ---" >> $REPORT
+          if kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- which jstat 2>/dev/null; then
+            echo "--- jstat -gcutil $JAVA_PID (GC 使用率) ---" >> $REPORT
+            kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+              jstat -gcutil "$JAVA_PID" 2>/dev/null >> $REPORT || true
+            echo "" >> $REPORT
+            echo "--- jstat -gccapacity $JAVA_PID (GC 容量) ---" >> $REPORT
+            kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+              jstat -gccapacity "$JAVA_PID" 2>/dev/null >> $REPORT || true
+          fi
+
+          # ---- 7. OOM 专项 ----
+          echo "" >> $REPORT
+          echo "--- 7. OOM 检查 ---" >> $REPORT
+          # 检查是否有 OOM 相关日志
+          kubectl logs "$POD" -n "$NS" -c "$CONTAINER" --tail=500 2>/dev/null \
+            | grep -iE 'OutOfMemory|OOM|oom_kill|OOMKilled|Java heap space|unable to create native thread' \
+            | tail -20 >> $REPORT || echo "日志中未发现 OOM 相关记录" >> $REPORT
+
+          # Heap Dump 检查
+          echo "" >> $REPORT
+          echo "Heap Dump 文件:" >> $REPORT
+          kubectl exec "$POD" -n "$NS" -c "$CONTAINER" -- \
+            sh -c 'find / -name "*.hprof" -type f 2>/dev/null | head -5' 2>/dev/null >> $REPORT || true
+
+          cat $REPORT
+
+    # ==========================================================
+    # Step 4: 汇总报告
+    # ==========================================================
+    - name: aggregate-report
+      inputs:
+        parameters:
+          - name: namespace
+          - name: pod-name
+          - name: alert-name
+          - name: severity
+        artifacts:
+          - name: events
+            from: "{{steps.collect-k8s-events.outputs.artifacts.events}}"
+            optional: true
+            path: /tmp/in/events.txt
+          - name: logs-crash
+            from: "{{steps.collect-logs.outputs.artifacts.logs-crash}}"
+            optional: true
+            path: /tmp/in/logs-crash.txt
+          - name: logs-persistent
+            from: "{{steps.collect-logs.outputs.artifacts.logs-persistent}}"
+            optional: true
+            path: /tmp/in/logs-persistent.txt
+          - name: prometheus-html
+            from: "{{steps.prometheus-metrics.outputs.artifacts.report-html}}"
+            optional: true
+            path: /tmp/in/prometheus.html
+          - name: java-report
+            from: "{{steps.java-diagnostics.outputs.artifacts.java-report}}"
+            optional: true
+            path: /tmp/in/java-report.txt
+      outputs:
+        artifacts:
+          - name: final-report
+            path: /tmp/report
+            archive:
+              none: {}
+      container:
+        image: alpine:3.21
+        command: [sh, -c]
+        args:
+          - |
+            mkdir -p /tmp/report
+
+            # 收集所有采集到的数据
+            echo "=============================================="
+            echo "  Argo Workflows — Pod 故障调查报告"
+            echo "=============================================="
+            echo ""
+            echo "告警: {{inputs.parameters.alert-name}}"
+            echo "级别: {{inputs.parameters.severity}}"
+            echo "Pod:  {{inputs.parameters.pod-name}}"
+            echo "NS:   {{inputs.parameters.namespace}}"
+            echo "工作流: {{workflow.name}}"
+            echo "状态: {{workflow.status}}"
+            echo "时间: $(date '+%Y-%m-%d %H:%M:%S')"
+            echo ""
+
+            # 拷贝 artifacts 到报告目录
+            cp -r /tmp/in/* /tmp/report/ 2>/dev/null || true
+
+            # 生成索引文件
+            echo "文件清单:" > /tmp/report/INDEX.txt
+            for f in /tmp/report/*; do
+              name=$(basename "$f")
+              size=$(wc -c < "$f" 2>/dev/null || echo 0)
+              echo "  $name ($size bytes)" >> /tmp/report/INDEX.txt
+            done
+
+            cat /tmp/report/INDEX.txt
+
+    # ==========================================================
+    # Step 5: 钉钉群推送（可选）
+    # ==========================================================
+    - name: notify-dingtalk
+      inputs:
+        parameters:
+          - name: namespace
+          - name: pod-name
+          - name: alert-name
+          - name: severity
+          - name: dingtalk-webhook
+          - name: dingtalk-secret
+      script:
+        image: python:3.12-bookworm
+        command: [python3]
+        source: |
+          import urllib.request, json, hashlib, base64, hmac, time, os
+
+          WEBHOOK = os.environ.get('DT_URL', '{{inputs.parameters.dingtalk-webhook}}')
+          SECRET = os.environ.get('DT_SECRET', '{{inputs.parameters.dingtalk-secret}}')
+          NS = os.environ.get('NS', '{{inputs.parameters.namespace}}')
+          POD = os.environ.get('POD', '{{inputs.parameters.pod-name}}')
+          ALERT = os.environ.get('ALERT', '{{inputs.parameters.alert-name}}')
+          SEVERITY = os.environ.get('SEVERITY', '{{inputs.parameters.severity}}')
+          WORKFLOW = os.environ.get('WF', '{{workflow.name}}')
+
+          # ---- 图标映射 ----
+          sev_icon = {
+              'critical': '🔴',
+              'warning': '🟡',
+              'info': '🔵',
+          }
+          icon = sev_icon.get(SEVERITY.lower(), '⚪')
+
+          sev_label = {
+              'critical': 'P0 紧急',
+              'warning': 'P1 警告',
+              'info': 'P2 通知',
+          }
+          level = sev_label.get(SEVERITY.lower(), SEVERITY)
+
+          # ---- 构建钉钉消息（markdown） ----
+          title = f"Pod 故障调查报告 — {POD}"
+          text = f"""{icon} **{title}**
+
+> **告警**: {ALERT}
+> **级别**: {level}
+> **Pod**: {POD}
+> **命名空间**: {NS}
+> **时间**: {time.strftime('%Y-%m-%d %H:%M:%S')}
+> **工作流**: {WORKFLOW}
+
+---
+
+### 📋 调查内容
+
+◉ 容器退出码与原因
+◉ Pod Events 历史
+◉ 崩溃前日志（--previous）
+◉ 持久化日志检索
+◉ Prometheus 资源趋势（CPU/Memory/GC）
+◉ Node 状态与事件"""
+
+          # ---- 如果是 critical 追加高亮 ----
+          if SEVERITY == "critical":
+              text += """
+
+⚠️ **该告警为 P0 紧急级别，建议立即处理！**
+
+排查步骤:
+1. 查看 Pod 退出码和 Events 确定根因
+2. 检查崩溃前日志是否有 OOM/Exception
+3. 查看 Prometheus 资源趋势判断是否为资源不足
+4. Java 服务检查 GC/堆外内存/线程数"""
+
+          text += f"""
+
+---
+
+🔗 [查看完整报告 → Argo Workflow: {WORKFLOW}](https://argo.example.com/workflows/argo/{WORKFLOW})
+
+*本报告由 Argo Workflows pod-investigation 自动生成*
+"""
+
+          # ---- 安全签名（钉钉加签） ----
+          def sign(secret):
+              timestamp = str(round(time.time() * 1000))
+              string_to_sign = f"{timestamp}\n{secret}"
+              h = hmac.new(secret.encode('utf-8'), string_to_sign.encode('utf-8'), hashlib.sha256)
+              sign_str = base64.b64encode(h.digest()).decode('utf-8')
+              return timestamp, urllib.parse.quote(sign_str)
+
+          # ---- 发送 ----
+          payload = {
+              "msgtype": "markdown",
+              "markdown": {
+                  "title": title,
+                  "text": text,
+              },
+              "at": {
+                  "isAtAll": SEVERITY == "critical"
+              }
+          }
+
+          url = WEBHOOK
+          if SECRET:
+              ts, sig = sign(SECRET)
+              url = f"{WEBHOOK}&timestamp={ts}&sign={sig}"
+
+          req = urllib.request.Request(
+              url,
+              data=json.dumps(payload).encode('utf-8'),
+              headers={'Content-Type': 'application/json'},
+              method='POST'
+          )
+
+          try:
+              resp = urllib.request.urlopen(req, timeout=15)
+              result = json.loads(resp.read())
+              if result.get('errcode') == 0:
+                  print(f"✅ 钉钉推送成功: {result.get('errmsg', 'ok')}")
+              else:
+                  print(f"⚠️ 钉钉返回异常: {result}")
+          except Exception as e:
+              print(f"❌ 钉钉推送失败: {e}")
+              # 不阻断工作流
+              print("(非关键步骤，继续执行)")
+
+          # 打印推送内容摘要
+          print(f"推送标题: {title}")
+          print(f"文本长度: {len(text)} 字符")
+          print(f"@all: {SEVERITY == 'critical'}")

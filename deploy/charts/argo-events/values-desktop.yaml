@@ -1,0 +1,24 @@
+# Argo Events v1.9.11 — Docker Desktop overlay
+# ============================================================
+# Docker Desktop 集群：资源下调
+# ============================================================
+
+controller:
+  image:
+    repository: quay.io/argoproj/argo-events
+    tag: "v1.9.11"
+    imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 0.05
+      memory: 64Mi
+    limits:
+      cpu: 0.3
+      memory: 256Mi
+
+configs:
+  jetstream:
+    settings:
+      maxFileStore: 5Gi
+    streamConfig:
+      replicas: 1

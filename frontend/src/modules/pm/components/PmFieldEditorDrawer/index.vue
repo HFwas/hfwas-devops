@@ -331,7 +331,7 @@ watch(() => [props.show, props.fieldId], ([show]) => {
             />
           </n-form-item>
           <n-form-item label="必填">
-            <n-switch :value="form.requiredFlag === 1" @update:value="(v) => (form.requiredFlag = v ? 1 : 0)" />
+            <n-switch :value="form.requiredFlag === 1" @update:value="(v: any) => (form.requiredFlag = v ? 1 : 0)" />
           </n-form-item>
 
           <template v-if="form.fieldType === 'SELECT' || form.fieldType === 'MULTI_SELECT'">

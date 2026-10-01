@@ -1,0 +1,60 @@
+# ============================================================
+# Argo Events v1.9.11 — 默认 values（chart 2.4.27）
+# ============================================================
+# 此文件覆盖官方 chart 默认值，对齐 HFWAS DevOps 部署风格。
+# ============================================================
+
+# 命名空间: deploy.sh 在 helm install 时 --namespace 指定（默认 argo-events）
+
+global:
+  image:
+    repository: quay.io/argoproj/argo-events
+    tag: "v1.9.11"
+    imagePullPolicy: IfNotPresent
+
+# ---- CRD ----
+crds:
+  install: true
+  keep: true
+
+# ---- Controller ----
+controller:
+  image:
+    repository: quay.io/argoproj/argo-events
+    tag: "v1.9.11"
+    imagePullPolicy: IfNotPresent
+  replicas: 1
+  rbac:
+    enabled: true
+    namespaced: false
+  resources:
+    requests:
+      cpu: 0.1
+      memory: 128Mi
+    limits:
+      cpu: 0.5
+      memory: 512Mi
+
+# ---- Admission Webhook ----
+webhook:
+  enabled: false
+
+# ---- EventBus config ----
+configs:
+  jetstream:
+    versions:
+      - version: latest
+        natsImage: nats:2.10.29
+        metricsExporterImage: natsio/prometheus-nats-exporter:0.14.0
+        configReloaderImage: natsio/nats-server-config-reloader:0.14.0
+        startCommand: /nats-server
+    settings:
+      maxMemoryStore: -1
+      maxFileStore: 10Gi
+    streamConfig:
+      maxMsgs: 1000000
+      maxAge: 72h
+      maxBytes: 1GB
+      replicas: 1
+  nats:
+    versions: []

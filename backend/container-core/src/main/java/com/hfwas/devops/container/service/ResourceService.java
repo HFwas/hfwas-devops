@@ -1201,14 +1201,17 @@ public class ResourceService {
                         allocMap.put(k, v.getAmount() + v.getFormat()));
                 vo.setAllocatable(allocMap);
             }
-            // Images
+            // Images — 过滤掉 name 为空的镜像
             if (node.getStatus().getImages() != null) {
-                vo.setImages(node.getStatus().getImages().stream().map(img -> {
-                    NodeDetailVO.NodeImageVO imgVo = new NodeDetailVO.NodeImageVO();
-                    imgVo.setName(img.getNames() != null && !img.getNames().isEmpty() ? img.getNames().getFirst() : "");
-                    imgVo.setSizeBytes(img.getSizeBytes() != null ? img.getSizeBytes() : 0);
-                    return imgVo;
-                }).collect(Collectors.toList()));
+                vo.setImages(node.getStatus().getImages().stream()
+                    .filter(img -> img.getNames() != null && !img.getNames().isEmpty()
+                        && img.getNames().getFirst() != null && !img.getNames().getFirst().isBlank())
+                    .map(img -> {
+                        NodeDetailVO.NodeImageVO imgVo = new NodeDetailVO.NodeImageVO();
+                        imgVo.setName(img.getNames().getFirst());
+                        imgVo.setSizeBytes(img.getSizeBytes() != null ? img.getSizeBytes() : 0);
+                        return imgVo;
+                    }).collect(Collectors.toList()));
             }
         }
 

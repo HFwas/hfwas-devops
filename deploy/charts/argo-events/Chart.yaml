@@ -1,0 +1,23 @@
+apiVersion: v2
+name: hfwas-devops-argo-events
+description: HFWAS DevOps — Argo Events v1.9.11（事件驱动工作流触发器）
+type: application
+version: 0.1.0
+appVersion: "1.9.11"
+
+keywords:
+  - devops
+  - argo
+  - events
+  - event-driven
+  - automation
+
+home: https://github.com/HFwas/hfwas-devops
+sources:
+  - https://github.com/HFwas/hfwas-devops
+  - https://github.com/argoproj/argo-events
+  - https://argoproj.github.io/argo-helm
+
+maintainers:
+  - name: HFwas
+    email: hfwas@example.com

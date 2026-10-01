@@ -1,0 +1,91 @@
+# Argo CD v3.5.3 — k3s overlay
+# ============================================================
+# macOS Docker k3s 集群：资源受限，下调配置
+# ============================================================
+
+global:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: "v3.5.3"
+    imagePullPolicy: IfNotPresent
+
+configs:
+  params:
+    server.insecure: "true"
+
+controller:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: "v3.5.3"
+    imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 0.1
+      memory: 128Mi
+    limits:
+      cpu: 0.3
+      memory: 384Mi
+
+server:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: "v3.5.3"
+    imagePullPolicy: IfNotPresent
+  replicas: 1
+  extraArgs:
+    - --insecure
+  resources:
+    requests:
+      cpu: 0.1
+      memory: 96Mi
+    limits:
+      cpu: 0.3
+      memory: 256Mi
+  ingress:
+    enabled: false
+  service:
+    type: NodePort
+    servicePortHttp: 80
+    nodePortHttp: 32080
+    servicePortHttps: 443
+    nodePortHttps: 32443
+
+repoServer:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: "v3.5.3"
+    imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 0.1
+      memory: 96Mi
+    limits:
+      cpu: 0.3
+      memory: 384Mi
+
+redis:
+  resources:
+    requests:
+      cpu: 0.05
+      memory: 48Mi
+    limits:
+      cpu: 0.15
+      memory: 128Mi
+
+applicationSet:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: "v3.5.3"
+    imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 0.05
+      memory: 48Mi
+    limits:
+      cpu: 0.2
+      memory: 128Mi
+
+dex:
+  enabled: false
+notifications:
+  enabled: false
