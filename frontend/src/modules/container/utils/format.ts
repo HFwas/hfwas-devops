@@ -16,11 +16,12 @@ export function formatBytesFixed(bytes: number, divisor: number): string {
   return val.toFixed(2)
 }
 
-export function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes)) return '0 B'
-  const { divisor, unit } = byteScale(bytes)
-  if (divisor === 1) return `${Math.round(bytes)} B`
-  return `${(bytes / divisor).toFixed(1)} ${unit}`
+export function formatBytes(bytes: number | string | null | undefined): string {
+  const value = typeof bytes === 'string' ? Number(bytes) : bytes
+  if (value == null || !Number.isFinite(value)) return '0 B'
+  const { divisor, unit } = byteScale(value)
+  if (divisor === 1) return `${Math.round(value)} B`
+  return `${(value / divisor).toFixed(1)} ${unit}`
 }
 
 export function formatBytesPerSec(bytes: number): string {

@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router'
+import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -31,7 +31,6 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function ClusterListPage() {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const setCurrentId = useContainerCluster((s) => s.setCurrentId)
   const [open, setOpen] = useState(false)
@@ -121,7 +120,15 @@ export function ClusterListPage() {
             )}
             {records.map((cluster) => (
               <TableRow key={cluster.id}>
-                <TableCell className="font-medium">{cluster.name}</TableCell>
+                <TableCell className="font-medium">
+                  <Link
+                    className="text-primary hover:underline"
+                    to={`/container/clusters/${cluster.id}`}
+                    onClick={() => setCurrentId(cluster.id)}
+                  >
+                    {cluster.name}
+                  </Link>
+                </TableCell>
                 <TableCell>{cluster.alias || '—'}</TableCell>
                 <TableCell>
                   <StatusBadge status={cluster.status} />
@@ -130,16 +137,6 @@ export function ClusterListPage() {
                 <TableCell>{cluster.nodeCount ?? '—'}</TableCell>
                 <TableCell>{cluster.podCount ?? '—'}</TableCell>
                 <TableCell className="space-x-1 text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setCurrentId(cluster.id)
-                      void navigate(`/container/clusters/${cluster.id}`)
-                    }}
-                  >
-                    打开
-                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => test.mutate(cluster.id)}>
                     测试
                   </Button>

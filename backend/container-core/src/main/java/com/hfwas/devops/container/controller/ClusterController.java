@@ -138,7 +138,7 @@ public class ClusterController {
         } else {
             vo.setLabels(Map.of());
         }
-        // kubeconfig is NEVER exposed
+        clusterService.fillLiveSummary(entity, vo);
         return vo;
     }
 }

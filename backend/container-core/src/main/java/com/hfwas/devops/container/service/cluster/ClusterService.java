@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.container.dto.ClusterComponentVO;
+import com.hfwas.devops.container.dto.ClusterVO;
 import com.hfwas.devops.container.entity.ClusterEntity;
 import com.hfwas.devops.container.error.ContainerErrorCode;
 import com.hfwas.devops.container.mapper.ClusterMapper;
@@ -163,6 +164,26 @@ public class ClusterService {
             log.warn("Failed to fetch cluster stats for id={}: {}", id, e.getMessage());
         }
         return new ClusterStats(nodeCount, podCount, cpuTotal, memoryTotal);
+    }
+
+    /**
+     * Fill version, node count and pod count from the live API for a connected cluster.
+     */
+    public void fillLiveSummary(ClusterEntity entity, ClusterVO vo) {
+        if (entity == null || !"Connected".equals(entity.getStatus())) {
+            return;
+        }
+        try {
+            KubernetesClient client = clientFactory.getClient(entity);
+            var version = client.getKubernetesVersion();
+            if (version != null && version.getGitVersion() != null && !version.getGitVersion().isBlank()) {
+                vo.setVersion(version.getGitVersion());
+            }
+            vo.setNodeCount(client.nodes().list().getItems().size());
+            vo.setPodCount(client.pods().inAnyNamespace().list().getItems().size());
+        } catch (Exception e) {
+            log.warn("Failed to fill cluster summary for id={}: {}", entity.getId(), e.getMessage());
+        }
     }
 
     /**

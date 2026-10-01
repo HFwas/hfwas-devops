@@ -1646,7 +1646,7 @@ public class ResourceService {
             }
             io.fabric8.kubernetes.api.model.Quantity mem = capacity.get("memory");
             if (mem != null) {
-                vo.setMemoryCapacity(mem.getNumericalAmount().longValue() / (1024 * 1024));
+                vo.setMemoryCapacity(mem.getNumericalAmount().longValue());
             }
         }
 
