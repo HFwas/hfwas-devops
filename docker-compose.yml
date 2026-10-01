@@ -16,7 +16,7 @@
 #   http://localhost:8000/auth/      → Keycloak（经 Kong）
 #   http://localhost:80              → 前端 nginx 直连
 #   http://localhost:8089            → 后端直连
-#   http://localhost:8081            → Keycloak 管理控制台（直连）
+#   http://localhost:8000/argo          → Argo 工作流编辑器（经 Kong）
 #   http://localhost:8001            → Kong Admin API
 #
 # 流水线执行集群（可选）:
@@ -72,6 +72,27 @@ services:
     depends_on:
       gateway-init:
         condition: service_completed_successfully
+
+  argo-frontend:
+    build:
+      context: ./argo-workflow-editor
+      dockerfile: Dockerfile
+    image: hfwas/argo-frontend:latest
+    container_name: devops-argo-frontend
+    restart: unless-stopped
+    ports:
+      - "5174:80"
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /var/run/nginx.pid"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      gateway-init:
+        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
 
   schema-migrate:
     image: python:3.12-alpine
@@ -226,6 +247,8 @@ services:
       backend:
         condition: service_healthy
       frontend:
+        condition: service_healthy
+      argo-frontend:
         condition: service_healthy
 
   keycloak:
