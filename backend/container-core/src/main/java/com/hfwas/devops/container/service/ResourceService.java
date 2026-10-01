@@ -126,6 +126,44 @@ public class ResourceService {
         return toPodDetail(pod);
     }
 
+    public List<PodSummaryVO> listDeploymentPods(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        Deployment deploy = client.apps().deployments().inNamespace(namespace).withName(name).get();
+        if (deploy == null || deploy.getSpec() == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        Map<String, String> labels = deploy.getSpec().getSelector() == null
+                ? null
+                : deploy.getSpec().getSelector().getMatchLabels();
+        return listPodsByLabels(client, namespace, labels);
+    }
+
+    public List<PodSummaryVO> listStatefulSetPods(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        StatefulSet sts = client.apps().statefulSets().inNamespace(namespace).withName(name).get();
+        if (sts == null || sts.getSpec() == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        Map<String, String> labels = sts.getSpec().getSelector() == null
+                ? null
+                : sts.getSpec().getSelector().getMatchLabels();
+        return listPodsByLabels(client, namespace, labels);
+    }
+
+    private List<PodSummaryVO> listPodsByLabels(KubernetesClient client, String namespace, Map<String, String> labels) {
+        if (labels == null || labels.isEmpty()) {
+            return List.of();
+        }
+        return client.pods().inNamespace(namespace).withLabels(labels).list().getItems().stream()
+                .sorted(Comparator.comparing(pod -> pod.getMetadata().getName()))
+                .map(this::toPodSummary)
+                .toList();
+    }
+
     public String getPodYaml(Long clusterId, String namespace, String name, Long tenantId) {
         ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
@@ -738,6 +776,11 @@ public class ResourceService {
         vo.setNamespace(meta.getNamespace());
         vo.setCreationTimestamp(toLocalDateTime(meta.getCreationTimestamp()));
         vo.setAge(formatAge(meta.getCreationTimestamp()));
+        if (pod.getSpec() != null && pod.getSpec().getContainers() != null) {
+            vo.setContainerNames(pod.getSpec().getContainers().stream()
+                    .map(Container::getName)
+                    .toList());
+        }
 
         if (pod.getStatus() != null) {
             String phase = pod.getStatus().getPhase();

@@ -2,6 +2,7 @@ package com.hfwas.devops.container.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hfwas.devops.common.core.base.BaseResult;
+import com.hfwas.devops.container.dto.PodSummaryVO;
 import com.hfwas.devops.container.dto.StatefulSetSummaryVO;
 import com.hfwas.devops.container.dto.WorkloadEnvUpdateDTO;
 import com.hfwas.devops.container.dto.WorkloadEnvVO;
@@ -11,6 +12,8 @@ import com.hfwas.devops.container.service.ResourceService;
 import com.hfwas.devops.container.service.SecurityHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/container/clusters/{clusterId}")
@@ -28,6 +31,15 @@ public class StatefulSetController {
             @RequestParam(defaultValue = "20") int pageSize) {
         Long tenantId = SecurityHelper.currentTenantId();
         return BaseResult.ok(resourceService.listStatefulSets(clusterId, namespace, keyword, pageNo, pageSize, tenantId));
+    }
+
+    @GetMapping("/namespaces/{namespace}/statefulsets/{name}/pods")
+    public BaseResult<List<PodSummaryVO>> listStatefulSetPods(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        return BaseResult.ok(resourceService.listStatefulSetPods(clusterId, namespace, name, tenantId));
     }
 
     @GetMapping("/namespaces/{namespace}/statefulsets/{name}/env")

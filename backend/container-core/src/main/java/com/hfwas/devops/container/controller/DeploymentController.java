@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.container.dto.DeploymentDetailVO;
 import com.hfwas.devops.container.dto.DeploymentSummaryVO;
+import com.hfwas.devops.container.dto.PodSummaryVO;
 import com.hfwas.devops.container.dto.WorkloadEnvUpdateDTO;
 import com.hfwas.devops.container.dto.WorkloadEnvVO;
 import com.hfwas.devops.container.dto.WorkloadVolumeUpdateDTO;
@@ -13,6 +14,7 @@ import com.hfwas.devops.container.service.SecurityHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -40,6 +42,15 @@ public class DeploymentController {
             @PathVariable String name) {
         Long tenantId = SecurityHelper.currentTenantId();
         return BaseResult.ok(resourceService.getDeployment(clusterId, namespace, name, tenantId));
+    }
+
+    @GetMapping("/namespaces/{namespace}/deployments/{name}/pods")
+    public BaseResult<List<PodSummaryVO>> listDeploymentPods(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        return BaseResult.ok(resourceService.listDeploymentPods(clusterId, namespace, name, tenantId));
     }
 
     @GetMapping("/namespaces/{namespace}/deployments/{name}/env")

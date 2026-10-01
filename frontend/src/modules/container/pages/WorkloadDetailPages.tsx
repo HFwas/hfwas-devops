@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,7 @@ import { PodLogPanel } from '@/modules/container/components/PodLogPanel'
 import { PodShell } from '@/modules/container/components/PodShell'
 import { YamlPanel } from '@/modules/container/components/YamlPanel'
 import { WorkloadEnvPanel } from '@/modules/container/components/WorkloadEnvPanel'
+import { WorkloadPodsPanel } from '@/modules/container/components/WorkloadPodsPanel'
 import { WorkloadVolumePanel } from '@/modules/container/components/WorkloadVolumePanel'
 import { formatBytes } from '@/modules/container/utils/format'
 import { NodeMonitor, PodMonitor } from '@/modules/container/components/ResourceMonitors'
@@ -120,7 +121,9 @@ export function NodeDetailPage() {
 
 export function PodDetailPage() {
   const { clusterId = '', namespace = '', name = '' } = useParams()
+  const location = useLocation()
   const navigate = useNavigate()
+  const backTo = (location.state as { back?: string } | null)?.back || `/container/clusters/${clusterId}/pods`
   const queryClient = useQueryClient()
   const [tab, setTab] = useState('概览')
   const query = useQuery({
@@ -131,14 +134,14 @@ export function PodDetailPage() {
   const events = useQuery({
     queryKey: ['container-pod-events', clusterId, namespace, query.data?.uid],
     queryFn: () => eventApi.list(clusterId, namespace, query.data?.uid),
-    enabled: !!query.data?.uid,
+    enabled: tab === '事件' && !!query.data?.uid,
   })
   const remove = useMutation({
     mutationFn: () => podApi.delete(clusterId, namespace, name),
     onSuccess: async () => {
       toast.success('Pod 已删除')
       await queryClient.invalidateQueries({ queryKey: ['container-pods'] })
-      void navigate(`/container/clusters/${clusterId}/pods`)
+      void navigate(backTo)
     },
     onError: (error: Error) => toast.error(error.message || '删除失败'),
   })
@@ -147,7 +150,7 @@ export function PodDetailPage() {
   return (
     <div className="flex flex-col gap-4">
       <BackTitle
-        to={`/container/clusters/${clusterId}/pods`}
+        to={backTo}
         title={`${namespace}/${name}`}
         extra={
           <Button
@@ -162,7 +165,7 @@ export function PodDetailPage() {
           </Button>
         }
       />
-      <TabBar tabs={['概览', '监控', '日志', 'YAML', '终端']} value={tab} onChange={setTab} />
+      <TabBar tabs={['概览', '事件', '监控', '日志', 'YAML', '终端']} value={tab} onChange={setTab} />
       {tab === '概览' && (
         <>
           {query.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
@@ -200,30 +203,42 @@ export function PodDetailPage() {
                   ))}
                 </TableBody>
               </Table>
-              <section className="flex flex-col gap-2">
-                <h2 className="text-sm font-medium">事件</h2>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>类型</TableHead>
-                      <TableHead>原因</TableHead>
-                      <TableHead>消息</TableHead>
-                      <TableHead>次数</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(events.data ?? []).map((item, index) => (
-                      <TableRow key={`${item.reason}-${index}`}>
-                        <TableCell>{item.type}</TableCell>
-                        <TableCell>{item.reason}</TableCell>
-                        <TableCell>{item.message}</TableCell>
-                        <TableCell>{item.count ?? '—'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </section>
             </>
+          )}
+        </>
+      )}
+      {tab === '事件' && (
+        <>
+          {events.isLoading && <p className="text-sm text-muted-foreground">加载事件…</p>}
+          {events.isError && <p className="text-sm text-destructive">事件加载失败</p>}
+          {events.isSuccess && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>类型</TableHead>
+                  <TableHead>原因</TableHead>
+                  <TableHead>消息</TableHead>
+                  <TableHead>次数</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(events.data ?? []).length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                      还没有事件
+                    </TableCell>
+                  </TableRow>
+                )}
+                {(events.data ?? []).map((item, index) => (
+                  <TableRow key={`${item.reason}-${index}`}>
+                    <TableCell>{item.type}</TableCell>
+                    <TableCell>{item.reason}</TableCell>
+                    <TableCell>{item.message}</TableCell>
+                    <TableCell>{item.count ?? '—'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </>
       )}
@@ -250,7 +265,14 @@ export function DeploymentDetailPage() {
   const { clusterId = '', namespace = '', name = '' } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState('概览')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || '概览'
+  const setTab = (value: string) => {
+    const next = new URLSearchParams(searchParams)
+    if (value === '概览') next.delete('tab')
+    else next.set('tab', value)
+    setSearchParams(next, { replace: true })
+  }
   const [replicas, setReplicas] = useState('')
   const query = useQuery({
     queryKey: ['container-deployment', clusterId, namespace, name],
@@ -303,7 +325,7 @@ export function DeploymentDetailPage() {
           </div>
         }
       />
-      <TabBar tabs={['概览', '环境变量', '挂载卷', 'YAML']} value={tab} onChange={setTab} />
+      <TabBar tabs={['概览', '容器', '环境变量', '挂载卷', 'YAML']} value={tab} onChange={setTab} />
       {tab === '概览' && item && (
         <div className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -353,6 +375,13 @@ export function DeploymentDetailPage() {
       )}
       {tab === '概览' && query.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
       {tab === '概览' && query.isError && <p className="text-sm text-destructive">Deployment 加载失败</p>}
+      {tab === '容器' && (
+        <WorkloadPodsPanel
+          clusterId={clusterId}
+          queryKey={['container-deployment-pods', clusterId, namespace, name]}
+          load={() => deploymentApi.pods(clusterId, namespace, name)}
+        />
+      )}
       {tab === '环境变量' && (
         <WorkloadEnvPanel
           queryKey={['container-deployment-env', clusterId, namespace, name]}
@@ -476,7 +505,14 @@ export function ConfigMapDetailPage() {
 export function StatefulSetDetailPage() {
   const { clusterId = '', namespace = '', name = '' } = useParams()
   const navigate = useNavigate()
-  const [tab, setTab] = useState('环境变量')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') || '环境变量'
+  const setTab = (value: string) => {
+    const next = new URLSearchParams(searchParams)
+    if (value === '环境变量') next.delete('tab')
+    else next.set('tab', value)
+    setSearchParams(next, { replace: true })
+  }
   const remove = useMutation({
     mutationFn: () => statefulSetApi.delete(clusterId, namespace, name),
     onSuccess: () => {
@@ -503,12 +539,19 @@ export function StatefulSetDetailPage() {
           </Button>
         }
       />
-      <TabBar tabs={['环境变量', '挂载卷', 'YAML']} value={tab} onChange={setTab} />
+      <TabBar tabs={['环境变量', '容器', '挂载卷', 'YAML']} value={tab} onChange={setTab} />
       {tab === '环境变量' && (
         <WorkloadEnvPanel
           queryKey={['container-statefulset-env', clusterId, namespace, name]}
           load={() => statefulSetApi.env(clusterId, namespace, name)}
           save={(data) => statefulSetApi.updateEnv(clusterId, namespace, name, data)}
+        />
+      )}
+      {tab === '容器' && (
+        <WorkloadPodsPanel
+          clusterId={clusterId}
+          queryKey={['container-statefulset-pods', clusterId, namespace, name]}
+          load={() => statefulSetApi.pods(clusterId, namespace, name)}
         />
       )}
       {tab === '挂载卷' && (

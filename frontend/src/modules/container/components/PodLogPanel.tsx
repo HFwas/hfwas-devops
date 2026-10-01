@@ -16,7 +16,7 @@ export function PodLogPanel({
   containers: string[]
 }) {
   const [container, setContainer] = useState(containers[0] ?? '')
-  const [follow, setFollow] = useState(false)
+  const [follow, setFollow] = useState(true)
   const [live, setLive] = useState('')
   const viewRef = useRef<HTMLPreElement>(null)
 

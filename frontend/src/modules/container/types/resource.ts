@@ -4,6 +4,7 @@ export interface PodSummary {
   status: string
   nodeName: string | null
   podIP: string | null
+  containerNames?: string[]
   containerCount: number
   readyContainers: number
   restarts: number
