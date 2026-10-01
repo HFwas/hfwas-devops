@@ -79,7 +79,7 @@ public class LogTailHandler extends AbstractWebSocketHandler {
 
             // Get client
             var entity = clusterService.getByIdInternal(clusterId);
-            KubernetesClient client = clientFactory.getClient(entity);
+            KubernetesClient client = clientFactory.getConnectedClient(entity);
 
             // Start log tail
             LogWatch logWatch;

@@ -71,7 +71,7 @@ public class ResourceWatchHandler extends AbstractWebSocketHandler {
 
             // Get client
             var entity = clusterService.getByIdInternal(clusterId);
-            KubernetesClient client = clientFactory.getClient(entity);
+            KubernetesClient client = clientFactory.getConnectedClient(entity);
 
             // Parse resource types
             String[] resourceTypes = resourcesParam.split(",");

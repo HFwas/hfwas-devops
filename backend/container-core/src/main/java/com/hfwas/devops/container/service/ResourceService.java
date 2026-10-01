@@ -41,10 +41,23 @@ public class ResourceService {
     private final ClusterKubernetesClientFactory clientFactory;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Get cluster and verify it's in Connected state.
+     * Throws BizException with the current status if not connected.
+     */
+    private ClusterEntity getConnectedCluster(Long clusterId, Long tenantId) {
+        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        if (!"Connected".equals(cluster.getStatus())) {
+            throw new BizException(ContainerErrorCode.CLUSTER_NOT_CONNECTED,
+                    "集群状态为 " + cluster.getStatus() + "，无法操作");
+        }
+        return cluster;
+    }
+
     // ==================== Namespace ====================
 
     public List<NamespaceVO> listNamespaces(Long clusterId, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         return client.namespaces().list().getItems().stream()
                 .map(this::toNamespaceVO)
@@ -55,7 +68,7 @@ public class ResourceService {
 
     public IPage<PodSummaryVO> listPods(Long clusterId, String namespace, String keyword,
                                          int pageNo, int pageSize, Long tenantId, String labels) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
         List<Pod> allPods;
@@ -102,7 +115,7 @@ public class ResourceService {
     }
 
     public PodDetailVO getPod(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
 
@@ -114,7 +127,7 @@ public class ResourceService {
     }
 
     public String getPodYaml(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
 
@@ -131,7 +144,7 @@ public class ResourceService {
 
     public String getPodLogs(Long clusterId, String namespace, String name,
                               String container, Integer tailLines, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
 
@@ -170,7 +183,7 @@ public class ResourceService {
     }
 
     public void deletePod(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
 
@@ -181,7 +194,7 @@ public class ResourceService {
 
     public IPage<DeploymentSummaryVO> listDeployments(Long clusterId, String namespace, String keyword,
                                                        int pageNo, int pageSize, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
         List<Deployment> all = (namespace != null && !namespace.isBlank())
@@ -216,7 +229,7 @@ public class ResourceService {
     }
 
     public DeploymentDetailVO getDeployment(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
 
@@ -228,7 +241,7 @@ public class ResourceService {
     }
 
     public String getDeploymentYaml(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
 
@@ -244,7 +257,7 @@ public class ResourceService {
     }
 
     public void scaleDeployment(Long clusterId, String namespace, String name, int replicas, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
 
@@ -252,7 +265,7 @@ public class ResourceService {
     }
 
     public void restartDeployment(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
 
@@ -263,7 +276,7 @@ public class ResourceService {
     }
 
     public void deleteDeployment(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
 
@@ -271,7 +284,7 @@ public class ResourceService {
     }
 
     public void updateDeploymentYaml(Long clusterId, String namespace, String name, String yamlBody, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
         try {
@@ -286,7 +299,7 @@ public class ResourceService {
 
     public IPage<ServiceSummaryVO> listServices(Long clusterId, String namespace, String keyword,
                                                  int pageNo, int pageSize, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
         List<io.fabric8.kubernetes.api.model.Service> all = (namespace != null && !namespace.isBlank())
@@ -321,7 +334,7 @@ public class ResourceService {
     }
 
     public ServiceDetailVO getService(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
 
@@ -333,7 +346,7 @@ public class ResourceService {
     }
 
     public String getServiceYaml(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
 
@@ -352,7 +365,7 @@ public class ResourceService {
 
     public IPage<StatefulSetSummaryVO> listStatefulSets(Long clusterId, String namespace, String keyword,
                                                         int pageNo, int pageSize, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
         List<StatefulSet> all = (namespace != null && !namespace.isBlank())
@@ -387,14 +400,14 @@ public class ResourceService {
     }
 
     public void deleteStatefulSet(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
         client.apps().statefulSets().inNamespace(namespace).withName(name).delete();
     }
 
     public String getStatefulSetYaml(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
         StatefulSet sts = client.apps().statefulSets().inNamespace(namespace).withName(name).get();
@@ -409,7 +422,7 @@ public class ResourceService {
     }
 
     public void updateStatefulSetYaml(Long clusterId, String namespace, String name, String yamlBody, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
         try {
@@ -424,7 +437,7 @@ public class ResourceService {
 
     public IPage<PvcSummaryVO> listPersistentVolumeClaims(Long clusterId, String namespace, String keyword,
                                                            int pageNo, int pageSize, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
         List<PersistentVolumeClaim> all = (namespace != null && !namespace.isBlank())
@@ -459,7 +472,7 @@ public class ResourceService {
     }
 
     public void deletePersistentVolumeClaim(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
         client.persistentVolumeClaims().inNamespace(namespace).withName(name).delete();
@@ -469,7 +482,7 @@ public class ResourceService {
 
     public IPage<SecretSummaryVO> listSecrets(Long clusterId, String namespace, String keyword,
                                                int pageNo, int pageSize, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
         List<Secret> all = (namespace != null && !namespace.isBlank())
@@ -504,7 +517,7 @@ public class ResourceService {
     }
 
     public void deleteSecret(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
         client.secrets().inNamespace(namespace).withName(name).delete();
@@ -514,7 +527,7 @@ public class ResourceService {
 
     public IPage<ConfigMapSummaryVO> listConfigMaps(Long clusterId, String namespace, String keyword,
                                                      int pageNo, int pageSize, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
         List<ConfigMap> all = (namespace != null && !namespace.isBlank())
@@ -549,14 +562,14 @@ public class ResourceService {
     }
 
     public void deleteConfigMap(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
         client.configMaps().inNamespace(namespace).withName(name).delete();
     }
 
     public String getConfigMapYaml(Long clusterId, String namespace, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
         ConfigMap cm = client.configMaps().inNamespace(namespace).withName(name).get();
@@ -571,7 +584,7 @@ public class ResourceService {
     }
 
     public void updateConfigMapYaml(Long clusterId, String namespace, String name, String yamlBody, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
         try {
@@ -585,7 +598,7 @@ public class ResourceService {
     // ==================== StatefulSet ====================
 
     public List<EventVO> listEvents(Long clusterId, String namespace, String uid, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
         requireNamespace(namespace);
 
@@ -1037,7 +1050,7 @@ public class ResourceService {
     // ==================== Node ====================
 
     public List<NodeSummaryVO> listNodes(Long clusterId, String keyword, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
         List<Node> allNodes = client.nodes().list().getItems();
@@ -1060,7 +1073,7 @@ public class ResourceService {
     }
 
     public NodeDetailVO getNode(Long clusterId, String name, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
         Node node = client.nodes().withName(name).get();
@@ -1245,7 +1258,7 @@ public class ResourceService {
     // ==================== StorageClass ====================
 
     public List<StorageClassSummaryVO> listStorageClasses(Long clusterId, Long tenantId) {
-        ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
         return client.resources(StorageClass.class).list().getItems().stream()

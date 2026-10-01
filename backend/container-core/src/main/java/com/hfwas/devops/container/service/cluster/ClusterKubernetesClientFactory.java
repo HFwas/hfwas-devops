@@ -1,6 +1,8 @@
 package com.hfwas.devops.container.service.cluster;
 
 import com.hfwas.devops.container.entity.ClusterEntity;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.container.error.ContainerErrorCode;
 import com.hfwas.devops.container.util.NetworkUtil;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -34,6 +36,19 @@ public class ClusterKubernetesClientFactory {
     }
 
     /**
+     * Get client only if the cluster is in Connected state.
+     * Throws BizException for Degraded / Disconnected / Unknown, so callers
+     * don't wait on a timeout or get confusing errors.
+     */
+    public KubernetesClient getConnectedClient(ClusterEntity cluster) {
+        if (!"Connected".equals(cluster.getStatus())) {
+            throw new BizException(ContainerErrorCode.CLUSTER_NOT_CONNECTED,
+                    "集群状态为 " + cluster.getStatus() + "，无法操作");
+        }
+        return getClient(cluster);
+    }
+
+    /**
      * Evict and close the client for the given cluster (e.g. on kubeconfig update).
      */
     public void evictClient(Long clusterId) {
@@ -49,7 +64,11 @@ public class ClusterKubernetesClientFactory {
     }
 
     /**
-     * Test cluster connectivity using /readyz (or equivalent).
+     * Test cluster connectivity.
+     * Throws BizException with a descriptive message when unreachable (network / VPN / invalid config).
+     *
+     * @return true if reachable and K8s API responds
+     * @throws BizException with the connectivity error message
      */
     public boolean testConnection(ClusterEntity cluster) {
         try {
@@ -59,7 +78,7 @@ public class ClusterKubernetesClientFactory {
                 String unreachable = NetworkUtil.checkReachable(masterUrl);
                 if (unreachable != null) {
                     log.warn("Cluster connection test failed: cluster={}, error={}", cluster.getName(), unreachable);
-                    return false;
+                    throw new BizException(ContainerErrorCode.CLUSTER_CONNECTION_FAILED, unreachable);
                 }
             }
 
@@ -67,9 +86,11 @@ public class ClusterKubernetesClientFactory {
             boolean healthy = client.getKubernetesVersion() != null;
             client.close();
             return healthy;
+        } catch (BizException e) {
+            throw e;
         } catch (Exception e) {
             log.warn("Cluster connection test failed: cluster={}, error={}", cluster.getName(), e.getMessage());
-            return false;
+            throw new BizException(ContainerErrorCode.CLUSTER_CONNECTION_FAILED, e.getMessage());
         }
     }
 

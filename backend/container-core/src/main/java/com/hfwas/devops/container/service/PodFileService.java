@@ -42,7 +42,7 @@ public class PodFileService {
                            String container, String destPath, MultipartFile file,
                            Long tenantId) {
         ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
-        KubernetesClient client = clientFactory.getClient(cluster);
+        KubernetesClient client = clientFactory.getConnectedClient(cluster);
 
         String filename = sanitizeFileName(file.getOriginalFilename());
         String dir = destPath == null || destPath.isBlank() ? "/tmp/" : destPath;
@@ -150,7 +150,7 @@ public class PodFileService {
                                     String container, String filePath,
                                     Long tenantId) {
         ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
-        KubernetesClient client = clientFactory.getClient(cluster);
+        KubernetesClient client = clientFactory.getConnectedClient(cluster);
 
         try {
             return tryDownloadWithFabric8Api(client, namespace, podName, container, filePath);

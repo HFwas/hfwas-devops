@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, RefreshCw } from '@lucide/vue'
-import { NCard, NButton, NSpace, NGrid, NGi, NStatistic, NDataTable, NTag, NText, NDescriptions, NDescriptionsItem, NTabs, NTabPane, NEmpty, useMessage } from 'naive-ui'
+import { NCard, NButton, NSpace, NGrid, NGi, NStatistic, NDataTable, NTag, NText, NDescriptions, NDescriptionsItem, NTabs, NTabPane, NEmpty, NAlert, useMessage } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { useRouter } from 'vue-router'
 import { clusterApi } from '@/modules/container/api/cluster'
@@ -63,11 +63,13 @@ const statusTagType = (s?: string) => {
   }
 }
 
+const isConnected = computed(() => cluster.value?.status === 'Connected')
+
 const navigateItems = [
-  { label: 'Node', path: `/container/clusters/${props.id}/nodes`, color: '#2080f0' },
-  { label: 'Pod', path: `/container/clusters/${props.id}/pods`, color: '#18a058' },
-  { label: 'Deployment', path: `/container/clusters/${props.id}/deployments`, color: '#f0a020' },
-  { label: 'Service', path: `/container/clusters/${props.id}/services`, color: '#d03050' },
+  { label: 'Node', path: `/container/clusters/${props.id}/nodes`, color: '#2080f0', disabled: false },
+  { label: 'Pod', path: `/container/clusters/${props.id}/pods`, color: '#18a058', disabled: false },
+  { label: 'Deployment', path: `/container/clusters/${props.id}/deployments`, color: '#f0a020', disabled: false },
+  { label: 'Service', path: `/container/clusters/${props.id}/services`, color: '#d03050', disabled: false },
 ]
 
 async function loadComponents() {
@@ -176,10 +178,14 @@ onMounted(load)
 
           <div style="margin-top: 20px">
             <div style="font-size: 13px; opacity: 0.65; margin-bottom: 8px">资源导航</div>
+            <n-alert v-if="!isConnected" type="warning" :bordered="false" style="margin-bottom: 12px">
+              集群状态为 <strong>{{ cluster.status }}</strong>，无法查看集群资源。请先测试连接或检查网络/VPN。
+            </n-alert>
             <n-space>
               <n-button v-for="item in navigateItems" :key="item.label"
                 :style="{ borderLeft: `3px solid ${item.color}` }"
-                @click="router.push(item.path)">
+                :disabled="!isConnected"
+                @click="isConnected && router.push(item.path)">
                 {{ item.label }}
               </n-button>
             </n-space>

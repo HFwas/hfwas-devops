@@ -48,10 +48,14 @@ public class ClusterService {
         entity.setUpdatedAt(LocalDateTime.now());
         clusterMapper.insert(entity);
 
-        // Immediately test connectivity and set realistic status
-        boolean connected = clientFactory.testConnection(entity);
-        String newStatus = connected ? "Connected" : "Disconnected";
-        entity.setStatus(newStatus);
+        // 立即测试连通性并设状态。不可达仍保存（标记 Disconnected），不阻塞创建流程
+        try {
+            clientFactory.testConnection(entity);
+            entity.setStatus("Connected");
+        } catch (BizException e) {
+            log.warn("Cluster post-create connectivity check: {}", e.getMessage());
+            entity.setStatus("Disconnected");
+        }
         entity.setUpdatedAt(LocalDateTime.now());
         clusterMapper.updateById(entity);
 

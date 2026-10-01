@@ -60,7 +60,7 @@ public class DeployFromImageService {
         String fullImage = registryHost + "/" + request.getImage();
 
         // 3. Get K8s client
-        KubernetesClient client = clientFactory.getClient(cluster);
+        KubernetesClient client = clientFactory.getConnectedClient(cluster);
 
         // 4. Verify namespace exists
         if (client.namespaces().withName(request.getNamespace()).get() == null) {

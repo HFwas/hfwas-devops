@@ -5,10 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hfwas.devops.container.dto.*;
 import com.hfwas.devops.container.util.NetworkUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import javax.net.ssl.*;
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -73,7 +75,7 @@ public class HarborAdapter implements RegistryAdapter {
         String unreachable = NetworkUtil.checkReachable(baseUrl);
         if (unreachable != null) {
             log.warn("Harbor health check failed for {}: {}", baseUrl, unreachable);
-            return false;
+            throw new RuntimeException(unreachable);
         }
 
         try {

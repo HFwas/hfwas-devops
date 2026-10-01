@@ -78,7 +78,7 @@ public class PodShellWebSocketHandler extends AbstractWebSocketHandler {
             // Verify cluster access
             Long tenantId = SecurityHelper.currentTenantId();
             ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
-            KubernetesClient client = clientFactory.getClient(cluster);
+            KubernetesClient client = clientFactory.getConnectedClient(cluster);
 
             // Verify pod and container exist
             Pod pod = client.pods().inNamespace(namespace).withName(podName).get();

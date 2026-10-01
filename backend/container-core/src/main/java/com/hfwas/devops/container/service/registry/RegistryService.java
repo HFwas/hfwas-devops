@@ -120,23 +120,37 @@ public class RegistryService {
 
     // ---- connection test ----
 
+    /**
+     * Test registry connectivity.
+     * Saves status to DB and throws BizException on failure so the API returns a descriptive message.
+     */
     public boolean testConnection(Long id) {
         RegistryEntity entity = findById(id);
         try {
             RegistryAdapter adapter = buildAdapter(entity);
             boolean ok = adapter.health();
-            entity.setStatus(ok ? "Connected" : "Error");
-            entity.setLastError(ok ? "" : "连接测试失败");
+            if (ok) {
+                entity.setStatus("Connected");
+                entity.setLastError("");
+            } else {
+                entity.setStatus("Error");
+                entity.setLastError("连接测试失败");
+                entity.setUpdatedAt(LocalDateTime.now());
+                registryMapper.updateById(entity);
+                throw new BizException(ContainerErrorCode.REGISTRY_CONNECTION_FAILED);
+            }
             entity.setUpdatedAt(LocalDateTime.now());
             registryMapper.updateById(entity);
-            return ok;
+            return true;
+        } catch (BizException e) {
+            throw e;
         } catch (Exception e) {
             entity.setStatus("Error");
             entity.setLastError(e.getMessage());
             entity.setUpdatedAt(LocalDateTime.now());
             registryMapper.updateById(entity);
             log.warn("Connection test failed for registry {}: {}", id, e.getMessage());
-            return false;
+            throw new BizException(ContainerErrorCode.REGISTRY_CONNECTION_FAILED, e.getMessage());
         }
     }
 
