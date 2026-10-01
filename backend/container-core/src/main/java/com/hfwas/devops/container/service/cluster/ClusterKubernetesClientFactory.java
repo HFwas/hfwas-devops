@@ -1,6 +1,7 @@
 package com.hfwas.devops.container.service.cluster;
 
 import com.hfwas.devops.container.entity.ClusterEntity;
+import com.hfwas.devops.container.util.NetworkUtil;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
@@ -52,6 +53,16 @@ public class ClusterKubernetesClientFactory {
      */
     public boolean testConnection(ClusterEntity cluster) {
         try {
+            // 先检查 TCP 可达性，避免 VPN 断开时长时间等待
+            String masterUrl = extractMasterUrl(cluster);
+            if (masterUrl != null) {
+                String unreachable = NetworkUtil.checkReachable(masterUrl);
+                if (unreachable != null) {
+                    log.warn("Cluster connection test failed: cluster={}, error={}", cluster.getName(), unreachable);
+                    return false;
+                }
+            }
+
             KubernetesClient client = buildClient(cluster);
             boolean healthy = client.getKubernetesVersion() != null;
             client.close();
@@ -59,6 +70,20 @@ public class ClusterKubernetesClientFactory {
         } catch (Exception e) {
             log.warn("Cluster connection test failed: cluster={}, error={}", cluster.getName(), e.getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Extract master URL from kubeconfig for connectivity check.
+     */
+    private String extractMasterUrl(ClusterEntity cluster) {
+        try {
+            String plainKubeconfig = kubeconfigCipher.decrypt(cluster.getKubeconfig());
+            Config config = Config.fromKubeconfig(plainKubeconfig);
+            return config.getMasterUrl();
+        } catch (Exception e) {
+            log.debug("Failed to extract master URL from kubeconfig: {}", e.getMessage());
+            return null;
         }
     }
 

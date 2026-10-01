@@ -3,6 +3,7 @@ package com.hfwas.devops.container.adapter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hfwas.devops.container.dto.*;
+import com.hfwas.devops.container.util.NetworkUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
@@ -68,6 +69,13 @@ public class HarborAdapter implements RegistryAdapter {
 
     @Override
     public boolean health() {
+        // 先检查 TCP 可达性，避免 VPN 断开时长时间等待
+        String unreachable = NetworkUtil.checkReachable(baseUrl);
+        if (unreachable != null) {
+            log.warn("Harbor health check failed for {}: {}", baseUrl, unreachable);
+            return false;
+        }
+
         try {
             int status = restClient.get()
                     .uri("/api/v2.0/projects?page=1&page_size=1")
