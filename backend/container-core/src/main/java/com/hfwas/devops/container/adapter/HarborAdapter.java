@@ -4,9 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hfwas.devops.container.dto.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import javax.net.ssl.*;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.util.*;
 
 /**
@@ -33,9 +38,29 @@ public class HarborAdapter implements RegistryAdapter {
                 .defaultHeader("Authorization", basicAuthHeader());
 
         if (Boolean.TRUE.equals(insecure)) {
-            // Skip TLS verification — use a custom request factory that trusts all certs
-            builder = builder.requestFactory(new org.springframework.http.client.SimpleClientHttpRequestFactory());
-            // NOTE: For production, use a properly configured SSL context instead
+            // 自签名证书或内网 HTTPS：信任所有证书（不在生产环境公网使用）
+            try {
+                TrustManager[] trustAll = new TrustManager[] { new X509TrustManager() {
+                    @Override public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+                    @Override public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+                    @Override public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
+                }};
+                SSLContext sslContext = SSLContext.getInstance("TLS");
+                sslContext.init(null, trustAll, new SecureRandom());
+
+                builder.requestFactory(new SimpleClientHttpRequestFactory() {
+                    @Override
+                    protected void prepareConnection(HttpURLConnection conn, String httpMethod) throws IOException {
+                        if (conn instanceof HttpsURLConnection https) {
+                            https.setSSLSocketFactory(sslContext.getSocketFactory());
+                            https.setHostnameVerifier((host, session) -> true);
+                        }
+                        super.prepareConnection(conn, httpMethod);
+                    }
+                });
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to configure insecure SSL for Harbor", e);
+            }
         }
 
         this.restClient = builder.build();
