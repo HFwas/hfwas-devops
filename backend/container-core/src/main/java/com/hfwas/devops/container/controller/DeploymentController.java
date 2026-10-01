@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.container.dto.DeploymentDetailVO;
 import com.hfwas.devops.container.dto.DeploymentSummaryVO;
+import com.hfwas.devops.container.dto.WorkloadEnvUpdateDTO;
+import com.hfwas.devops.container.dto.WorkloadEnvVO;
 import com.hfwas.devops.container.service.ResourceService;
 import com.hfwas.devops.container.service.SecurityHelper;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,26 @@ public class DeploymentController {
             @PathVariable String name) {
         Long tenantId = SecurityHelper.currentTenantId();
         return BaseResult.ok(resourceService.getDeployment(clusterId, namespace, name, tenantId));
+    }
+
+    @GetMapping("/namespaces/{namespace}/deployments/{name}/env")
+    public BaseResult<WorkloadEnvVO> getDeploymentEnv(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        return BaseResult.ok(resourceService.getDeploymentEnv(clusterId, namespace, name, tenantId));
+    }
+
+    @PutMapping("/namespaces/{namespace}/deployments/{name}/env")
+    public BaseResult<Void> updateDeploymentEnv(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name,
+            @RequestBody WorkloadEnvUpdateDTO body) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        resourceService.updateDeploymentEnv(clusterId, namespace, name, body, tenantId);
+        return BaseResult.ok();
     }
 
     @GetMapping("/namespaces/{namespace}/deployments/{name}/yaml")

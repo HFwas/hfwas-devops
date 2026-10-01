@@ -88,6 +88,36 @@ export interface ContainerPort {
   protocol?: string
 }
 
+export interface EnvItem {
+  name: string
+  value?: string | null
+  sourceType?: string | null
+  sourceName?: string | null
+  sourceKey?: string | null
+}
+
+export interface ImportedEnv {
+  name: string
+  value?: string | null
+  origin: string
+  secret: boolean
+}
+
+export interface ContainerEnv {
+  name: string
+  init: boolean
+  env: EnvItem[]
+  imported: ImportedEnv[]
+}
+
+export interface WorkloadEnv {
+  containers: ContainerEnv[]
+}
+
+export interface WorkloadEnvUpdate {
+  containers: Array<{ name: string; init: boolean; env: EnvItem[] }>
+}
+
 export interface ServiceSummary {
   name: string
   namespace: string

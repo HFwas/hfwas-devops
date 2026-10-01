@@ -3,6 +3,8 @@ package com.hfwas.devops.container.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.container.dto.StatefulSetSummaryVO;
+import com.hfwas.devops.container.dto.WorkloadEnvUpdateDTO;
+import com.hfwas.devops.container.dto.WorkloadEnvVO;
 import com.hfwas.devops.container.service.ResourceService;
 import com.hfwas.devops.container.service.SecurityHelper;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,26 @@ public class StatefulSetController {
             @RequestParam(defaultValue = "20") int pageSize) {
         Long tenantId = SecurityHelper.currentTenantId();
         return BaseResult.ok(resourceService.listStatefulSets(clusterId, namespace, keyword, pageNo, pageSize, tenantId));
+    }
+
+    @GetMapping("/namespaces/{namespace}/statefulsets/{name}/env")
+    public BaseResult<WorkloadEnvVO> getStatefulSetEnv(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        return BaseResult.ok(resourceService.getStatefulSetEnv(clusterId, namespace, name, tenantId));
+    }
+
+    @PutMapping("/namespaces/{namespace}/statefulsets/{name}/env")
+    public BaseResult<Void> updateStatefulSetEnv(
+            @PathVariable Long clusterId,
+            @PathVariable String namespace,
+            @PathVariable String name,
+            @RequestBody WorkloadEnvUpdateDTO body) {
+        Long tenantId = SecurityHelper.currentTenantId();
+        resourceService.updateStatefulSetEnv(clusterId, namespace, name, body, tenantId);
+        return BaseResult.ok();
     }
 
     @GetMapping("/namespaces/{namespace}/statefulsets/{name}/yaml")

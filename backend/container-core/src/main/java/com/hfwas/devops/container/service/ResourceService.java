@@ -283,6 +283,30 @@ public class ResourceService {
         client.apps().deployments().inNamespace(namespace).withName(name).delete();
     }
 
+    public WorkloadEnvVO getDeploymentEnv(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        Deployment deploy = client.apps().deployments().inNamespace(namespace).withName(name).get();
+        if (deploy == null || deploy.getSpec() == null || deploy.getSpec().getTemplate() == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        return toWorkloadEnv(client, namespace, deploy.getSpec().getTemplate().getSpec());
+    }
+
+    public void updateDeploymentEnv(Long clusterId, String namespace, String name, WorkloadEnvUpdateDTO dto, Long tenantId) {
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        Deployment deploy = client.apps().deployments().inNamespace(namespace).withName(name).get();
+        if (deploy == null || deploy.getSpec() == null || deploy.getSpec().getTemplate() == null
+                || deploy.getSpec().getTemplate().getSpec() == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        applyContainerEnv(deploy.getSpec().getTemplate().getSpec(), dto);
+        client.apps().deployments().inNamespace(namespace).resource(deploy).update();
+    }
+
     public void updateDeploymentYaml(Long clusterId, String namespace, String name, String yamlBody, Long tenantId) {
         ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
@@ -419,6 +443,30 @@ public class ResourceService {
         } catch (Exception e) {
             throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED);
         }
+    }
+
+    public WorkloadEnvVO getStatefulSetEnv(Long clusterId, String namespace, String name, Long tenantId) {
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        StatefulSet sts = client.apps().statefulSets().inNamespace(namespace).withName(name).get();
+        if (sts == null || sts.getSpec() == null || sts.getSpec().getTemplate() == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        return toWorkloadEnv(client, namespace, sts.getSpec().getTemplate().getSpec());
+    }
+
+    public void updateStatefulSetEnv(Long clusterId, String namespace, String name, WorkloadEnvUpdateDTO dto, Long tenantId) {
+        ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
+        KubernetesClient client = clientFactory.getClient(cluster);
+        requireNamespace(namespace);
+        StatefulSet sts = client.apps().statefulSets().inNamespace(namespace).withName(name).get();
+        if (sts == null || sts.getSpec() == null || sts.getSpec().getTemplate() == null
+                || sts.getSpec().getTemplate().getSpec() == null) {
+            throw new BizException(ContainerErrorCode.RESOURCE_NOT_FOUND);
+        }
+        applyContainerEnv(sts.getSpec().getTemplate().getSpec(), dto);
+        client.apps().statefulSets().inNamespace(namespace).resource(sts).update();
     }
 
     public void updateStatefulSetYaml(Long clusterId, String namespace, String name, String yamlBody, Long tenantId) {
@@ -830,6 +878,165 @@ public class ResourceService {
         }
 
         return vo;
+    }
+
+    private WorkloadEnvVO toWorkloadEnv(KubernetesClient client, String namespace, PodSpec spec) {
+        WorkloadEnvVO vo = new WorkloadEnvVO();
+        if (spec == null) {
+            return vo;
+        }
+        if (spec.getInitContainers() != null) {
+            for (Container container : spec.getInitContainers()) {
+                vo.getContainers().add(toContainerEnv(client, namespace, container, true));
+            }
+        }
+        if (spec.getContainers() != null) {
+            for (Container container : spec.getContainers()) {
+                vo.getContainers().add(toContainerEnv(client, namespace, container, false));
+            }
+        }
+        return vo;
+    }
+
+    private WorkloadEnvVO.ContainerEnvVO toContainerEnv(KubernetesClient client, String namespace, Container container, boolean init) {
+        WorkloadEnvVO.ContainerEnvVO vo = new WorkloadEnvVO.ContainerEnvVO();
+        vo.setName(container.getName());
+        vo.setInit(init);
+        if (container.getEnv() != null) {
+            vo.setEnv(container.getEnv().stream().map(this::toEnvItem).collect(Collectors.toList()));
+        }
+        if (container.getEnvFrom() != null) {
+            for (EnvFromSource source : container.getEnvFrom()) {
+                String prefix = source.getPrefix() == null ? "" : source.getPrefix();
+                if (source.getConfigMapRef() != null && source.getConfigMapRef().getName() != null) {
+                    String cmName = source.getConfigMapRef().getName();
+                    ConfigMap configMap = client.configMaps().inNamespace(namespace).withName(cmName).get();
+                    if (configMap != null && configMap.getData() != null) {
+                        configMap.getData().forEach((key, value) -> {
+                            WorkloadEnvVO.ImportedEnvVO imported = new WorkloadEnvVO.ImportedEnvVO();
+                            imported.setName(prefix + key);
+                            imported.setValue(value);
+                            imported.setOrigin("ConfigMap " + cmName);
+                            vo.getImported().add(imported);
+                        });
+                    }
+                }
+                if (source.getSecretRef() != null && source.getSecretRef().getName() != null) {
+                    String secretName = source.getSecretRef().getName();
+                    Secret secret = client.secrets().inNamespace(namespace).withName(secretName).get();
+                    if (secret != null && secret.getData() != null) {
+                        secret.getData().keySet().forEach(key -> {
+                            WorkloadEnvVO.ImportedEnvVO imported = new WorkloadEnvVO.ImportedEnvVO();
+                            imported.setName(prefix + key);
+                            imported.setOrigin("Secret " + secretName);
+                            imported.setSecret(true);
+                            vo.getImported().add(imported);
+                        });
+                    }
+                }
+            }
+        }
+        return vo;
+    }
+
+    private WorkloadEnvVO.EnvItemVO toEnvItem(EnvVar env) {
+        WorkloadEnvVO.EnvItemVO item = new WorkloadEnvVO.EnvItemVO();
+        item.setName(env.getName());
+        item.setValue(env.getValue());
+        EnvVarSource source = env.getValueFrom();
+        if (source == null) {
+            return item;
+        }
+        if (source.getSecretKeyRef() != null) {
+            item.setSourceType("secret");
+            item.setSourceName(source.getSecretKeyRef().getName());
+            item.setSourceKey(source.getSecretKeyRef().getKey());
+        } else if (source.getConfigMapKeyRef() != null) {
+            item.setSourceType("configMap");
+            item.setSourceName(source.getConfigMapKeyRef().getName());
+            item.setSourceKey(source.getConfigMapKeyRef().getKey());
+        } else if (source.getFieldRef() != null) {
+            item.setSourceType("field");
+            item.setSourceKey(source.getFieldRef().getFieldPath());
+        } else if (source.getResourceFieldRef() != null) {
+            item.setSourceType("resource");
+            item.setSourceName(source.getResourceFieldRef().getContainerName());
+            item.setSourceKey(source.getResourceFieldRef().getResource());
+        }
+        return item;
+    }
+
+    private void applyContainerEnv(PodSpec spec, WorkloadEnvUpdateDTO dto) {
+        if (dto == null || dto.getContainers() == null) {
+            return;
+        }
+        for (WorkloadEnvUpdateDTO.ContainerEnvUpdate update : dto.getContainers()) {
+            List<Container> containers = update.isInit()
+                    ? spec.getInitContainers()
+                    : spec.getContainers();
+            if (containers == null) {
+                throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "容器不存在: " + update.getName());
+            }
+            Container target = containers.stream()
+                    .filter(container -> container.getName().equals(update.getName()))
+                    .findFirst()
+                    .orElseThrow(() -> new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "容器不存在: " + update.getName()));
+            List<EnvVar> env = new ArrayList<>();
+            Set<String> names = new HashSet<>();
+            List<WorkloadEnvVO.EnvItemVO> items = update.getEnv() == null ? List.of() : update.getEnv();
+            for (WorkloadEnvVO.EnvItemVO item : items) {
+                if (item.getName() == null || item.getName().isBlank()) {
+                    throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "环境变量名不能为空");
+                }
+                if (!item.getName().matches("[-._a-zA-Z][-._a-zA-Z0-9]*")) {
+                    throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "环境变量名不合法: " + item.getName());
+                }
+                if (!names.add(item.getName())) {
+                    throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "环境变量名重复: " + item.getName());
+                }
+                env.add(toEnvVar(item));
+            }
+            target.setEnv(env);
+        }
+    }
+
+    private EnvVar toEnvVar(WorkloadEnvVO.EnvItemVO item) {
+        EnvVar env = new EnvVar();
+        env.setName(item.getName());
+        String sourceType = item.getSourceType();
+        if (sourceType == null || sourceType.isBlank()) {
+            env.setValue(item.getValue() == null ? "" : item.getValue());
+            return env;
+        }
+        EnvVarSource source = new EnvVarSource();
+        switch (sourceType) {
+            case "secret" -> {
+                SecretKeySelector selector = new SecretKeySelector();
+                selector.setName(item.getSourceName());
+                selector.setKey(item.getSourceKey());
+                source.setSecretKeyRef(selector);
+            }
+            case "configMap" -> {
+                ConfigMapKeySelector selector = new ConfigMapKeySelector();
+                selector.setName(item.getSourceName());
+                selector.setKey(item.getSourceKey());
+                source.setConfigMapKeyRef(selector);
+            }
+            case "field" -> {
+                ObjectFieldSelector selector = new ObjectFieldSelector();
+                selector.setFieldPath(item.getSourceKey());
+                source.setFieldRef(selector);
+            }
+            case "resource" -> {
+                ResourceFieldSelector selector = new ResourceFieldSelector();
+                selector.setContainerName(item.getSourceName());
+                selector.setResource(item.getSourceKey());
+                source.setResourceFieldRef(selector);
+            }
+            default -> throw new BizException(ContainerErrorCode.RESOURCE_OPERATION_FAILED, "不支持的环境变量来源: " + sourceType);
+        }
+        env.setValueFrom(source);
+        return env;
     }
 
     private DeploymentDetailVO.ContainerResourceVO toContainerResource(Container container) {

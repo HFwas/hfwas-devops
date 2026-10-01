@@ -15,6 +15,7 @@ import { statefulSetApi } from '@/modules/container/api/statefulset'
 import { PodLogPanel } from '@/modules/container/components/PodLogPanel'
 import { PodShell } from '@/modules/container/components/PodShell'
 import { YamlPanel } from '@/modules/container/components/YamlPanel'
+import { WorkloadEnvPanel } from '@/modules/container/components/WorkloadEnvPanel'
 import { formatBytes } from '@/modules/container/utils/format'
 import { NodeMonitor, PodMonitor } from '@/modules/container/components/ResourceMonitors'
 
@@ -301,7 +302,7 @@ export function DeploymentDetailPage() {
           </div>
         }
       />
-      <TabBar tabs={['概览', 'YAML']} value={tab} onChange={setTab} />
+      <TabBar tabs={['概览', '环境变量', 'YAML']} value={tab} onChange={setTab} />
       {tab === '概览' && item && (
         <div className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -351,6 +352,13 @@ export function DeploymentDetailPage() {
       )}
       {tab === '概览' && query.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
       {tab === '概览' && query.isError && <p className="text-sm text-destructive">Deployment 加载失败</p>}
+      {tab === '环境变量' && (
+        <WorkloadEnvPanel
+          queryKey={['container-deployment-env', clusterId, namespace, name]}
+          load={() => deploymentApi.env(clusterId, namespace, name)}
+          save={(data) => deploymentApi.updateEnv(clusterId, namespace, name, data)}
+        />
+      )}
       {tab === 'YAML' && (
         <YamlPanel
           queryKey={['container-deployment-yaml', clusterId, namespace, name]}
@@ -460,6 +468,7 @@ export function ConfigMapDetailPage() {
 export function StatefulSetDetailPage() {
   const { clusterId = '', namespace = '', name = '' } = useParams()
   const navigate = useNavigate()
+  const [tab, setTab] = useState('环境变量')
   const remove = useMutation({
     mutationFn: () => statefulSetApi.delete(clusterId, namespace, name),
     onSuccess: () => {
@@ -486,11 +495,21 @@ export function StatefulSetDetailPage() {
           </Button>
         }
       />
-      <YamlPanel
-        queryKey={['container-statefulset-yaml', clusterId, namespace, name]}
-        load={() => statefulSetApi.yaml(clusterId, namespace, name)}
-        save={(yaml) => statefulSetApi.updateYaml(clusterId, namespace, name, yaml)}
-      />
+      <TabBar tabs={['环境变量', 'YAML']} value={tab} onChange={setTab} />
+      {tab === '环境变量' && (
+        <WorkloadEnvPanel
+          queryKey={['container-statefulset-env', clusterId, namespace, name]}
+          load={() => statefulSetApi.env(clusterId, namespace, name)}
+          save={(data) => statefulSetApi.updateEnv(clusterId, namespace, name, data)}
+        />
+      )}
+      {tab === 'YAML' && (
+        <YamlPanel
+          queryKey={['container-statefulset-yaml', clusterId, namespace, name]}
+          load={() => statefulSetApi.yaml(clusterId, namespace, name)}
+          save={(yaml) => statefulSetApi.updateYaml(clusterId, namespace, name, yaml)}
+        />
+      )}
     </div>
   )
 }
