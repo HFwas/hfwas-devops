@@ -17,4 +17,11 @@ public class ArgoWorkflowProperties {
 
     /** 用于关联 WorkflowRun → WorkflowTemplate 的标签 key */
     private String templateLabelKey = "workflows.argoproj.io/workflow-template";
+
+    /**
+     * Argo 专属 kubeconfig 路径。
+     * 未设置时尝试复用 pipeline.kubeconfig 的 KubernetesClient bean。
+     * Docker Desktop 用户：指向宿主机 kubeconfig（容器内须挂载）。
+     */
+    private String kubeconfig = "";
 }

@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.container.config.argo.ArgoWorkflowProperties;
@@ -15,14 +14,20 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResourceList;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.OwnerReference;
+import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.ResourceDefinitionContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -57,14 +62,52 @@ public class ArgoWorkflowService {
             ObjectProvider<KubernetesClient> kubernetesClientProvider,
             ArgoWorkflowProperties properties,
             ObjectMapper objectMapper) {
-        this.kubernetesClient = kubernetesClientProvider.getIfAvailable();
         this.properties = properties;
         this.objectMapper = objectMapper;
-        this.available = this.kubernetesClient != null;
+
+        // 优先用 argo.kubeconfig 创建专属客户端，兼容 Docker Desktop 等非 pipeline 集群
+        KubernetesClient ownClient = tryCreateOwnClient(properties);
+        if (ownClient != null) {
+            this.kubernetesClient = ownClient;
+            this.available = true;
+            log.info("ArgoWorkflowService: 使用 argo.kubeconfig={}", properties.getKubeconfig());
+        } else {
+            // 回退到 pipeline 的 KubernetesClient bean
+            this.kubernetesClient = kubernetesClientProvider.getIfAvailable();
+            this.available = this.kubernetesClient != null;
+            if (this.available) {
+                log.info("ArgoWorkflowService: 复用 pipeline KubernetesClient bean");
+            } else {
+                log.warn("ArgoWorkflowService: KubernetesClient 不可用。" +
+                        "请配置 argo.kubeconfig 或 pipeline.kubeconfig");
+            }
+        }
+
         this.workflowCtx = buildContext(API_GROUP, API_VERSION, KIND_WORKFLOW);
         this.templateCtx = buildContext(API_GROUP, API_VERSION, KIND_TEMPLATE);
-        if (!this.available) {
-            log.warn("KubernetesClient 不可用（pipeline.kubeconfig 未配置），Argo Workflows 功能将降级");
+    }
+
+    /**
+     * 尝试从 argo.kubeconfig 路径创建专属 KubernetesClient。
+     * 路径不存在或文件不可读时返回 null。
+     */
+    private static KubernetesClient tryCreateOwnClient(ArgoWorkflowProperties props) {
+        String kubeconfig = props.getKubeconfig();
+        if (!StringUtils.hasText(kubeconfig)) {
+            return null;
+        }
+        Path path = Path.of(kubeconfig);
+        if (!Files.isRegularFile(path)) {
+            log.warn("argo.kubeconfig 文件不存在: {}", kubeconfig);
+            return null;
+        }
+        try {
+            Config config = Config.fromKubeconfig(Files.readString(path));
+            log.info("KubernetesClient created from argo.kubeconfig: {}", kubeconfig);
+            return new KubernetesClientBuilder().withConfig(config).build();
+        } catch (IOException e) {
+            log.warn("读取 argo.kubeconfig 失败: {} - {}", kubeconfig, e.getMessage());
+            return null;
         }
     }
 

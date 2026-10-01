@@ -120,12 +120,18 @@ services:
       # 宿主机 git http.proxy（常为 127.0.0.1:7890）由启动脚本写入；后端会改成 Pod 可达地址
       # k3s Pod 内可直接访问 GitHub，此代理反而会破坏 HTTPS/TLS，故设为空
       PIPELINE_GIT_HTTP_PROXY: ""
+      # Argo Workflows 模块的 kubeconfig，指向 Docker Desktop（或目标集群）的 kubeconfig
+      # 文件不存在时回退到 pipeline KubernetesClient bean；两者都不可用时降级报错
+      ARGO_KUBECONFIG: /app/kube/config
     volumes:
       - devops-data:/app/data
       - devops-files:/app/files
       - ./logs/backend:/app/logs
       - ./logs/dumps:/app/dumps
       - ./data/pipeline:/app/pipeline:ro
+      # 挂载宿主机 kubeconfig 供 Argo Workflows 使用（Windows Docker Desktop 的默认路径）
+      # 文件不存在时容器内自动创建空目录，不影响启动
+      - ~/.kube:/app/kube:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8089/health/check"]
       interval: 30s
