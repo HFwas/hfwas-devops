@@ -1,7 +1,3 @@
-/**
- * 控制台明暗主题
- * 仅切换 naive-ui 主题 + html.dark 类，卡片配色通过 --wb-* 变量跟随。
- */
 const STORAGE_KEY = 'hfwas.console.theme'
 
 function readStored(): boolean {
@@ -11,20 +7,29 @@ function readStored(): boolean {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
 }
 
-const isDark = ref(readStored())
+let isDark = readStored()
+const listeners = new Set<() => void>()
 
 function apply(dark: boolean) {
   document.documentElement.classList.toggle('dark', dark)
 }
 
-apply(isDark.value)
+apply(isDark)
 
-export function useConsoleTheme() {
-  function toggle() {
-    isDark.value = !isDark.value
-    localStorage.setItem(STORAGE_KEY, isDark.value ? 'dark' : 'light')
-    apply(isDark.value)
+export function getConsoleTheme() {
+  return isDark
+}
+
+export function subscribeConsoleTheme(listener: () => void) {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
   }
+}
 
-  return { isDark, toggle }
+export function toggleConsoleTheme() {
+  isDark = !isDark
+  localStorage.setItem(STORAGE_KEY, isDark ? 'dark' : 'light')
+  apply(isDark)
+  listeners.forEach((listener) => listener())
 }

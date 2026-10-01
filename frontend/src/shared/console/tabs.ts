@@ -1,4 +1,4 @@
-import type { Component } from 'vue'
+import type { LucideIcon } from 'lucide-react'
 
 /**
  * 顶部二级 Tab 配置（当前产品下的一级功能分区）
@@ -10,7 +10,7 @@ import type { Component } from 'vue'
 export interface ConsoleTab {
   key: string
   label: string
-  icon: Component
+  icon: LucideIcon
   path: string
   adminOnly?: boolean
   /** 只有路径完全相等才算命中：进入具体资源后由资源自身的布局接管导航 */

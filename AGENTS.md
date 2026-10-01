@@ -1,7 +1,7 @@
 # Agent instructions
 
-> 日期：2026-09-13 
-> 版本：v0.7
+> 日期：2026-10-01
+> 版本：v0.12
 
 ### 变更记录
 
@@ -14,10 +14,15 @@
 | v0.5 | 2026-09-13 | docs 索引补充应用镜像构建与 Helm 升级 |
 | v0.6 | 2026-09-13 | 本地部署按 OS 区分：macOS 用 k3s 容器；Windows 用 Docker Desktop `docker-desktop`；日志优先 `logs/`，Windows 集群日志走 `kubectl -n devops logs` |
 | v0.7 | 2026-09-15 | 新增：数据库变更规范 |
+| v0.8 | 2026-09-16 | docs 索引补充云游/交付研究目录 |
+| v0.9 | 2026-09-16 | docs 索引补充交付运维平台技术设计 |
+| v0.10 | 2026-09-16 | 交付运维为独立局点产品：设计在 docs，代码不进本仓库 backend/frontend |
+| v0.11 | 2026-10-01 | 前端强制遵守 AI 协作规范：新建走 React + Tailwind v4 + shadcn/ui；既有 `frontend/` 走 Vue + shadcn-vue |
+| v0.12 | 2026-10-01 | `frontend/` 统一为 React 轨，取消 Vue 例外 |
 
 ---
 
-HFWAS DevOps：从 0 到 1 的 DevOps 平台。后端 Spring Boot 3 / Java 21，前端 Vue 3。Cursor 额外规则在 `.cursor/rules/`。
+HFWAS DevOps：从 0 到 1 的 DevOps 平台。后端 Spring Boot 3 / Java 21。前端 `frontend/` 为 React 19 + Tailwind v4 + shadcn/ui，必须遵守「前端」一节与 `docs/frontend/ai-collaboration-frontend.md`。Cursor 额外规则在 `.cursor/rules/`。
 
 ## 优先使用本地文档
 
@@ -39,13 +44,15 @@ HFWAS DevOps：从 0 到 1 的 DevOps 平台。后端 Spring Boot 3 / Java 21，
 | PM 设计与 API | `docs/pm/` |
 | PM 工作流演进 | `docs/evolution/` |
 | 后端架构 / API / 库表 | `docs/backend/` |
-| 前端 | `docs/frontend/` |
+| 前端 | `docs/frontend/`；强制规范 `docs/frontend/ai-collaboration-frontend.md` |
 | 文件解析 / OCR | `docs/file-parser/` |
 | 文档生成 | `docs/docgen/` |
 | 图片处理 | `docs/image/` |
 | API 测试平台 | `docs/api-test/` |
 | 测试 / 进度 / 安全 | `docs/general/` |
 | 设计稿与实现计划 | `docs/superpowers/` |
+| 交付运维平台 | `docs/superpowers/specs/2026-09-16-delivery-ops-platform-design.md`（**独立产品**，禁止在本仓库 `backend/` `frontend/` 落地） |
+| 云游 / 交付研究 | `docs/research/` |
 
 ## 绿野项目：不做存量兼容
 
@@ -160,7 +167,29 @@ Docker 容器访问宿主机代理用 `host.docker.internal:7890`，不要把 `1
 
 ## 前端
 
-Vue SFC 里同一表达式不要混用 `??` 与 `||`，除非加括号（否则 `@vue/compiler-sfc` 编译失败）。
+写任何前端代码前，先读 `docs/frontend/ai-collaboration-frontend.md` 并遵守本节。与通用知识冲突时，以该文档为准。
+
+### 新建前端（默认，强制）
+
+必须使用 **React 19 + TypeScript + Vite + Tailwind CSS v4 + shadcn/ui**。
+
+- 用 shadcn CLI 初始化，组件源码放在 `src/components/ui`，用 `npx shadcn@latest add` 添加。禁止平行手写一套基础组件。
+- 保留并先读 `components.json`。样式只用 Tailwind 工具类和 CSS 变量（`@theme` / OKLCH）。颜色用语义 token（如 `bg-background`），禁止在业务代码里写死十六进制颜色。
+- 服务端状态用 TanStack Query，校验用 Zod，图标用 Lucide。
+- 后端已是独立 API 时用 Vite SPA。用户未明确要求 SSR / RSC 时，禁止引入 Next.js。
+- 需要对话、流式输出、工具调用界面时，用 Vercel AI SDK + AI Elements，或 assistant-ui。
+
+### 本仓库 `frontend/`（强制）
+
+与新建前端同一套栈。禁止在 `frontend/` 中引入 Vue、Pinia、Vue Router、naive-ui、shadcn-vue。
+
+路由用 React Router。服务端状态用 TanStack Query。跨页面客户端状态用 Zustand。
+
+### 共同禁止
+
+- 禁止 Vue，以及 Element Plus、Ant Design、naive-ui、CSS-in-JS，或 Tailwind 以外的第二套原子化 CSS。
+- 禁止把基础组件封进不可读的运行时黑盒。改视觉时改仓库内组件源码和 CSS 变量。
+- 交付运维平台界面禁止落到本仓库 `frontend/`。
 
 ## 数据库变更
 

@@ -1,7 +1,7 @@
 # HFWAS DevOps
 
-> 日期：2026-09-13
-> 版本：v0.3
+> 日期：2026-09-15
+> 版本：v0.4
 
 ### 变更记录
 
@@ -10,10 +10,11 @@
 | v0.1 | 2026-09-12 | 现有 README 内容 |
 | v0.2 | 2026-09-13 | Helm 部署指向 `deploy/charts/deploy-app` 脚本 |
 | v0.3 | 2026-09-13 | 本机 GitLab 代码同步用 `scripts/sync-gitlab` |
+| v0.4 | 2026-09-15 | 补齐容器平台、流水线/CI、API 测试平台、图片处理四大新增子系统；更新项目结构与 API 索引 |
 
 ---
 
-可扩展的 DevOps 平台，当前包含 **项目管理（PM）**、**用户/租户中心**、**文档生成（Docgen）** 与 **文件解析（File Parser）** 四大子系统。后端为单体 Spring Boot 服务，前端为 Vue 3 SPA，本地开发使用 SQLite，零外部依赖即可启动。
+可扩展的 DevOps 平台，当前包含 **项目管理（PM）**、**用户/租户中心**、**流水线/CI**、**容器平台**、**API 测试平台**、**文档生成（Docgen）**、**文件解析（File Parser）** 与 **图片处理** 八大子系统。后端为单体 Spring Boot 服务，前端为 Vue 3 SPA，本地开发使用 SQLite，零外部依赖即可启动。
 
 ---
 
@@ -33,6 +34,7 @@
 | 导入导出 | Excel 模板下载、预览与批量导入 |
 | 方案管理 | 事项类型方案、项目级配置 Import/Export |
 | 保存视图 | 自定义筛选视图（后端 API + 前端逐步完善） |
+| 工作台 | 个人工作台：快捷入口、最近访问、我的事项 |
 
 ### 用户中心
 
@@ -44,6 +46,47 @@
 | 站内信 | 收件箱、管理员群发 |
 | 审计 | 登录日志、操作日志 |
 | 集成 | LDAP 等身份连接器（admin 配置） |
+
+### 流水线 / CI（Pipeline / Tekton）
+
+| 能力 | 说明 |
+|------|------|
+| 流水线编排 | 可视化 DAG 编排（Vue Flow），多阶段并行/串行任务 |
+| 任务市场 | 预置任务类型：GIT_CLONE、MAVEN_BUILD、DEPENDENCY_ANALYSIS、DEPENDENCY_TRACK、KUBECTL、IMAGE_BUILD、DOCKER_PUSH、HELM_UPGRADE 等 |
+| 任务脚本模板化 | 所有 Tekton 任务脚本由数据库管理，支持 CodeMirror 编辑器在线编辑与校验 |
+| 运行时参数 | 支持 input / select / api_select 三种参数来源，运行弹框选择 |
+| 凭证管理 | Git 凭证、镜像仓库凭证、kubeconfig 凭证 |
+| 资源分配 | 任务级 CPU/Memory 资源配置 |
+| 依赖分析 | 多语言 Monorepo 支持自动检测，SBOM 生成与回传 |
+| Dependency-Track 集成 | SBOM 上传 → 漏洞分析 → 结果入库 |
+| 制品管理 | 流水线运行产物归档与下载 |
+| Pod 终端 | 运行中 Pod 的 Web 终端（kubectl exec） |
+| 工具链 | 任务工具链模板管理 |
+
+### 容器平台
+
+| 能力 | 说明 |
+|------|------|
+| 集群管理 | 多集群注册与切换（kubeconfig 导入） |
+| 节点管理 | 节点列表、详情、监控 |
+| Pod 管理 | 列表、详情、日志流式查看、Web Shell 终端、文件浏览与上传下载 |
+| 工作负载 | Deployment / StatefulSet 详情与 YAML 编辑 |
+| 网络与存储 | Service、ConfigMap、Secret、PVC、StorageClass 管理 |
+| 监控 | 集群/节点/Pod 监控指标（CPU、内存、网络、磁盘）；JVM 监控 |
+| 注册中心 | 镜像仓库管理（Harbor），镜像/仓库浏览，漏洞扫描结果查看 |
+| 事件 | Kubernetes 事件流实时展示 |
+
+### API 测试平台
+
+| 能力 | 说明 |
+|------|------|
+| API 调试 | 类 Postman 工作台：请求构建、响应查看、断言、脚本、认证编辑 |
+| API 定义管理 | 接口分组、定义 CRUD、Swagger/OpenAPI 兼容 |
+| 集合管理 | 集合树形组织、批量运行、运行历史 |
+| 环境管理 | 多环境变量管理，变量插值替换 |
+| cURL 导入 | 粘贴 cURL 命令自动解析为 API 请求 |
+| 请求历史 | 调试历史记录与回放 |
+| Shell 工作台 | 集成式工作区：API 树、集合面板、环境面板、历史记录 |
 
 ### 文档生成（Docgen）
 
@@ -64,6 +107,14 @@
 | 文件压缩 | 配置压缩质量、最大尺寸、最小压缩比 |
 | 格式检测 | 基于 MIME Type 的格式识别，支持 WPS Office 及国产信创格式 |
 
+### 图片处理
+
+| 能力 | 说明 |
+|------|------|
+| 格式转换 | 图片格式互转（PNG/JPEG/WebP/BMP/GIF/SVG/TIFF） |
+| 批量转换 | 多文件批量转换，支持质量与尺寸配置 |
+| 历史记录 | 转换操作历史查看与回退 |
+
 ---
 
 ## 技术栈
@@ -75,57 +126,65 @@
 | 脚本 | Python 3（python-docx、openpyxl、python-pptx、matplotlib、fpdf） |
 | 数据库 | SQLite（Compose / Helm 由 `schema-migrate` 容器执行 SQL；宿主机 `start-backend.sh` 仍进程内建表） |
 | 构建 | Maven 3.8+、npm |
+| CI/CD | Tekton（自定义 CRD + Tekton Compiler + Task 模板化） |
+| 容器 | Docker、Kubernetes（k3s / Docker Desktop）、Helm |
+| 质量 | Dependency-Track（SBOM 漏洞分析） |
 
 ---
-
 
 ## 项目结构
 
 ```
 hfwas-devops/
 ├── backend/
-│   ├── user-api/          # 用户模块公共 API / 注解 / 错误码
-│   ├── user-core/         # 用户领域逻辑、认证、租户、站内信
-│   ├── pm-core/           # PM 内核：事项、字段、查询引擎、工作流
-│   ├── file-parser/       # 文件解析：图片 OCR、文件压缩、MIME 格式检测
-│   ├── server/            # Spring Boot 启动入口 + REST Controllers
-│   ├── scripts/           # Python 脚本（文档生成引擎 generate_doc.py）
-│   ├── Dockerfile         # 后端容器镜像构建
-│   └── .dockerignore      # 后端 Docker 构建忽略规则
+│   ├── user-api/                    # 用户模块公共 API / 注解 / 错误码
+│   ├── user-core/                   # 用户领域逻辑、认证、租户、站内信
+│   ├── pm-core/                     # PM 内核：事项、字段、查询引擎、工作流
+│   ├── pipeline-core/               # 流水线内核：编排、Tekton 编译、凭证、任务、依赖分析
+│   ├── container-core/              # 容器平台：K8s 集群管理、Pod/Deployment/Service 等资源
+│   ├── api-test-core/               # API 测试平台：调试、定义、集合、环境管理
+│   ├── image-core/                  # 图片处理：格式转换、批量处理
+│   ├── file-parser/                 # 文件解析：图片 OCR、文件压缩、MIME 格式检测
+│   ├── server/                      # Spring Boot 启动入口 + REST Controllers
+│   ├── scripts/                     # Python 脚本（文档生成引擎 generate_doc.py）
+│   ├── Dockerfile                   # 后端容器镜像构建
+│   └── .dockerignore                # 后端 Docker 构建忽略规则
 ├── frontend/
+│   ├── src/modules/
+│   │   ├── user/                    # 用户 / 租户 / 认证
+│   │   ├── pm/                      # 项目管理
+│   │   ├── pipeline/                # 流水线 / CI
+│   │   ├── container/               # 容器平台
+│   │   ├── api-test/                # API 测试平台
+│   │   ├── image/                   # 图片处理
+│   │   ├── docgen/                  # 文档生成
+│   │   └── file-parser/             # 文件解析
 │   ├── docker/
-│   │   └── nginx.conf     # 生产环境 Nginx 配置
-│   ├── Dockerfile         # 前端容器镜像构建
-│   └── .dockerignore      # 前端 Docker 构建忽略规则
-├── charts/
-│   ├── backend/            # Helm Chart（后端 Spring Boot 部署）
+│   │   └── nginx.conf               # 生产环境 Nginx 配置
+│   ├── Dockerfile                   # 前端容器镜像构建
+│   └── .dockerignore                # 前端 Docker 构建忽略规则
+├── deploy/charts/
+│   ├── backend/                     # Helm Chart（后端 Spring Boot 部署）
 │   │   ├── Chart.yaml
 │   │   ├── values.yaml
-│   │   └── templates/
-│   │       ├── _helpers.tpl
-│   │       ├── configmap.yaml          # 应用环境变量
-│   │       ├── deployment.yaml         # 部署（含反亲和 + 安全上下文）
-│   │       ├── hpa.yaml                # 自动伸缩
-│   │       ├── logback-configmap.yaml  # 可挂载的日志配置
-│   │       ├── pvc.yaml                # 数据、文件、日志持久卷
-│   │       ├── secret.yaml             # JWT 密钥
-│   │       └── service.yaml
-│   └── frontend/           # Helm Chart（前端 Vue 3 + Nginx 部署）
-│       ├── Chart.yaml
-│       ├── values.yaml
-│       └── templates/
-│           ├── _helpers.tpl
-│           ├── configmap.yaml          # Nginx 配置（含 API 反向代理）
-│           ├── deployment.yaml         # 部署（含反亲和 + 安全上下文）
-│           ├── hpa.yaml
-│           ├── ingress.yaml            # 入口配置
-│           └── service.yaml
-├── docker-compose.yml     # 本地 Docker Compose 编排（backend / frontend / Kong / Keycloak）
-├── scripts/               # 本地开发启动脚本
-└── docs/                  # 设计文档与 API 说明
+│   │   └── templates/               # ConfigMap、Deployment、HPA、Service、Secret、PVC、Logback
+│   ├── frontend/                    # Helm Chart（前端 Vue 3 + Nginx 部署）
+│   │   ├── Chart.yaml
+│   │   ├── values.yaml
+│   │   └── templates/               # ConfigMap、Deployment、HPA、Ingress、Service
+│   ├── keycloak/                    # Helm Chart（Keycloak 身份认证 + Postgres）
+│   ├── kong/                        # Helm Chart（Kong API 网关，DB-less 模式）
+│   ├── gitlab/                      # Helm Chart（本机 GitLab 实例）
+│   ├── harbor/                      # Helm Chart（Harbor 镜像仓库）
+│   └── dependency-track/            # Helm Chart（Dependency-Track SBOM 分析）
+├── docker-compose.yml               # 本地 Docker Compose 编排（backend / frontend / Kong / Keycloak）
+├── scripts/                         # 本地开发启动脚本
+├── keycloak/                        # Keycloak SPI 自定义扩展
+│   └── http-event-listener/         # Keycloak 事件回写后端监听器
+└── docs/                            # 设计文档与 API 说明
 ```
 
-**分层原则：** `pm-core` / `user-core` 承载领域逻辑，`server` 仅做 HTTP 适配；前端按模块划分路由与 API Client。
+**分层原则：** `pm-core` / `user-core` / `pipeline-core` / `container-core` / `api-test-core` / `image-core` 承载领域逻辑，`server` 仅做 HTTP 适配；前端按模块划分路由与 API Client。
 
 ---
 
@@ -177,6 +236,13 @@ hfwas-devops/
 
 # 前端（可选 --install）
 ./scripts/start-frontend.sh
+```
+
+### 流水线执行集群（可选）
+
+```bash
+# 启动流水线执行环境（Tekton + 本地集群）
+./scripts/start-pipeline-cluster.sh
 ```
 
 ### 默认账号
@@ -242,7 +308,12 @@ BACKEND_PORT=8089 FRONTEND_PORT=5173 ./scripts/start-dev.sh
 | `/health/*` | 健康检查 |
 | `/user/*` | 用户、租户、认证、站内信、审计 |
 | `/pm/*` | 项目管理 |
+| `/pipeline/*` | 流水线编排、凭证、任务市场、工具链 |
+| `/dependency/*` | 依赖分析、组件管理 |
+| `/container/*` | 容器平台（集群、Pod、Deployment、Service 等） |
+| `/apitest/*` | API 测试（调试、定义、集合、环境） |
 | `/api/docgen/*` | 文档生成 |
+| `/api/image/*` | 图片处理 |
 
 ### 主要 REST 入口
 
@@ -279,13 +350,69 @@ BACKEND_PORT=8089 FRONTEND_PORT=5173 ./scripts/start-dev.sh
 | PmSavedViewController | `/pm/views` | 保存视图 |
 | PmMetaController | `/pm` | 元数据、看板、类型目录 |
 
+**流水线 / CI 模块**
+
+| Controller | Base Path | 说明 |
+|------------|-----------|------|
+| PipelineController | `/pipeline/pipelines` | 流水线 CRUD、运行、日志 |
+| PipelineCredentialController | `/pipeline/credentials` | 凭证管理（Git / 镜像 / kubeconfig） |
+| PipelineTaskKindController | `/pipeline/task-kinds` | 任务市场 / 任务类型 |
+| PipelineToolchainController | `/pipeline/toolchains` | 工具链模板 |
+| PipelineJobParamController | `/pipeline/job-params` | 任务运行时参数 |
+| PipelineRunArtifactController | `/pipeline/runs/{runId}/artifacts` | 运行产物 |
+| PodExecController | `/pipeline/pipelines/{id}/runs/{runId}/jobs/{jobId}` | Pod 终端 WebSocket |
+| DependencyScanController | `/dependency-scan` | 依赖扫描触发 |
+| DependencyComponentController | `/dependency/components` | 组件管理 |
+
+**容器平台**
+
+| Controller | Base Path | 说明 |
+|------------|-----------|------|
+| ClusterController | `/container/clusters` | 集群注册与管理 |
+| NamespaceController | `/container/clusters/{clusterId}/namespaces` | 命名空间管理 |
+| NodeController | `/container/clusters/{clusterId}` | 节点列表与详情 |
+| PodController | `/container/clusters/{clusterId}` | Pod 列表、详情、日志、YAML |
+| PodFileController | `/container/clusters/{clusterId}/namespaces/{ns}/pods/{name}` | Pod 文件浏览与传输 |
+| DeploymentController | `/container/clusters/{clusterId}` | Deployment 管理 |
+| StatefulSetController | `/container/clusters/{clusterId}` | StatefulSet 管理 |
+| ServiceController | `/container/clusters/{clusterId}` | Service 管理 |
+| ConfigMapController | `/container/clusters/{clusterId}` | ConfigMap 管理 |
+| SecretController | `/container/clusters/{clusterId}` | Secret 管理 |
+| PvcController | `/container/clusters/{clusterId}` | 持久卷声明管理 |
+| StorageClassController | `/container/clusters/{clusterId}` | 存储类管理 |
+| EventController | `/container/clusters/{clusterId}/namespaces/{ns}/events` | 事件流 |
+| MonitorController | `/container/clusters/{clusterId}/monitor` | 监控指标 |
+| RegistryController | `/container/registries` | 镜像仓库注册 |
+| ImageController | `/container/registries/{registryId}` | 镜像/仓库浏览 |
+| ImageSearchController | `/container/images` | 镜像搜索 |
+
+**API 测试平台**
+
+| Controller | Base Path | 说明 |
+|------------|-----------|------|
+| ApiDebugController | `/apitest/debug` | API 调试（发送请求） |
+| ApiDefinitionController | `/apitest/definitions` | API 定义管理 |
+| ApiGroupController | `/apitest/groups` | API 分组 |
+| CollectionController | `/apitest/collections` | 集合管理 |
+| CollectionFolderController | `/apitest/collections/{id}/folders` | 集合文件夹 |
+| CollectionItemController | `/apitest/collections/{id}/items` | 集合项 |
+| CurlImportController | `/apitest/curl` | cURL 导入解析 |
+| EnvironmentController | `/apitest/environments` | 环境变量管理 |
+| DebugHistoryController | `/apitest/debug-histories` | 调试历史 |
+
 **文档生成模块**
 
 | Controller | Base Path | 说明 |
 |------------|-----------|------|
 | DocgenController | `/api/docgen` | 文档生成：单文件下载、批量生成到目录 |
 
-完整接口清单见 [docs/pm-api.md](docs/pm-api.md) §13。
+**图片处理**
+
+| Controller | Base Path | 说明 |
+|------------|-----------|------|
+| ImageProcessorController | `/api/image` | 图片转换、批量处理、格式信息 |
+
+完整接口清单见各模块设计文档。
 
 ---
 
@@ -401,7 +528,7 @@ tail -f logs/backend/devops.log logs/frontend/access.log logs/kong/error.log log
 ./deploy/charts/deploy-app.sh frontend
 ```
 
-Chart 在 `deploy/charts/`。Keycloak / Kong 镜像清单见 [`deploy/charts/images.txt`](deploy/charts/images.txt)。
+Chart 在 `deploy/charts/`。Keycloak / Kong / Harbor / Dependency-Track 镜像清单见 [`deploy/charts/images.txt`](deploy/charts/images.txt)。
 
 ```bash
 # SPI 镜像（Keycloak 事件回写后端）
@@ -412,6 +539,16 @@ helm install keycloak ./deploy/charts/keycloak -f ./deploy/charts/keycloak/value
 
 # Kong DB-less（上游默认 devops-backend / devops-frontend / keycloak）
 helm install kong ./deploy/charts/kong -f ./deploy/charts/kong/values-k3s.yaml
+
+# GitLab 实例
+helm install gitlab ./deploy/charts/gitlab -f ./deploy/charts/gitlab/values-k3s.yaml
+
+# Harbor 镜像仓库
+helm install harbor ./deploy/charts/harbor -f ./deploy/charts/harbor/values-k3s.yaml
+
+# Dependency-Track SBOM 分析
+helm install dependency-track ./deploy/charts/dependency-track \
+  -f ./deploy/charts/dependency-track/values-k3s.yaml
 
 # 安装后端
 helm install devops-backend ./deploy/charts/backend \
@@ -429,12 +566,18 @@ helm upgrade keycloak ./deploy/charts/keycloak
 helm upgrade kong ./deploy/charts/kong
 helm upgrade devops-backend ./deploy/charts/backend
 helm upgrade devops-frontend ./deploy/charts/frontend
+helm upgrade gitlab ./deploy/charts/gitlab
+helm upgrade harbor ./deploy/charts/harbor
+helm upgrade dependency-track ./deploy/charts/dependency-track
 
 # 卸载
 helm uninstall kong
 helm uninstall keycloak
 helm uninstall devops-backend
 helm uninstall devops-frontend
+helm uninstall gitlab
+helm uninstall harbor
+helm uninstall dependency-track
 ```
 
 ---
@@ -443,14 +586,36 @@ helm uninstall devops-frontend
 
 | 路径 | 说明 |
 |------|------|
+| `/workbench` | 个人工作台 |
 | `/user/login` | 登录 |
 | `/pm/projects` | 项目列表 |
 | `/pm/projects/:id/items/:type` | 事项列表 |
 | `/pm/projects/:id/board/:type` | 看板 |
 | `/pm/projects/:id/settings/*` | 项目设置（模块、字段、类型、工作流） |
+| `/pm/monitor` | PM 监控仪表盘 |
 | `/user/*` | 用户中心（admin） |
 | `/messages` | 站内信收件箱 |
+| `/pipeline/pipelines` | 流水线列表与新建 |
+| `/pipeline/pipelines/:id/edit` | 流水线编排（DAG 可视化编辑） |
+| `/pipeline/pipelines/:id/runs/:runId` | 运行详情 |
+| `/pipeline/credentials` | 凭证管理 |
+| `/pipeline/task-kinds` | 任务市场 |
+| `/pipeline/dependency/components` | 依赖组件列表 |
+| `/pipeline/dependency/scan` | 依赖扫描记录 |
+| `/container/clusters` | 集群列表 |
+| `/container/clusters/:id` | 集群详情（Pod / Deployment / Service 等） |
+| `/container/clusters/:id/pods/:namespace/:name` | Pod 详情、日志、终端、文件 |
+| `/container/monitor/*` | 监控仪表盘 |
+| `/container/registries` | 镜像仓库列表 |
+| `/container/registries/:id` | 仓库详情（项目 / 仓库 / 镜像） |
+| `/container/images` | 镜像搜索 |
+| `/apitest/workspace` | API 测试工作台 |
+| `/apitest/definitions` | API 定义管理 |
+| `/apitest/collections` | 集合管理 |
+| `/apitest/environments` | 环境管理 |
 | `/docgen` | 文档生成 |
+| `/file-parser` | 文件解析 |
+| `/image` | 图片处理 |
 
 ---
 
@@ -458,12 +623,43 @@ helm uninstall devops-frontend
 
 | 文档 | 说明 |
 |------|------|
+| **项目管理** | |
 | [docs/pm-design.md](docs/pm-design.md) | PM 架构与领域设计 |
 | [docs/pm-api.md](docs/pm-api.md) | PM REST API 完整说明 |
-| [docs/error-code-design.md](docs/error-code-design.md) | 全局错误码规范 |
 | [docs/pm-evolution-roadmap.md](docs/pm-evolution-roadmap.md) | PM 分步演进路线图 |
 | [docs/pm-jira-comparison.md](docs/pm-jira-comparison.md) | 与 Jira 能力对比 |
 | [docs/evolution/](docs/evolution/) | 各演进步骤详细设计 |
+| **流水线/CI** | |
+| [docs/pipeline/pipeline-core-api.md](docs/pipeline/pipeline-core-api.md) | 流水线 API 说明 |
+| [docs/pipeline/cicd-tech-selection.md](docs/pipeline/cicd-tech-selection.md) | CI/CD 技术选型 |
+| [docs/pipeline/tekton-intro.md](docs/pipeline/tekton-intro.md) | Tekton 介绍 |
+| [docs/pipeline/pod-exec-terminal-design.md](docs/pipeline/pod-exec-terminal-design.md) | Pod 终端设计 |
+| [docs/pipeline/task-script-template-design.md](docs/pipeline/task-script-template-design.md) | 任务脚本模板化设计 |
+| [docs/pipeline/runtime-param-design.md](docs/pipeline/runtime-param-design.md) | 运行时参数设计 |
+| [docs/pipeline/task-resource-config-design.md](docs/pipeline/task-resource-config-design.md) | 任务资源配置设计 |
+| [docs/pipeline/kubectl-task-design.md](docs/pipeline/kubectl-task-design.md) | KUBECTL 任务类型设计 |
+| [docs/pipeline/pipeline-task-marketplace-design.md](docs/pipeline/pipeline-task-marketplace-design.md) | 任务市场设计 |
+| [docs/pipeline/dependency-analysis-design.md](docs/pipeline/dependency-analysis-design.md) | 依赖分析设计 |
+| [docs/pipeline/dependency-track-design.md](docs/pipeline/dependency-track-design.md) | Dependency-Track 集成设计 |
+| [docs/pipeline/monorepo-dependency-analysis-design.md](docs/pipeline/monorepo-dependency-analysis-design.md) | Monorepo 依赖分析设计 |
+| [docs/pipeline/pipeline-toolchain-image-strategy.md](docs/pipeline/pipeline-toolchain-image-strategy.md) | 工具链镜像策略 |
+| **容器平台** | |
+| [docs/container-platform/](docs/container-platform/) | 容器平台文档 |
+| **部署运维** | |
+| [docs/devops/](docs/devops/) | 本地与生产部署 |
+| [docs/devops/app-helm-deploy.md](docs/devops/app-helm-deploy.md) | 应用镜像构建与 Helm 升级 |
+| **后端架构** | |
+| [docs/backend/](docs/backend/) | 后端架构与 API |
+| [docs/error-code-design.md](docs/error-code-design.md) | 全局错误码规范 |
+| **前端** | |
+| [docs/frontend/](docs/frontend/) | 前端文档 |
+| **其他** | |
+| [docs/docgen/](docs/docgen/) | 文档生成设计 |
+| [docs/file-parser/](docs/file-parser/) | 文件解析设计 |
+| [docs/image/](docs/image/) | 图片处理设计 |
+| [docs/api-test/](docs/api-test/) | API 测试平台设计 |
+| [docs/general/](docs/general/) | 测试、进度、安全 |
+| [docs/superpowers/](docs/superpowers/) | 设计稿与实现计划 |
 
 ---
 
@@ -476,8 +672,8 @@ GitHub Actions（`.github/workflows/maven.yml`）在 `master` / `dev` 分支 pus
 ## 开发说明
 
 - 本项目为 **绿野（从 0 到 1）** 模式：改 schema / API 时直接改单一真相，不做存量兼容；本地库可随时删除重建。
-- 后端模块边界：`pm-core` 不依赖 HTTP；新增 PM 能力优先在内核实现，Controller 只做 DTO 转换。
-- 前端 PM 模块位于 `frontend/src/modules/pm/`，共享请求封装在 `frontend/src/shared/api/`。
+- 后端模块边界：`pm-core` / `pipeline-core` / `container-core` / `api-test-core` 不依赖 HTTP；新增能力优先在内核实现，Controller 只做 DTO 转换。
+- 前端按模块划分，共享请求封装在 `frontend/src/shared/api/`。
 
 ---
 

@@ -1,5 +1,5 @@
 # =============================================================================
-# Stage 1: Build Vue 3 frontend
+# Stage 1: Build React frontend
 # BuildKit cache：npm 缓存跨构建复用；仅 package*.json 变化时才重跑 npm ci
 # =============================================================================
 FROM node:20-alpine AS builder

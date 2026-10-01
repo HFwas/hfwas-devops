@@ -1,5 +1,5 @@
-import type { Component } from 'vue'
-import { Beaker, Boxes, FileText, FileDown, GitBranch, GitGraph, Image, ServerCog, ShieldCheck, SquareKanban } from '@lucide/vue'
+import type { LucideIcon } from 'lucide-react'
+import { Beaker, Boxes, FileText, FileDown, GitBranch, GitGraph, Image, ServerCog, ShieldCheck, SquareKanban } from 'lucide-react'
 
 /**
  * 控制台产品目录（顶栏左侧下拉切换）
@@ -10,7 +10,7 @@ export interface ConsoleProduct {
   key: string
   name: string
   description: string
-  icon: Component
+  icon: LucideIcon
   path: string
   group: string
   comingSoon?: boolean

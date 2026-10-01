@@ -73,27 +73,6 @@ services:
       gateway-init:
         condition: service_completed_successfully
 
-  argo-frontend:
-    build:
-      context: ./argo-workflow-editor
-      dockerfile: Dockerfile
-    image: hfwas/argo-frontend:latest
-    container_name: devops-argo-frontend
-    restart: unless-stopped
-    ports:
-      - "5174:80"
-    healthcheck:
-      test: ["CMD-SHELL", "test -f /var/run/nginx.pid"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 15s
-    depends_on:
-      gateway-init:
-        condition: service_completed_successfully
-      backend:
-        condition: service_healthy
-
   schema-migrate:
     image: python:3.12-alpine
     container_name: devops-schema-migrate
@@ -248,8 +227,6 @@ services:
         condition: service_healthy
       frontend:
         condition: service_healthy
-      argo-frontend:
-        condition: service_healthy
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.3
@@ -284,8 +261,8 @@ services:
         ]
       interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 12
+      start_period: 180s
     depends_on:
       keycloak-spi:
         condition: service_completed_successfully

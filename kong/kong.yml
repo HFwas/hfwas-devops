@@ -60,27 +60,6 @@ services:
           - http
           - https
 
-  # ----- Argo 工作流编辑器（React SPA）-----
-  - name: argo-frontend-service
-    url: http://argo-frontend:80
-    connect_timeout: 10000
-    write_timeout: 30000
-    read_timeout: 30000
-    retries: 0
-    routes:
-      - name: argo-spa
-        paths:
-          - /argo
-        strip_path: false
-        methods:
-          - GET
-          - POST
-          - HEAD
-          - OPTIONS
-        protocols:
-          - http
-          - https
-
   # ----- Keycloak 认证服务 -----
   - name: keycloak-service
     # Keycloak 与 Kong 在同一个 compose 文件中，通过容器名访问
