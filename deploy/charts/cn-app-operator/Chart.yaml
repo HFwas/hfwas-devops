@@ -1,0 +1,16 @@
+apiVersion: v2
+name: cn-app-operator
+description: 交付运维的应用 Operator。调和 App / CloudService / CloudComponent / ProductTask，并执行 Helm。
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - delivery
+  - operator
+  - helm
+home: https://github.com/HFwas/hfwas-devops
+sources:
+  - https://github.com/HFwas/hfwas-devops
+maintainers:
+  - name: HFwas
+    email: hfwas@example.com

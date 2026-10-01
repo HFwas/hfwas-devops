@@ -1,13 +1,14 @@
 # 应用镜像构建与 Helm 升级
 
-> 日期：2026-09-13
-> 版本：v0.1
+> 日期：2026-10-01
+> 版本：v0.2
 
 ### 变更记录
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-09-13 | 初版：把原先手工 docker build + helm upgrade 收成 `deploy-app` 脚本 |
+| v0.2 | 2026-10-01 | 构建命令改为 `deploy/docker/backend/Dockerfile` |
 
 ---
 
@@ -16,7 +17,7 @@
 此前升级本仓库应用（`devops-backend` / `devops-frontend`）没有脚本，是在仓库根目录手工：
 
 ```bash
-docker build -t hfwas/devops-backend:$TAG -f backend/Dockerfile .
+docker build -t hfwas/devops-backend:$TAG -f deploy/docker/backend/Dockerfile .
 helm upgrade --install devops-backend deploy/charts/backend -n devops \
   -f deploy/charts/backend/values.yaml \
   -f deploy/charts/backend/values-desktop.yaml \

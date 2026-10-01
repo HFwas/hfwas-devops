@@ -1,0 +1,11 @@
+交付运维平台已安装到命名空间 {{ include "delivery-platform.namespace" . }}。
+
+  kubectl -n {{ include "delivery-platform.namespace" . }} get deploy,svc,pvc
+  前端 NodePort: {{ .Values.frontend.service.nodePort }}
+
+后端按集群存 kubeconfig，不会用 Pod 内 ServiceAccount 直接调 API。
+把本集群注册进平台时，用 kubectl create token 签发：
+
+  kubectl -n {{ include "delivery-platform.namespace" . }} create token {{ .Values.serviceAccount.name }} --duration=8760h
+
+cn-app-operator 需另行部署，本 Chart 不包含 Operator。

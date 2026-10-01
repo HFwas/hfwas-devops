@@ -1,0 +1,8 @@
+{{- if .Values.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "cn-app-operator.namespace" . }}
+  labels:
+    {{- include "cn-app-operator.labels" . | nindent 4 }}
+{{- end }}

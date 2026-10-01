@@ -48,7 +48,7 @@ services:
   backend-build:
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: deploy/docker/backend/Dockerfile
       target: export
     image: hfwas/devops-backend-export:latest
     container_name: devops-backend-build
@@ -62,7 +62,7 @@ services:
   frontend-build:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: ../deploy/docker/frontend/Dockerfile
       target: export
     image: hfwas/devops-frontend-export:latest
     container_name: devops-frontend-build
@@ -96,7 +96,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: deploy/docker/backend/Dockerfile
     image: hfwas/devops-backend:latest
     container_name: devops-backend
     ports:
@@ -150,7 +150,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: ../deploy/docker/frontend/Dockerfile
     image: hfwas/devops-frontend:latest
     container_name: devops-frontend
     ports:
@@ -174,7 +174,7 @@ services:
   keycloak-spi:
     build:
       context: ./keycloak/http-event-listener
-      dockerfile: Dockerfile
+      dockerfile: ../../deploy/docker/keycloak-http-listener/Dockerfile
     image: hfwas/keycloak-http-listener:latest
     container_name: devops-keycloak-spi
     restart: "no"

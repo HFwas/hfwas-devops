@@ -1,7 +1,7 @@
 # HFWAS DevOps
 
-> 日期：2026-09-15
-> 版本：v0.4
+> 日期：2026-10-01
+> 版本：v0.5
 
 ### 变更记录
 
@@ -11,6 +11,7 @@
 | v0.2 | 2026-09-13 | Helm 部署指向 `deploy/charts/deploy-app` 脚本 |
 | v0.3 | 2026-09-13 | 本机 GitLab 代码同步用 `scripts/sync-gitlab` |
 | v0.4 | 2026-09-15 | 补齐容器平台、流水线/CI、API 测试平台、图片处理四大新增子系统；更新项目结构与 API 索引 |
+| v0.5 | 2026-10-01 | 各服务 Dockerfile 集中到 `deploy/docker/<服务名>/` |
 
 ---
 
@@ -147,7 +148,6 @@ hfwas-devops/
 │   ├── file-parser/                 # 文件解析：图片 OCR、文件压缩、MIME 格式检测
 │   ├── server/                      # Spring Boot 启动入口 + REST Controllers
 │   ├── scripts/                     # Python 脚本（文档生成引擎 generate_doc.py）
-│   ├── Dockerfile                   # 后端容器镜像构建
 │   └── .dockerignore                # 后端 Docker 构建忽略规则
 ├── frontend/
 │   ├── src/modules/
@@ -161,8 +161,14 @@ hfwas-devops/
 │   │   └── file-parser/             # 文件解析
 │   ├── docker/
 │   │   └── nginx.conf               # 生产环境 Nginx 配置
-│   ├── Dockerfile                   # 前端容器镜像构建
 │   └── .dockerignore                # 前端 Docker 构建忽略规则
+├── deploy/docker/                   # 各服务 Dockerfile，构建上下文仍是对应源码目录
+│   ├── backend/
+│   ├── frontend/
+│   ├── cn-app-operator/
+│   ├── delivery-platform-backend/
+│   ├── delivery-platform-frontend/
+│   └── keycloak-http-listener/
 ├── deploy/charts/
 │   ├── backend/                     # Helm Chart（后端 Spring Boot 部署）
 │   │   ├── Chart.yaml
@@ -493,10 +499,10 @@ npm run build
 
 ```bash
 # 后端镜像（从项目根目录构建）
-docker build -t hfwas/devops-backend:latest -f backend/Dockerfile .
+docker build -t hfwas/devops-backend:latest -f deploy/docker/backend/Dockerfile .
 
-# 前端镜像（从项目根目录构建）
-docker build -t hfwas/devops-frontend:latest ./frontend
+# 前端镜像（上下文是 frontend/）
+docker build -t hfwas/devops-frontend:latest -f deploy/docker/frontend/Dockerfile ./frontend
 ```
 
 ### Docker Compose 启动
@@ -532,7 +538,7 @@ Chart 在 `deploy/charts/`。Keycloak / Kong / Harbor / Dependency-Track 镜像�
 
 ```bash
 # SPI 镜像（Keycloak 事件回写后端）
-docker build -t hfwas/keycloak-http-listener:latest keycloak/http-event-listener
+docker build -t hfwas/keycloak-http-listener:latest -f deploy/docker/keycloak-http-listener/Dockerfile keycloak/http-event-listener
 
 # Keycloak（默认带 Postgres；k3s 用 values-k3s.yaml，Service 名为 keycloak）
 helm install keycloak ./deploy/charts/keycloak -f ./deploy/charts/keycloak/values-k3s.yaml

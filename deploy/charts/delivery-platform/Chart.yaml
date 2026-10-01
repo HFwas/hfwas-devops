@@ -1,0 +1,15 @@
+apiVersion: v2
+name: delivery-platform
+description: 交付运维平台（后端 + 前端）。Helm 由 cn-app-operator 执行，本 Chart 只部署平台自身。
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - delivery
+  - devops
+home: https://github.com/HFwas/hfwas-devops
+sources:
+  - https://github.com/HFwas/hfwas-devops
+maintainers:
+  - name: HFwas
+    email: hfwas@example.com

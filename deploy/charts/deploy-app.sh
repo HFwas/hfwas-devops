@@ -101,7 +101,7 @@ build_backend() {
   docker build --pull=false \
     -t "${IMAGE_BACKEND}:latest" \
     -t "${IMAGE_BACKEND}:$tag" \
-    -f "$REPO_ROOT/backend/Dockerfile" \
+    -f "$REPO_ROOT/deploy/docker/backend/Dockerfile" \
     "$REPO_ROOT"
 }
 
@@ -111,6 +111,7 @@ build_frontend() {
   docker build --pull=false \
     -t "${IMAGE_FRONTEND}:latest" \
     -t "${IMAGE_FRONTEND}:$tag" \
+    -f "$REPO_ROOT/deploy/docker/frontend/Dockerfile" \
     "$REPO_ROOT/frontend"
 }
 

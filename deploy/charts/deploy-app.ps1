@@ -101,7 +101,7 @@ function Build-Backend([string]$Tag) {
         "build", "--pull=false",
         "-t", "${ImageBackend}:latest",
         "-t", "${ImageBackend}:$Tag",
-        "-f", (Join-Path $RepoRoot "backend\Dockerfile"),
+        "-f", (Join-Path $RepoRoot "deploy\docker\backend\Dockerfile"),
         $RepoRoot
     )
 }
@@ -112,6 +112,7 @@ function Build-Frontend([string]$Tag) {
         "build", "--pull=false",
         "-t", "${ImageFrontend}:latest",
         "-t", "${ImageFrontend}:$Tag",
+        "-f", (Join-Path $RepoRoot "deploy\docker\frontend\Dockerfile"),
         (Join-Path $RepoRoot "frontend")
     )
 }

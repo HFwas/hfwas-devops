@@ -1,0 +1,78 @@
+# 交付运维平台。资源名与 delivery-platform/deploy/k8s 对齐，
+# 前端镜像 nginx.conf 写死反代 http://delivery-backend:8180，Service 名不要改。
+
+nameOverride: ""
+fullnameOverride: ""
+
+# true 时由 Chart 创建 Release 所在命名空间。通常用 helm --create-namespace，保持 false。
+namespace:
+  create: false
+
+serviceAccount:
+  create: true
+  name: delivery-platform
+
+rbac:
+  create: true
+
+imagePullSecrets: []
+
+backend:
+  replicaCount: 1
+  image:
+    repository: hfwas/delivery-platform-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8180
+  env:
+    port: "8180"
+    dataDir: /data
+  persistence:
+    enabled: true
+    # k3s 用 local-path。空字符串表示用集群默认 StorageClass。
+    storageClass: local-path
+    size: 2Gi
+    existingClaim: ""
+  livenessProbe:
+    path: /health
+    initialDelaySeconds: 10
+    periodSeconds: 20
+  readinessProbe:
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+frontend:
+  replicaCount: 1
+  image:
+    repository: hfwas/delivery-platform-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 80
+    nodePort: 30881
+  livenessProbe:
+    path: /
+    initialDelaySeconds: 10
+    periodSeconds: 20
+  readinessProbe:
+    path: /
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi

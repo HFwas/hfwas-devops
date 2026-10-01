@@ -1,0 +1,6 @@
+cn-app-operator 已安装到命名空间 {{ include "cn-app-operator.namespace" . }}。
+
+  kubectl -n {{ include "cn-app-operator.namespace" . }} get deploy cn-app-operator
+  kubectl get crd apps.delivery.hfwas.io cloudservices.delivery.hfwas.io cloudcomponents.delivery.hfwas.io producttasks.delivery.hfwas.io
+
+crds/ 里的 CRD 只在首次安装时创建。后续改 CRD 需要单独 kubectl apply，helm upgrade 不会更新它们，helm uninstall 也不会删除它们。

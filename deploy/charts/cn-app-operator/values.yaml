@@ -1,0 +1,50 @@
+# cn-app-operator。资源名与 cn-app-operator/config 对齐。
+# CRD 在 crds/，Helm 只在首次安装时创建，不会随 upgrade 更新或随 uninstall 删除。
+
+namespace:
+  create: false
+
+serviceAccount:
+  create: true
+  name: cn-app-operator
+
+rbac:
+  create: true
+
+imagePullSecrets: []
+
+replicaCount: 1
+
+image:
+  repository: hfwas/cn-app-operator
+  tag: latest
+  pullPolicy: IfNotPresent
+
+args:
+  metricsBindAddress: ":8080"
+  healthProbeBindAddress: ":8081"
+  leaderElect: false
+
+metrics:
+  enabled: true
+  port: 8080
+
+livenessProbe:
+  path: /healthz
+  port: 8081
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+readinessProbe:
+  path: /readyz
+  port: 8081
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi

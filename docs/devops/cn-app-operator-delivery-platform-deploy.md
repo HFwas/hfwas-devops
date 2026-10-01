@@ -1,7 +1,7 @@
 # cn-app-operator 与 delivery-platform 部署到 k3s
 
-> 日期：2026-09-23
-> 版本：v0.3
+> 日期：2026-10-01
+> 版本：v0.4
 
 ### 变更记录
 
@@ -10,6 +10,7 @@
 | v0.1 | 2026-09-23 | 初版：记录两个组件在本地 k3s（devops 命名空间）的构建与部署方式、本机环境约束与遗留问题 |
 | v0.2 | 2026-09-23 | 补完「本集群」注册：改用 `kubectl create token` 签发（legacy SA token Secret 被 k3s 判 401）；新增 §8 停掉 Harbor/Tekton/Prometheus 的操作与回滚，并修正 §7 遗留问题 |
 | v0.3 | 2026-09-23 | 新增 §9：停掉 compose 的 backend/keycloak/nacos，并把 Colima VM 由 4C/8GiB 扩到 6C/16GiB；据实测结果重写 §7（内存已不再是瓶颈） |
+| v0.4 | 2026-10-01 | 镜像构建改为 `deploy/docker/<服务名>/Dockerfile`，上下文仍是各服务源码目录 |
 
 ---
 
@@ -50,7 +51,7 @@
 它**不会**注入 `TARGETARCH`。所以 Go 构建不再写死 `GOARCH`，改为按构建镜像自身架构编译
 （BuildKit 会按 `--platform` 拉 builder，两种方式都得到与节点一致的二进制）。
 
-本机与 k3s 节点都是 **aarch64**；原先 `cn-app-operator/Dockerfile` 写死 `GOARCH=amd64`，即使构建成功也跑不起来。
+本机与 k3s 节点都是 **aarch64**；原先 `deploy/docker/cn-app-operator/Dockerfile` 写死 `GOARCH=amd64`，即使构建成功也跑不起来。
 
 ### 2.3 宿主机访问不到 NodePort
 
@@ -69,14 +70,14 @@ docker exec devops-k3s wget -qO- --timeout=6 http://127.0.0.1:30881/
 ## 3. 构建镜像
 
 ```bash
-# operator
-cd cn-app-operator && docker build -t hfwas/cn-app-operator:latest .
+# operator（上下文是源码目录）
+docker build -t hfwas/cn-app-operator:latest -f deploy/docker/cn-app-operator/Dockerfile cn-app-operator
 
 # 后端（CGO sqlite：musl-gcc 静态链接，运行阶段才落得了 alpine）
-cd delivery-platform/backend && docker build -t hfwas/delivery-platform-backend:latest .
+docker build -t hfwas/delivery-platform-backend:latest -f deploy/docker/delivery-platform-backend/Dockerfile delivery-platform/backend
 
 # 前端（vue-tsc 类型检查 + vite build，nginx 托管）
-cd delivery-platform/frontend && docker build -t hfwas/delivery-platform-frontend:latest .
+docker build -t hfwas/delivery-platform-frontend:latest -f deploy/docker/delivery-platform-frontend/Dockerfile delivery-platform/frontend
 ```
 
 导入 k3s（AGENTS 约定：容器内 `ctr`，不要用宿主机 kubeconfig）：

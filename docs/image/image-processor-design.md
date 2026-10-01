@@ -1,10 +1,16 @@
 # 图片处理模块 — 技术设计方案
 
-> 版本：v1.1  
-> 日期：2026-09-07  
+> 版本：v1.2  
+> 日期：2026-10-01  
 > 状态：待评审  
 > 相关：`docs/file-parser-design.md`（文件解析 / OCR，职责不同，勿合并）  
-> 变更说明：v1.0 → v1.1 本地 Docker 作为验收环境，运行时镜像必须预装 ImageMagick、libheif、Perl、ExifTool；不再把原生工具推迟到 P1/P2 才进容器
+
+### 变更记录
+
+| 版本 | 日期 | 变更说明 |
+|------|------|----------|
+| v1.1 | 2026-09-07 | 本地 Docker 作为验收环境，运行时镜像必须预装 ImageMagick、libheif、Perl、ExifTool |
+| v1.2 | 2026-10-01 | 运行时镜像 Dockerfile 路径改为 `deploy/docker/backend/Dockerfile` |
 
 ---
 
@@ -77,7 +83,7 @@ OCR 预处理（灰度、最长边 1200px）留在 `file-parser` 的 `OcrPreproc
 ### 2.2 运行时分层：单测兜底 vs Docker 验收
 
 宿主机 `scripts/start-backend.sh`（`mvn spring-boot:run`）**不保证**已装 Magick/ExifTool。  
-**本地验收路径是 `docker compose` 起的 backend 容器**，与 `backend/Dockerfile` 运行时镜像一致。该镜像必须能执行：
+**本地验收路径是 `docker compose` 起的 backend 容器**，与 `deploy/docker/backend/Dockerfile` 运行时镜像一致。该镜像必须能执行：
 
 | 二进制 | 作用 | 缺了会怎样 |
 |--------|------|------------|
@@ -497,7 +503,7 @@ HEIC 等浏览器无法解码时：左下角提示「需服务端解码」，用
 - 控制台产品入口 + 三栏页 + `useImageSession`
 - 本地预览 + 裁剪/旋转（Canvas + cropper）
 - 后端会话 API；Docker 内 Magick 转码 + ExifTool 元数据；无 CLI 时 JVM 兜底
-- `backend/Dockerfile` 运行时安装 ImageMagick（含 HEIC/JPEG/TIFF/WebP）、libheif、Perl、ExifTool，并固化 Magick policy
+- `deploy/docker/backend/Dockerfile` 运行时安装 ImageMagick（含 HEIC/JPEG/TIFF/WebP）、libheif、Perl、ExifTool，并固化 Magick policy
 - 下载；有 GPS 时默认建议 strip
 - 无历史表
 
@@ -552,7 +558,7 @@ image-processor:
 
 验收命令：仓库根目录 `docker compose up --build backend`（或全套 compose）。工具装在 **backend 运行时镜像**里，不另起 sidecar。
 
-当前 `backend/Dockerfile` 运行时是 `eclipse-temurin:21-jre-alpine`。Alpine 3.19+ 把 ImageMagick 格式拆成子包，只装 `imagemagick` **没有 HEIC**。运行时阶段应增加：
+当前 `deploy/docker/backend/Dockerfile` 运行时是 `eclipse-temurin:21-jre-alpine`。Alpine 3.19+ 把 ImageMagick 格式拆成子包，只装 `imagemagick` **没有 HEIC**。运行时阶段应增加：
 
 ```dockerfile
 # 图片处理：Magick 改像素，ExifTool 读标签（Perl 是 ExifTool 运行时）
