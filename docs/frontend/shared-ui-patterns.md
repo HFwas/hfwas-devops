@@ -1,7 +1,7 @@
 # 共享界面模式
 
 > 日期：2026-10-07
-> 版本：v0.2
+> 版本：v0.3
 > 关联：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md)、[frontend-style-unification-plan.md](./frontend-style-unification-plan.md)
 
 ### 变更记录
@@ -10,6 +10,7 @@
 |------|------|----------|
 | v0.1 | 2026-10-07 | 初版：DataTable、StatusIcon、PageHeader、DetailShell、LogPanel 的用法与试点范围 |
 | v0.2 | 2026-10-07 | 资源概览用 ResourceOverview；StatusIcon 增加同色圆点 |
+| v0.3 | 2026-10-07 | DetailShell 增加 metrics 槽；圆点变体里 Running 为绿点 |
 
 ---
 
@@ -23,7 +24,8 @@
 | `StatusIcon` + 字典 | `StatusIcon.tsx`、`status.ts` | Ready / Failed / Pending / Warning 等映射到同一套色和图标 |
 | `PageHeader` | `PageHeader.tsx` | 标题、描述、右侧操作 |
 | `DetailShell` | `DetailShell.tsx` | 贴在顶栏下的标题行、操作、Tab；正文由调用方按当前 Tab 填 |
-| `ResourceOverview` | `ResourceOverview.tsx` | 概览指标卡 + 左主栏 + 右侧栏 |
+| `OverviewMetricCards` | `ResourceOverview.tsx` | Tab 下方的指标卡。由 `DetailShell` 的 `metrics` 挂上 |
+| `ResourceOverview` | `ResourceOverview.tsx` | 概览左主栏 + 右侧栏；指标卡也可直接放在这里 |
 | `LogPanel` / `TerminalChrome` | `LogPanel.tsx` | 约 40vh、可拖到最小 120px、顶栏 `h-10 bg-muted/50`、连接呼吸灯、等宽区 |
 
 新的列表、详情、状态、日志页用这些组件。不要再写一套私有表格密度或状态色。
@@ -69,5 +71,5 @@ PM 自定义工作流码不在字典里时，给 `StatusIcon` 传 `tone`，不�
 
 - 标题是资源名，说明行写命名空间。操作按钮高度 `h-8`：刷新、描述、克隆、重启、删除。没有对应接口的动作用「即将支持」，不造数据。
 - 工作负载 Tab：概览、Pods、容器、YAML、日志、终端、卷、关联、历史、事件、监控。缺接口的 Tab 是空态。
-- 概览：一排指标卡，下面左栏是表和信息，右栏是事件、关联、标签、注解。
-- 状态圆点用 `StatusIcon variant="dot"`，颜色仍来自第 2 节字典，不另写一套色。
+- 概览指标卡用 `DetailShell` 的 `metrics`（`OverviewMetricCards`），贴在 Tab 下面。再往下左栏是表和信息（选择器药丸、镜像列表、两列字段），右栏是事件、关联、标签、注解。
+- 状态圆点用 `StatusIcon variant="dot"`。颜色仍来自第 2 节字典。圆点变体里 Running / Succeeded 画成成功绿点；图标变体里的 Running 仍是进行中蓝。删除按钮用实心 `destructive`。

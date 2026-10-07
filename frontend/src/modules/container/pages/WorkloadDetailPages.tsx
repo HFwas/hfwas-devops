@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { DataTable } from '@/components/console/DataTable'
 import { DetailShell } from '@/components/console/DetailShell'
-import { InfoGrid, OverviewCard, PillList, ResourceOverview } from '@/components/console/ResourceOverview'
+import { ImageList, InfoPairs, OverviewCard, PillList, replicaMetricCards, ResourceOverview } from '@/components/console/ResourceOverview'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -73,6 +73,18 @@ export function NodeDetailPage() {
       ]}
       value={tab}
       onValueChange={setTab}
+      metrics={
+        tab === '概览' && node
+          ? [
+              { label: '状态', value: <StatusIcon variant="dot" status={node.status} /> },
+              { label: '角色', value: node.role || '—' },
+              { label: 'CPU', value: node.cpuCapacity, hint: '核', emphasis: true },
+              { label: '内存', value: formatBytes(node.memoryCapacity), emphasis: true },
+              { label: 'Pod', value: node.podCount, hint: '个', emphasis: true },
+              { label: '创建', value: node.age || '—', hint: node.creationTimestamp || undefined, emphasis: true },
+            ]
+          : undefined
+      }
     >
       {tab === '监控' && <NodeMonitor clusterId={clusterId} name={name} />}
       {tab === '事件' && <StubPanel label="节点事件" />}
@@ -86,14 +98,6 @@ export function NodeDetailPage() {
 function NodeOverview({ node }: { node: NodeDetail }) {
   return (
     <ResourceOverview
-      metrics={[
-        { label: '状态', value: <StatusIcon variant="dot" status={node.status} /> },
-        { label: '角色', value: node.role || '—' },
-        { label: 'CPU', value: node.cpuCapacity, hint: '核', emphasis: true },
-        { label: '内存', value: formatBytes(node.memoryCapacity), emphasis: true },
-        { label: 'Pod', value: node.podCount, hint: '个', emphasis: true },
-        { label: '创建', value: node.age || '—', hint: node.creationTimestamp || undefined, emphasis: true },
-      ]}
       main={
         <>
           <OverviewCard title="地址">
@@ -118,10 +122,10 @@ function NodeOverview({ node }: { node: NodeDetail }) {
       side={
         <>
           <OverviewCard title="标签">
-            <PillList items={recordPills(node.labels)} empty="没有标签" />
+            <PillList stacked items={recordPills(node.labels)} empty="没有标签" />
           </OverviewCard>
           <OverviewCard title="注解">
-            <PillList items={recordPills(node.annotations)} empty="没有注解" />
+            <PillList stacked items={recordPills(node.annotations)} empty="没有注解" />
           </OverviewCard>
           <OverviewCard title="污点">
             <PillList
@@ -200,19 +204,23 @@ export function PodDetailPage() {
       ]}
       value={tab}
       onValueChange={setTab}
+      metrics={
+        tab === '概览' && pod
+          ? [
+              { label: '状态', value: <StatusIcon variant="dot" status={pod.status} /> },
+              { label: '就绪', value: `${pod.readyContainers}/${pod.containerCount}`, hint: '个容器', emphasis: true },
+              { label: '重启', value: pod.restarts, emphasis: true },
+              { label: 'QoS', value: pod.qosClass || '—' },
+              { label: '节点', value: pod.nodeName || '—' },
+              { label: '创建', value: pod.age || '—', hint: pod.creationTimestamp || undefined, emphasis: true },
+            ]
+          : undefined
+      }
     >
       {tab === '概览' && query.isLoading && <TextBlock>加载中…</TextBlock>}
       {tab === '概览' && query.isError && <p className="text-sm text-destructive">Pod 加载失败</p>}
       {tab === '概览' && pod && (
         <ResourceOverview
-          metrics={[
-            { label: '状态', value: <StatusIcon variant="dot" status={pod.status} /> },
-            { label: '就绪', value: `${pod.readyContainers}/${pod.containerCount}`, emphasis: true },
-            { label: '重启', value: pod.restarts, emphasis: true },
-            { label: 'QoS', value: pod.qosClass || '—' },
-            { label: '节点', value: pod.nodeName || '—' },
-            { label: '创建', value: pod.age || '—', hint: pod.creationTimestamp || undefined, emphasis: true },
-          ]}
           main={
             <>
               <OverviewCard title={countLabel('容器', pod.containers.length)}>
@@ -230,13 +238,14 @@ export function PodDetailPage() {
                 />
               </OverviewCard>
               <OverviewCard title="信息">
-                <InfoGrid
+                <InfoPairs
                   rows={[
                     { label: '所有者', value: pod.ownerReference || '—' },
                     { label: 'IP', value: pod.podIP || '—' },
                     { label: '节点', value: pod.nodeName || '—' },
                     { label: 'QoS', value: pod.qosClass || '—' },
-                    { label: 'UID', value: pod.uid },
+                    { label: '镜像', value: <ImageList items={pod.containers} />, span: true },
+                    { label: 'UID', value: pod.uid, span: true },
                   ]}
                 />
               </OverviewCard>
@@ -248,10 +257,10 @@ export function PodDetailPage() {
                 <EventSummary events={events.data} loading={events.isLoading} error={events.isError} />
               </OverviewCard>
               <OverviewCard title="标签">
-                <PillList items={recordPills(pod.labels)} empty="没有标签" />
+                <PillList stacked items={recordPills(pod.labels)} empty="没有标签" />
               </OverviewCard>
               <OverviewCard title="注解">
-                <PillList items={recordPills(pod.annotations)} empty="没有注解" />
+                <PillList stacked items={recordPills(pod.annotations)} empty="没有注解" />
               </OverviewCard>
             </>
           }
@@ -368,36 +377,41 @@ export function DeploymentDetailPage() {
       tabs={workloadTabs({ pods: pods.data ? podRows.length : undefined, containers: containerCount, volumes: volumeCount })}
       value={tab}
       onValueChange={setTab}
+      metrics={
+        tab === '概览' && item
+          ? replicaMetricCards({
+              status: <StatusIcon variant="dot" status={deploymentAvailability(item)} />,
+              desired: item.desiredReplicas,
+              ready: `${item.readyReplicas}/${item.desiredReplicas}`,
+              updated: updated ?? '—',
+              available: item.availableReplicas,
+              created: item.age || '—',
+              createdHint: item.creationTimestamp || undefined,
+            })
+          : undefined
+      }
     >
       {tab === '概览' && query.isLoading && <TextBlock>加载中…</TextBlock>}
       {tab === '概览' && query.isError && <p className="text-sm text-destructive">Deployment 加载失败</p>}
       {tab === '概览' && item && (
         <ResourceOverview
-          metrics={[
-            { label: '状态', value: <StatusIcon variant="dot" status={deploymentAvailability(item)} /> },
-            { label: '期望', value: item.desiredReplicas, hint: '个 Pod', emphasis: true },
-            { label: '就绪', value: item.readyReplicas, hint: '个 Pod', emphasis: true },
-            { label: '最新', value: updated ?? '—', hint: '个 Pod', emphasis: true },
-            { label: '可用', value: item.availableReplicas, hint: '个 Pod', emphasis: true },
-            { label: '创建', value: item.age || '—', hint: item.creationTimestamp || undefined, emphasis: true },
-          ]}
           main={
             <>
               <OverviewCard title={countLabel('Pods', podRows.length)}>
                 <PodMiniTable clusterId={clusterId} pods={podRows} loading={pods.isLoading} />
               </OverviewCard>
               <OverviewCard title="信息">
-                <InfoGrid
+                <InfoPairs
                   rows={[
+                    { label: '所有者', value: '—' },
                     { label: '选择器', value: <PillList items={selectorPills(item.selector)} empty="没有选择器" /> },
-                    { label: '镜像', value: <ImageLines volumes={item.containers} /> },
+                    { label: '镜像', value: <ImageList items={item.containers} />, span: true },
                     { label: '策略', value: item.strategy || '—' },
                     { label: '容器', value: String(item.containers?.length ?? 0) },
                     { label: '卷', value: String(item.volumes?.length ?? 0) },
                     { label: '最小就绪', value: item.minReadySeconds || '—' },
-                    { label: '修订历史上限', value: item.revisionHistoryLimit || '—' },
-                    { label: '状态明细', value: item.status || '—' },
-                    { label: 'UID', value: item.uid },
+                    { label: '修订', value: item.revisionHistoryLimit || '—' },
+                    { label: 'UID', value: item.uid, span: true },
                   ]}
                 />
                 <div className="mt-4 flex items-center gap-2 border-t pt-3">
@@ -428,10 +442,10 @@ export function DeploymentDetailPage() {
                 <RelatedList items={related} />
               </OverviewCard>
               <OverviewCard title="标签">
-                <PillList items={recordPills(item.labels)} empty="没有标签" />
+                <PillList stacked items={recordPills(item.labels)} empty="没有标签" />
               </OverviewCard>
               <OverviewCard title="注解">
-                <PillList items={recordPills(item.annotations)} empty="没有注解" />
+                <PillList stacked items={recordPills(item.annotations)} empty="没有注解" />
               </OverviewCard>
             </>
           }
@@ -499,20 +513,6 @@ export function DeploymentDetailPage() {
   )
 }
 
-function ImageLines({ volumes }: { volumes?: { name: string; image: string }[] }) {
-  if (!volumes?.length) return '—'
-  return (
-    <div className="flex flex-col gap-1">
-      {volumes.map((item) => (
-        <div key={item.name} className="flex flex-col">
-          <span className="font-medium">{item.name}</span>
-          <span className="text-muted-foreground">{item.image}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 export function ServiceDetailPage() {
   const { clusterId = '', namespace = '', name = '' } = useParams()
   const [tab, setTab] = useDetailTab()
@@ -536,19 +536,23 @@ export function ServiceDetailPage() {
       ]}
       value={tab}
       onValueChange={setTab}
+      metrics={
+        tab === '概览' && item
+          ? [
+              { label: '类型', value: item.type || '—' },
+              { label: 'ClusterIP', value: item.clusterIP || '—' },
+              { label: '端口', value: item.ports?.length ?? item.portCount, emphasis: true },
+              { label: '会话保持', value: item.sessionAffinity || '—' },
+              { label: 'ExternalIP', value: item.externalIP || '—' },
+              { label: '创建', value: item.age || '—', hint: item.creationTimestamp || undefined, emphasis: true },
+            ]
+          : undefined
+      }
     >
       {tab === '概览' && query.isLoading && <TextBlock>加载中…</TextBlock>}
       {tab === '概览' && query.isError && <p className="text-sm text-destructive">Service 加载失败</p>}
       {tab === '概览' && item && (
         <ResourceOverview
-          metrics={[
-            { label: '类型', value: item.type || '—' },
-            { label: 'ClusterIP', value: item.clusterIP || '—' },
-            { label: '端口', value: item.ports?.length ?? item.portCount, emphasis: true },
-            { label: '会话保持', value: item.sessionAffinity || '—' },
-            { label: 'ExternalIP', value: item.externalIP || '—' },
-            { label: '创建', value: item.age || '—', hint: item.creationTimestamp || undefined, emphasis: true },
-          ]}
           main={
             <>
               <OverviewCard title="端口">
@@ -566,7 +570,7 @@ export function ServiceDetailPage() {
                 />
               </OverviewCard>
               <OverviewCard title="信息">
-                <InfoGrid
+                <InfoPairs
                   rows={[
                     { label: '选择器', value: <PillList items={selectorPills(item.selector)} empty="没有选择器" /> },
                     { label: 'UID', value: item.uid },
@@ -581,10 +585,10 @@ export function ServiceDetailPage() {
                 <EventSummary events={events.data} loading={events.isLoading} error={events.isError} />
               </OverviewCard>
               <OverviewCard title="标签">
-                <PillList items={recordPills(item.labels)} empty="没有标签" />
+                <PillList stacked items={recordPills(item.labels)} empty="没有标签" />
               </OverviewCard>
               <OverviewCard title="注解">
-                <PillList items={recordPills(item.annotations)} empty="没有注解" />
+                <PillList stacked items={recordPills(item.annotations)} empty="没有注解" />
               </OverviewCard>
             </>
           }
@@ -639,13 +643,17 @@ export function ConfigMapDetailPage() {
       ]}
       value={tab}
       onValueChange={setTab}
+      metrics={
+        tab === '概览'
+          ? [
+              { label: '名称', value: name },
+              { label: '命名空间', value: namespace },
+            ]
+          : undefined
+      }
     >
       {tab === '概览' && (
         <ResourceOverview
-          metrics={[
-            { label: '名称', value: name },
-            { label: '命名空间', value: namespace },
-          ]}
           main={
             <OverviewCard title="数据">
               <TextBlock>键值在 YAML 中查看和编辑。结构化概览即将支持。</TextBlock>
@@ -723,31 +731,39 @@ export function StatefulSetDetailPage() {
       })}
       value={tab}
       onValueChange={setTab}
+      metrics={
+        tab === '概览'
+          ? replicaMetricCards({
+              status: pods.isLoading ? '…' : <StatusIcon variant="dot" status={status} />,
+              desired: '—',
+              ready: pods.isLoading ? '—' : `${ready}/${podRows.length}`,
+              updated: '—',
+              available: pods.isLoading ? '—' : ready,
+              created: '—',
+              createdHint: '详情接口尚未提供期望与创建时间',
+            })
+          : undefined
+      }
     >
       {tab === '概览' && (
         <ResourceOverview
-          metrics={[
-            { label: '状态', value: pods.isLoading ? '…' : <StatusIcon variant="dot" status={status} /> },
-            { label: '期望', value: '—', hint: '详情接口尚未提供', emphasis: true },
-            { label: '就绪', value: pods.isLoading ? '—' : ready, hint: '个 Pod', emphasis: true },
-            { label: '最新', value: '—', hint: '详情接口尚未提供', emphasis: true },
-            { label: '可用', value: pods.isLoading ? '—' : ready, hint: '个 Pod', emphasis: true },
-            { label: '创建', value: '—', emphasis: true },
-          ]}
           main={
             <>
               <OverviewCard title={countLabel('Pods', pods.data ? podRows.length : undefined)}>
                 <PodMiniTable clusterId={clusterId} pods={podRows} loading={pods.isLoading} />
               </OverviewCard>
               <OverviewCard title="信息">
-                <InfoGrid
+                <InfoPairs
                   rows={[
+                    { label: '所有者', value: '—' },
+                    { label: '选择器', value: '—' },
                     { label: '当前 Pod', value: pods.isLoading ? '—' : String(podRows.length) },
-                    { label: '卷', value: volumes.isLoading ? '—' : String(volumes.data?.volumes.length ?? 0) },
                     { label: '容器', value: volumes.isLoading ? '—' : String(containerCount ?? 0) },
+                    { label: '卷', value: volumes.isLoading ? '—' : String(volumes.data?.volumes.length ?? 0) },
+                    { label: '服务', value: '—' },
                   ]}
                 />
-                <TextBlock>副本期望、服务名和 UID 还没有 StatefulSet 详情接口。</TextBlock>
+                <TextBlock>副本期望、服务名、选择器和 UID 还没有 StatefulSet 详情接口。</TextBlock>
               </OverviewCard>
             </>
           }

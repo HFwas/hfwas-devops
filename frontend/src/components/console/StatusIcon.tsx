@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { AlertTriangle, Ban, CheckCircle2, Circle, Loader2, PauseCircle, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
+  normalizeStatusKey,
   resolveStatusTone,
   statusIconSpins,
   statusToneLabel,
@@ -9,6 +10,15 @@ import {
   STATUS_TONE_CLASS,
   type StatusTone,
 } from '@/components/console/status'
+
+/** 圆点用在资源概览。Kite 把 Running 画成绿点；图标变体仍走进行中蓝。 */
+const DOT_SUCCESS = new Set(['running', 'succeeded'])
+
+function resolveDotTone(status: string | null | undefined, toneProp?: StatusTone): StatusTone {
+  if (toneProp) return toneProp
+  if (DOT_SUCCESS.has(normalizeStatusKey(status))) return 'success'
+  return resolveStatusTone(status)
+}
 
 const ICONS = {
   success: CheckCircle2,
@@ -37,7 +47,7 @@ export function StatusIcon({
   variant?: 'icon' | 'dot'
   className?: string
 }) {
-  const tone = toneProp ?? resolveStatusTone(status)
+  const tone = variant === 'dot' ? resolveDotTone(status, toneProp) : (toneProp ?? resolveStatusTone(status))
   const Icon = ICONS[tone]
   const text = label ?? (status?.trim() ? status : statusToneLabel(tone))
   const spin = statusIconSpins(status, tone)

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { OverviewMetricCards, type MetricItem } from '@/components/console/ResourceOverview'
 import { cn } from '@/lib/utils'
 
 export interface DetailTab {
@@ -7,8 +8,8 @@ export interface DetailTab {
 }
 
 /**
- * 详情壳：贴在顶栏下方的标题行（大号名称、次行说明、h-8 操作）和同一套 Tab。
- * 各产品只换 Tab 内容。工作负载概览正文用 ResourceOverview。
+ * 详情壳：贴在顶栏下方的标题（名称在上、说明在下）、h-8 操作和同一套 Tab。
+ * `metrics` 渲染在 Tab 正下方。概览左右栏用 ResourceOverview。
  */
 export function DetailShell({
   title,
@@ -19,6 +20,7 @@ export function DetailShell({
   tabs,
   value,
   onValueChange,
+  metrics,
   children,
   className,
 }: {
@@ -30,6 +32,8 @@ export function DetailShell({
   tabs?: DetailTab[]
   value?: string
   onValueChange?: (value: string) => void
+  /** 概览指标卡，贴在 Tab 下方、正文上方。 */
+  metrics?: MetricItem[]
   children: ReactNode
   className?: string
 }) {
@@ -40,11 +44,9 @@ export function DetailShell({
           <div className="flex min-w-0 items-start gap-2">
             {leading}
             <div className="min-w-0">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
-                {meta ? <div className="text-sm text-muted-foreground">{meta}</div> : null}
-              </div>
-              {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+              <h1 className="truncate text-2xl font-bold tracking-tight">{title}</h1>
+              {description ? <p className="mt-0.5 text-sm text-muted-foreground">{description}</p> : null}
+              {meta ? <div className="mt-1 text-sm text-muted-foreground">{meta}</div> : null}
             </div>
           </div>
           {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
@@ -74,6 +76,7 @@ export function DetailShell({
           </div>
         ) : null}
       </div>
+      {metrics && metrics.length > 0 ? <OverviewMetricCards items={metrics} /> : null}
       <div>{children}</div>
     </div>
   )
