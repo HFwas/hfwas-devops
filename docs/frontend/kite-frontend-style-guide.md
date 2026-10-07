@@ -66,11 +66,13 @@
 | `--header-height` | `3.5rem` | 全站顶栏高度 |
 | `--radius` | `0.5rem` | 基准圆角（当前仓库若为 `0.625rem`，统一改为更紧的 `0.5rem`） |
 | `--radius-sm` / `md` / `lg` / `xl` | 由 `--radius` 推导 | 经 Tailwind `@theme` 暴露 |
-| 字体 sans | 系统 `--font-sans` | 全站正文 |
-| 字体 mono | 等宽字体栈（kite 用 Maple Mono） | 日志、终端、YAML、代码块 |
+| 字体 sans | `--font-sans` 系统 UI 栈；`--app-font-sans: var(--font-sans)` 给 `body` | 全站正文 |
+| 字体 mono | `--font-mono`：`'Maple Mono', ui-monospace, …` | 日志、终端、YAML、代码块 |
 | 暗色 | `.dark` + `@custom-variant dark` | 全站一处切换 |
 
 侧栏几何（参照 kite `sidebar.tsx`）：宽 `16rem`，移动端 `18rem`，图标折叠 `3rem`。
+
+字体与 kite `ui/src/styles/base.css` 一致：正文是系统无衬线（`--font-sans` / `--app-font-sans`），`code` / `pre` / `kbd` / `samp` 与 `.font-mono` 使用 Maple Mono。字体文件在 `frontend/src/assets/fonts/`（Maple Mono 与 JetBrains Mono，SIL OFL）。JetBrains Mono 通过 `@font-face` 备用，正文默认仍是系统无衬线。日志和 YAML 用 `font-mono`；xterm 画布读取 `--font-mono`。
 
 ### 2.3 默认亮色（参照 kite `default.css` `:root`）
 
@@ -189,7 +191,7 @@ Tab **类型**按模块填充，壳不变。示例：
 | 底部抽屉 | 默认可约 40vh，可拖拽，最小高度约 120px |
 | 面板头 | `h-10 bg-muted/50` |
 | 连接状态 | 绿色呼吸点（成功连接） |
-| 字体 | mono token，字号与行高全站一致 |
+| 字体 | `--font-mono`（Maple Mono），字号与行高全站一致 |
 
 ---
 

@@ -33,13 +33,19 @@ export function PodShell({
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
-    const term = new Terminal({ cursorBlink: true, fontSize: 13 })
+    const fontFamily =
+      getComputedStyle(document.documentElement).getPropertyValue('--font-mono').replace(/\s+/g, ' ').trim() ||
+      '"Maple Mono", ui-monospace, monospace'
+    const term = new Terminal({ cursorBlink: true, fontSize: 13, fontFamily })
     const fit = new FitAddon()
+    const state: { ws: WebSocket | null; stopped: boolean } = { ws: null, stopped: false }
     term.loadAddon(fit)
     term.open(host)
     fit.fit()
-
-    const state: { ws: WebSocket | null; stopped: boolean } = { ws: null, stopped: false }
+    void document.fonts?.load('13px "Maple Mono"').then(() => {
+      if (state.stopped) return
+      fit.fit()
+    })
     const send = (payload: unknown) => {
       if (state.ws?.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify(payload))
     }

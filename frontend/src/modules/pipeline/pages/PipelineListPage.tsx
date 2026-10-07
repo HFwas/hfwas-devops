@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
 import { StatusIcon } from '@/components/console/StatusIcon'
@@ -37,7 +38,11 @@ export function PipelineListPage() {
           {
             id: 'name',
             header: '名称',
-            cell: (row) => <span className="font-medium">{row.name}</span>,
+            cell: (row) => (
+              <Link className="font-medium text-primary hover:underline" to={`/pipeline/pipelines/${row.id}`}>
+                {row.name}
+              </Link>
+            ),
           },
           {
             id: 'repo',
@@ -53,7 +58,14 @@ export function PipelineListPage() {
           {
             id: 'status',
             header: '最近运行',
-            cell: (row) => <StatusIcon status={row.lastRunStatus} label={runStatusLabel(row.lastRunStatus)} />,
+            cell: (row) =>
+              row.lastRunId ? (
+                <Link to={`/pipeline/pipelines/${row.id}/runs/${row.lastRunId}`}>
+                  <StatusIcon status={row.lastRunStatus} label={runStatusLabel(row.lastRunStatus)} />
+                </Link>
+              ) : (
+                <StatusIcon status={row.lastRunStatus} label={runStatusLabel(row.lastRunStatus)} />
+              ),
           },
           {
             id: 'time',

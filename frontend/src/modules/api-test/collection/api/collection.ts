@@ -18,13 +18,13 @@ import type {
 
 export const collectionApi = {
   // ===== 集合CRUD =====
-  page: (params: { projectId: number; keyword?: string; pageNo?: number; pageSize?: number }) =>
+  page: (params: { projectId: number | string; keyword?: string; pageNo?: number; pageSize?: number }) =>
     get<PageResult<CollectionVO>>('/apitest/collections/page', params),
 
-  detail: (id: number) =>
+  detail: (id: number | string) =>
     get<CollectionDetailVO>(`/apitest/collections/${id}`),
 
-  create: (data: CollectionCreateDTO, projectId: number, userId: number) =>
+  create: (data: CollectionCreateDTO, projectId: number | string, userId: number | string) =>
     post<CollectionVO>(`/apitest/collections?projectId=${projectId}&userId=${userId}`, data),
 
   update: (id: number, data: CollectionUpdateDTO, userId: number) =>
@@ -70,7 +70,7 @@ export const collectionApi = {
   run: (collectionId: number, environmentId?: number, userId?: number) =>
     post<CollectionRunVO>(`/apitest/collections/${collectionId}/run?environmentId=${environmentId ?? ''}&userId=${userId ?? ''}`),
 
-  runHistory: (collectionId: number, params?: { pageNo?: number; pageSize?: number }) =>
+  runHistory: (collectionId: number | string, params?: { pageNo?: number; pageSize?: number }) =>
     get<PageResult<CollectionRunVO>>(`/apitest/collections/${collectionId}/runs`, params),
 
   runDetail: (runId: number) =>

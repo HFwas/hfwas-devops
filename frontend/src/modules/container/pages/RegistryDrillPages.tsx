@@ -5,6 +5,9 @@ import { Link, useParams } from 'react-router'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { DataTable } from '@/components/console/DataTable'
+import { DetailShell } from '@/components/console/DetailShell'
+import { PageHeader } from '@/components/console/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -15,12 +18,11 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { clusterApi } from '@/modules/container/api/cluster'
 import { deployApi } from '@/modules/container/api/deploy'
 import { imageApi } from '@/modules/container/api/image'
 import { registryApi } from '@/modules/container/api/registry'
-import { StatusBadge } from '@/modules/container/components/StatusBadge'
+import { StatusIcon } from '@/components/console/StatusIcon'
 
 function shortRepo(project: string, name: string) {
   const prefix = `${project}/`
@@ -46,45 +48,40 @@ export function RegistryDetailPage() {
   })
   const info = registry.data
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
+    <DetailShell
+      leading={
         <Button variant="ghost" size="sm" asChild>
           <Link to="/container/registries">返回</Link>
         </Button>
-        <h1 className="text-xl font-semibold">{info?.alias || info?.name || '仓库'}</h1>
-        {info && <StatusBadge status={info.status} />}
-      </div>
-      {info && <p className="text-sm text-muted-foreground">{info.url}</p>}
-      {projects.isLoading && <p className="text-sm text-muted-foreground">加载项目…</p>}
-      {projects.isError && <p className="text-sm text-destructive">项目加载失败</p>}
-      {projects.isSuccess && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>项目</TableHead>
-              <TableHead>镜像数</TableHead>
-              <TableHead>更新时间</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {projects.data.map((item) => (
-              <TableRow key={item.name}>
-                <TableCell className="font-medium">
-                  <Link
-                    className="text-primary hover:underline"
-                    to={`/container/registries/${registryId}/projects/${encodeURIComponent(item.name)}/repos`}
-                  >
-                    {item.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{item.repoCount}</TableCell>
-                <TableCell>{item.updateTime || '—'}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </div>
+      }
+      title={info?.alias || info?.name || '仓库'}
+      description={info?.url}
+      meta={info ? <StatusIcon status={info.status} /> : registry.isLoading ? '加载中…' : registry.isError ? '加载失败' : null}
+    >
+      <DataTable
+        columns={[
+          {
+            id: 'name',
+            header: '项目',
+            cell: (item) => (
+              <Link
+                className="font-medium text-primary hover:underline"
+                to={`/container/registries/${registryId}/projects/${encodeURIComponent(item.name)}/repos`}
+              >
+                {item.name}
+              </Link>
+            ),
+          },
+          { id: 'repos', header: '镜像数', cell: (item) => String(item.repoCount) },
+          { id: 'updated', header: '更新时间', cell: (item) => item.updateTime || '—' },
+        ]}
+        data={projects.data ?? []}
+        getRowId={(item) => item.name}
+        loading={projects.isFetching}
+        error={projects.isError ? '项目加载失败' : undefined}
+        empty="这个仓库还没有项目"
+      />
+    </DetailShell>
   )
 }
 
@@ -95,42 +92,39 @@ export function RepoListPage() {
     queryFn: () => imageApi.listRepositories(registryId, project),
     enabled: !!registryId && !!project,
   })
+  const rows = query.data ?? []
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to={`/container/registries/${registryId}`}>返回</Link>
-        </Button>
-        <h1 className="text-xl font-semibold">{project}</h1>
-      </div>
-      {query.isLoading && <p className="text-sm text-muted-foreground">加载镜像…</p>}
-      {query.isError && <p className="text-sm text-destructive">镜像列表加载失败</p>}
-      {query.isSuccess && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>镜像</TableHead>
-              <TableHead>制品数</TableHead>
-              <TableHead>拉取次数</TableHead>
-              <TableHead>更新时间</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {query.data.map((item) => (
-              <TableRow key={item.name}>
-                <TableCell className="font-medium">
-                  <Link className="text-primary hover:underline" to={repoPath(registryId, project, item.name)}>
-                    {item.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{item.artifactCount}</TableCell>
-                <TableCell>{item.pullCount}</TableCell>
-                <TableCell>{item.updateTime || '—'}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      <PageHeader
+        title={project || '镜像'}
+        description={query.isSuccess ? `共 ${rows.length} 个镜像` : '仓库项目中的镜像'}
+        actions={
+          <Button variant="ghost" size="sm" asChild>
+            <Link to={`/container/registries/${registryId}`}>返回</Link>
+          </Button>
+        }
+      />
+      <DataTable
+        columns={[
+          {
+            id: 'name',
+            header: '镜像',
+            cell: (item) => (
+              <Link className="font-medium text-primary hover:underline" to={repoPath(registryId, project, item.name)}>
+                {item.name}
+              </Link>
+            ),
+          },
+          { id: 'artifacts', header: '制品数', cell: (item) => String(item.artifactCount) },
+          { id: 'pulls', header: '拉取次数', cell: (item) => String(item.pullCount) },
+          { id: 'updated', header: '更新时间', cell: (item) => item.updateTime || '—' },
+        ]}
+        data={rows}
+        getRowId={(item) => item.name}
+        loading={query.isFetching}
+        error={query.isError ? '镜像列表加载失败' : undefined}
+        empty="这个项目还没有镜像"
+      />
     </div>
   )
 }
@@ -200,72 +194,88 @@ export function RepoDetailPage() {
     onError: (error: Error) => toast.error(error.message || '部署失败'),
   })
 
+  const rows = artifacts.data ?? []
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
+    <DetailShell
+      leading={
         <Button variant="ghost" size="sm" asChild>
           <Link to={`/container/registries/${registryId}/projects/${encodeURIComponent(project)}/repos`}>返回</Link>
         </Button>
-        <h1 className="text-xl font-semibold">{repo}</h1>
-      </div>
-      {artifacts.isLoading && <p className="text-sm text-muted-foreground">加载制品…</p>}
-      {artifacts.isError && <p className="text-sm text-destructive">制品加载失败</p>}
-      {artifacts.isSuccess && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>标签</TableHead>
-              <TableHead>摘要</TableHead>
-              <TableHead>大小</TableHead>
-              <TableHead>扫描</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {artifacts.data.map((item) => {
+      }
+      title={repo || '镜像'}
+      description={artifacts.isSuccess ? `${rows.length} 个制品` : undefined}
+      meta={artifacts.isLoading ? '加载中…' : artifacts.isError ? '加载失败' : null}
+    >
+      <DataTable
+        columns={[
+          {
+            id: 'tags',
+            header: '标签',
+            cell: (item) => item.tags.map((entry) => entry.name).join(', ') || '—',
+          },
+          {
+            id: 'digest',
+            header: '摘要',
+            className: 'max-w-xs truncate font-mono text-xs',
+            cell: (item) => item.digest,
+          },
+          { id: 'size', header: '大小', cell: (item) => item.size },
+          {
+            id: 'scan',
+            header: '扫描',
+            cell: (item) =>
+              item.scanOverview ? (
+                <StatusIcon
+                  status={item.scanOverview.severity || item.scanOverview.status}
+                  label={`${item.scanOverview.severity || item.scanOverview.status} (${item.scanOverview.totalVulnerabilities})`}
+                />
+              ) : (
+                '—'
+              ),
+          },
+          {
+            id: 'actions',
+            header: '',
+            className: 'text-right',
+            cell: (item) => {
               const tag = item.tags[0]?.name
               return (
-                <TableRow key={item.digest}>
-                  <TableCell>{item.tags.map((entry) => entry.name).join(', ') || '—'}</TableCell>
-                  <TableCell className="max-w-xs truncate font-mono text-xs">{item.digest}</TableCell>
-                  <TableCell>{item.size}</TableCell>
-                  <TableCell>
-                    {item.scanOverview
-                      ? `${item.scanOverview.severity || item.scanOverview.status} (${item.scanOverview.totalVulnerabilities})`
-                      : '—'}
-                  </TableCell>
-                  <TableCell className="space-x-1 text-right">
-                    {tag && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setImageTag(tag)
-                          form.setValue('name', repo.split('/').pop() || repo)
-                          setOpen(true)
-                        }}
-                      >
-                        部署
-                      </Button>
-                    )}
+                <div className="space-x-1">
+                  {tag && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-destructive"
                       onClick={() => {
-                        const reference = tag || item.digest
-                        if (window.confirm(`删除制品「${reference}」？`)) remove.mutate(reference)
+                        setImageTag(tag)
+                        form.setValue('name', repo.split('/').pop() || repo)
+                        setOpen(true)
                       }}
                     >
-                      删除
+                      部署
                     </Button>
-                  </TableCell>
-                </TableRow>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => {
+                      const reference = tag || item.digest
+                      if (window.confirm(`删除制品「${reference}」？`)) remove.mutate(reference)
+                    }}
+                  >
+                    删除
+                  </Button>
+                </div>
               )
-            })}
-          </TableBody>
-        </Table>
-      )}
+            },
+          },
+        ]}
+        data={rows}
+        getRowId={(item) => item.digest}
+        loading={artifacts.isFetching}
+        error={artifacts.isError ? '制品加载失败' : undefined}
+        empty="还没有制品"
+      />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -314,7 +324,7 @@ export function RepoDetailPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </DetailShell>
   )
 }
 

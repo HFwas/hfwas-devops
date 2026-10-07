@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation } from 'react-router'
 import { DataTable } from '@/components/console/DataTable'
-import { StatusIcon } from '@/components/console/StatusIcon'
+import { StatusBadge } from '@/modules/container/components/StatusBadge'
 import type { PodSummary } from '@/modules/container/types/resource'
 
 export function WorkloadPodsPanel({
@@ -16,8 +16,9 @@ export function WorkloadPodsPanel({
   const location = useLocation()
   const query = useQuery({ queryKey, queryFn: load })
   const pods = query.data ?? []
+
   return (
-    <DataTable
+    <DataTable<PodSummary>
       columns={[
         {
           id: 'name',
@@ -33,15 +34,15 @@ export function WorkloadPodsPanel({
           ),
         },
         { id: 'containers', header: '容器', cell: (pod) => pod.containerNames?.join(', ') || '—' },
-        { id: 'status', header: '状态', cell: (pod) => <StatusIcon variant="dot" status={pod.status} /> },
+        { id: 'status', header: '状态', cell: (pod) => <StatusBadge status={pod.status} /> },
         { id: 'node', header: '节点', cell: (pod) => pod.nodeName || '—' },
         { id: 'ip', header: 'IP', cell: (pod) => pod.podIP || '—' },
         { id: 'ready', header: '就绪', cell: (pod) => `${pod.readyContainers}/${pod.containerCount}` },
-        { id: 'restart', header: '重启', cell: (pod) => String(pod.restarts) },
+        { id: 'restarts', header: '重启', cell: (pod) => String(pod.restarts) },
       ]}
       data={pods}
-      getRowId={(pod) => `${pod.namespace}/${pod.name}`}
-      loading={query.isLoading}
+      getRowId={(pod) => pod.name}
+      loading={query.isFetching}
       error={query.isError ? 'Pod 加载失败' : undefined}
       empty="还没有 Pod"
     />

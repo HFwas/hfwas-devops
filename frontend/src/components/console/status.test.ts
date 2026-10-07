@@ -4,6 +4,9 @@ import { resolveStatusTone, statusIconSpins } from '@/components/console/status'
 describe('status dictionary', () => {
   it('maps container, pipeline, and PM phrases onto one tone set', () => {
     expect(resolveStatusTone('Ready')).toBe('success')
+    expect(resolveStatusTone('deployed')).toBe('success')
+    expect(resolveStatusTone('pending-upgrade')).toBe('progress')
+    expect(resolveStatusTone('superseded')).toBe('neutral')
     expect(resolveStatusTone('Connected')).toBe('success')
     expect(resolveStatusTone('SUCCEEDED')).toBe('success')
     expect(resolveStatusTone('已解决')).toBe('success')
@@ -22,6 +25,12 @@ describe('status dictionary', () => {
     expect(resolveStatusTone('Terminating')).toBe('terminating')
     expect(resolveStatusTone('Paused')).toBe('paused')
     expect(resolveStatusTone('CANCELLED')).toBe('neutral')
+    expect(resolveStatusTone('DRAFT')).toBe('neutral')
+    expect(resolveStatusTone('PUBLISHED')).toBe('success')
+    expect(resolveStatusTone('DEPRECATED')).toBe('warning')
+    expect(resolveStatusTone('open')).toBe('progress')
+    expect(resolveStatusTone('done')).toBe('success')
+    expect(resolveStatusTone('closed')).toBe('success')
     expect(resolveStatusTone('Unknown')).toBe('neutral')
     expect(resolveStatusTone(null)).toBe('neutral')
     expect(resolveStatusTone('custom-workflow')).toBe('neutral')

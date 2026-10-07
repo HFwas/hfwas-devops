@@ -60,7 +60,7 @@ export interface EnvironmentUpdateDTO {
 
 /** 环境查询条件 */
 export interface EnvironmentQueryDTO {
-  projectId: number
+  projectId: number | string
   keyword?: string
   pageNo?: number
   pageSize?: number
