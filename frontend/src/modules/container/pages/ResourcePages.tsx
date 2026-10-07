@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
+import { DataTable } from '@/components/console/DataTable'
+import { PageHeader } from '@/components/console/PageHeader'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { configMapApi } from '@/modules/container/api/configmap'
@@ -15,6 +17,7 @@ import { storageClassApi } from '@/modules/container/api/storageClass'
 import { useContainerCluster } from '@/modules/container/clusterStore'
 import { StatusBadge } from '@/modules/container/components/StatusBadge'
 import { formatBytes } from '@/modules/container/utils/format'
+import type { PodSummary } from '@/modules/container/types/resource'
 
 export function NodeListPage() {
   const { clusterId = '' } = useParams()
@@ -61,23 +64,64 @@ export function NodeListPage() {
 }
 
 export function PodListPage() {
+  const { clusterId = '' } = useParams()
+  const namespace = useContainerCluster((s) => s.namespace)
+  const [keyword, setKeyword] = useState('')
+  const query = useQuery({
+    queryKey: ['container-pods', clusterId, namespace, keyword],
+    queryFn: () => podApi.list(clusterId, { namespace: namespace || undefined, keyword: keyword || undefined, pageNo: 1, pageSize: 100 }),
+    enabled: !!clusterId,
+  })
+  const rows = query.data?.records ?? []
+  const scope = namespace ? `命名空间 ${namespace}` : '全部命名空间'
+
   return (
-    <PagedList
-      title="Pod"
-      queryKey="container-pods"
-      load={(clusterId, namespace, keyword) => podApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
-      headers={['名称', '命名空间', '状态', '节点', 'IP', '就绪', '重启']}
-      to={(clusterId, pod) => `/container/clusters/${clusterId}/pods/${pod.namespace}/${encodeURIComponent(pod.name)}`}
-      render={(pod) => [
-        pod.name,
-        pod.namespace,
-        <StatusBadge key="s" status={pod.status} />,
-        pod.nodeName || '—',
-        pod.podIP || '—',
-        `${pod.readyContainers}/${pod.containerCount}`,
-        String(pod.restarts),
-      ]}
-    />
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Pod"
+        description={query.isSuccess ? `${scope} · 共 ${query.data?.total ?? rows.length} 个` : scope}
+        actions={
+          <Input
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            placeholder="搜索名称"
+            aria-label="搜索 Pod"
+            className="h-8 w-56"
+          />
+        }
+      />
+      <DataTable<PodSummary>
+        columns={[
+          {
+            id: 'name',
+            header: '名称',
+            cell: (pod) => (
+              <Link
+                className="font-medium text-primary hover:underline"
+                to={`/container/clusters/${clusterId}/pods/${pod.namespace}/${encodeURIComponent(pod.name)}`}
+              >
+                {pod.name}
+              </Link>
+            ),
+          },
+          { id: 'namespace', header: '命名空间', cell: (pod) => pod.namespace },
+          { id: 'status', header: '状态', cell: (pod) => <StatusBadge status={pod.status} /> },
+          { id: 'node', header: '节点', cell: (pod) => pod.nodeName || '—' },
+          { id: 'ip', header: 'IP', cell: (pod) => pod.podIP || '—' },
+          {
+            id: 'ready',
+            header: '就绪',
+            cell: (pod) => `${pod.readyContainers}/${pod.containerCount}`,
+          },
+          { id: 'restarts', header: '重启', cell: (pod) => String(pod.restarts) },
+        ]}
+        data={rows}
+        getRowId={(pod) => `${pod.namespace}/${pod.name}`}
+        loading={query.isFetching}
+        error={query.isError ? 'Pod 列表加载失败' : undefined}
+        empty="没有匹配的 Pod"
+      />
+    </div>
   )
 }
 

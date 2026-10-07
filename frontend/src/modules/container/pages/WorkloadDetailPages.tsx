@@ -544,24 +544,34 @@ export function StatefulSetDetailPage() {
     onError: (error: Error) => toast.error(error.message || '删除失败'),
   })
   return (
-    <div className="flex flex-col gap-4">
-      <BackTitle
-        to={`/container/clusters/${clusterId}/statefulsets`}
-        title={`${namespace}/${name}`}
-        extra={
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive"
-            onClick={() => {
-              if (window.confirm(`删除 StatefulSet「${name}」？`)) remove.mutate()
-            }}
-          >
-            删除
-          </Button>
-        }
-      />
-      <TabBar tabs={['环境变量', '容器', '挂载卷', 'YAML']} value={tab} onChange={setTab} />
+    <DetailShell
+      leading={
+        <Button variant="ghost" size="sm" asChild>
+          <Link to={`/container/clusters/${clusterId}/statefulsets`}>返回</Link>
+        </Button>
+      }
+      title={`${namespace}/${name}`}
+      actions={
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive"
+          onClick={() => {
+            if (window.confirm(`删除 StatefulSet「${name}」？`)) remove.mutate()
+          }}
+        >
+          删除
+        </Button>
+      }
+      tabs={[
+        { value: '环境变量', label: '环境变量' },
+        { value: '容器', label: '容器' },
+        { value: '挂载卷', label: '挂载卷' },
+        { value: 'YAML', label: 'YAML' },
+      ]}
+      value={tab}
+      onValueChange={setTab}
+    >
       {tab === '环境变量' && (
         <WorkloadEnvPanel
           queryKey={['container-statefulset-env', clusterId, namespace, name]}
@@ -590,7 +600,7 @@ export function StatefulSetDetailPage() {
           save={(yaml) => statefulSetApi.updateYaml(clusterId, namespace, name, yaml)}
         />
       )}
-    </div>
+    </DetailShell>
   )
 }
 

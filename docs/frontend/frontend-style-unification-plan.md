@@ -1,7 +1,7 @@
 # 前端样式统一落地 Plan（参照 Kite，全产品共用）
 
 > 日期：2026-10-07
-> 版本：v0.6
+> 版本：v0.7
 > 关联规范：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.3
 > 目标仓库：[HFwas/hfwas-devops](https://github.com/HFwas/hfwas-devops)（`frontend/`，默认分支 `dev`）
 > 目标：全站统一视觉与交互语言（token / 壳层 / 列表 / 详情 / 状态 / 日志终端），各业务模块共用，不限于容器
@@ -16,6 +16,7 @@
 | v0.4 | 2026-10-07 | Phase 2：全站 AppShell 改为 inset 侧栏 + sticky 顶栏；下一步 Phase 3 共享模式组件 |
 | v0.5 | 2026-10-07 | Phase 2 信息架构改为产品切换器 + 当前产品内部菜单，不再把各产品平铺在同一侧栏 |
 | v0.6 | 2026-10-07 | Phase 3：共享 DataTable / Status / PageHeader / DetailShell / LogPanel，并在 PM、流水线、容器各接一处试点 |
+| v0.7 | 2026-10-07 | Phase 4：各产品再接一处列表和详情（事项、运行记录、Pod、接口、工作台与用户） |
 
 ---
 
@@ -149,19 +150,22 @@
 
 每个子系统改 **1 个列表 + 1 个详情（若有）**，验证规范可复用：
 
+Phase 3 已覆盖项目列表、流水线列表、集群列表、Deployment 详情。本阶段再各接一处：
+
 | 模块 | 列表试点 | 详情试点 |
 |------|----------|----------|
-| 工作台 / 入口 | 工作台或首页卡片密度 | — |
-| PM | 项目列表或事项列表 | 事项详情（Tab 壳） |
-| 流水线 | 流水线列表 | 运行详情（含日志 chrome） |
-| 容器 | 集群列表 | 工作负载详情 |
-| API 测试 | 定义或集合列表 | 调试工作台布局密度 |
+| 工作台 / 入口 | 工作台卡片密度（`PageHeader`，卡片 `p-4`） | — |
+| PM | 事项列表 | 事项详情（`DetailShell`） |
+| 流水线 | 运行记录 | 运行详情（`LogPanel` 包任务日志） |
+| 容器 | Pod 列表 | StatefulSet 详情 |
+| API 测试 | 接口定义列表 | 接口详情（调试工作台留到 Phase 5） |
+| 用户中心 | 用户管理 | 账号设置 |
 
 **验收：**
 
-- [ ] 五处列表密度一致（表头 `h-10`、单元格 `p-2`、圆角边框容器）
-- [ ] 三处详情共用 DetailShell
-- [ ] 流水线日志与容器日志 chrome 同源组件
+- [x] 五处列表密度一致（表头 `h-10`、单元格 `p-2`、圆角边框容器）：事项、运行记录、Pod、接口、用户
+- [x] 三处详情共用 DetailShell：事项、运行、StatefulSet；另有接口详情与账号设置
+- [x] 流水线日志与容器日志 chrome 同源组件（`LogPanel`；运行日志读任务 `logText`，不改 WebSocket）
 
 ---
 
@@ -240,7 +244,8 @@
 2. ~~Phase 0–1~~ 规范、Plan 与 Design Token 已在 `dev`（`frontend/src/styles/base.css`、`frontend/src/styles/themes/default.css`）。
 3. ~~Phase 2~~ 全站 `AppShell`：inset 侧栏、sticky 顶栏（`--header-height: 3.5rem`）。侧栏是当前产品的菜单；产品之间用切换器更换，不把各产品平铺成同级项。登录跳转留在壳外。
 4. ~~Phase 3~~ 共享模式在 `frontend/src/components/console/`：`DataTable`、`StatusIcon` + `status.ts`、`PageHeader`、`DetailShell`、`LogPanel` / `TerminalChrome`。说明见 `docs/frontend/shared-ui-patterns.md`。试点：PM 项目列表、流水线列表、容器集群列表、Deployment 详情、Pod 日志与终端外壳。日志外壳不改 WebSocket 协议。
-5. **下一步：Phase 4** 跨模块各再接 1 个列表 + 1 个详情（事项详情、流水线运行详情、其余工作负载详情、API 测试）。**Phase 5** 再按第 4 节清单铺开其余页面。看板 / DAG 不进 `DataTable`。
+5. ~~Phase 4~~ 各产品再接一处列表和详情：PM 事项列表与详情、流水线运行记录与运行详情（`LogPanel`）、容器 Pod 列表与 StatefulSet 详情、API 测试接口列表与详情、工作台卡片密度、用户列表与账号设置。页面清单见 `shared-ui-patterns.md`。看板 / DAG 未进 `DataTable`。
+6. **下一步：Phase 5** 按第 4 节清单铺开其余页面（凭证、任务市场、节点与其余工作负载、集合与环境、调试工作台、PM 看板等）。看板 / DAG 只统一外围间距和颜色。
 
 ---
 
