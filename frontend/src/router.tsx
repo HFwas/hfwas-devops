@@ -26,13 +26,27 @@ import {
   ServiceDetailPage,
   StatefulSetDetailPage,
 } from '@/modules/container/pages/WorkloadDetailPages'
+import { CollectionDetailPage } from '@/modules/api-test/pages/CollectionDetailPage'
+import { CollectionListPage } from '@/modules/api-test/pages/CollectionListPage'
 import { DefinitionDetailPage } from '@/modules/api-test/pages/DefinitionDetailPage'
 import { DefinitionListPage } from '@/modules/api-test/pages/DefinitionListPage'
+import { EnvironmentDetailPage } from '@/modules/api-test/pages/EnvironmentDetailPage'
+import { EnvironmentListPage } from '@/modules/api-test/pages/EnvironmentListPage'
+import { DocgenPage } from '@/modules/docgen/pages/DocgenPage'
+import { FileParserPage } from '@/modules/file-parser/pages/FileParserPage'
+import { ImageToolPage } from '@/modules/image/pages/ImageToolPage'
+import { CredentialDetailPage } from '@/modules/pipeline/pages/CredentialDetailPage'
+import { CredentialListPage } from '@/modules/pipeline/pages/CredentialListPage'
 import { PipelineListPage } from '@/modules/pipeline/pages/PipelineListPage'
 import { PipelineRunDetailPage } from '@/modules/pipeline/pages/PipelineRunDetailPage'
 import { PipelineRunsPage } from '@/modules/pipeline/pages/PipelineRunsPage'
+import { TaskKindDetailPage } from '@/modules/pipeline/pages/TaskKindDetailPage'
+import { TaskKindListPage } from '@/modules/pipeline/pages/TaskKindListPage'
+import { BoardPage } from '@/modules/pm/pages/BoardPage'
+import { ProjectMonitorPage } from '@/modules/pm/pages/ProjectMonitorPage'
 import { WorkItemDetailPage } from '@/modules/pm/pages/WorkItemDetailPage'
 import { WorkItemListPage } from '@/modules/pm/pages/WorkItemListPage'
+import { WorkflowPage } from '@/modules/pm/pages/WorkflowPage'
 import { UserListPage } from '@/modules/user/pages/UserListPage'
 import { UserSettingsPage } from '@/modules/user/pages/UserSettingsPage'
 import { ProjectListPage } from '@/pages/ProjectListPage'
@@ -70,14 +84,28 @@ export const router = createBrowserRouter([
           { path: 'user/accounts', element: <UserListPage /> },
           { path: 'user/settings', element: <UserSettingsPage /> },
           { path: 'pm/projects', element: <ProjectListPage /> },
+          { path: 'pm/monitor', element: <ProjectMonitorPage /> },
           { path: 'pm/projects/:projectId/items/:typeCode', element: <WorkItemListPage /> },
           { path: 'pm/projects/:projectId/items/:typeCode/:itemId', element: <WorkItemDetailPage /> },
+          { path: 'pm/projects/:projectId/board/:typeCode', element: <BoardPage /> },
+          { path: 'pm/projects/:projectId/settings/workflow/:typeCode', element: <WorkflowPage /> },
           { path: 'pipeline/pipelines', element: <PipelineListPage /> },
           { path: 'pipeline/pipelines/:pipelineId', element: <PipelineRunsPage /> },
           { path: 'pipeline/pipelines/:pipelineId/runs/:runId', element: <PipelineRunDetailPage /> },
+          { path: 'pipeline/credentials', element: <CredentialListPage /> },
+          { path: 'pipeline/credentials/:credentialId', element: <CredentialDetailPage /> },
+          { path: 'pipeline/task-kinds', element: <TaskKindListPage /> },
+          { path: 'pipeline/task-kinds/:kind', element: <TaskKindDetailPage /> },
           { path: 'api-test', element: <DefinitionListPage /> },
           { path: 'api-test/definitions', element: <DefinitionListPage /> },
           { path: 'api-test/definitions/:definitionId', element: <DefinitionDetailPage /> },
+          { path: 'api-test/collections', element: <CollectionListPage /> },
+          { path: 'api-test/collections/:collectionId', element: <CollectionDetailPage /> },
+          { path: 'api-test/environments', element: <EnvironmentListPage /> },
+          { path: 'api-test/environments/:environmentId', element: <EnvironmentDetailPage /> },
+          { path: 'file-parser', element: <FileParserPage /> },
+          { path: 'docgen', element: <DocgenPage /> },
+          { path: 'image', element: <ImageToolPage /> },
           {
             path: 'container',
             element: <ContainerShell />,

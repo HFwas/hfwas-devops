@@ -120,6 +120,12 @@ export function WorkItemListPage() {
               aria-label="搜索事项"
               className="h-8 w-56"
             />
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/pm/projects/${projectId}/board/${typeCode}`}>看板</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to={`/pm/projects/${projectId}/settings/workflow/${typeCode}`}>工作流</Link>
+            </Button>
             <Button onClick={() => setOpen(true)}>
               <Plus />
               新建事项
