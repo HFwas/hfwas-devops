@@ -9,8 +9,8 @@
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-07 | 初版：DataTable、StatusIcon、PageHeader、DetailShell、LogPanel 的用法与试点范围 |
-| v0.2 | 2026-10-07 | Phase 4：各产品再接一处列表和详情；流水线运行日志与容器日志共用 LogPanel |
-| v0.3 | 2026-10-07 | Phase 5：铺开凭证、任务市场、工作负载、仓库镜像、集合环境、调试工作台和 PM 看板外围 |
+| v0.2 | 2026-10-07 | 资源概览用 ResourceOverview；StatusIcon 增加同色圆点 |
+| v0.3 | 2026-10-07 | DetailShell 增加 metrics 槽；圆点变体里 Running 为绿点 |
 
 ---
 
@@ -24,6 +24,8 @@
 | `StatusIcon` + 字典 | `StatusIcon.tsx`、`status.ts` | Ready / Failed / Pending / Warning 等映射到同一套色和图标 |
 | `PageHeader` | `PageHeader.tsx` | 标题、描述、右侧操作 |
 | `DetailShell` | `DetailShell.tsx` | 贴在顶栏下的标题行、操作、Tab；正文由调用方按当前 Tab 填 |
+| `OverviewMetricCards` | `ResourceOverview.tsx` | Tab 下方的指标卡。由 `DetailShell` 的 `metrics` 挂上 |
+| `ResourceOverview` | `ResourceOverview.tsx` | 概览左主栏 + 右侧栏；指标卡也可直接放在这里 |
 | `LogPanel` / `TerminalChrome` | `LogPanel.tsx` | 约 40vh、可拖到最小 120px、顶栏 `h-10 bg-muted/50`、连接呼吸灯、等宽区 |
 
 新的列表、详情、状态、日志页用这些组件。不要再写一套私有表格密度或状态色。

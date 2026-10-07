@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isContainerNavActive } from '@/modules/container/nav'
+import { CONTAINER_NAV_GROUPS, containerNavHref, isContainerNavActive } from '@/modules/container/nav'
 import { isMenuItemActive, menuForScope, resolveShellScope } from '@/shared/console/navigation'
 import { resolveBreadcrumbs } from '@/components/console/breadcrumbs'
 
@@ -126,10 +126,14 @@ describe('resolveBreadcrumbs', () => {
 })
 
 describe('isContainerNavActive', () => {
-  it('highlights the resource segment without highlighting 集群', () => {
-    expect(isContainerNavActive('/container/clusters/c1/nodes/node-a', { key: 'nodes', label: '节点', icon: () => null, suffix: '/nodes', needsCluster: true })).toBe(true)
-    expect(isContainerNavActive('/container/clusters/c1/nodes/node-a', { key: 'clusters', label: '集群', icon: () => null, to: '/container/clusters', needsCluster: false })).toBe(false)
-    expect(isContainerNavActive('/container/clusters/c1', { key: 'clusters', label: '集群', icon: () => null, to: '/container/clusters', needsCluster: false })).toBe(true)
+  it('highlights the resource segment without highlighting 集群管理', () => {
+    expect(isContainerNavActive('/container/clusters/c1/nodes/node-a', { key: 'nodes', label: 'Node', icon: () => null, suffix: '/nodes', needsCluster: true })).toBe(true)
+    expect(isContainerNavActive('/container/clusters/c1/nodes/node-a', { key: 'clusters', label: '集群管理', icon: () => null, to: '/container/clusters', needsCluster: false })).toBe(false)
+    expect(isContainerNavActive('/container/clusters/c1', { key: 'overview', label: '概览', icon: () => null, needsCluster: false })).toBe(true)
+    expect(isContainerNavActive('/container/clusters/c1', { key: 'clusters', label: '集群管理', icon: () => null, to: '/container/clusters', needsCluster: false })).toBe(false)
+    expect(isContainerNavActive('/container/clusters', { key: 'clusters', label: '集群管理', icon: () => null, to: '/container/clusters', needsCluster: false })).toBe(true)
+    expect(isContainerNavActive('/container/clusters/c1/cronjobs', { key: 'jobs', label: 'Job', icon: () => null, suffix: '/jobs', needsCluster: true })).toBe(false)
+    expect(isContainerNavActive('/container/helm/charts', { key: 'helm-releases', label: 'Helm Releases', icon: () => null, suffix: '/helm', needsCluster: true })).toBe(false)
     expect(isContainerNavActive('/container/images', { key: 'images', label: '镜像', icon: () => null, to: '/container/images', needsCluster: false })).toBe(true)
     expect(isContainerNavActive('/container/helm/releases/default/nginx', { key: 'helm-releases', label: 'Helm Release', icon: () => null, to: '/container/helm/releases', needsCluster: false })).toBe(true)
     expect(isContainerNavActive('/container/helm/charts/repo/nginx', { key: 'helm-releases', label: 'Helm Release', icon: () => null, to: '/container/helm/releases', needsCluster: false })).toBe(false)

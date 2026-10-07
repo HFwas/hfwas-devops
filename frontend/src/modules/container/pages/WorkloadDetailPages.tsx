@@ -1,27 +1,48 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { DataTable } from '@/components/console/DataTable'
 import { DetailShell } from '@/components/console/DetailShell'
+import { ImageList, InfoPairs, OverviewCard, PillList, replicaMetricCards, ResourceOverview } from '@/components/console/ResourceOverview'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { configMapApi } from '@/modules/container/api/configmap'
 import { deploymentApi } from '@/modules/container/api/deployment'
-import { eventApi } from '@/modules/container/api/event'
 import { nodeApi } from '@/modules/container/api/node'
 import { podApi } from '@/modules/container/api/pod'
 import { serviceApi } from '@/modules/container/api/service'
 import { statefulSetApi } from '@/modules/container/api/statefulset'
+import {
+  EventSummary,
+  EventTable,
+  PodMiniTable,
+  PodShortcutList,
+  RelatedList,
+  ResourceActions,
+  StubPanel,
+  TextBlock,
+  countLabel,
+  useDetailTab,
+  useResourceEvents,
+  workloadTabs,
+} from '@/modules/container/components/detailLayout'
 import { PodLogPanel } from '@/modules/container/components/PodLogPanel'
 import { PodShell } from '@/modules/container/components/PodShell'
 import { YamlPanel } from '@/modules/container/components/YamlPanel'
 import { WorkloadEnvPanel } from '@/modules/container/components/WorkloadEnvPanel'
 import { WorkloadPodsPanel } from '@/modules/container/components/WorkloadPodsPanel'
 import { WorkloadVolumePanel } from '@/modules/container/components/WorkloadVolumePanel'
-import { formatBytes } from '@/modules/container/utils/format'
 import { NodeMonitor, PodMonitor } from '@/modules/container/components/ResourceMonitors'
+import { formatBytes } from '@/modules/container/utils/format'
+import {
+  deploymentAvailability,
+  recordPills,
+  replicaField,
+  selectorPills,
+} from '@/modules/container/utils/workloadStatus'
+import type { NodeDetail } from '@/modules/container/types/resource'
 
 function Field({ label, value }: { label: string; value?: ReactNode }) {
   return (
@@ -34,7 +55,7 @@ function Field({ label, value }: { label: string; value?: ReactNode }) {
 
 export function NodeDetailPage() {
   const { clusterId = '', name = '' } = useParams()
-  const [tab, setTab] = useState('概览')
+  const [tab, setTab] = useDetailTab()
   const query = useQuery({
     queryKey: ['container-node', clusterId, name],
     queryFn: () => nodeApi.get(clusterId, name),
@@ -66,7 +87,8 @@ export function NodeDetailPage() {
       onValueChange={setTab}
     >
       {tab === '监控' && <NodeMonitor clusterId={clusterId} name={name} />}
-      {tab === '概览' && query.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
+      {tab === '事件' && <StubPanel label="节点事件" />}
+      {tab === '概览' && query.isLoading && <TextBlock>加载中…</TextBlock>}
       {tab === '概览' && query.isError && <p className="text-sm text-destructive">节点加载失败</p>}
       {tab === '概览' && node && (
         <div className="flex flex-col gap-4">
@@ -109,17 +131,13 @@ export function PodDetailPage() {
   const navigate = useNavigate()
   const backTo = (location.state as { back?: string } | null)?.back || `/container/clusters/${clusterId}/pods`
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState('概览')
+  const [tab, setTab] = useDetailTab()
   const query = useQuery({
     queryKey: ['container-pod', clusterId, namespace, name],
     queryFn: () => podApi.get(clusterId, namespace, name),
     enabled: !!clusterId && !!namespace && !!name,
   })
-  const events = useQuery({
-    queryKey: ['container-pod-events', clusterId, namespace, query.data?.uid],
-    queryFn: () => eventApi.list(clusterId, namespace, query.data?.uid),
-    enabled: tab === '事件' && !!query.data?.uid,
-  })
+  const events = useResourceEvents(clusterId, namespace, query.data?.uid, tab === '概览' || tab === '事件')
   const remove = useMutation({
     mutationFn: () => podApi.delete(clusterId, namespace, name),
     onSuccess: async () => {
@@ -216,17 +234,35 @@ export function PodDetailPage() {
       {tab === '监控' && (
         <PodMonitor clusterId={clusterId} namespace={namespace} name={name} containers={containers} />
       )}
-      {tab === '日志' && (
-        <PodLogPanel clusterId={clusterId} namespace={namespace} name={name} containers={containers} />
+      {tab === '容器' && pod && (
+        <DataTable
+          columns={[
+            { id: 'name', header: '容器', cell: (item) => item.name },
+            { id: 'state', header: '状态', cell: (item) => <StatusIcon variant="dot" status={item.state} /> },
+            { id: 'image', header: '镜像', cell: (item) => item.image },
+            { id: 'ready', header: '就绪', cell: (item) => (item.ready ? '是' : '否') },
+            { id: 'restart', header: '重启', cell: (item) => String(item.restartCount) },
+          ]}
+          data={pod.containers}
+          getRowId={(item) => item.name}
+          empty="没有容器"
+        />
       )}
+      {tab === '事件' && <EventTable events={events.data} loading={events.isLoading} error={events.isError} />}
+      {tab === '监控' && <PodMonitor clusterId={clusterId} namespace={namespace} name={name} containers={containers} />}
+      {tab === '日志' && <PodLogPanel clusterId={clusterId} namespace={namespace} name={name} containers={containers} />}
       {tab === 'YAML' && (
         <YamlPanel
           queryKey={['container-pod-yaml', clusterId, namespace, name]}
           load={() => podApi.yaml(clusterId, namespace, name)}
         />
       )}
-      {tab === '终端' && (
-        <PodShell clusterId={clusterId} namespace={namespace} name={name} containers={containers} />
+      {tab === '终端' && <PodShell clusterId={clusterId} namespace={namespace} name={name} containers={containers} />}
+      {tab === '卷' && <StubPanel label="Pod 卷" />}
+      {tab === '关联' && (
+        <OverviewCard title="关联资源">
+          <RelatedList items={pod?.ownerReference ? [{ kind: 'Owner', name: pod.ownerReference }] : []} />
+        </OverviewCard>
       )}
     </DetailShell>
   )
@@ -236,25 +272,30 @@ export function DeploymentDetailPage() {
   const { clusterId = '', namespace = '', name = '' } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const tab = searchParams.get('tab') || '概览'
-  const setTab = (value: string) => {
-    const next = new URLSearchParams(searchParams)
-    if (value === '概览') next.delete('tab')
-    else next.set('tab', value)
-    setSearchParams(next, { replace: true })
-  }
+  const [tab, setTab] = useDetailTab()
   const [replicas, setReplicas] = useState('')
   const query = useQuery({
     queryKey: ['container-deployment', clusterId, namespace, name],
     queryFn: () => deploymentApi.get(clusterId, namespace, name),
     enabled: !!clusterId && !!namespace && !!name,
   })
+  const pods = useQuery({
+    queryKey: ['container-deployment-pods', clusterId, namespace, name],
+    queryFn: () => deploymentApi.pods(clusterId, namespace, name),
+    enabled: !!clusterId && !!namespace && !!name,
+  })
+  const volumes = useQuery({
+    queryKey: ['container-deployment-volumes', clusterId, namespace, name],
+    queryFn: () => deploymentApi.volumes(clusterId, namespace, name),
+    enabled: !!clusterId && !!namespace && !!name,
+  })
   const item = query.data
+  const events = useResourceEvents(clusterId, namespace, item?.uid, tab === '概览' || tab === '事件')
   const scale = useMutation({
     mutationFn: () => deploymentApi.scale(clusterId, namespace, name, Number(replicas)),
     onSuccess: async () => {
       toast.success('已调整副本')
+      setReplicas('')
       await queryClient.invalidateQueries({ queryKey: ['container-deployment', clusterId, namespace, name] })
     },
     onError: (error: Error) => toast.error(error.message || '扩缩容失败'),
@@ -272,51 +313,53 @@ export function DeploymentDetailPage() {
     },
     onError: (error: Error) => toast.error(error.message || '删除失败'),
   })
+  const podRows = pods.data ?? []
+  const containerCount = item?.containers?.length
+  const volumeCount = volumes.data?.volumes.length ?? item?.volumes?.length
+  const updated = replicaField(item?.status, 'updated')
+  const related = (item?.volumes ?? [])
+    .filter((volume) => volume.volumeType && volume.volumeType !== 'EmptyDir' && volume.volumeType !== 'Other')
+    .map((volume) => ({ kind: volume.volumeType || 'Volume', name: volume.name }))
 
   return (
     <DetailShell
-      leading={
-        <Button variant="ghost" size="sm" asChild>
-          <Link to={`/container/clusters/${clusterId}/deployments`}>返回</Link>
-        </Button>
-      }
-      title={`${namespace}/${name}`}
-      meta={
-        item ? (
-          <StatusIcon status={item.status} />
-        ) : query.isLoading ? (
-          '加载中…'
-        ) : query.isError ? (
-          '加载失败'
-        ) : null
-      }
+      title={name}
+      description={namespaceLine(namespace)}
       actions={
-        <>
-          <Button variant="outline" size="sm" disabled={restart.isPending} onClick={() => restart.mutate()}>
-            重启
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive"
-            onClick={() => {
-              if (window.confirm(`删除 Deployment「${name}」？`)) remove.mutate()
-            }}
-          >
-            删除
-          </Button>
-        </>
+        <ResourceActions
+          onRefresh={() => {
+            void query.refetch()
+            void pods.refetch()
+            void volumes.refetch()
+            void events.refetch()
+          }}
+          refreshing={query.isFetching}
+          showRestart
+          onRestart={() => restart.mutate()}
+          restarting={restart.isPending}
+          onDelete={() => confirmDelete('Deployment', name, () => remove.mutate())}
+          deleting={remove.isPending}
+        />
       }
-      tabs={[
-        { value: '概览', label: '概览' },
-        { value: '容器', label: '容器' },
-        { value: '环境变量', label: '环境变量' },
-        { value: '挂载卷', label: '挂载卷' },
-        { value: 'YAML', label: 'YAML' },
-      ]}
+      tabs={workloadTabs({ pods: pods.data ? podRows.length : undefined, containers: containerCount, volumes: volumeCount })}
       value={tab}
       onValueChange={setTab}
+      metrics={
+        tab === '概览' && item
+          ? replicaMetricCards({
+              status: <StatusIcon variant="dot" status={deploymentAvailability(item)} />,
+              desired: item.desiredReplicas,
+              ready: `${item.readyReplicas}/${item.desiredReplicas}`,
+              updated: updated ?? '—',
+              available: item.availableReplicas,
+              created: item.age || '—',
+              createdHint: item.creationTimestamp || undefined,
+            })
+          : undefined
+      }
     >
+      {tab === '概览' && query.isLoading && <TextBlock>加载中…</TextBlock>}
+      {tab === '概览' && query.isError && <p className="text-sm text-destructive">Deployment 加载失败</p>}
       {tab === '概览' && item && (
         <div className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -363,23 +406,35 @@ export function DeploymentDetailPage() {
           />
         </div>
       )}
-      {tab === '概览' && query.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
-      {tab === '概览' && query.isError && <p className="text-sm text-destructive">Deployment 加载失败</p>}
-      {tab === '容器' && (
+      {tab === 'Pods' && (
         <WorkloadPodsPanel
           clusterId={clusterId}
           queryKey={['container-deployment-pods', clusterId, namespace, name]}
           load={() => deploymentApi.pods(clusterId, namespace, name)}
         />
       )}
-      {tab === '环境变量' && (
-        <WorkloadEnvPanel
-          queryKey={['container-deployment-env', clusterId, namespace, name]}
-          load={() => deploymentApi.env(clusterId, namespace, name)}
-          save={(data) => deploymentApi.updateEnv(clusterId, namespace, name, data)}
-        />
+      {tab === '容器' && (
+        <div className="flex flex-col gap-4">
+          <DataTable
+            columns={[
+              { id: 'name', header: '容器', cell: (row) => row.name },
+              { id: 'image', header: '镜像', cell: (row) => row.image },
+              { id: 'cpu', header: 'CPU', cell: (row) => `${row.cpuRequest || '—'} / ${row.cpuLimit || '—'}` },
+              { id: 'mem', header: '内存', cell: (row) => `${row.memRequest || '—'} / ${row.memLimit || '—'}` },
+            ]}
+            data={item?.containers ?? []}
+            getRowId={(row) => row.name}
+            loading={query.isLoading}
+            empty="没有容器"
+          />
+          <WorkloadEnvPanel
+            queryKey={['container-deployment-env', clusterId, namespace, name]}
+            load={() => deploymentApi.env(clusterId, namespace, name)}
+            save={(data) => deploymentApi.updateEnv(clusterId, namespace, name, data)}
+          />
+        </div>
       )}
-      {tab === '挂载卷' && (
+      {tab === '卷' && (
         <WorkloadVolumePanel
           queryKey={['container-deployment-volumes', clusterId, namespace, name]}
           load={() => deploymentApi.volumes(clusterId, namespace, name)}
@@ -393,19 +448,36 @@ export function DeploymentDetailPage() {
           save={(yaml) => deploymentApi.updateYaml(clusterId, namespace, name, yaml)}
         />
       )}
+      {tab === '日志' && (
+        <PodShortcutList clusterId={clusterId} pods={podRows} tab="日志" loading={pods.isLoading} empty="还没有 Pod" />
+      )}
+      {tab === '终端' && (
+        <PodShortcutList clusterId={clusterId} pods={podRows} tab="终端" loading={pods.isLoading} empty="还没有 Pod" />
+      )}
+      {tab === '关联' && (
+        <OverviewCard title="关联资源">
+          <RelatedList items={related} />
+        </OverviewCard>
+      )}
+      {tab === '历史' && <StubPanel label="历史" />}
+      {tab === '事件' && <EventTable events={events.data} loading={events.isLoading} error={events.isError} />}
+      {tab === '监控' && (
+        <PodShortcutList clusterId={clusterId} pods={podRows} tab="监控" loading={pods.isLoading} empty="还没有 Pod" />
+      )}
     </DetailShell>
   )
 }
 
 export function ServiceDetailPage() {
   const { clusterId = '', namespace = '', name = '' } = useParams()
-  const [tab, setTab] = useState('概览')
+  const [tab, setTab] = useDetailTab()
   const query = useQuery({
     queryKey: ['container-service', clusterId, namespace, name],
     queryFn: () => serviceApi.get(clusterId, namespace, name),
     enabled: !!clusterId && !!namespace && !!name,
   })
   const item = query.data
+  const events = useResourceEvents(clusterId, namespace, item?.uid, tab === '概览' || tab === '事件')
   return (
     <DetailShell
       leading={
@@ -460,6 +532,8 @@ export function ServiceDetailPage() {
 export function ConfigMapDetailPage() {
   const { clusterId = '', namespace = '', name = '' } = useParams()
   const navigate = useNavigate()
+  const [tab, setTab] = useDetailTab()
+  const queryClient = useQueryClient()
   const remove = useMutation({
     mutationFn: () => configMapApi.delete(clusterId, namespace, name),
     onSuccess: () => {
@@ -501,14 +575,17 @@ export function ConfigMapDetailPage() {
 export function StatefulSetDetailPage() {
   const { clusterId = '', namespace = '', name = '' } = useParams()
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const tab = searchParams.get('tab') || '环境变量'
-  const setTab = (value: string) => {
-    const next = new URLSearchParams(searchParams)
-    if (value === '环境变量') next.delete('tab')
-    else next.set('tab', value)
-    setSearchParams(next, { replace: true })
-  }
+  const [tab, setTab] = useDetailTab()
+  const pods = useQuery({
+    queryKey: ['container-statefulset-pods', clusterId, namespace, name],
+    queryFn: () => statefulSetApi.pods(clusterId, namespace, name),
+    enabled: !!clusterId && !!namespace && !!name,
+  })
+  const volumes = useQuery({
+    queryKey: ['container-statefulset-volumes', clusterId, namespace, name],
+    queryFn: () => statefulSetApi.volumes(clusterId, namespace, name),
+    enabled: !!clusterId && !!namespace && !!name,
+  })
   const remove = useMutation({
     mutationFn: () => statefulSetApi.delete(clusterId, namespace, name),
     onSuccess: () => {
@@ -517,6 +594,15 @@ export function StatefulSetDetailPage() {
     },
     onError: (error: Error) => toast.error(error.message || '删除失败'),
   })
+  const podRows = pods.data ?? []
+  const ready = podRows.filter((pod) => pod.containerCount > 0 && pod.readyContainers >= pod.containerCount).length
+  const status = podRows.length === 0 ? 'Unknown' : ready === podRows.length ? 'Available' : 'Progressing'
+  const related = (volumes.data?.volumes ?? []).map((volume) => ({
+    kind: volume.type || 'Volume',
+    name: volume.source || volume.name,
+  }))
+  const containerCount = volumes.data?.containers.length
+
   return (
     <DetailShell
       leading={
@@ -553,14 +639,21 @@ export function StatefulSetDetailPage() {
           save={(data) => statefulSetApi.updateEnv(clusterId, namespace, name, data)}
         />
       )}
-      {tab === '容器' && (
+      {tab === 'Pods' && (
         <WorkloadPodsPanel
           clusterId={clusterId}
           queryKey={['container-statefulset-pods', clusterId, namespace, name]}
           load={() => statefulSetApi.pods(clusterId, namespace, name)}
         />
       )}
-      {tab === '挂载卷' && (
+      {tab === '容器' && (
+        <WorkloadEnvPanel
+          queryKey={['container-statefulset-env', clusterId, namespace, name]}
+          load={() => statefulSetApi.env(clusterId, namespace, name)}
+          save={(data) => statefulSetApi.updateEnv(clusterId, namespace, name, data)}
+        />
+      )}
+      {tab === '卷' && (
         <WorkloadVolumePanel
           queryKey={['container-statefulset-volumes', clusterId, namespace, name]}
           load={() => statefulSetApi.volumes(clusterId, namespace, name)}

@@ -1,5 +1,7 @@
+import { ChevronDown } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { ProductSwitcher } from '@/components/console/ProductSwitcher'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Sidebar,
   SidebarContent,
@@ -78,35 +80,44 @@ function ContainerMenu({ pathname }: { pathname: string }) {
   return (
     <>
       {CONTAINER_NAV_GROUPS.map((group) => (
-        <SidebarGroup key={group.key}>
-          <SidebarGroupLabel className={groupLabelClass}>{group.label}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {group.items.map((item) => {
-                const href = containerNavHref(item, clusterId)
-                const Icon = item.icon
-                const active = isContainerNavActive(pathname, item)
-                return (
-                  <SidebarMenuItem key={item.key}>
-                    {href ? (
-                      <SidebarMenuButton asChild isActive={active} tooltip={item.label} className={activeIconClass}>
-                        <Link to={href}>
-                          <Icon />
-                          <span>{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    ) : (
-                      <SidebarMenuButton disabled aria-disabled tooltip={item.label} className="opacity-40">
-                        <Icon />
-                        <span>{item.label}</span>
-                      </SidebarMenuButton>
-                    )}
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <Collapsible key={group.key} defaultOpen className="group/collapsible">
+          <SidebarGroup>
+            <SidebarGroupLabel asChild className={groupLabelClass}>
+              <CollapsibleTrigger className="w-full cursor-pointer">
+                <span>{group.label}</span>
+                <ChevronDown className="ml-auto transition-transform group-data-[collapsible=icon]:hidden group-data-[state=open]/collapsible:rotate-180" />
+              </CollapsibleTrigger>
+            </SidebarGroupLabel>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => {
+                    const href = containerNavHref(item, clusterId)
+                    const Icon = item.icon
+                    const active = isContainerNavActive(pathname, item)
+                    return (
+                      <SidebarMenuItem key={item.key}>
+                        {href ? (
+                          <SidebarMenuButton asChild isActive={active} tooltip={item.label} className={activeIconClass}>
+                            <Link to={href}>
+                              <Icon />
+                              <span>{item.label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        ) : (
+                          <SidebarMenuButton disabled aria-disabled tooltip={item.label} className="opacity-40">
+                            <Icon />
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        )}
+                      </SidebarMenuItem>
+                    )
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </SidebarGroup>
+        </Collapsible>
       ))}
     </>
   )
