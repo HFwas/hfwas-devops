@@ -26,7 +26,15 @@ import {
   ServiceDetailPage,
   StatefulSetDetailPage,
 } from '@/modules/container/pages/WorkloadDetailPages'
+import { DefinitionDetailPage } from '@/modules/api-test/pages/DefinitionDetailPage'
+import { DefinitionListPage } from '@/modules/api-test/pages/DefinitionListPage'
 import { PipelineListPage } from '@/modules/pipeline/pages/PipelineListPage'
+import { PipelineRunDetailPage } from '@/modules/pipeline/pages/PipelineRunDetailPage'
+import { PipelineRunsPage } from '@/modules/pipeline/pages/PipelineRunsPage'
+import { WorkItemDetailPage } from '@/modules/pm/pages/WorkItemDetailPage'
+import { WorkItemListPage } from '@/modules/pm/pages/WorkItemListPage'
+import { UserListPage } from '@/modules/user/pages/UserListPage'
+import { UserSettingsPage } from '@/modules/user/pages/UserSettingsPage'
 import { ProjectListPage } from '@/pages/ProjectListPage'
 import { RouteScreen } from '@/pages/RouteScreen'
 import { WorkbenchPage } from '@/pages/WorkbenchPage'
@@ -59,8 +67,17 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/workbench" replace /> },
           { path: 'workbench', element: <WorkbenchPage /> },
+          { path: 'user/accounts', element: <UserListPage /> },
+          { path: 'user/settings', element: <UserSettingsPage /> },
           { path: 'pm/projects', element: <ProjectListPage /> },
+          { path: 'pm/projects/:projectId/items/:typeCode', element: <WorkItemListPage /> },
+          { path: 'pm/projects/:projectId/items/:typeCode/:itemId', element: <WorkItemDetailPage /> },
           { path: 'pipeline/pipelines', element: <PipelineListPage /> },
+          { path: 'pipeline/pipelines/:pipelineId', element: <PipelineRunsPage /> },
+          { path: 'pipeline/pipelines/:pipelineId/runs/:runId', element: <PipelineRunDetailPage /> },
+          { path: 'api-test', element: <DefinitionListPage /> },
+          { path: 'api-test/definitions', element: <DefinitionListPage /> },
+          { path: 'api-test/definitions/:definitionId', element: <DefinitionDetailPage /> },
           {
             path: 'container',
             element: <ContainerShell />,

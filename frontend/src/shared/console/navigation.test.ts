@@ -71,6 +71,26 @@ describe('resolveBreadcrumbs', () => {
       { label: '流水线', to: '/pipeline/pipelines' },
       { label: '凭证' },
     ])
+    expect(resolveBreadcrumbs('/pm/projects/12/items/task')).toEqual([
+      { label: '项目管理', to: '/pm/projects' },
+      { label: '事项' },
+    ])
+    expect(resolveBreadcrumbs('/pm/projects/12/items/task/99')).toEqual([
+      { label: '项目管理', to: '/pm/projects' },
+      { label: '事项详情' },
+    ])
+    expect(resolveBreadcrumbs('/pipeline/pipelines/4')).toEqual([
+      { label: '流水线', to: '/pipeline/pipelines' },
+      { label: '运行记录' },
+    ])
+    expect(resolveBreadcrumbs('/pipeline/pipelines/4/runs/8')).toEqual([
+      { label: '流水线', to: '/pipeline/pipelines' },
+      { label: '运行详情' },
+    ])
+    expect(resolveBreadcrumbs('/api-test/definitions/3')).toEqual([
+      { label: '接口测试', to: '/api-test' },
+      { label: '接口详情' },
+    ])
     expect(resolveBreadcrumbs('/user/settings')).toEqual([
       { label: '用户中心', to: '/user/settings' },
       { label: '账号设置' },

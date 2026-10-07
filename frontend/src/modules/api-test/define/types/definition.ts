@@ -136,7 +136,7 @@ export interface ApiDefinitionUpdateDTO {
 
 /** 接口定义查询条件 */
 export interface ApiDefinitionQueryDTO {
-  projectId: number
+  projectId?: number | string
   groupId?: number
   keyword?: string
   method?: HttpMethod
