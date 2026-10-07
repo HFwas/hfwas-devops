@@ -2,9 +2,9 @@ import type { LucideIcon } from 'lucide-react'
 import { Beaker, Boxes, FileText, FileDown, GitBranch, GitGraph, Image, ServerCog, ShieldCheck, SquareKanban } from 'lucide-react'
 
 /**
- * 控制台产品目录（顶栏左侧下拉切换）
- * 扩展点：新增产品只需往 CONSOLE_PRODUCTS 追加一项，顶栏无需改动。
- * comingSoon 为 true 时下拉项置灰，用于占位未上线产品。
+ * 控制台产品目录（产品切换器）
+ * 扩展点：新增产品追加一项，并在 navigation.ts 写该产品自己的侧栏。
+ * comingSoon 为 true 时切换器项禁用，用于占位未上线产品。
  */
 export interface ConsoleProduct {
   key: string
@@ -120,7 +120,7 @@ export function resolveActiveProduct(path: string): ConsoleProduct | null {
   return key ? findProduct(key) : null
 }
 
-/** 按 group 聚合，供下拉菜单分组渲染 */
+/** 按 group 聚合，供产品切换器分组渲染 */
 export function groupProducts(products: ConsoleProduct[] = CONSOLE_PRODUCTS) {
   const groups = new Map<string, ConsoleProduct[]>()
   products.forEach((product) => {
