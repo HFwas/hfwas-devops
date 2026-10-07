@@ -4,6 +4,9 @@ import { resolveStatusTone, statusIconSpins } from '@/components/console/status'
 describe('status dictionary', () => {
   it('maps container, pipeline, and PM phrases onto one tone set', () => {
     expect(resolveStatusTone('Ready')).toBe('success')
+    expect(resolveStatusTone('deployed')).toBe('success')
+    expect(resolveStatusTone('pending-upgrade')).toBe('progress')
+    expect(resolveStatusTone('superseded')).toBe('neutral')
     expect(resolveStatusTone('Connected')).toBe('success')
     expect(resolveStatusTone('SUCCEEDED')).toBe('success')
     expect(resolveStatusTone('已解决')).toBe('success')

@@ -112,6 +112,16 @@ describe('resolveBreadcrumbs', () => {
       { label: 'Pod', to: '/container/clusters/c1/pods' },
       { label: 'api' },
     ])
+    expect(resolveBreadcrumbs('/container/helm/charts/repo-harbor/nginx')).toEqual([
+      { label: '容器管理', to: '/container/clusters' },
+      { label: 'Chart 目录', to: '/container/helm/charts' },
+      { label: 'nginx' },
+    ])
+    expect(resolveBreadcrumbs('/container/helm/releases/default/demo-nginx')).toEqual([
+      { label: '容器管理', to: '/container/clusters' },
+      { label: 'Helm Release', to: '/container/helm/releases' },
+      { label: 'demo-nginx' },
+    ])
   })
 })
 
@@ -121,5 +131,9 @@ describe('isContainerNavActive', () => {
     expect(isContainerNavActive('/container/clusters/c1/nodes/node-a', { key: 'clusters', label: '集群', icon: () => null, to: '/container/clusters', needsCluster: false })).toBe(false)
     expect(isContainerNavActive('/container/clusters/c1', { key: 'clusters', label: '集群', icon: () => null, to: '/container/clusters', needsCluster: false })).toBe(true)
     expect(isContainerNavActive('/container/images', { key: 'images', label: '镜像', icon: () => null, to: '/container/images', needsCluster: false })).toBe(true)
+    expect(isContainerNavActive('/container/helm/releases/default/nginx', { key: 'helm-releases', label: 'Helm Release', icon: () => null, to: '/container/helm/releases', needsCluster: false })).toBe(true)
+    expect(isContainerNavActive('/container/helm/charts/repo/nginx', { key: 'helm-releases', label: 'Helm Release', icon: () => null, to: '/container/helm/releases', needsCluster: false })).toBe(false)
+    expect(isContainerNavActive('/container/helm/charts/repo/nginx', { key: 'helm-charts', label: 'Chart 目录', icon: () => null, to: '/container/helm/charts', needsCluster: false })).toBe(true)
+    expect(isContainerNavActive('/container/helm/upload', { key: 'helm-upload', label: '上传 Chart', icon: () => null, to: '/container/helm/upload', needsCluster: false })).toBe(true)
   })
 })

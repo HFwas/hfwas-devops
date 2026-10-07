@@ -4,6 +4,11 @@ import { AppShell } from '@/components/console/AppShell'
 import { ContainerShell } from '@/modules/container/components/ContainerShell'
 import { ClusterDetailPage } from '@/modules/container/pages/ClusterDetailPage'
 import { ClusterListPage } from '@/modules/container/pages/ClusterListPage'
+import { HelmChartDetailPage } from '@/modules/container/pages/HelmChartDetailPage'
+import { HelmChartListPage } from '@/modules/container/pages/HelmChartListPage'
+import { HelmReleaseDetailPage } from '@/modules/container/pages/HelmReleaseDetailPage'
+import { HelmReleaseListPage } from '@/modules/container/pages/HelmReleaseListPage'
+import { HelmUploadPage } from '@/modules/container/pages/HelmUploadPage'
 import { ImageSearchPage } from '@/modules/container/pages/ImageSearchPage'
 import { RegistryDetailPage, RepoDetailPage, RepoListPage } from '@/modules/container/pages/RegistryDrillPages'
 import { RegistryListPage } from '@/modules/container/pages/RegistryListPage'
@@ -133,6 +138,12 @@ export const router = createBrowserRouter([
               { path: 'registries/:registryId/projects/:project/repos', element: <RepoListPage /> },
               { path: 'registries/:registryId/projects/:project/repos/*', element: <RepoDetailPage /> },
               { path: 'images', element: <ImageSearchPage /> },
+              { path: 'helm', element: <Navigate to="/container/helm/releases" replace /> },
+              { path: 'helm/releases', element: <HelmReleaseListPage /> },
+              { path: 'helm/releases/:namespace/:name', element: <HelmReleaseDetailPage /> },
+              { path: 'helm/charts', element: <HelmChartListPage /> },
+              { path: 'helm/charts/:repositoryId/:name', element: <HelmChartDetailPage /> },
+              { path: 'helm/upload', element: <HelmUploadPage /> },
             ],
           },
           { path: '*', element: <RouteScreen /> },

@@ -9,8 +9,11 @@ import {
   HardDrive,
   KeyRound,
   Layers,
+  Package,
   Search,
   Server,
+  Ship,
+  Upload,
 } from 'lucide-react'
 
 export interface ContainerNavItem {
@@ -67,6 +70,15 @@ export const CONTAINER_NAV_GROUPS: { key: string; label: string; items: Containe
       { key: 'images', label: '镜像', icon: Search, to: '/container/images', needsCluster: false },
     ],
   },
+  {
+    key: 'helm',
+    label: '应用发布',
+    items: [
+      { key: 'helm-releases', label: 'Helm Release', icon: Ship, to: '/container/helm/releases', needsCluster: false },
+      { key: 'helm-charts', label: 'Chart 目录', icon: Package, to: '/container/helm/charts', needsCluster: false },
+      { key: 'helm-upload', label: '上传 Chart', icon: Upload, to: '/container/helm/upload', needsCluster: false },
+    ],
+  },
 ]
 
 export const CONTAINER_NAV: ContainerNavItem[] = CONTAINER_NAV_GROUPS.flatMap((group) => group.items)
@@ -112,6 +124,21 @@ export function containerBreadcrumbs(pathname: string): PathCrumb[] {
   }
   if (pathname === '/container/images' || pathname.startsWith('/container/images/')) {
     return [root, { label: '镜像' }]
+  }
+  if (pathname === '/container/helm/upload') {
+    return [root, { label: '上传 Chart' }]
+  }
+  if (pathname === '/container/helm/charts' || pathname.startsWith('/container/helm/charts/')) {
+    const parts = pathname.split('/').filter(Boolean)
+    if (parts.length <= 3) return [root, { label: 'Chart 目录' }]
+    const name = decodeURIComponent(parts[parts.length - 1] ?? '')
+    return [root, { label: 'Chart 目录', to: '/container/helm/charts' }, { label: name || '详情' }]
+  }
+  if (pathname === '/container/helm/releases' || pathname.startsWith('/container/helm/releases/')) {
+    const parts = pathname.split('/').filter(Boolean)
+    if (parts.length <= 3) return [root, { label: 'Helm Release' }]
+    const name = decodeURIComponent(parts[parts.length - 1] ?? '')
+    return [root, { label: 'Helm Release', to: '/container/helm/releases' }, { label: name || '详情' }]
   }
 
   const parts = pathname.split('/').filter(Boolean)
