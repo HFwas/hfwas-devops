@@ -26,6 +26,15 @@ public enum ContainerErrorCode implements ErrorCode {
     REGISTRY_ARTIFACT_DELETE_FAILED(30205, "删除制品失败"),
     REGISTRY_DEPLOY_FAILED(30206, "镜像部署失败"),
     REGISTRY_NAMESPACE_REQUIRED(30207, "deploy namespace 不能为空"),
+
+    HELM_CHART_INVALID(30301, "Helm Chart 包无效"),
+    HELM_CHART_TOO_LARGE(30302, "Helm Chart 超过大小限制"),
+    HELM_CHART_VERSION_EXISTS(30303, "相同 Chart 名称与版本已存在"),
+    HELM_CHART_PUSH_FAILED(30304, "推送到 OCI 仓库失败"),
+    HELM_CHART_REPO_NOT_CONFIGURED(30305, "默认 OCI 仓库未配置"),
+    HELM_CHART_NOT_FOUND(30306, "Helm Chart 不存在"),
+    HELM_CHART_CREDENTIAL_INVALID(30307, "Helm Chart 仓库凭据无效"),
+    HELM_CHART_REPOSITORY_NOT_FOUND(30308, "Chart 仓库不存在"),
     ;
 
     private final int code;

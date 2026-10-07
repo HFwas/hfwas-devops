@@ -57,6 +57,22 @@ image-processor:
     preview-timeout: 15s
     max-concurrent: 2
 
+# Helm chart 上传推送到 Harbor OCI。凭据只来自环境变量，不落库。
+# servlet multipart 上限（dev/prod 为 50MB）须不小于 max-upload-mb。
+helm:
+  chart:
+    max-upload-mb: ${HELM_CHART_MAX_UPLOAD_MB:50}
+    max-entries: ${HELM_CHART_MAX_ENTRIES:2000}
+    max-uncompressed-mb: ${HELM_CHART_MAX_UNCOMPRESSED_MB:200}
+    helm-binary: ${HELM_BINARY_PATH:helm}
+    push-timeout-seconds: ${HELM_CHART_PUSH_TIMEOUT_SECONDS:120}
+    oci:
+      url: ${HELM_CHART_OCI_URL:}
+      username: ${HELM_CHART_OCI_USERNAME:}
+      password: ${HELM_CHART_OCI_PASSWORD:}
+      insecure: ${HELM_CHART_OCI_INSECURE:false}
+      repository-name: ${HELM_CHART_REPOSITORY_NAME:default}
+
 pipeline:
   credential-key: ${PIPELINE_CREDENTIAL_KEY:hfwas-dev-pipeline-key-32b!!}
   kubeconfig: ${PIPELINE_KUBECONFIG:}

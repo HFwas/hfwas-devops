@@ -22,4 +22,12 @@ public final class SecurityHelper {
         }
         return null;
     }
+
+    public static Long currentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof AuthUserPrincipal principal) {
+            return principal.getUserId();
+        }
+        return null;
+    }
 }
