@@ -9,7 +9,7 @@ export function WorkbenchPage() {
   const groups = groupProducts(CONSOLE_PRODUCTS.filter((item) => !item.comingSoon))
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 md:gap-6">
       <div>
         <h1 className="text-2xl font-semibold">控制台</h1>
         <p className="mt-1 text-sm text-muted-foreground">

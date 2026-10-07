@@ -1,7 +1,7 @@
 # 前端样式统一落地 Plan（参照 Kite，全产品共用）
 
 > 日期：2026-10-07
-> 版本：v0.3
+> 版本：v0.4
 > 关联规范：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.3
 > 目标仓库：[HFwas/hfwas-devops](https://github.com/HFwas/hfwas-devops)（`frontend/`，默认分支 `dev`）
 > 目标：全站统一视觉与交互语言（token / 壳层 / 列表 / 详情 / 状态 / 日志终端），各业务模块共用，不限于容器
@@ -13,6 +13,7 @@
 | v0.1 | 2026-10-07 | 初版：分阶段里程碑、验收标准、模块铺开顺序与风险 |
 | v0.2 | 2026-10-07 | 锁定决策：主色 kite 冷蓝；全站立刻侧栏化；Cloud Agent 按阶段开 PR |
 | v0.3 | 2026-10-07 | 入库 `docs/frontend/`；关联规范改为 v0.3；标明 Phase 1 token 落点 |
+| v0.4 | 2026-10-07 | Phase 2：全站 AppShell 改为 inset 侧栏 + sticky 顶栏；下一步 Phase 3 共享模式组件 |
 
 ---
 
@@ -112,9 +113,9 @@
 
 **验收：**
 
-- [ ] 从侧栏进入 ≥4 个模块，壳层不错位、不换肤
-- [ ] 面包屑与当前路由一致
-- [ ] 移动端侧栏可折叠（或达可用最低标准）
+- [x] 从侧栏进入 ≥4 个模块，壳层不错位、不换肤
+- [x] 面包屑与当前路由一致
+- [x] 移动端侧栏可折叠（或达可用最低标准）
 
 ---
 
@@ -232,8 +233,9 @@
 ## 8. 执行状态
 
 1. ~~拍板~~ 已完成（冷蓝 + 全站侧栏 + Cloud Agent）。
-2. **本轮 PR：** Phase 0（规范 + Plan 入库）+ Phase 1（Design Token，落在 `frontend/src/styles/base.css` 与 `frontend/src/styles/themes/default.css`）。
-3. 随后：Phase 2 AppShell 全站侧栏 → Phase 3 共享组件 → …
+2. ~~Phase 0–1~~ 规范、Plan 与 Design Token 已在 `dev`（`frontend/src/styles/base.css`、`frontend/src/styles/themes/default.css`）。
+3. ~~Phase 2~~ 全站 `AppShell`：inset 侧栏、sticky 顶栏（`--header-height: 3.5rem`）、统一导航分组。登录跳转留在壳外。
+4. **下一步：Phase 3** 共享模式组件（DataTable、Status、PageHeader、DetailShell、LogPanel），不要在本阶段铺开业务页换皮。
 
 ---
 
