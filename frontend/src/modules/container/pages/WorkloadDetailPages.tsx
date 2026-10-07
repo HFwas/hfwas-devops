@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
+import { DetailShell } from '@/components/console/DetailShell'
+import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -52,7 +54,7 @@ function TabBar({ tabs, value, onChange }: { tabs: string[]; value: string; onCh
   )
 }
 
-function Field({ label, value }: { label: string; value?: string | number | null }) {
+function Field({ label, value }: { label: string; value?: ReactNode }) {
   return (
     <div className="flex flex-col gap-1 rounded-md border px-3 py-2">
       <span className="text-xs text-muted-foreground">{label}</span>
@@ -303,33 +305,53 @@ export function DeploymentDetailPage() {
   })
 
   return (
-    <div className="flex flex-col gap-4">
-      <BackTitle
-        to={`/container/clusters/${clusterId}/deployments`}
-        title={`${namespace}/${name}`}
-        extra={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled={restart.isPending} onClick={() => restart.mutate()}>
-              重启
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-destructive"
-              onClick={() => {
-                if (window.confirm(`删除 Deployment「${name}」？`)) remove.mutate()
-              }}
-            >
-              删除
-            </Button>
-          </div>
-        }
-      />
-      <TabBar tabs={['概览', '容器', '环境变量', '挂载卷', 'YAML']} value={tab} onChange={setTab} />
+    <DetailShell
+      leading={
+        <Button variant="ghost" size="sm" asChild>
+          <Link to={`/container/clusters/${clusterId}/deployments`}>返回</Link>
+        </Button>
+      }
+      title={`${namespace}/${name}`}
+      meta={
+        item ? (
+          <StatusIcon status={item.status} />
+        ) : query.isLoading ? (
+          '加载中…'
+        ) : query.isError ? (
+          '加载失败'
+        ) : null
+      }
+      actions={
+        <>
+          <Button variant="outline" size="sm" disabled={restart.isPending} onClick={() => restart.mutate()}>
+            重启
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive"
+            onClick={() => {
+              if (window.confirm(`删除 Deployment「${name}」？`)) remove.mutate()
+            }}
+          >
+            删除
+          </Button>
+        </>
+      }
+      tabs={[
+        { value: '概览', label: '概览' },
+        { value: '容器', label: '容器' },
+        { value: '环境变量', label: '环境变量' },
+        { value: '挂载卷', label: '挂载卷' },
+        { value: 'YAML', label: 'YAML' },
+      ]}
+      value={tab}
+      onValueChange={setTab}
+    >
       {tab === '概览' && item && (
         <div className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="状态" value={item.status} />
+            <Field label="状态" value={<StatusIcon status={item.status} />} />
             <Field label="就绪" value={`${item.readyReplicas}/${item.desiredReplicas}`} />
             <Field label="可用" value={item.availableReplicas} />
             <Field label="策略" value={item.strategy} />
@@ -403,7 +425,7 @@ export function DeploymentDetailPage() {
           save={(yaml) => deploymentApi.updateYaml(clusterId, namespace, name, yaml)}
         />
       )}
-    </div>
+    </DetailShell>
   )
 }
 

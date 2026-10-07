@@ -26,6 +26,7 @@ import {
   ServiceDetailPage,
   StatefulSetDetailPage,
 } from '@/modules/container/pages/WorkloadDetailPages'
+import { PipelineListPage } from '@/modules/pipeline/pages/PipelineListPage'
 import { ProjectListPage } from '@/pages/ProjectListPage'
 import { RouteScreen } from '@/pages/RouteScreen'
 import { WorkbenchPage } from '@/pages/WorkbenchPage'
@@ -59,6 +60,7 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="/workbench" replace /> },
           { path: 'workbench', element: <WorkbenchPage /> },
           { path: 'pm/projects', element: <ProjectListPage /> },
+          { path: 'pipeline/pipelines', element: <PipelineListPage /> },
           {
             path: 'container',
             element: <ContainerShell />,

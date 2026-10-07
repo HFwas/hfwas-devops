@@ -6,6 +6,8 @@ import { useForm } from 'react-hook-form'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { DataTable } from '@/components/console/DataTable'
+import { PageHeader } from '@/components/console/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -16,7 +18,6 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { clusterApi } from '@/modules/container/api/cluster'
 import { StatusBadge } from '@/modules/container/components/StatusBadge'
 import { useContainerCluster } from '@/modules/container/clusterStore'
@@ -85,79 +86,71 @@ export function ClusterListPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">集群纳管</h1>
-          <p className="text-sm text-muted-foreground">接入 kubeconfig，查看节点和工作负载。</p>
-        </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus />
-          接入集群
-        </Button>
-      </div>
-      {query.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
-      {query.isError && <p className="text-sm text-destructive">集群列表加载失败</p>}
-      {query.isSuccess && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>名称</TableHead>
-              <TableHead>别名</TableHead>
-              <TableHead>状态</TableHead>
-              <TableHead>版本</TableHead>
-              <TableHead>节点</TableHead>
-              <TableHead>Pod</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {records.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
-                  还没有集群
-                </TableCell>
-              </TableRow>
-            )}
-            {records.map((cluster) => (
-              <TableRow key={cluster.id}>
-                <TableCell className="font-medium">
-                  <Link
-                    className="text-primary hover:underline"
-                    to={`/container/clusters/${cluster.id}`}
-                    onClick={() => setCurrentId(cluster.id)}
-                  >
-                    {cluster.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{cluster.alias || '—'}</TableCell>
-                <TableCell>
-                  <StatusBadge status={cluster.status} />
-                </TableCell>
-                <TableCell>{cluster.version || '—'}</TableCell>
-                <TableCell>{cluster.nodeCount ?? '—'}</TableCell>
-                <TableCell>{cluster.podCount ?? '—'}</TableCell>
-                <TableCell className="space-x-1 text-right">
-                  <Button variant="ghost" size="sm" onClick={() => test.mutate(cluster.id)}>
-                    测试
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => {
-                      if (window.confirm(`删除集群「${cluster.alias || cluster.name}」？`)) {
-                        remove.mutate(cluster.id)
-                      }
-                    }}
-                  >
-                    删除
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      <PageHeader
+        title="集群纳管"
+        description="接入 kubeconfig，查看节点和工作负载。"
+        actions={
+          <Button onClick={() => setOpen(true)}>
+            <Plus />
+            接入集群
+          </Button>
+        }
+      />
+      <DataTable
+        columns={[
+          {
+            id: 'name',
+            header: '名称',
+            cell: (cluster) => (
+              <Link
+                className="font-medium text-primary hover:underline"
+                to={`/container/clusters/${cluster.id}`}
+                onClick={() => setCurrentId(cluster.id)}
+              >
+                {cluster.name}
+              </Link>
+            ),
+          },
+          { id: 'alias', header: '别名', cell: (cluster) => cluster.alias || '—' },
+          {
+            id: 'status',
+            header: '状态',
+            cell: (cluster) => <StatusBadge status={cluster.status} />,
+          },
+          { id: 'version', header: '版本', cell: (cluster) => cluster.version || '—' },
+          { id: 'nodes', header: '节点', cell: (cluster) => cluster.nodeCount ?? '—' },
+          { id: 'pods', header: 'Pod', cell: (cluster) => cluster.podCount ?? '—' },
+          {
+            id: 'actions',
+            header: <span className="sr-only">操作</span>,
+            className: 'text-right',
+            cell: (cluster) => (
+              <div className="flex justify-end gap-1">
+                <Button variant="ghost" size="sm" onClick={() => test.mutate(cluster.id)}>
+                  测试
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => {
+                    if (window.confirm(`删除集群「${cluster.alias || cluster.name}」？`)) {
+                      remove.mutate(cluster.id)
+                    }
+                  }}
+                >
+                  删除
+                </Button>
+              </div>
+            ),
+          },
+        ]}
+        data={records}
+        getRowId={(cluster) => cluster.id}
+        loading={query.isFetching}
+        error={query.isError ? '集群列表加载失败' : undefined}
+        empty="还没有集群"
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

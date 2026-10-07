@@ -1,7 +1,7 @@
 # 前端样式规范（参照 Kite，全产品共用）
 
 > 日期：2026-10-07
-> 版本：v0.3
+> 版本：v0.4
 > 来源参照：[kite-org/kite](https://github.com/kite-org/kite)（默认分支 `main`，许可证 Apache-2.0）
 > 适用范围：**hfwas-devops 全部前端产品面**（工作台、用户中心、PM、流水线/CI、容器平台、API 测试、文档生成、文件解析、图片处理等），不是容器模块专用规范
 > 原则：**学规范与模式，不整仓拷贝**；一套 token / 壳层 / 列表 / 详情 / 状态语义，各业务模块只换内容和数据
@@ -13,6 +13,7 @@
 | v0.1 | 2026-10-07 | 初版：从 kite `ui/` 提炼 token、壳层、表格、状态、详情 Tab、日志/终端规范 |
 | v0.2 | 2026-10-07 | 明确全产品共用；落地顺序改为全局壳与 token → 各业务模块；去掉「仅容器」表述 |
 | v0.3 | 2026-10-07 | 主色锁定为 kite 冷蓝 hue 235；全站侧栏化；Cloud Agent 分阶段落地 |
+| v0.4 | 2026-10-07 | 共享模式组件落在 `frontend/src/components/console/`，用法见 shared-ui-patterns |
 
 ---
 
@@ -108,15 +109,17 @@ button、input、label、badge、card、table、tabs / responsive-tabs、dialog�
 
 ### 3.2 建议抽成全站模式组件（不绑业务域）
 
-| 模式组件 | 用途 | 适用模块举例 |
-|----------|------|----------------|
-| `AppShell` | 侧栏 + sticky 顶栏 + 内容 inset | 全站 |
-| `PageHeader` | 标题 + 描述 + 主操作 | 全站列表/详情 |
-| `ResourceTable`（或 `DataTable`） | 紧凑表、工具栏、空态、加载态 | PM 事项、流水线、集群、API 定义… |
-| `StatusIcon` / 状态色约定 | Ready / Failed / Pending / Warning… | 流水线运行、Pod、事项状态、扫描结果 |
-| `DetailShell` + Tabs | 标题行 + 操作 + 多 Tab | 事项详情、流水线运行、工作负载、集合项… |
-| `LogPanel` / `TerminalPanel` | 底部抽屉、连接指示、等宽区 | 流水线日志、Pod 日志/终端、API 调试响应… |
-| `CodePane` | YAML / JSON / 脚本只读或编辑 | 流水线任务脚本、K8s YAML、API body |
+| 模式组件 | 落点 | 用途 | 适用模块举例 |
+|----------|------|------|----------------|
+| `AppShell` | `components/console/AppShell.tsx` | 侧栏 + sticky 顶栏 + 内容 inset | 全站 |
+| `PageHeader` | `components/console/PageHeader.tsx` | 标题 + 描述 + 主操作 | 全站列表/详情 |
+| `DataTable` | `components/console/DataTable.tsx` | 紧凑表、工具栏、空态、加载态 | PM 事项、流水线、集群、API 定义… |
+| `StatusIcon` | `components/console/StatusIcon.tsx`、`status.ts` | Ready / Failed / Pending / Warning… | 流水线运行、Pod、事项状态、扫描结果 |
+| `DetailShell` + Tabs | `components/console/DetailShell.tsx` | 标题行 + 操作 + 多 Tab | 事项详情、流水线运行、工作负载、集合项… |
+| `LogPanel` / `TerminalChrome` | `components/console/LogPanel.tsx` | 底部抽屉、连接指示、等宽区 | 流水线日志、Pod 日志/终端、API 调试响应… |
+| `CodePane` | 尚未抽取 | YAML / JSON / 脚本只读或编辑 | 流水线任务脚本、K8s YAML、API body |
+
+用法与试点见 [shared-ui-patterns.md](./shared-ui-patterns.md)。新页面禁止再写私有表格密度或状态色。
 
 业务模块**禁止**各自再造一套侧栏、表格密度或状态色。
 
