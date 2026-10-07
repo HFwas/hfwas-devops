@@ -1,11 +1,11 @@
-/* 流水线对齐控制台（工作台）视觉：渐变页底、卡片、磁贴、--wb-* 变量 */
+/* 流水线页只消费全站 token，不引用已废弃的 --wb-* 品牌色。 */
 
 .pl-page {
   min-height: calc(100vh - 98px);
   padding: 20px 24px 28px;
   background:
-    radial-gradient(1200px 320px at 8% -10%, rgba(64, 152, 252, 0.12), transparent 60%),
-    radial-gradient(900px 300px at 100% 0%, rgba(124, 58, 237, 0.1), transparent 60%);
+    radial-gradient(1200px 320px at 8% -10%, color-mix(in oklch, var(--primary) 12%, transparent), transparent 60%),
+    radial-gradient(900px 300px at 100% 0%, color-mix(in oklch, var(--primary) 8%, transparent), transparent 60%);
 }
 
 .pl-hero {
@@ -22,7 +22,7 @@
 
 .pl-back {
   margin: 0 0 4px -6px;
-  color: var(--wb-muted, #6b7280);
+  color: var(--muted-foreground);
 }
 
 .pl-hero-title {
@@ -35,7 +35,7 @@
 .pl-hero-desc {
   margin: 6px 0 0;
   font-size: 13px;
-  color: var(--wb-muted, #6b7280);
+  color: var(--muted-foreground);
 }
 
 .pl-hero-extra {
@@ -46,9 +46,9 @@
 }
 
 .pl-card.n-card {
-  background: var(--wb-card-bg, #fff);
-  border: 1px solid var(--wb-border, #e5e7eb);
-  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .pl-card-title {
@@ -60,7 +60,7 @@
 }
 
 .pl-card-title-icon {
-  color: var(--wb-muted, #6b7280);
+  color: var(--muted-foreground);
 }
 
 .pl-toolbar {
@@ -73,9 +73,9 @@
 
 .pl-table {
   overflow: hidden;
-  border: 1px solid var(--wb-border, #e5e7eb);
-  border-radius: 8px;
-  background: var(--wb-card-bg, #fff);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
 }
 
 .pl-name-link {
@@ -84,7 +84,7 @@
   background: transparent;
   font: inherit;
   font-weight: 600;
-  color: var(--wb-primary, #3370ff);
+  color: var(--primary);
   cursor: pointer;
 }
 
@@ -104,9 +104,9 @@
   flex-direction: column;
   gap: 10px;
   padding: 14px;
-  border: 1px solid var(--wb-border, #e5e7eb);
-  border-radius: 10px;
-  background: var(--wb-card-bg, #fff);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
   text-align: left;
   cursor: pointer;
   transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
@@ -114,7 +114,7 @@
 
 .pl-tile:hover {
   transform: translateY(-2px);
-  border-color: var(--wb-primary, #3370ff);
+  border-color: var(--primary);
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
 }
 
@@ -132,17 +132,17 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: var(--radius);
 }
 
-.pl-tile-icon.tone-blue { background: #eff6ff; color: #2563eb; }
+.pl-tile-icon.tone-blue { background: color-mix(in oklch, var(--primary) 14%, var(--background)); color: var(--primary); }
 .pl-tile-icon.tone-violet { background: #f5f3ff; color: #7c3aed; }
 .pl-tile-icon.tone-green { background: #ecfdf5; color: #059669; }
 .pl-tile-icon.tone-amber { background: #fffbeb; color: #d97706; }
 .pl-tile-icon.tone-cyan { background: #ecfeff; color: #0891b2; }
 .pl-tile-icon.tone-rose { background: #fff1f2; color: #e11d48; }
 
-.pl-tile-icon.tone-token { background: #eff6ff; color: #2563eb; }
+.pl-tile-icon.tone-token { background: color-mix(in oklch, var(--primary) 14%, var(--background)); color: var(--primary); }
 .pl-tile-icon.tone-password { background: #f5f3ff; color: #7c3aed; }
 .pl-tile-icon.tone-kubeconfig { background: #ecfdf5; color: #059669; }
 
@@ -168,7 +168,7 @@
   gap: 6px 10px;
   margin-top: 6px;
   font-size: 12px;
-  color: var(--wb-muted, #6b7280);
+  color: var(--muted-foreground);
 }
 
 .pl-tile-actions {
@@ -177,17 +177,17 @@
   gap: 8px;
   margin-top: auto;
   font-size: 12px;
-  color: var(--wb-muted, #6b7280);
+  color: var(--muted-foreground);
 }
 
 .pl-tile:hover .pl-tile-actions {
-  color: var(--wb-primary, #3370ff);
+  color: var(--primary);
 }
 
 .pl-hint {
   margin: 0;
   font-size: 12px;
-  color: var(--wb-muted, #6b7280);
+  color: var(--muted-foreground);
 }
 
 .pl-meta-grid {
@@ -202,13 +202,13 @@
   gap: 4px;
   min-width: 0;
   padding: 10px;
-  border-radius: 10px;
-  background: var(--wb-chip-bg, #f8fafc);
+  border-radius: var(--radius);
+  background: var(--muted);
 }
 
 .pl-meta-label {
   font-size: 12px;
-  color: var(--wb-muted, #6b7280);
+  color: var(--muted-foreground);
 }
 
 .pl-meta-value {
@@ -232,8 +232,8 @@
   overflow: auto;
   margin: 0;
   padding: 12px;
-  border-radius: 8px;
-  background: var(--wb-chip-bg, #f8fafc);
+  border-radius: var(--radius);
+  background: var(--muted);
   font-size: 12px;
   line-height: 1.55;
   white-space: pre-wrap;

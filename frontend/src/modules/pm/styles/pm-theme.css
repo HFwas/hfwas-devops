@@ -1,32 +1,28 @@
-/* PM 模块主题 — 全局 --wb-* 变量对齐，暗色跟随 */
-/* 背景色、边框色、文字色复用控制台体系，品牌色独立定义 */
+/* PM 模块只消费全站 token，不另起品牌色。亮暗跟随 .dark。 */
 
 .pm-theme {
-  --pm-bg: var(--wb-page-bg, #f5f7fb);
-  --pm-surface: var(--wb-card-bg, #ffffff);
-  --pm-surface-muted: var(--wb-chip-bg, #f8fafc);
-  --pm-border: var(--wb-border, #e5e7eb);
-  --pm-border-soft: var(--wb-border, #e5e7eb);
-  --pm-text: #1f2329;
-  --pm-text-secondary: var(--wb-muted, #6b7280);
-  --pm-text-muted: var(--wb-muted, #6b7280);
-  --pm-primary: #3370ff;
-  --pm-primary-hover: #245bdb;
-  --pm-primary-soft: #e8f0ff;
-  --pm-accent: #3370ff;
-  --pm-radius: 8px;
-  --pm-radius-sm: 6px;
-  --pm-shadow: 0 1px 2px rgba(31, 35, 41, 0.04);
+  --pm-bg: var(--background);
+  --pm-surface: var(--card);
+  --pm-surface-muted: var(--muted);
+  --pm-border: var(--border);
+  --pm-border-soft: var(--border);
+  --pm-text: var(--foreground);
+  --pm-text-secondary: var(--muted-foreground);
+  --pm-text-muted: var(--muted-foreground);
+  --pm-primary: var(--primary);
+  --pm-primary-hover: var(--primary);
+  --pm-primary-soft: var(--accent);
+  --pm-accent: var(--primary);
+  --pm-radius: var(--radius);
+  --pm-radius-sm: calc(var(--radius) - 2px);
+  --pm-shadow: 0 1px 2px oklch(0 0 0 / 4%);
   --pm-shadow-soft: none;
   color: var(--pm-text);
   background: var(--pm-bg);
 }
 
-/* 暗色主题覆盖 */
 html.dark .pm-theme {
-  --pm-text: #e4e7ed;
-  --pm-primary-soft: #1a2744;
-  --pm-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --pm-shadow: 0 1px 3px oklch(0 0 0 / 30%);
 }
 
 .pm-theme .pm-panel {
@@ -36,11 +32,11 @@ html.dark .pm-theme {
 }
 
 .pm-theme .n-data-table {
-  --n-merged-th-color: #fafbfc !important;
+  --n-merged-th-color: var(--muted) !important;
 }
 
 .pm-theme .n-data-table .n-data-table-th {
-  background: #fafbfc !important;
+  background: var(--muted) !important;
   color: var(--pm-text-secondary) !important;
   font-weight: 500;
   font-size: 13px;
@@ -56,7 +52,7 @@ html.dark .pm-theme {
 }
 
 .pm-theme .n-data-table .n-data-table-tr:hover .n-data-table-td {
-  background: #f7f8fa !important;
+  background: var(--accent) !important;
 }
 
 .pm-theme .n-button {
@@ -111,8 +107,8 @@ html.dark .pm-theme {
 .pm-pill--status-open,
 .pm-pill--status-todo,
 .pm-pill--status-default {
-  background: #e8f3ff;
-  color: #245bdb;
+  background: color-mix(in oklch, var(--primary) 14%, var(--background));
+  color: var(--primary);
 }
 
 .pm-pill--status-in_progress,
