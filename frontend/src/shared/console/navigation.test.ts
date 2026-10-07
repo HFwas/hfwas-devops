@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isContainerNavActive } from '@/modules/container/nav'
+import { CONTAINER_NAV_GROUPS, containerNavHref, isContainerNavActive } from '@/modules/container/nav'
 import { isMenuItemActive, menuForScope, resolveShellScope } from '@/shared/console/navigation'
 import { resolveBreadcrumbs } from '@/components/console/breadcrumbs'
 
@@ -80,14 +80,60 @@ describe('resolveBreadcrumbs', () => {
       { label: 'Pod', to: '/container/clusters/c1/pods' },
       { label: 'api' },
     ])
+    expect(resolveBreadcrumbs('/container/clusters/c1')).toEqual([
+      { label: '容器管理', to: '/container/clusters' },
+      { label: '概览' },
+    ])
+    expect(resolveBreadcrumbs('/container/clusters/c1/daemonsets')).toEqual([
+      { label: '容器管理', to: '/container/clusters' },
+      { label: 'DaemonSet' },
+    ])
+    expect(resolveBreadcrumbs('/container/helm/charts')).toEqual([
+      { label: '容器管理', to: '/container/clusters' },
+      { label: 'Helm Charts' },
+    ])
+  })
+})
+
+describe('container navigation groups', () => {
+  it('follows kite group order and keeps platform items', () => {
+    expect(CONTAINER_NAV_GROUPS.map((group) => group.label)).toEqual([
+      '概览',
+      '应用',
+      '工作负载',
+      '网络',
+      '存储',
+      '配置',
+      '安全',
+      '集群',
+      '平台',
+    ])
+    expect(CONTAINER_NAV_GROUPS.find((group) => group.key === 'workloads')?.items.map((item) => item.label)).toEqual([
+      'Pod',
+      'Deployment',
+      'StatefulSet',
+      'DaemonSet',
+      'Job',
+      'CronJob',
+    ])
+    expect(containerNavHref({ key: 'overview', label: '概览', icon: () => null, needsCluster: false }, 'c1')).toBe(
+      '/container/clusters/c1',
+    )
+    expect(containerNavHref({ key: 'overview', label: '概览', icon: () => null, needsCluster: false }, null)).toBe(
+      '/container/clusters',
+    )
   })
 })
 
 describe('isContainerNavActive', () => {
-  it('highlights the resource segment without highlighting 集群', () => {
-    expect(isContainerNavActive('/container/clusters/c1/nodes/node-a', { key: 'nodes', label: '节点', icon: () => null, suffix: '/nodes', needsCluster: true })).toBe(true)
-    expect(isContainerNavActive('/container/clusters/c1/nodes/node-a', { key: 'clusters', label: '集群', icon: () => null, to: '/container/clusters', needsCluster: false })).toBe(false)
-    expect(isContainerNavActive('/container/clusters/c1', { key: 'clusters', label: '集群', icon: () => null, to: '/container/clusters', needsCluster: false })).toBe(true)
+  it('highlights the resource segment without highlighting 集群管理', () => {
+    expect(isContainerNavActive('/container/clusters/c1/nodes/node-a', { key: 'nodes', label: 'Node', icon: () => null, suffix: '/nodes', needsCluster: true })).toBe(true)
+    expect(isContainerNavActive('/container/clusters/c1/nodes/node-a', { key: 'clusters', label: '集群管理', icon: () => null, to: '/container/clusters', needsCluster: false })).toBe(false)
+    expect(isContainerNavActive('/container/clusters/c1', { key: 'overview', label: '概览', icon: () => null, needsCluster: false })).toBe(true)
+    expect(isContainerNavActive('/container/clusters/c1', { key: 'clusters', label: '集群管理', icon: () => null, to: '/container/clusters', needsCluster: false })).toBe(false)
+    expect(isContainerNavActive('/container/clusters', { key: 'clusters', label: '集群管理', icon: () => null, to: '/container/clusters', needsCluster: false })).toBe(true)
+    expect(isContainerNavActive('/container/clusters/c1/cronjobs', { key: 'jobs', label: 'Job', icon: () => null, suffix: '/jobs', needsCluster: true })).toBe(false)
+    expect(isContainerNavActive('/container/helm/charts', { key: 'helm-releases', label: 'Helm Releases', icon: () => null, suffix: '/helm', needsCluster: true })).toBe(false)
     expect(isContainerNavActive('/container/images', { key: 'images', label: '镜像', icon: () => null, to: '/container/images', needsCluster: false })).toBe(true)
   })
 })

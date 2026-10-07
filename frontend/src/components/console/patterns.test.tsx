@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DataTable } from '@/components/console/DataTable'
 import { DetailShell } from '@/components/console/DetailShell'
 import { LogPanel } from '@/components/console/LogPanel'
+import { ResourceOverview } from '@/components/console/ResourceOverview'
 import { StatusIcon } from '@/components/console/StatusIcon'
 
 function mount(node: ReactNode) {
@@ -129,11 +130,33 @@ describe('shared console patterns', () => {
     expect(container.querySelector('header')?.className).toContain('h-10')
   })
 
+  it('lays out overview metrics beside the two columns', () => {
+    const view = mount(
+      <ResourceOverview metrics={[{ label: '状态', value: 'Available' }]} main={<p>pods</p>} side={<p>events</p>} />,
+    )
+    root = view.root
+    container = view.container
+    const overview = container.querySelector('[data-slot="resource-overview"]')
+    expect(overview?.textContent).toContain('状态')
+    expect(overview?.textContent).toContain('Available')
+    expect(overview?.textContent).toContain('pods')
+    expect(overview?.textContent).toContain('events')
+  })
+
   it('colors a status icon from the shared dictionary', () => {
     const view = mount(<StatusIcon status="Failed" />)
     root = view.root
     container = view.container
     expect(container.querySelector('svg')?.getAttribute('class')).toContain('text-red-500')
     expect(container.textContent).toContain('Failed')
+  })
+
+  it('draws a status dot with the same tone color', () => {
+    const view = mount(<StatusIcon variant="dot" status="Available" />)
+    root = view.root
+    container = view.container
+    expect(container.querySelector('svg')).toBeNull()
+    expect(container.querySelector('span.rounded-full')?.className).toContain('bg-green-500')
+    expect(container.textContent).toContain('Available')
   })
 })

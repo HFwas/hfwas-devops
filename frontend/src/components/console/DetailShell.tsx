@@ -7,8 +7,8 @@ export interface DetailTab {
 }
 
 /**
- * 详情壳：贴在顶栏下方的标题行（名称、元信息、h-8 操作）和同一套 Tab。
- * 各产品只换 Tab 内容。
+ * 详情壳：贴在顶栏下方的标题行（大号名称、次行说明、h-8 操作）和同一套 Tab。
+ * 各产品只换 Tab 内容。工作负载概览正文用 ResourceOverview。
  */
 export function DetailShell({
   title,
@@ -36,12 +36,12 @@ export function DetailShell({
   return (
     <div data-slot="detail-shell" className={cn('flex flex-col gap-4', className)}>
       <div className="sticky top-(--header-height) z-30 -mx-4 border-b bg-background/95 px-4 backdrop-blur lg:-mx-6 lg:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 py-2">
-          <div className="flex min-w-0 items-center gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-3 py-3">
+          <div className="flex min-w-0 items-start gap-2">
             {leading}
             <div className="min-w-0">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <h1 className="truncate text-lg font-semibold">{title}</h1>
+                <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
                 {meta ? <div className="text-sm text-muted-foreground">{meta}</div> : null}
               </div>
               {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}

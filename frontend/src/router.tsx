@@ -5,6 +5,8 @@ import { ContainerShell } from '@/modules/container/components/ContainerShell'
 import { ClusterDetailPage } from '@/modules/container/pages/ClusterDetailPage'
 import { ClusterListPage } from '@/modules/container/pages/ClusterListPage'
 import { ImageSearchPage } from '@/modules/container/pages/ImageSearchPage'
+import { NamespaceListPage } from '@/modules/container/pages/NamespaceListPage'
+import { ResourceStubPage } from '@/modules/container/pages/ResourceStubPage'
 import { RegistryDetailPage, RepoDetailPage, RepoListPage } from '@/modules/container/pages/RegistryDrillPages'
 import { RegistryListPage } from '@/modules/container/pages/RegistryListPage'
 import {
@@ -83,6 +85,24 @@ export const router = createBrowserRouter([
               { path: 'clusters/:clusterId/secrets', element: <SecretListPage /> },
               { path: 'clusters/:clusterId/pvcs', element: <PvcListPage /> },
               { path: 'clusters/:clusterId/storageclasses', element: <StorageClassListPage /> },
+              { path: 'clusters/:clusterId/daemonsets', element: <ResourceStubPage title="DaemonSet" /> },
+              { path: 'clusters/:clusterId/jobs', element: <ResourceStubPage title="Job" /> },
+              { path: 'clusters/:clusterId/cronjobs', element: <ResourceStubPage title="CronJob" /> },
+              { path: 'clusters/:clusterId/ingresses', element: <ResourceStubPage title="Ingress" /> },
+              { path: 'clusters/:clusterId/networkpolicies', element: <ResourceStubPage title="NetworkPolicy" /> },
+              { path: 'clusters/:clusterId/pvs', element: <ResourceStubPage title="PV" /> },
+              { path: 'clusters/:clusterId/hpa', element: <ResourceStubPage title="HPA" /> },
+              { path: 'clusters/:clusterId/pdb', element: <ResourceStubPage title="PDB" /> },
+              { path: 'clusters/:clusterId/serviceaccounts', element: <ResourceStubPage title="ServiceAccount" /> },
+              { path: 'clusters/:clusterId/roles', element: <ResourceStubPage title="Role" /> },
+              { path: 'clusters/:clusterId/rolebindings', element: <ResourceStubPage title="RoleBinding" /> },
+              { path: 'clusters/:clusterId/clusterroles', element: <ResourceStubPage title="ClusterRole" /> },
+              { path: 'clusters/:clusterId/clusterrolebindings', element: <ResourceStubPage title="ClusterRoleBinding" /> },
+              { path: 'clusters/:clusterId/namespaces', element: <NamespaceListPage /> },
+              { path: 'clusters/:clusterId/events', element: <ResourceStubPage title="Event" /> },
+              { path: 'clusters/:clusterId/crds', element: <ResourceStubPage title="CRD" /> },
+              { path: 'clusters/:clusterId/helm', element: <ResourceStubPage title="Helm Releases" /> },
+              { path: 'helm/charts', element: <ResourceStubPage title="Helm Charts" /> },
               { path: 'registries', element: <RegistryListPage /> },
               { path: 'registries/:registryId', element: <RegistryDetailPage /> },
               { path: 'registries/:registryId/projects/:project/repos', element: <RepoListPage /> },

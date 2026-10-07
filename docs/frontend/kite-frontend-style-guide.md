@@ -1,7 +1,7 @@
 # 前端样式规范（参照 Kite，全产品共用）
 
 > 日期：2026-10-07
-> 版本：v0.4
+> 版本：v0.5
 > 来源参照：[kite-org/kite](https://github.com/kite-org/kite)（默认分支 `main`，许可证 Apache-2.0）
 > 适用范围：**hfwas-devops 全部前端产品面**（工作台、用户中心、PM、流水线/CI、容器平台、API 测试、文档生成、文件解析、图片处理等），不是容器模块专用规范
 > 原则：**学规范与模式，不整仓拷贝**；一套 token / 壳层 / 列表 / 详情 / 状态语义，各业务模块只换内容和数据
@@ -14,6 +14,7 @@
 | v0.2 | 2026-10-07 | 明确全产品共用；落地顺序改为全局壳与 token → 各业务模块；去掉「仅容器」表述 |
 | v0.3 | 2026-10-07 | 主色锁定为 kite 冷蓝 hue 235；全站侧栏化；Cloud Agent 分阶段落地 |
 | v0.4 | 2026-10-07 | 共享模式组件落在 `frontend/src/components/console/`，用法见 shared-ui-patterns |
+| v0.5 | 2026-10-07 | 工作负载概览补指标卡和左右栏；状态可用同色圆点 |
 
 ---
 
@@ -161,14 +162,14 @@ Tab **类型**按模块填充，壳不变。示例：
 
 | 模块 | Tab 示例（内容可变，壳相同） |
 |------|------------------------------|
-| 容器 / 工作负载 | Overview、Pods、YAML、Logs、Terminal、Events、Monitor… |
+| 容器 / 工作负载 | Overview、Pods、Containers、YAML、Logs、Terminal、Volumes、Related、History、Events、Monitor。概览正文是指标卡加左右两栏 |
 | 流水线运行 | Overview、Jobs、Logs、Artifacts、Params… |
 | PM 事项 | Overview、Activity、Comments、Links、History… |
 | API 定义 / 调试 | Request、Response、Tests、History… |
 
 ### 4.4 状态语义色（全站字典）
 
-用 Tailwind 语义色 + 图标，**各模块映射到同一字典**，不要 PM 一套绿、容器另一套绿。
+用 Tailwind 语义色 + 图标，**各模块映射到同一字典**，不要 PM 一套绿、容器另一套绿。概览卡可以用同色圆点（`StatusIcon variant="dot"`），不换另一套色。
 
 | 语义 | 典型样式 | 映射举例 |
 |------|----------|----------|

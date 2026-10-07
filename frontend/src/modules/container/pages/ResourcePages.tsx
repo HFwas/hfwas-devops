@@ -25,7 +25,7 @@ export function NodeListPage() {
     enabled: !!clusterId,
   })
   return (
-    <ResourceFrame title="节点" keyword={keyword} onKeyword={setKeyword} loading={query.isLoading} error={query.isError}>
+    <ResourceFrame title="Node" keyword={keyword} onKeyword={setKeyword} loading={query.isLoading} error={query.isError}>
       <Table>
         <TableHeader>
           <TableRow>

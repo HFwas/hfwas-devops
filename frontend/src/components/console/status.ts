@@ -38,6 +38,17 @@ export const STATUS_TONE_CLASS: Record<StatusTone, string> = {
   neutral: 'text-muted-foreground',
 }
 
+/** 圆点与图标共用同一套语义色。 */
+export const STATUS_DOT_CLASS: Record<StatusTone, string> = {
+  success: 'bg-green-500 dark:bg-green-400',
+  failed: 'bg-red-500 dark:bg-red-400',
+  warning: 'bg-yellow-500 dark:bg-yellow-400',
+  progress: 'bg-blue-500 dark:bg-blue-400',
+  terminating: 'bg-orange-500 dark:bg-orange-400',
+  paused: 'bg-purple-500 dark:bg-purple-400',
+  neutral: 'bg-muted-foreground',
+}
+
 const ALIAS: Record<string, StatusTone> = {
   ready: 'success',
   succeeded: 'success',
@@ -49,6 +60,7 @@ const ALIAS: Record<string, StatusTone> = {
   connected: 'success',
   bound: 'success',
   active: 'success',
+  available: 'success',
   healthy: 'success',
   complete: 'success',
   completed: 'success',
