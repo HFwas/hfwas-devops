@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
+import { DataTable } from '@/components/console/DataTable'
+import { PageHeader } from '@/components/console/PageHeader'
 import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { imageApi } from '@/modules/container/api/image'
 import { repoPath } from '@/modules/container/pages/RegistryDrillPages'
+import type { ImageSearchVO } from '@/modules/container/types/registry'
 
 export function ImageSearchPage() {
   const [keyword, setKeyword] = useState('')
@@ -16,48 +18,44 @@ export function ImageSearchPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">镜像</h1>
-          <p className="text-sm text-muted-foreground">在已接入的仓库中搜索镜像。</p>
-        </div>
-        <Input
-          value={keyword}
-          onChange={(event) => setKeyword(event.target.value)}
-          placeholder="搜索镜像名"
-          className="max-w-xs"
-        />
-      </div>
-      {query.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
-      {query.isError && <p className="text-sm text-destructive">镜像搜索失败</p>}
-      {query.isSuccess && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>仓库</TableHead>
-              <TableHead>项目</TableHead>
-              <TableHead>镜像</TableHead>
-              <TableHead>制品数</TableHead>
-              <TableHead>拉取次数</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {records.map((item) => (
-              <TableRow key={`${item.registryId}/${item.projectName}/${item.repoName}`}>
-                <TableCell>{item.registryName}</TableCell>
-                <TableCell>{item.projectName}</TableCell>
-                <TableCell className="font-medium">
-                  <Link className="text-primary hover:underline" to={repoPath(item.registryId, item.projectName, item.repoName)}>
-                    {item.repoName}
-                  </Link>
-                </TableCell>
-                <TableCell>{item.artifactCount}</TableCell>
-                <TableCell>{item.pullCount}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      <PageHeader
+        title="镜像"
+        description={query.isSuccess ? `共 ${query.data?.total ?? records.length} 个镜像` : '在已接入的仓库中搜索镜像。'}
+        actions={
+          <Input
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            placeholder="搜索镜像名"
+            aria-label="搜索镜像"
+            className="h-8 w-56"
+          />
+        }
+      />
+      <DataTable<ImageSearchVO>
+        columns={[
+          { id: 'registry', header: '仓库', cell: (item) => item.registryName },
+          { id: 'project', header: '项目', cell: (item) => item.projectName },
+          {
+            id: 'repo',
+            header: '镜像',
+            cell: (item) => (
+              <Link
+                className="font-medium text-primary hover:underline"
+                to={repoPath(item.registryId, item.projectName, item.repoName)}
+              >
+                {item.repoName}
+              </Link>
+            ),
+          },
+          { id: 'artifacts', header: '制品数', cell: (item) => String(item.artifactCount) },
+          { id: 'pulls', header: '拉取次数', cell: (item) => String(item.pullCount) },
+        ]}
+        data={records}
+        getRowId={(item) => `${item.registryId}/${item.projectName}/${item.repoName}`}
+        loading={query.isFetching}
+        error={query.isError ? '镜像搜索失败' : undefined}
+        empty="没有匹配的镜像"
+      />
     </div>
   )
 }

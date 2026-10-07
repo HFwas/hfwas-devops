@@ -1,10 +1,9 @@
 import { useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
-import { DataTable } from '@/components/console/DataTable'
+import { DataTable, type DataTableColumn } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
 import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { configMapApi } from '@/modules/container/api/configmap'
 import { deploymentApi } from '@/modules/container/api/deployment'
 import { nodeApi } from '@/modules/container/api/node'
@@ -16,8 +15,70 @@ import { statefulSetApi } from '@/modules/container/api/statefulset'
 import { storageClassApi } from '@/modules/container/api/storageClass'
 import { useContainerCluster } from '@/modules/container/clusterStore'
 import { StatusBadge } from '@/modules/container/components/StatusBadge'
+import type { NodeSummary, PodSummary, StorageClassSummary } from '@/modules/container/types/resource'
 import { formatBytes } from '@/modules/container/utils/format'
-import type { PodSummary } from '@/modules/container/types/resource'
+
+function KeywordInput({
+  value,
+  onChange,
+  label,
+}: {
+  value: string
+  onChange: (value: string) => void
+  label: string
+}) {
+  return (
+    <Input
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder="搜索名称"
+      aria-label={label}
+      className="h-8 w-56"
+    />
+  )
+}
+
+function ResourceList<T>({
+  title,
+  description,
+  keyword,
+  onKeyword,
+  columns,
+  rows,
+  getRowId,
+  loading,
+  error,
+}: {
+  title: string
+  description?: string
+  keyword?: string
+  onKeyword?: (value: string) => void
+  columns: DataTableColumn<T>[]
+  rows: T[]
+  getRowId: (row: T) => string
+  loading: boolean
+  error?: string
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title={title}
+        description={description}
+        actions={onKeyword ? <KeywordInput value={keyword ?? ''} onChange={onKeyword} label={`搜索${title}`} /> : undefined}
+      />
+      <DataTable columns={columns} data={rows} getRowId={getRowId} loading={loading} error={error} empty={`没有匹配的${title}`} />
+    </div>
+  )
+}
+
+function nameLink(label: ReactNode, to?: string) {
+  if (!to) return <span className="font-medium">{label}</span>
+  return (
+    <Link className="font-medium text-primary hover:underline" to={to}>
+      {label}
+    </Link>
+  )
+}
 
 export function NodeListPage() {
   const { clusterId = '' } = useParams()
@@ -27,39 +88,32 @@ export function NodeListPage() {
     queryFn: () => nodeApi.list(clusterId, keyword || undefined),
     enabled: !!clusterId,
   })
+  const rows = query.data ?? []
+
   return (
-    <ResourceFrame title="节点" keyword={keyword} onKeyword={setKeyword} loading={query.isLoading} error={query.isError}>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>名称</TableHead>
-            <TableHead>状态</TableHead>
-            <TableHead>角色</TableHead>
-            <TableHead>CPU</TableHead>
-            <TableHead>内存</TableHead>
-            <TableHead>Pod</TableHead>
-            <TableHead>运行时</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-            {(query.data ?? []).map((node) => (
-            <TableRow key={node.name}>
-              <TableCell className="font-medium">
-                <Link className="text-primary hover:underline" to={`/container/clusters/${clusterId}/nodes/${encodeURIComponent(node.name)}`}>
-                  {node.name}
-                </Link>
-              </TableCell>
-              <TableCell><StatusBadge status={node.status} /></TableCell>
-              <TableCell>{node.role}</TableCell>
-              <TableCell>{node.cpuCapacity}</TableCell>
-              <TableCell>{formatBytes(node.memoryCapacity)}</TableCell>
-              <TableCell>{node.podCount}</TableCell>
-              <TableCell>{node.containerRuntime || '—'}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </ResourceFrame>
+    <ResourceList<NodeSummary>
+      title="节点"
+      description={query.isSuccess ? `共 ${rows.length} 个节点` : '查看节点容量与状态'}
+      keyword={keyword}
+      onKeyword={setKeyword}
+      columns={[
+        {
+          id: 'name',
+          header: '名称',
+          cell: (node) => nameLink(node.name, `/container/clusters/${clusterId}/nodes/${encodeURIComponent(node.name)}`),
+        },
+        { id: 'status', header: '状态', cell: (node) => <StatusBadge status={node.status} /> },
+        { id: 'role', header: '角色', cell: (node) => node.role },
+        { id: 'cpu', header: 'CPU', cell: (node) => String(node.cpuCapacity) },
+        { id: 'memory', header: '内存', cell: (node) => formatBytes(node.memoryCapacity) },
+        { id: 'pods', header: 'Pod', cell: (node) => String(node.podCount) },
+        { id: 'runtime', header: '运行时', cell: (node) => node.containerRuntime || '—' },
+      ]}
+      rows={rows}
+      getRowId={(node) => node.name}
+      loading={query.isFetching}
+      error={query.isError ? '节点列表加载失败' : undefined}
+    />
   )
 }
 
@@ -76,52 +130,30 @@ export function PodListPage() {
   const scope = namespace ? `命名空间 ${namespace}` : '全部命名空间'
 
   return (
-    <div className="flex flex-col gap-4">
-      <PageHeader
-        title="Pod"
-        description={query.isSuccess ? `${scope} · 共 ${query.data?.total ?? rows.length} 个` : scope}
-        actions={
-          <Input
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-            placeholder="搜索名称"
-            aria-label="搜索 Pod"
-            className="h-8 w-56"
-          />
-        }
-      />
-      <DataTable<PodSummary>
-        columns={[
-          {
-            id: 'name',
-            header: '名称',
-            cell: (pod) => (
-              <Link
-                className="font-medium text-primary hover:underline"
-                to={`/container/clusters/${clusterId}/pods/${pod.namespace}/${encodeURIComponent(pod.name)}`}
-              >
-                {pod.name}
-              </Link>
-            ),
-          },
-          { id: 'namespace', header: '命名空间', cell: (pod) => pod.namespace },
-          { id: 'status', header: '状态', cell: (pod) => <StatusBadge status={pod.status} /> },
-          { id: 'node', header: '节点', cell: (pod) => pod.nodeName || '—' },
-          { id: 'ip', header: 'IP', cell: (pod) => pod.podIP || '—' },
-          {
-            id: 'ready',
-            header: '就绪',
-            cell: (pod) => `${pod.readyContainers}/${pod.containerCount}`,
-          },
-          { id: 'restarts', header: '重启', cell: (pod) => String(pod.restarts) },
-        ]}
-        data={rows}
-        getRowId={(pod) => `${pod.namespace}/${pod.name}`}
-        loading={query.isFetching}
-        error={query.isError ? 'Pod 列表加载失败' : undefined}
-        empty="没有匹配的 Pod"
-      />
-    </div>
+    <ResourceList<PodSummary>
+      title="Pod"
+      description={query.isSuccess ? `${scope} · 共 ${query.data?.total ?? rows.length} 个` : scope}
+      keyword={keyword}
+      onKeyword={setKeyword}
+      columns={[
+        {
+          id: 'name',
+          header: '名称',
+          cell: (pod) =>
+            nameLink(pod.name, `/container/clusters/${clusterId}/pods/${pod.namespace}/${encodeURIComponent(pod.name)}`),
+        },
+        { id: 'namespace', header: '命名空间', cell: (pod) => pod.namespace },
+        { id: 'status', header: '状态', cell: (pod) => <StatusBadge status={pod.status} /> },
+        { id: 'node', header: '节点', cell: (pod) => pod.nodeName || '—' },
+        { id: 'ip', header: 'IP', cell: (pod) => pod.podIP || '—' },
+        { id: 'ready', header: '就绪', cell: (pod) => `${pod.readyContainers}/${pod.containerCount}` },
+        { id: 'restarts', header: '重启', cell: (pod) => String(pod.restarts) },
+      ]}
+      rows={rows}
+      getRowId={(pod) => `${pod.namespace}/${pod.name}`}
+      loading={query.isFetching}
+      error={query.isError ? 'Pod 列表加载失败' : undefined}
+    />
   )
 }
 
@@ -131,13 +163,16 @@ export function DeploymentListPage() {
       title="Deployment"
       queryKey="container-deployments"
       load={(clusterId, namespace, keyword) => deploymentApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
-      headers={['名称', '命名空间', '就绪', '策略']}
-      to={(clusterId, item) => `/container/clusters/${clusterId}/deployments/${item.namespace}/${encodeURIComponent(item.name)}`}
-      render={(item) => [
-        item.name,
-        item.namespace,
-        `${item.readyReplicas}/${item.desiredReplicas}`,
-        item.strategy || '—',
+      columns={(clusterId) => [
+        {
+          id: 'name',
+          header: '名称',
+          cell: (item) =>
+            nameLink(item.name, `/container/clusters/${clusterId}/deployments/${item.namespace}/${encodeURIComponent(item.name)}`),
+        },
+        { id: 'namespace', header: '命名空间', cell: (item) => item.namespace },
+        { id: 'ready', header: '就绪', cell: (item) => `${item.readyReplicas}/${item.desiredReplicas}` },
+        { id: 'strategy', header: '策略', cell: (item) => item.strategy || '—' },
       ]}
     />
   )
@@ -149,13 +184,19 @@ export function StatefulSetListPage() {
       title="StatefulSet"
       queryKey="container-statefulsets"
       load={(clusterId, namespace, keyword) => statefulSetApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
-      headers={['名称', '命名空间', '就绪', 'Service']}
-      to={(clusterId, item) => `/container/clusters/${clusterId}/statefulsets/${item.namespace}/${encodeURIComponent(item.name)}`}
-      render={(item) => [
-        item.name,
-        item.namespace,
-        `${item.readyReplicas}/${item.desiredReplicas}`,
-        item.serviceName || '—',
+      columns={(clusterId) => [
+        {
+          id: 'name',
+          header: '名称',
+          cell: (item) =>
+            nameLink(
+              item.name,
+              `/container/clusters/${clusterId}/statefulsets/${item.namespace}/${encodeURIComponent(item.name)}`,
+            ),
+        },
+        { id: 'namespace', header: '命名空间', cell: (item) => item.namespace },
+        { id: 'ready', header: '就绪', cell: (item) => `${item.readyReplicas}/${item.desiredReplicas}` },
+        { id: 'service', header: 'Service', cell: (item) => item.serviceName || '—' },
       ]}
     />
   )
@@ -167,9 +208,18 @@ export function ServiceListPage() {
       title="Service"
       queryKey="container-services"
       load={(clusterId, namespace, keyword) => serviceApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
-      headers={['名称', '命名空间', '类型', 'ClusterIP', '端口数']}
-      to={(clusterId, item) => `/container/clusters/${clusterId}/services/${item.namespace}/${encodeURIComponent(item.name)}`}
-      render={(item) => [item.name, item.namespace, item.type, item.clusterIP, String(item.portCount)]}
+      columns={(clusterId) => [
+        {
+          id: 'name',
+          header: '名称',
+          cell: (item) =>
+            nameLink(item.name, `/container/clusters/${clusterId}/services/${item.namespace}/${encodeURIComponent(item.name)}`),
+        },
+        { id: 'namespace', header: '命名空间', cell: (item) => item.namespace },
+        { id: 'type', header: '类型', cell: (item) => item.type },
+        { id: 'ip', header: 'ClusterIP', cell: (item) => item.clusterIP },
+        { id: 'ports', header: '端口数', cell: (item) => String(item.portCount) },
+      ]}
     />
   )
 }
@@ -180,9 +230,16 @@ export function ConfigMapListPage() {
       title="ConfigMap"
       queryKey="container-configmaps"
       load={(clusterId, namespace, keyword) => configMapApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
-      headers={['名称', '命名空间', '数据条数']}
-      to={(clusterId, item) => `/container/clusters/${clusterId}/configmaps/${item.namespace}/${encodeURIComponent(item.name)}`}
-      render={(item) => [item.name, item.namespace, String(item.dataCount)]}
+      columns={(clusterId) => [
+        {
+          id: 'name',
+          header: '名称',
+          cell: (item) =>
+            nameLink(item.name, `/container/clusters/${clusterId}/configmaps/${item.namespace}/${encodeURIComponent(item.name)}`),
+        },
+        { id: 'namespace', header: '命名空间', cell: (item) => item.namespace },
+        { id: 'count', header: '数据条数', cell: (item) => String(item.dataCount) },
+      ]}
     />
   )
 }
@@ -193,8 +250,12 @@ export function SecretListPage() {
       title="Secret"
       queryKey="container-secrets"
       load={(clusterId, namespace, keyword) => secretApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
-      headers={['名称', '命名空间', '类型', '数据条数']}
-      render={(item) => [item.name, item.namespace, item.type || '—', String(item.dataCount)]}
+      columns={() => [
+        { id: 'name', header: '名称', cell: (item) => <span className="font-medium">{item.name}</span> },
+        { id: 'namespace', header: '命名空间', cell: (item) => item.namespace },
+        { id: 'type', header: '类型', cell: (item) => item.type || '—' },
+        { id: 'count', header: '数据条数', cell: (item) => String(item.dataCount) },
+      ]}
     />
   )
 }
@@ -205,13 +266,12 @@ export function PvcListPage() {
       title="PVC"
       queryKey="container-pvcs"
       load={(clusterId, namespace, keyword) => pvcApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
-      headers={['名称', '命名空间', '状态', '容量', 'StorageClass']}
-      render={(item) => [
-        item.name,
-        item.namespace,
-        <StatusBadge key="s" status={item.status} />,
-        item.capacity || '—',
-        item.storageClass || '—',
+      columns={() => [
+        { id: 'name', header: '名称', cell: (item) => <span className="font-medium">{item.name}</span> },
+        { id: 'namespace', header: '命名空间', cell: (item) => item.namespace },
+        { id: 'status', header: '状态', cell: (item) => <StatusBadge status={item.status} /> },
+        { id: 'capacity', header: '容量', cell: (item) => item.capacity || '—' },
+        { id: 'class', header: 'StorageClass', cell: (item) => item.storageClass || '—' },
       ]}
     />
   )
@@ -224,29 +284,23 @@ export function StorageClassListPage() {
     queryFn: () => storageClassApi.list(clusterId),
     enabled: !!clusterId,
   })
+  const rows = query.data ?? []
+
   return (
-    <ResourceFrame title="StorageClass" loading={query.isLoading} error={query.isError}>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>名称</TableHead>
-            <TableHead>Provisioner</TableHead>
-            <TableHead>回收策略</TableHead>
-            <TableHead>绑定模式</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {(query.data ?? []).map((item) => (
-            <TableRow key={item.name}>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              <TableCell>{item.provisioner || '—'}</TableCell>
-              <TableCell>{item.reclaimPolicy || '—'}</TableCell>
-              <TableCell>{item.volumeBindingMode || '—'}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </ResourceFrame>
+    <ResourceList<StorageClassSummary>
+      title="StorageClass"
+      description={query.isSuccess ? `共 ${rows.length} 个存储类` : '集群存储类'}
+      columns={[
+        { id: 'name', header: '名称', cell: (item) => <span className="font-medium">{item.name}</span> },
+        { id: 'provisioner', header: 'Provisioner', cell: (item) => item.provisioner || '—' },
+        { id: 'reclaim', header: '回收策略', cell: (item) => item.reclaimPolicy || '—' },
+        { id: 'binding', header: '绑定模式', cell: (item) => item.volumeBindingMode || '—' },
+      ]}
+      rows={rows}
+      getRowId={(item) => item.name}
+      loading={query.isFetching}
+      error={query.isError ? 'StorageClass 列表加载失败' : undefined}
+    />
   )
 }
 
@@ -254,16 +308,12 @@ function PagedList<T extends { name: string; namespace: string }>({
   title,
   queryKey,
   load,
-  headers,
-  render,
-  to,
+  columns,
 }: {
   title: string
   queryKey: string
-  load: (clusterId: string, namespace: string | undefined, keyword: string | undefined) => Promise<{ records: T[] }>
-  headers: string[]
-  render: (item: T) => Array<string | ReactNode>
-  to?: (clusterId: string, item: T) => string
+  load: (clusterId: string, namespace: string | undefined, keyword: string | undefined) => Promise<{ records: T[]; total?: number | string }>
+  columns: (clusterId: string) => DataTableColumn<T>[]
 }) {
   const { clusterId = '' } = useParams()
   const namespace = useContainerCluster((s) => s.namespace)
@@ -274,69 +324,19 @@ function PagedList<T extends { name: string; namespace: string }>({
     enabled: !!clusterId,
   })
   const records = query.data?.records ?? []
-  return (
-    <ResourceFrame title={title} keyword={keyword} onKeyword={setKeyword} loading={query.isLoading} error={query.isError}>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {headers.map((header) => (
-              <TableHead key={header}>{header}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {records.map((item) => (
-            <TableRow key={`${item.namespace}/${item.name}`}>
-              {render(item).map((cell, index) => (
-                <TableCell key={headers[index]} className={index === 0 ? 'font-medium' : undefined}>
-                  {index === 0 && to ? (
-                    <Link className="text-primary hover:underline" to={to(clusterId, item)}>
-                      {cell}
-                    </Link>
-                  ) : (
-                    cell
-                  )}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </ResourceFrame>
-  )
-}
+  const scope = namespace ? `命名空间 ${namespace}` : '全部命名空间'
 
-function ResourceFrame({
-  title,
-  keyword,
-  onKeyword,
-  loading,
-  error,
-  children,
-}: {
-  title: string
-  keyword?: string
-  onKeyword?: (value: string) => void
-  loading: boolean
-  error: boolean
-  children: ReactNode
-}) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{title}</h1>
-        {onKeyword && (
-          <Input
-            value={keyword}
-            onChange={(event) => onKeyword(event.target.value)}
-            placeholder="搜索名称"
-            className="max-w-xs"
-          />
-        )}
-      </div>
-      {loading && <p className="text-sm text-muted-foreground">加载中…</p>}
-      {error && <p className="text-sm text-destructive">{title}加载失败</p>}
-      {!loading && !error && children}
-    </div>
+    <ResourceList
+      title={title}
+      description={query.isSuccess ? `${scope} · 共 ${query.data?.total ?? records.length} 个` : scope}
+      keyword={keyword}
+      onKeyword={setKeyword}
+      columns={columns(clusterId)}
+      rows={records}
+      getRowId={(item) => `${item.namespace}/${item.name}`}
+      loading={query.isFetching}
+      error={query.isError ? `${title}列表加载失败` : undefined}
+    />
   )
 }
