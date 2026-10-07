@@ -1,43 +1,65 @@
 import { describe, expect, it } from 'vitest'
-import { resolveBreadcrumbs } from '@/components/console/breadcrumbs'
 import { isContainerNavActive } from '@/modules/container/nav'
-import { buildNavGroups, isNavItemActive } from '@/shared/console/navigation'
+import { isMenuItemActive, menuForScope, resolveShellScope } from '@/shared/console/navigation'
+import { resolveBreadcrumbs } from '@/components/console/breadcrumbs'
 
-describe('buildNavGroups', () => {
-  it('keeps workbench, user center, and product modules in one model', () => {
-    const labels = buildNavGroups({ isAdmin: true }).map((group) => group.label)
-    expect(labels).toEqual(['平台', '用户中心', '研发协同', '质量保障', '效率工具', '基础设施', '安全治理'])
-
-    const items = buildNavGroups({ isAdmin: true }).flatMap((group) => group.items.map((item) => item.label))
-    expect(items).toEqual(
-      expect.arrayContaining(['工作台', '用户管理', '账号设置', '项目管理', '流水线', '容器管理', '接口测试']),
-    )
-  })
-
-  it('hides user management from non-admins', () => {
-    const user = buildNavGroups({ isAdmin: false }).find((group) => group.key === 'user')
-    expect(user?.items.map((item) => item.key)).toEqual(['user-settings'])
+describe('resolveShellScope', () => {
+  it('keeps workbench, user center, and each product separate', () => {
+    expect(resolveShellScope('/workbench')).toBe('workbench')
+    expect(resolveShellScope('/user/accounts')).toBe('user')
+    expect(resolveShellScope('/pm/projects/12/items/task')).toBe('pm')
+    expect(resolveShellScope('/pipeline/credentials')).toBe('pipeline')
+    expect(resolveShellScope('/container/clusters/c1/pods')).toBe('container')
+    expect(resolveShellScope('/api-test/collections')).toBe('api-test')
   })
 })
 
-describe('isNavItemActive', () => {
-  const groups = buildNavGroups({ isAdmin: true })
-  const item = (key: string) => groups.flatMap((group) => group.items).find((entry) => entry.key === key)!
-
-  it('activates a product across its child routes', () => {
-    expect(isNavItemActive('/pipeline/credentials', item('pipeline'))).toBe(true)
-    expect(isNavItemActive('/pm/projects/12/items/task', item('pm'))).toBe(true)
-    expect(isNavItemActive('/api-test', item('api-test'))).toBe(true)
-    expect(isNavItemActive('/container/clusters/c1/pods', item('container'))).toBe(true)
+describe('menuForScope', () => {
+  it('shows only the current product menu', () => {
+    expect(menuForScope('pm', { isAdmin: true }).flatMap((group) => group.items.map((item) => item.label))).toEqual([
+      '项目',
+      '项目监控',
+    ])
+    expect(menuForScope('pipeline', { isAdmin: true }).flatMap((group) => group.items.map((item) => item.label))).toEqual([
+      '流水线',
+      '任务市场',
+      '凭证',
+    ])
+    expect(menuForScope('api-test', { isAdmin: false }).flatMap((group) => group.items.map((item) => item.label))).toEqual([
+      '接口',
+      '集合',
+      '环境',
+    ])
+    expect(menuForScope('workbench', { isAdmin: true }).flatMap((group) => group.items.map((item) => item.label))).toEqual([
+      '工作台',
+    ])
   })
 
-  it('does not mark coming-soon items active', () => {
-    expect(isNavItemActive('/artifact/overview', item('artifact'))).toBe(false)
+  it('hides user management from non-admins', () => {
+    expect(menuForScope('user', { isAdmin: false }).flatMap((group) => group.items.map((item) => item.key))).toEqual([
+      'settings',
+    ])
+    expect(menuForScope('user', { isAdmin: true }).flatMap((group) => group.items.map((item) => item.key))).toEqual([
+      'accounts',
+      'settings',
+    ])
   })
+})
 
-  it('matches workbench only on its own path', () => {
-    expect(isNavItemActive('/workbench', item('workbench'))).toBe(true)
-    expect(isNavItemActive('/workbench/extra', item('workbench'))).toBe(false)
+describe('isMenuItemActive', () => {
+  const item = (scope: string, key: string) =>
+    menuForScope(scope, { isAdmin: true })
+      .flatMap((group) => group.items)
+      .find((entry) => entry.key === key)!
+
+  it('highlights the section inside the product', () => {
+    expect(isMenuItemActive('/pipeline/credentials', item('pipeline', 'credentials'))).toBe(true)
+    expect(isMenuItemActive('/pipeline/credentials', item('pipeline', 'pipelines'))).toBe(false)
+    expect(isMenuItemActive('/pm/projects/12/items/task', item('pm', 'projects'))).toBe(true)
+    expect(isMenuItemActive('/pm/projects/12/items/task', item('pm', 'monitor'))).toBe(false)
+    expect(isMenuItemActive('/api-test', item('api-test', 'definitions'))).toBe(true)
+    expect(isMenuItemActive('/api-test/collections/1', item('api-test', 'definitions'))).toBe(false)
+    expect(isMenuItemActive('/api-test/collections/1', item('api-test', 'collections'))).toBe(true)
   })
 })
 

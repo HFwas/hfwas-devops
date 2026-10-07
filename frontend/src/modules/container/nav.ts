@@ -24,20 +24,52 @@ export interface ContainerNavItem {
   needsCluster: boolean
 }
 
-export const CONTAINER_NAV: ContainerNavItem[] = [
-  { key: 'clusters', label: '集群', icon: Server, to: '/container/clusters', needsCluster: false },
-  { key: 'nodes', label: '节点', icon: HardDrive, suffix: '/nodes', needsCluster: true },
-  { key: 'registries', label: '镜像仓库', icon: Container, to: '/container/registries', needsCluster: false },
-  { key: 'images', label: '镜像', icon: Search, to: '/container/images', needsCluster: false },
-  { key: 'pods', label: 'Pod', icon: Box, suffix: '/pods', needsCluster: true },
-  { key: 'deployments', label: 'Deployment', icon: Layers, suffix: '/deployments', needsCluster: true },
-  { key: 'statefulsets', label: 'StatefulSet', icon: Cpu, suffix: '/statefulsets', needsCluster: true },
-  { key: 'services', label: 'Service', icon: Globe, suffix: '/services', needsCluster: true },
-  { key: 'configmaps', label: 'ConfigMap', icon: FileJson, suffix: '/configmaps', needsCluster: true },
-  { key: 'secrets', label: 'Secret', icon: KeyRound, suffix: '/secrets', needsCluster: true },
-  { key: 'pvcs', label: 'PVC', icon: HardDrive, suffix: '/pvcs', needsCluster: true },
-  { key: 'storageclasses', label: 'StorageClass', icon: Database, suffix: '/storageclasses', needsCluster: true },
+export const CONTAINER_NAV_GROUPS: { key: string; label: string; items: ContainerNavItem[] }[] = [
+  {
+    key: 'cluster',
+    label: '集群',
+    items: [
+      { key: 'clusters', label: '集群', icon: Server, to: '/container/clusters', needsCluster: false },
+      { key: 'nodes', label: '节点', icon: HardDrive, suffix: '/nodes', needsCluster: true },
+    ],
+  },
+  {
+    key: 'workloads',
+    label: '工作负载',
+    items: [
+      { key: 'pods', label: 'Pod', icon: Box, suffix: '/pods', needsCluster: true },
+      { key: 'deployments', label: 'Deployment', icon: Layers, suffix: '/deployments', needsCluster: true },
+      { key: 'statefulsets', label: 'StatefulSet', icon: Cpu, suffix: '/statefulsets', needsCluster: true },
+    ],
+  },
+  {
+    key: 'network',
+    label: '网络与配置',
+    items: [
+      { key: 'services', label: 'Service', icon: Globe, suffix: '/services', needsCluster: true },
+      { key: 'configmaps', label: 'ConfigMap', icon: FileJson, suffix: '/configmaps', needsCluster: true },
+      { key: 'secrets', label: 'Secret', icon: KeyRound, suffix: '/secrets', needsCluster: true },
+    ],
+  },
+  {
+    key: 'storage',
+    label: '存储',
+    items: [
+      { key: 'pvcs', label: 'PVC', icon: HardDrive, suffix: '/pvcs', needsCluster: true },
+      { key: 'storageclasses', label: 'StorageClass', icon: Database, suffix: '/storageclasses', needsCluster: true },
+    ],
+  },
+  {
+    key: 'images',
+    label: '镜像',
+    items: [
+      { key: 'registries', label: '镜像仓库', icon: Container, to: '/container/registries', needsCluster: false },
+      { key: 'images', label: '镜像', icon: Search, to: '/container/images', needsCluster: false },
+    ],
+  },
 ]
+
+export const CONTAINER_NAV: ContainerNavItem[] = CONTAINER_NAV_GROUPS.flatMap((group) => group.items)
 
 const RESOURCE_LABELS = Object.fromEntries(
   CONTAINER_NAV.filter((item) => item.suffix).map((item) => [item.suffix!.replace(/^\//, ''), item.label]),

@@ -5,9 +5,16 @@ export type { PathCrumb }
 
 const SECTION_LABELS: Record<string, string> = {
   projects: '项目',
+  monitor: '项目监控',
   pipelines: '流水线',
   credentials: '凭证',
+  'task-kinds': '任务市场',
   workflows: '工作流',
+  templates: '模板',
+  cron: '定时任务',
+  collections: '集合',
+  environments: '环境',
+  definitions: '接口',
   overview: '概览',
   settings: '账号设置',
   accounts: '用户管理',

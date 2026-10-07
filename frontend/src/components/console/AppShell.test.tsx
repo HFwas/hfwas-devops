@@ -69,7 +69,7 @@ describe('AppShell', () => {
     container = null
   })
 
-  it('renders one sidebar shell for workbench, PM, pipeline, container, and API test', async () => {
+  it('keeps one shell and swaps the sidebar to the current product', async () => {
     const mounted = mount('/pm/projects')
     root = mounted.root
     container = mounted.container
@@ -82,35 +82,49 @@ describe('AppShell', () => {
     expect(container.querySelector('[aria-label="切换主题"]')).toBeTruthy()
     expect(container.querySelector('[aria-label="搜索项目"]')).toBeTruthy()
     expect(container.querySelector('[aria-label="用户菜单"]')).toBeTruthy()
+    expect(container.querySelector('[aria-label="切换产品"]')).toBeTruthy()
 
     const shell = container.querySelector('[data-slot="sidebar-inset"]')?.parentElement
     expect(shell?.innerHTML).toContain('px-4')
     expect(shell?.innerHTML).toContain('lg:px-6')
 
-    const text = container.textContent ?? ''
-    for (const label of ['工作台', '用户中心', '用户管理', '项目管理', '流水线', '容器管理', '接口测试']) {
-      expect(text).toContain(label)
-    }
-    expect(text).toContain('项目内容')
-    expect(container.querySelector('[aria-current="page"]')?.textContent).toBe('项目管理')
+    const sidebar = () => container?.querySelector('[data-sidebar="sidebar"]')?.textContent ?? ''
+    expect(sidebar()).toContain('项目管理')
+    expect(sidebar()).toContain('项目')
+    expect(sidebar()).toContain('项目监控')
+    expect(sidebar()).not.toContain('流水线')
+    expect(sidebar()).not.toContain('接口测试')
+    expect(sidebar()).not.toContain('容器管理')
+    expect(container.textContent).toContain('项目内容')
 
     await act(async () => {
       await mounted.router.navigate('/pipeline/pipelines')
     })
+    expect(sidebar()).toContain('流水线')
+    expect(sidebar()).toContain('任务市场')
+    expect(sidebar()).toContain('凭证')
+    expect(sidebar()).not.toContain('项目监控')
+    expect(sidebar()).not.toContain('容器管理')
     expect(container.textContent).toContain('流水线内容')
-    expect(container.querySelector('[aria-current="page"]')?.textContent).toBe('流水线')
 
     await act(async () => {
       await mounted.router.navigate('/container/clusters')
     })
+    expect(sidebar()).toContain('容器管理')
+    expect(sidebar()).toContain('集群')
+    expect(sidebar()).toContain('Pod')
+    expect(sidebar()).toContain('镜像仓库')
+    expect(sidebar()).not.toContain('项目管理')
+    expect(sidebar()).not.toContain('流水线')
     expect(container.textContent).toContain('集群内容')
-    expect(container.textContent).toContain('Pod')
-    expect(container.textContent).toContain('镜像仓库')
 
     await act(async () => {
       await mounted.router.navigate('/api-test')
     })
+    expect(sidebar()).toContain('接口测试')
+    expect(sidebar()).toContain('集合')
+    expect(sidebar()).toContain('环境')
+    expect(sidebar()).not.toContain('Pod')
     expect(container.textContent).toContain('接口内容')
-    expect(container.querySelector('[aria-current="page"]')?.textContent).toBe('接口测试')
   })
 })
