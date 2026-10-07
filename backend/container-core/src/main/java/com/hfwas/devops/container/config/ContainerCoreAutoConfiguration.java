@@ -3,6 +3,7 @@ package com.hfwas.devops.container.config;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.mybatis.spring.annotation.MapperScan;
 import com.hfwas.devops.container.config.argo.ArgoWorkflowProperties;
+import com.hfwas.devops.container.service.helm.HelmChartProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,7 +16,7 @@ import org.springframework.web.client.RestTemplate;
  */
 @Configuration
 @EnableScheduling
-@EnableConfigurationProperties(ArgoWorkflowProperties.class)
+@EnableConfigurationProperties({ArgoWorkflowProperties.class, HelmChartProperties.class})
 @MapperScan(value = "com.hfwas.devops.container.mapper", markerInterface = BaseMapper.class)
 public class ContainerCoreAutoConfiguration {
 
