@@ -1,0 +1,19 @@
+Latin font files vendored to match kite-org/kite ui/src/assets/fonts/
+(https://github.com/kite-org/kite, Apache-2.0). The font files themselves
+stay under the SIL Open Font License 1.1 and are not relicensed by the
+application or by kite's Apache-2.0 grant.
+
+Maple Mono
+  maple-mono-latin-400-normal.woff
+  maple-mono-latin-400-normal.woff2
+  Copyright (c) 2022, subframe7536 (https://github.com/subframe7536),
+  with Reserved Font Name Maple Mono.
+  License: OFL-MapleMono.txt
+  Upstream: https://github.com/subframe7536/maple-font
+
+JetBrains Mono (variable, weight 100-800)
+  jetbrains-mono-latin-wght-normal.woff2
+  Copyright 2020 The JetBrains Mono Project Authors
+  (https://github.com/JetBrains/JetBrainsMono)
+  License: OFL-JetBrainsMono.txt
+  Upstream: https://github.com/JetBrains/JetBrainsMono
