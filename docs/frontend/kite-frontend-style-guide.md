@@ -1,7 +1,7 @@
 # 前端样式规范（参照 Kite，全产品共用）
 
 > 日期：2026-10-07
-> 版本：v0.4
+> 版本：v0.5
 > 来源参照：[kite-org/kite](https://github.com/kite-org/kite)（默认分支 `main`，许可证 Apache-2.0）
 > 适用范围：**hfwas-devops 全部前端产品面**（工作台、用户中心、PM、流水线/CI、容器平台、API 测试、文档生成、文件解析、图片处理等），不是容器模块专用规范
 > 原则：**学规范与模式，不整仓拷贝**；一套 token / 壳层 / 列表 / 详情 / 状态语义，各业务模块只换内容和数据
@@ -14,6 +14,7 @@
 | v0.2 | 2026-10-07 | 明确全产品共用；落地顺序改为全局壳与 token → 各业务模块；去掉「仅容器」表述 |
 | v0.3 | 2026-10-07 | 主色锁定为 kite 冷蓝 hue 235；全站侧栏化；Cloud Agent 分阶段落地 |
 | v0.4 | 2026-10-07 | 共享模式组件落在 `frontend/src/components/console/`，用法见 shared-ui-patterns |
+| v0.5 | 2026-10-07 | 字体对齐 kite：正文系统无衬线，等宽 Maple Mono |
 
 ---
 
@@ -64,11 +65,13 @@
 | `--header-height` | `3.5rem` | 全站顶栏高度 |
 | `--radius` | `0.5rem` | 基准圆角（当前仓库若为 `0.625rem`，统一改为更紧的 `0.5rem`） |
 | `--radius-sm` / `md` / `lg` / `xl` | 由 `--radius` 推导 | 经 Tailwind `@theme` 暴露 |
-| 字体 sans | 系统 `--font-sans` | 全站正文 |
-| 字体 mono | 等宽字体栈（kite 用 Maple Mono） | 日志、终端、YAML、代码块 |
+| 字体 sans | `--font-sans` 系统 UI 栈；`--app-font-sans: var(--font-sans)` 给 `body` | 全站正文 |
+| 字体 mono | `--font-mono`：`'Maple Mono', ui-monospace, …` | 日志、终端、YAML、代码块 |
 | 暗色 | `.dark` + `@custom-variant dark` | 全站一处切换 |
 
 侧栏几何（参照 kite `sidebar.tsx`）：宽 `16rem`，移动端 `18rem`，图标折叠 `3rem`。
+
+字体与 kite `ui/src/styles/base.css` 一致：正文是系统无衬线（`--font-sans` / `--app-font-sans`），`code` / `pre` / `kbd` / `samp` 与 `.font-mono` 使用 Maple Mono。字体文件在 `frontend/src/assets/fonts/`（Maple Mono 与 JetBrains Mono，SIL OFL）。JetBrains Mono 通过 `@font-face` 备用，正文默认仍是系统无衬线。日志和 YAML 用 `font-mono`；xterm 画布读取 `--font-mono`。
 
 ### 2.3 默认亮色（参照 kite `default.css` `:root`）
 
@@ -187,7 +190,7 @@ Tab **类型**按模块填充，壳不变。示例：
 | 底部抽屉 | 默认可约 40vh，可拖拽，最小高度约 120px |
 | 面板头 | `h-10 bg-muted/50` |
 | 连接状态 | 绿色呼吸点（成功连接） |
-| 字体 | mono token，字号与行高全站一致 |
+| 字体 | `--font-mono`（Maple Mono），字号与行高全站一致 |
 
 ---
 

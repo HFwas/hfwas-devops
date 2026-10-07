@@ -16,7 +16,7 @@ export const apiDefinitionApi = {
     get<PageResult<ApiDefinitionVO>>('/apitest/definitions/page', query),
 
   /** 获取接口详情 */
-  detail: (id: number) => get<ApiDefinitionDetailVO>(`/apitest/definitions/${id}`),
+  detail: (id: number | string) => get<ApiDefinitionDetailVO>(`/apitest/definitions/${id}`),
 
   /** 创建接口定义 */
   create: (data: ApiDefinitionCreateDTO, userId: number) =>
@@ -28,19 +28,19 @@ export const apiDefinitionApi = {
       .then(res => res.data.data),
 
   /** 删除接口定义 */
-  delete: (id: number) =>
+  delete: (id: number | string) =>
     request.delete<BaseResult<void>>(`/apitest/definitions/${id}`)
       .then(res => res.data.data),
 
   /** 发布接口（草稿→已发布） */
-  publish: (id: number, userId: number) =>
+  publish: (id: number | string, userId: number | string) =>
     post<void>(`/apitest/definitions/${id}/publish?userId=${userId}`, {}),
 
   /** 废弃接口（已发布→已废弃） */
-  deprecate: (id: number, userId: number) =>
+  deprecate: (id: number | string, userId: number | string) =>
     post<void>(`/apitest/definitions/${id}/deprecate?userId=${userId}`, {}),
 
   /** 恢复草稿（已发布/已废弃→草稿） */
-  revertDraft: (id: number, userId: number) =>
+  revertDraft: (id: number | string, userId: number | string) =>
     post<void>(`/apitest/definitions/${id}/revert-draft?userId=${userId}`, {}),
 }

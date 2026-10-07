@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
+import { PageHeader } from '@/components/console/PageHeader'
+import { StatusIcon } from '@/components/console/StatusIcon'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { clusterApi } from '@/modules/container/api/cluster'
 import { formatBytes, formatCpu } from '@/modules/container/utils/format'
-import { StatusBadge } from '@/modules/container/components/StatusBadge'
 import { ClusterMonitor } from '@/modules/container/components/ResourceMonitors'
 
 const links = [
@@ -36,14 +37,16 @@ export function ClusterDetailPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold">{info?.alias || info?.name || '集群'}</h1>
-        <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-          <span>{info?.name}</span>
-          {info && <StatusBadge status={info.status} />}
-          <span>{info?.version || ''}</span>
-        </div>
-      </div>
+      <PageHeader
+        title={info?.alias || info?.name || '集群'}
+        description={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span>{info?.name || '集群概览'}</span>
+            {info ? <StatusIcon status={info.status} /> : null}
+            {info?.version ? <span>{info.version}</span> : null}
+          </span>
+        }
+      />
       {stats.isError && <p className="text-sm text-destructive">统计信息加载失败</p>}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="节点" value={numbers?.nodeCount} />
@@ -57,9 +60,9 @@ export function ClusterDetailPage() {
       <ClusterMonitor clusterId={clusterId} />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {links.map(([path, label]) => (
-          <Link key={path} to={`/container/clusters/${clusterId}/${path}`}>
+            <Link key={path} to={`/container/clusters/${clusterId}/${path}`}>
             <Card className="transition-shadow hover:shadow-md">
-              <CardHeader>
+              <CardHeader className="p-4">
                 <CardTitle className="text-base">{label}</CardTitle>
                 <CardDescription>查看{label}列表</CardDescription>
               </CardHeader>
@@ -74,7 +77,7 @@ export function ClusterDetailPage() {
 function Stat({ label, value }: { label: string; value?: number | string }) {
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="p-4">
         <CardDescription>{label}</CardDescription>
         <CardTitle>{value ?? '—'}</CardTitle>
       </CardHeader>

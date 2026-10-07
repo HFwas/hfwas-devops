@@ -1,7 +1,7 @@
 # 共享界面模式
 
 > 日期：2026-10-07
-> 版本：v0.1
+> 版本：v0.3
 > 关联：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md)、[frontend-style-unification-plan.md](./frontend-style-unification-plan.md)
 
 ### 变更记录
@@ -9,6 +9,8 @@
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-07 | 初版：DataTable、StatusIcon、PageHeader、DetailShell、LogPanel 的用法与试点范围 |
+| v0.2 | 2026-10-07 | Phase 4：各产品再接一处列表和详情；流水线运行日志与容器日志共用 LogPanel |
+| v0.3 | 2026-10-07 | Phase 5：铺开凭证、任务市场、工作负载、仓库镜像、集合环境、调试工作台和 PM 看板外围 |
 
 ---
 
@@ -44,19 +46,48 @@
 
 PM 自定义工作流码不在字典里时，给 `StatusIcon` 传 `tone`，不要在页面里另写颜色。
 
-## 3. 本阶段试点
+## 3. 试点
 
-只证明组件能跨产品复用，不是全站换皮。
+只证明组件能跨产品复用，不是全站换皮。Phase 3 先接了一处，Phase 4 每个主要产品再接一处列表和一处详情。
+
+| 阶段 | 产品 | 页面 | 用到 |
+|------|------|------|------|
+| 3 | PM | 项目列表 | `PageHeader`、`DataTable` |
+| 3 | 流水线 | `/pipeline/pipelines` | `PageHeader`、`DataTable`、`StatusIcon` |
+| 3 | 容器 | 集群列表 | `PageHeader`、`DataTable`、`StatusBadge`（内部是 `StatusIcon`） |
+| 3 | 容器 | Deployment 详情 | `DetailShell`、`StatusIcon` |
+| 3 | 容器 | Pod 日志 / 终端 | `LogPanel`、`TerminalChrome`（协议未改） |
+| 4 | PM | `/pm/projects/:id/items/:type` 事项列表 | `PageHeader`、`DataTable`、`StatusIcon` |
+| 4 | PM | 事项详情 | `DetailShell`、`StatusIcon`（自定义工作流用 `tone`） |
+| 4 | 流水线 | `/pipeline/pipelines/:id` 运行记录 | `PageHeader`、`DataTable`、`StatusIcon` |
+| 4 | 流水线 | 运行详情 | `DetailShell`、`StatusIcon`、`LogPanel`（任务 `logText`，不改协议） |
+| 4 | 容器 | Pod 列表 | `PageHeader`、`DataTable`、`StatusBadge` |
+| 4 | 容器 | StatefulSet 详情 | `DetailShell` |
+| 4 | API 测试 | `/api-test` 接口列表 | `PageHeader`、`DataTable`、`StatusIcon` |
+| 4 | API 测试 | 接口详情 | `DetailShell`、`StatusIcon`、`DataTable` |
+| 4 | 工作台 | `/workbench` | `PageHeader`，产品卡片 `p-4` |
+| 4 | 用户中心 | 用户管理、账号设置 | `PageHeader` / `DataTable` / `StatusIcon`，设置页 `DetailShell` |
+
+看板和 DAG 仍不进 `DataTable`。
+
+## 4. Phase 5 铺开
 
 | 产品 | 页面 | 用到 |
 |------|------|------|
-| PM | 项目列表 | `PageHeader`、`DataTable` |
-| 流水线 | `/pipeline/pipelines` | `PageHeader`、`DataTable`、`StatusIcon` |
-| 容器 | 集群列表 | `PageHeader`、`DataTable`、`StatusBadge`（内部是 `StatusIcon`） |
-| 容器 | Deployment 详情 | `DetailShell`、`StatusIcon` |
-| 容器 | Pod 日志 / 终端 | `LogPanel`、`TerminalChrome`（协议未改） |
+| 流水线 | `/pipeline/credentials` 列表与详情 | `PageHeader`、`DataTable`、`DetailShell` |
+| 流水线 | `/pipeline/task-kinds` 列表与详情 | `PageHeader`、`DataTable`、`DetailShell`、`StatusIcon`；命令模板用等宽块 |
+| 容器 | 节点、Deployment、StatefulSet、Service、ConfigMap、Secret、PVC、StorageClass | `PageHeader`、`DataTable`、`StatusBadge` |
+| 容器 | 节点、Pod、Service、ConfigMap 详情 | `DetailShell`；Pod 日志 / 终端仍是 `LogPanel` / `TerminalChrome` |
+| 容器 | 集群概览、仓库、仓库项目、制品、镜像搜索 | `PageHeader` 或 `DetailShell`，列表用 `DataTable` |
+| API 测试 | 集合、环境 | `PageHeader`、`DataTable`、`DetailShell`、`StatusIcon` |
+| API 测试 | 接口详情「调试」 | 紧凑表单（`h-8`）+ `LogPanel` 响应 + 历史 `DataTable` |
+| PM | `/pm/projects/:id/board/:type` | `PageHeader`；列本身是卡片，不进 `DataTable` |
+| PM | 工作流状态与流转 | `PageHeader`、`DataTable`、`StatusIcon`。画布不在此页 |
+| PM | 项目监控 | 项目 `DataTable`，链到看板 |
+| 文件解析 / 文档生成 / 图片 | 工具页 | `PageHeader`、`StatusIcon`；图片记录与解析分页、生成结果用 `DataTable` |
 
-## 4. 下一步
+环境变量和挂载卷仍是详情里的行内表单。图片裁剪、文档批量规格、Argo 画布、流水线 DAG、监控趋势图留到 Phase 6。
 
-- **Phase 4**：每个子系统再改 1 个列表和 1 个详情（事项详情、流水线运行详情、工作负载其余详情、API 测试列表）。流水线日志与容器日志继续共用 `LogPanel`。
-- **Phase 5**：按模块清单铺开，勾掉 `frontend-style-unification-plan.md` 里的列表 / 详情 / 状态 / 日志。看板和 DAG 不进 `DataTable`，只统一外围间距和颜色。
+## 5. 下一步
+
+- **Phase 6**：按 `frontend-style-unification-plan.md` 的延期项收尾，并做视觉回归。新列表和详情继续用本章组件。

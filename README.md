@@ -1,7 +1,7 @@
 # HFWAS DevOps
 
-> 日期：2026-10-01
-> 版本：v0.5
+> 日期：2026-10-07
+> 版本：v0.6
 
 ### 变更记录
 
@@ -12,6 +12,7 @@
 | v0.3 | 2026-09-13 | 本机 GitLab 代码同步用 `scripts/sync-gitlab` |
 | v0.4 | 2026-09-15 | 补齐容器平台、流水线/CI、API 测试平台、图片处理四大新增子系统；更新项目结构与 API 索引 |
 | v0.5 | 2026-10-01 | 各服务 Dockerfile 集中到 `deploy/docker/<服务名>/` |
+| v0.6 | 2026-10-07 | 文档索引补充 Helm 包上传推仓与安装/升级实施计划 |
 
 ---
 
@@ -651,6 +652,7 @@ helm uninstall dependency-track
 | [docs/pipeline/pipeline-toolchain-image-strategy.md](docs/pipeline/pipeline-toolchain-image-strategy.md) | 工具链镜像策略 |
 | **容器平台** | |
 | [docs/container-platform/](docs/container-platform/) | 容器平台文档 |
+| [docs/container-platform/helm-chart-upload-rollout-plan.md](docs/container-platform/helm-chart-upload-rollout-plan.md) | Helm 包上传推仓与安装/升级实施计划 |
 | **部署运维** | |
 | [docs/devops/](docs/devops/) | 本地与生产部署 |
 | [docs/devops/app-helm-deploy.md](docs/devops/app-helm-deploy.md) | 应用镜像构建与 Helm 升级 |

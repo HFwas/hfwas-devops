@@ -15,7 +15,7 @@ export const debugHistoryApi = {
     get<DebugHistoryDetailVO>(`/apitest/debug-histories/${id}`),
 
   /** 查询某接口的调试历史 */
-  listByDefinition: (definitionId: number, limit = 20) =>
+  listByDefinition: (definitionId: number | string, limit = 20) =>
     get<ApiDebugHistoryVO[]>('/apitest/debug-histories/by-definition', { definitionId, limit }),
 
   /** 删除调试历史 */

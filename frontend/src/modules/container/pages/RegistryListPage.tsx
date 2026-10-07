@@ -6,6 +6,8 @@ import { useForm } from 'react-hook-form'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { DataTable } from '@/components/console/DataTable'
+import { PageHeader } from '@/components/console/PageHeader'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -16,7 +18,6 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { registryApi } from '@/modules/container/api/registry'
 import { StatusBadge } from '@/modules/container/components/StatusBadge'
 
@@ -82,62 +83,59 @@ export function RegistryListPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">镜像仓库</h1>
-          <p className="text-sm text-muted-foreground">接入 Harbor 或 Registry，供镜像检索使用。</p>
-        </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus />
-          添加仓库
-        </Button>
-      </div>
-      {query.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
-      {query.isError && <p className="text-sm text-destructive">仓库列表加载失败</p>}
-      {query.isSuccess && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>名称</TableHead>
-              <TableHead>类型</TableHead>
-              <TableHead>地址</TableHead>
-              <TableHead>状态</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {records.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">
-                  <Link className="text-primary hover:underline" to={`/container/registries/${item.id}`}>
-                    {item.alias || item.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{item.type}</TableCell>
-                <TableCell className="max-w-xs truncate">{item.url}</TableCell>
-                <TableCell>
-                  <StatusBadge status={item.status} />
-                </TableCell>
-                <TableCell className="space-x-1 text-right">
-                  <Button variant="ghost" size="sm" onClick={() => test.mutate(item.id)}>
-                    测试
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => {
-                      if (window.confirm(`删除仓库「${item.name}」？`)) remove.mutate(item.id)
-                    }}
-                  >
-                    删除
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      <PageHeader
+        title="镜像仓库"
+        description={query.isSuccess ? `共 ${query.data?.total ?? records.length} 个仓库` : '接入 Harbor 或 Registry，供镜像检索使用。'}
+        actions={
+          <Button onClick={() => setOpen(true)}>
+            <Plus />
+            添加仓库
+          </Button>
+        }
+      />
+      <DataTable
+        columns={[
+          {
+            id: 'name',
+            header: '名称',
+            cell: (item) => (
+              <Link className="font-medium text-primary hover:underline" to={`/container/registries/${item.id}`}>
+                {item.alias || item.name}
+              </Link>
+            ),
+          },
+          { id: 'type', header: '类型', cell: (item) => item.type },
+          { id: 'url', header: '地址', className: 'max-w-xs truncate', cell: (item) => item.url },
+          { id: 'status', header: '状态', cell: (item) => <StatusBadge status={item.status} /> },
+          {
+            id: 'actions',
+            header: '',
+            className: 'text-right',
+            cell: (item) => (
+              <div className="space-x-1">
+                <Button variant="ghost" size="sm" onClick={() => test.mutate(item.id)}>
+                  测试
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => {
+                    if (window.confirm(`删除仓库「${item.name}」？`)) remove.mutate(item.id)
+                  }}
+                >
+                  删除
+                </Button>
+              </div>
+            ),
+          },
+        ]}
+        data={records}
+        getRowId={(item) => item.id}
+        loading={query.isFetching}
+        error={query.isError ? '仓库列表加载失败' : undefined}
+        empty="还没有镜像仓库"
+      />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

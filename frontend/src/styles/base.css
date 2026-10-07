@@ -1,14 +1,45 @@
-/* 全站基础：圆角、字体、顶栏高度、Tailwind 语义色映射。色值见 themes/default.css。 */
+/* 全站基础：圆角、字体、顶栏高度、Tailwind 语义色映射。色值见 themes/default.css。
+   字体对齐 kite ui/src/styles/base.css：正文系统 UI，等宽 Maple Mono。 */
 
 @custom-variant dark (&:is(.dark *));
 
+/* maple-mono-latin-400-normal — SIL OFL, see src/assets/fonts/OFL-MapleMono.txt */
+@font-face {
+  font-family: "Maple Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src:
+    url("@/assets/fonts/maple-mono-latin-400-normal.woff2") format("woff2"),
+    url("@/assets/fonts/maple-mono-latin-400-normal.woff") format("woff");
+}
+
+/* jetbrains-mono-latin-wght-normal — SIL OFL, see src/assets/fonts/OFL-JetBrainsMono.txt */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-display: auto;
+  font-weight: 100 800;
+  src: url("@/assets/fonts/jetbrains-mono-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/*
+  Font families (kite ui/src/styles/base.css)
+  - --font-sans: system UI stack
+  - --font-mono: Maple Mono, then system monospace
+  - --app-font-sans: body font; defaults to the system sans stack
+  Stacks live in @theme so Tailwind font-sans / font-mono utilities share the same variables.
+*/
 @theme {
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-    "Segoe UI Symbol", "Noto Color Emoji";
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+    "Noto Color Emoji";
   --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    "Maple Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
 }
 
@@ -53,12 +84,30 @@
 :root {
   --header-height: 3.5rem;
   --radius: 0.5rem;
+  --app-font-sans: var(--font-sans);
+}
+
+body {
+  font-family: var(--app-font-sans);
 }
 
 code,
 pre,
 kbd,
 samp {
+  font-family: var(--font-mono);
+}
+
+/* Tailwind font utilities follow the kite tokens, including inside @layer utilities. */
+.font-sans {
+  font-family: var(--app-font-sans) !important;
+}
+.font-mono {
+  font-family: var(--font-mono) !important;
+}
+
+/* xterm draws on canvas from options.fontFamily. This covers the DOM shell; PodShell reads --font-mono. */
+.xterm {
   font-family: var(--font-mono);
 }
 
@@ -69,6 +118,5 @@ samp {
   body {
     @apply bg-background text-foreground antialiased;
     margin: 0;
-    font-family: var(--font-sans);
   }
 }
