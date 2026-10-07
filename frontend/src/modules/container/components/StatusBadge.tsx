@@ -1,19 +1,6 @@
-import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
+import { StatusIcon } from '@/components/console/StatusIcon'
 
-const tone: Record<string, string> = {
-  Connected: 'border-transparent bg-primary/15 text-primary',
-  Running: 'border-transparent bg-primary/15 text-primary',
-  Ready: 'border-transparent bg-primary/15 text-primary',
-  Bound: 'border-transparent bg-primary/15 text-primary',
-  Degraded: 'border-transparent bg-accent text-accent-foreground',
-  Pending: 'border-transparent bg-accent text-accent-foreground',
-  Disconnected: 'border-transparent bg-destructive/15 text-destructive',
-  Error: 'border-transparent bg-destructive/15 text-destructive',
-  Failed: 'border-transparent bg-destructive/15 text-destructive',
-}
-
+/** 容器状态走全站字典，保留这个名字以免各列表再写一套颜色。 */
 export function StatusBadge({ status }: { status?: string | null }) {
-  const label = status || 'Unknown'
-  return <Badge className={cn('font-normal', tone[label])}>{label}</Badge>
+  return <StatusIcon status={status} />
 }

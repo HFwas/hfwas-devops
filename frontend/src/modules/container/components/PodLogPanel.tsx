@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { LogPanel, type ConnectionState } from '@/components/console/LogPanel'
 import { Button } from '@/components/ui/button'
 import { podApi } from '@/modules/container/api/pod'
 import { getToken } from '@/shared/keycloak'
@@ -18,6 +19,7 @@ export function PodLogPanel({
   const [container, setContainer] = useState(containers[0] ?? '')
   const [follow, setFollow] = useState(true)
   const [live, setLive] = useState('')
+  const [connection, setConnection] = useState<ConnectionState>('idle')
   const viewRef = useRef<HTMLPreElement>(null)
 
   useEffect(() => {
@@ -35,12 +37,19 @@ export function PodLogPanel({
   }, [container, clusterId, namespace, name])
 
   useEffect(() => {
-    if (!follow) return
+    if (!follow) {
+      setConnection('idle')
+      return
+    }
     let ws: WebSocket | null = null
     let stopped = false
+    setConnection('connecting')
     void (async () => {
       const token = await getToken()
-      if (stopped || !token) return
+      if (stopped || !token) {
+        if (!stopped) setConnection('disconnected')
+        return
+      }
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
       const params = new URLSearchParams({ namespace, pod: name })
       if (container) params.set('container', container)
@@ -49,6 +58,15 @@ export function PodLogPanel({
         [token],
       )
       ws.binaryType = 'arraybuffer'
+      ws.onopen = () => {
+        if (!stopped) setConnection('connected')
+      }
+      ws.onclose = () => {
+        if (!stopped) setConnection('disconnected')
+      }
+      ws.onerror = () => {
+        if (!stopped) setConnection('disconnected')
+      }
       ws.onmessage = (event) => {
         if (typeof event.data === 'string') {
           setLive((prev) => prev + event.data)
@@ -72,35 +90,38 @@ export function PodLogPanel({
   const body = `${logs.data ?? ''}${live}`
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-          value={container}
-          onChange={(event) => setContainer(event.target.value)}
-        >
-          {containers.length === 0 && <option value="">默认容器</option>}
-          {containers.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-        <Button variant="outline" size="sm" onClick={() => void logs.refetch()}>
-          刷新
-        </Button>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={follow} onChange={(event) => setFollow(event.target.checked)} />
-          实时跟踪
-        </label>
-      </div>
-      {logs.isError && <p className="text-sm text-destructive">日志加载失败</p>}
-      <pre
-        ref={viewRef}
-        className="h-[28rem] overflow-auto rounded-md border bg-muted/40 p-3 font-mono text-xs whitespace-pre-wrap"
-      >
+    <LogPanel
+      title="日志"
+      connection={connection}
+      toolbar={
+        <>
+          <select
+            className="h-7 rounded-md border border-input bg-background px-2 text-sm"
+            value={container}
+            aria-label="容器"
+            onChange={(event) => setContainer(event.target.value)}
+          >
+            {containers.length === 0 && <option value="">默认容器</option>}
+            {containers.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+          <Button variant="outline" size="sm" onClick={() => void logs.refetch()}>
+            刷新
+          </Button>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={follow} onChange={(event) => setFollow(event.target.checked)} />
+            实时跟踪
+          </label>
+        </>
+      }
+    >
+      {logs.isError ? <p className="p-3 text-sm text-destructive">日志加载失败</p> : null}
+      <pre ref={viewRef} className="min-h-full p-3 whitespace-pre-wrap">
         {logs.isLoading ? '加载中…' : body || '暂无日志'}
       </pre>
-    </div>
+    </LogPanel>
   )
 }

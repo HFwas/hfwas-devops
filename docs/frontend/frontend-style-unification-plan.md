@@ -1,7 +1,7 @@
 # 前端样式统一落地 Plan（参照 Kite，全产品共用）
 
 > 日期：2026-10-07
-> 版本：v0.5
+> 版本：v0.6
 > 关联规范：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.3
 > 目标仓库：[HFwas/hfwas-devops](https://github.com/HFwas/hfwas-devops)（`frontend/`，默认分支 `dev`）
 > 目标：全站统一视觉与交互语言（token / 壳层 / 列表 / 详情 / 状态 / 日志终端），各业务模块共用，不限于容器
@@ -15,6 +15,7 @@
 | v0.3 | 2026-10-07 | 入库 `docs/frontend/`；关联规范改为 v0.3；标明 Phase 1 token 落点 |
 | v0.4 | 2026-10-07 | Phase 2：全站 AppShell 改为 inset 侧栏 + sticky 顶栏；下一步 Phase 3 共享模式组件 |
 | v0.5 | 2026-10-07 | Phase 2 信息架构改为产品切换器 + 当前产品内部菜单，不再把各产品平铺在同一侧栏 |
+| v0.6 | 2026-10-07 | Phase 3：共享 DataTable / Status / PageHeader / DetailShell / LogPanel，并在 PM、流水线、容器各接一处试点 |
 
 ---
 
@@ -136,9 +137,11 @@
 
 **验收：**
 
-- [ ] 新页面文档要求：禁止再写私有 Table 皮肤
-- [ ] Status 字典被至少 2 个模块引用
-- [ ] DetailShell 有简单 demo 或 Story 级用法说明（可写在 `docs/frontend/`）
+- [x] 新页面文档要求：禁止再写私有 Table 皮肤（`docs/frontend/shared-ui-patterns.md`、`ai-collaboration-frontend.md`）
+- [x] Status 字典被至少 2 个模块引用（流水线列表、容器 `StatusBadge`）
+- [x] DetailShell 有用法说明（`docs/frontend/shared-ui-patterns.md`）并用于 Deployment 详情
+
+试点（不是 Phase 5 全量换皮）：PM 项目列表、流水线列表、容器集群列表 + Deployment 详情 + Pod 日志/终端外壳。
 
 ---
 
@@ -236,7 +239,8 @@
 1. ~~拍板~~ 已完成（冷蓝 + 全站侧栏 + Cloud Agent）。
 2. ~~Phase 0–1~~ 规范、Plan 与 Design Token 已在 `dev`（`frontend/src/styles/base.css`、`frontend/src/styles/themes/default.css`）。
 3. ~~Phase 2~~ 全站 `AppShell`：inset 侧栏、sticky 顶栏（`--header-height: 3.5rem`）。侧栏是当前产品的菜单；产品之间用切换器更换，不把各产品平铺成同级项。登录跳转留在壳外。
-4. **下一步：Phase 3** 共享模式组件（DataTable、Status、PageHeader、DetailShell、LogPanel），不要在本阶段铺开业务页换皮。
+4. ~~Phase 3~~ 共享模式在 `frontend/src/components/console/`：`DataTable`、`StatusIcon` + `status.ts`、`PageHeader`、`DetailShell`、`LogPanel` / `TerminalChrome`。说明见 `docs/frontend/shared-ui-patterns.md`。试点：PM 项目列表、流水线列表、容器集群列表、Deployment 详情、Pod 日志与终端外壳。日志外壳不改 WebSocket 协议。
+5. **下一步：Phase 4** 跨模块各再接 1 个列表 + 1 个详情（事项详情、流水线运行详情、其余工作负载详情、API 测试）。**Phase 5** 再按第 4 节清单铺开其余页面。看板 / DAG 不进 `DataTable`。
 
 ---
 

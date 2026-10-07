@@ -3,6 +3,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
 import { toast } from 'sonner'
+import { TerminalChrome, type ConnectionState } from '@/components/console/LogPanel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { podApi } from '@/modules/container/api/pod'
@@ -21,6 +22,7 @@ export function PodShell({
 }) {
   const [container, setContainer] = useState(containers[0] ?? '')
   const [path, setPath] = useState('/tmp')
+  const [connection, setConnection] = useState<ConnectionState>('idle')
   const hostRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -47,10 +49,12 @@ export function PodShell({
     const observer = new ResizeObserver(() => fit.fit())
     observer.observe(host)
 
+    setConnection('connecting')
     void (async () => {
       const token = await getToken()
       if (state.stopped) return
       if (!token) {
+        setConnection('disconnected')
         term.writeln('未登录，无法打开终端')
         return
       }
@@ -62,7 +66,14 @@ export function PodShell({
       )
       state.ws = ws
       ws.binaryType = 'arraybuffer'
-      ws.onopen = () => send({ type: 'resize', cols: term.cols, rows: term.rows })
+      ws.onopen = () => {
+        if (state.stopped) return
+        setConnection('connected')
+        send({ type: 'resize', cols: term.cols, rows: term.rows })
+      }
+      ws.onclose = () => {
+        if (!state.stopped) setConnection('disconnected')
+      }
       ws.onmessage = (event) => {
         if (typeof event.data === 'string') {
           try {
@@ -76,11 +87,16 @@ export function PodShell({
         }
         term.write(new Uint8Array(event.data as ArrayBuffer))
       }
-      ws.onerror = () => term.writeln('\r\n终端连接失败')
+      ws.onerror = () => {
+        if (state.stopped) return
+        setConnection('disconnected')
+        term.writeln('\r\n终端连接失败')
+      }
     })()
 
     return () => {
       state.stopped = true
+      setConnection('idle')
       dataDisp.dispose()
       resizeDisp.dispose()
       observer.disconnect()
@@ -113,39 +129,44 @@ export function PodShell({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-          value={container}
-          onChange={(event) => setContainer(event.target.value)}
-        >
-          {containers.length === 0 && <option value="">默认容器</option>}
-          {containers.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-        <Input value={path} onChange={(event) => setPath(event.target.value)} className="max-w-xs" placeholder="容器内路径" />
-        <input
-          ref={fileRef}
-          type="file"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            if (file) void onUpload(file)
-            event.target.value = ''
-          }}
-        />
-        <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-          上传到该路径
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => void onDownload()}>
-          下载该路径
-        </Button>
-      </div>
-      <div ref={hostRef} className="h-96 overflow-hidden rounded-md border bg-background p-2" />
-    </div>
+    <TerminalChrome
+      connection={connection}
+      toolbar={
+        <>
+          <select
+            className="h-7 rounded-md border border-input bg-background px-2 text-sm"
+            aria-label="容器"
+            value={container}
+            onChange={(event) => setContainer(event.target.value)}
+          >
+            {containers.length === 0 && <option value="">默认容器</option>}
+            {containers.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+          <Input value={path} onChange={(event) => setPath(event.target.value)} className="h-7 max-w-xs" placeholder="容器内路径" />
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (file) void onUpload(file)
+              event.target.value = ''
+            }}
+          />
+          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+            上传到该路径
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void onDownload()}>
+            下载该路径
+          </Button>
+        </>
+      }
+    >
+      <div ref={hostRef} className="h-full min-h-[120px] overflow-hidden bg-background p-2" />
+    </TerminalChrome>
   )
 }

@@ -1,7 +1,7 @@
 # AI 协作前端规范
 
 > 日期：2026-10-07
-> 版本：v0.3
+> 版本：v0.4
 > 状态：强制。Agent 写前端代码前必须遵守；执行摘要在 `AGENTS.md`「前端」一节。
 
 ### 变更记录
@@ -11,6 +11,7 @@
 | v0.1 | 2026-10-01 | 初版：新建前端强制 React 19 + Tailwind v4 + shadcn/ui；既有 `frontend/` 走 Vue + shadcn-vue |
 | v0.2 | 2026-10-01 | `frontend/` 破坏性改为 React 轨，取消 Vue 轨道 |
 | v0.3 | 2026-10-07 | 新 UI 必须使用全局 CSS 变量与共享 token；主色为冷蓝；禁止模块私有主题 |
+| v0.4 | 2026-10-07 | 新列表/详情/状态/日志必须用 `components/console` 共享模式，禁止私有表格皮肤 |
 
 ---
 
@@ -67,13 +68,15 @@ React 19 + TypeScript + Vite
 7. 接口数据用 TanStack Query。校验与表单 schema 用 Zod。
 8. TypeScript 打开严格模式。生成代码后以类型检查结果为准再改。
 9. 仓库内放置 `components.json`；若使用 Cursor / Claude，安装官方 shadcn skill，使 Agent 读取项目里的真实组件而不是猜 API。
+10. 列表、详情、状态、日志用 `frontend/src/components/console/` 的 `PageHeader`、`DataTable`、`StatusIcon`、`DetailShell`、`LogPanel` / `TerminalChrome`。禁止再写私有表格密度或另一套状态色。用法见 `docs/frontend/shared-ui-patterns.md`。
 
 ### 3.3 目录
 
 ```text
 src/
   components/ui/            # shadcn 组件，可改
-  components/               # 业务组件，只组合 ui/
+  components/console/       # 全站壳与列表/详情/状态/日志模式
+  components/               # 业务组件，只组合 ui/ 与 console/
   lib/utils.ts              # cn()
   index.css                 # Tailwind 入口，引入 base 与默认主题
   styles/base.css           # 圆角、字体、顶栏高度、@theme 映射
@@ -95,6 +98,7 @@ components.json
 - 禁止 CSS-in-JS（styled-components、Emotion）和除 Tailwind 以外的第二套原子化 CSS。
 - 禁止把基础组件封进私有运行时黑盒。视觉定制改仓库里的组件源码和 CSS 变量。
 - 禁止在业务代码里堆裸十六进制颜色和各写各的间距。先用全局主题 token。
+- 禁止私有表格皮肤、私有状态色和另一套详情 Tab 壳。用 `components/console` 里的共享模式。
 - 禁止模块私有主题（独立 `--primary`、硬编码品牌色、第二套 `:root`）。全站只消费共享 token，主色为冷蓝。
 - 交付运维平台是独立产品，界面禁止落到本仓库 `frontend/`（见 `AGENTS.md`）。
 
