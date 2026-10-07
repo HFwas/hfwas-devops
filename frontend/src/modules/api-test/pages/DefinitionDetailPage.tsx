@@ -5,6 +5,7 @@ import { DataTable } from '@/components/console/DataTable'
 import { DetailShell } from '@/components/console/DetailShell'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
+import { DebugWorkbench } from '@/modules/api-test/pages/DebugWorkbench'
 import { apiDefinitionApi } from '@/modules/api-test/define/api/definition'
 import { apiStatusLabel } from '@/modules/api-test/define/statusLabel'
 import type { ApiDefinitionParamVO, ApiDefinitionResponseVO } from '@/modules/api-test/define/types/definition'
@@ -131,6 +132,7 @@ export function DefinitionDetailPage() {
         { value: '概览', label: '概览' },
         { value: '参数', label: '参数' },
         { value: '响应', label: '响应' },
+        { value: '调试', label: '调试' },
       ]}
       value={tab}
       onValueChange={setTab}
@@ -194,6 +196,9 @@ export function DefinitionDetailPage() {
           ))}
         </div>
       )}
+      {tab === '调试' && item && <DebugWorkbench definition={item} />}
+      {tab === '调试' && query.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
+      {tab === '调试' && query.isError && <p className="text-sm text-destructive">接口详情加载失败</p>}
     </DetailShell>
   )
 }

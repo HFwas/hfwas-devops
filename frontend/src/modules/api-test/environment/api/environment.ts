@@ -10,15 +10,15 @@ export const environmentApi = {
     get<PageResult<EnvironmentVO>>('/apitest/environments/page', query),
 
   /** 查询所有环境 */
-  listAll: (projectId: number) =>
+  listAll: (projectId: number | string) =>
     get<EnvironmentVO[]>('/apitest/environments/list', { projectId }),
 
   /** 获取环境详情 */
-  detail: (id: number) =>
+  detail: (id: number | string) =>
     get<EnvironmentDetailVO>(`/apitest/environments/${id}`),
 
   /** 创建环境 */
-  create: (data: EnvironmentCreateDTO, projectId: number, userId: number) =>
+  create: (data: EnvironmentCreateDTO, projectId: number | string, userId: number | string) =>
     post<EnvironmentDetailVO>(`/apitest/environments?projectId=${projectId}&userId=${userId}`, data),
 
   /** 更新环境 */

@@ -91,6 +91,18 @@ describe('resolveBreadcrumbs', () => {
       { label: '接口测试', to: '/api-test' },
       { label: '接口详情' },
     ])
+    expect(resolveBreadcrumbs('/pm/projects/12/board/task')).toEqual([
+      { label: '项目管理', to: '/pm/projects' },
+      { label: '看板' },
+    ])
+    expect(resolveBreadcrumbs('/pipeline/task-kinds/BUILD')).toEqual([
+      { label: '流水线', to: '/pipeline/pipelines' },
+      { label: '任务详情' },
+    ])
+    expect(resolveBreadcrumbs('/api-test/collections/9')).toEqual([
+      { label: '接口测试', to: '/api-test' },
+      { label: '集合详情' },
+    ])
     expect(resolveBreadcrumbs('/user/settings')).toEqual([
       { label: '用户中心', to: '/user/settings' },
       { label: '账号设置' },

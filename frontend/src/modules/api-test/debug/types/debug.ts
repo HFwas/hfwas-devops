@@ -72,9 +72,9 @@ export interface ApiDebugExtractDTO {
 
 /** 调试执行请求 */
 export interface ApiDebugExecuteDTO {
-  projectId?: number
-  definitionId?: number
-  environmentId?: number
+  projectId?: number | string
+  definitionId?: number | string
+  environmentId?: number | string
   url: string
   method: string
   headers?: Record<string, string>
