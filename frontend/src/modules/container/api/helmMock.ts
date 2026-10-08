@@ -128,7 +128,7 @@ function seedArtifacts(repo: HelmRepository): ArtifactRecord[] {
     sizeBytes: 22016,
     chartRef: `${repo.url}/redis:0.8.0`,
     keywords: ['cache', 'redis'],
-    readme: '示例 Redis Chart。自定义 Values 与默认 Values 分栏编辑后再试运行。\n',
+    readme: '示例 Redis Chart。安装时在可编辑 Values 中修改默认 values.yaml，再试运行。\n',
     valuesYaml: REDIS_VALUES,
     createdAt: '2026-09-20T08:00:00.000Z',
   }

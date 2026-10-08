@@ -3,7 +3,6 @@ import { ApiError } from '@/shared/errors/apiError'
 import { ResultCode } from '@/shared/errors/resultCode'
 import { HELM_USE_MOCK } from '@/modules/container/api/helm'
 import { createHelmMockStore } from '@/modules/container/api/helmMock'
-import { valuesYamlError } from '@/modules/container/helm/yaml'
 
 describe('helm client switch', () => {
   it('points pages at the real API', () => {
@@ -67,13 +66,5 @@ describe('helm mock session', () => {
 
     await store.uninstall('demo-cluster', 'edge', 'edge-nginx')
     await expect(store.getRelease('demo-cluster', 'edge', 'edge-nginx')).rejects.toBeInstanceOf(ApiError)
-  })
-})
-
-describe('valuesYamlError', () => {
-  it('rejects a YAML list and accepts an object', () => {
-    expect(valuesYamlError('- a\n')).toBe('Values 必须是 YAML 对象')
-    expect(valuesYamlError('replicaCount: 1\n')).toBeNull()
-    expect(valuesYamlError('')).toBeNull()
   })
 })

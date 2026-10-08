@@ -96,11 +96,13 @@ describe('helm pages', () => {
     await act(async () => {
       install?.click()
     })
-    await waitForText(document.body, '自定义 Values')
+    await waitForText(document.body, '已填入该版本的默认 values.yaml')
   })
 
-  it('shows readonly defaults and custom values in the install dialog', async () => {
+  it('seeds chart defaults into the editable install values and submits them', async () => {
     const chart = await helmMock.getChart('repo-harbor', 'nginx', '1.2.0')
+    const defaults = await helmMock.getValues(chart.repositoryId, chart.chartName, chart.version)
+    const dryRun = vi.spyOn(helmMock, 'dryRunInstall')
     const view = mount(
       withQuery(
         <MemoryRouter>
@@ -122,10 +124,71 @@ describe('helm pages', () => {
     )
     root = view.root
     container = view.container
-    await waitForText(document.body, 'replicaCount: 1')
-    expect(document.body.textContent).toContain('默认 Values')
-    expect(document.body.textContent).toContain('自定义 Values')
-    expect(document.body.textContent).toContain('试运行')
+    const editor = await waitForEditor('helm-install-values', 'replicaCount: 1')
+    expect(editor.readOnly).toBe(false)
+    expect(editor.value).toBe(defaults.valuesYaml)
+    expect(document.body.textContent).toContain('已填入该版本的默认 values.yaml')
+    expect(document.getElementById('helm-install-custom')).toBeNull()
+
+    const preview = Array.from(document.body.querySelectorAll('button')).find((button) => button.textContent?.includes('试运行'))
+    expect(preview?.hasAttribute('disabled')).toBe(false)
+    await act(async () => {
+      preview?.click()
+    })
+    await flush()
+    expect(dryRun).toHaveBeenCalledWith(
+      'demo-cluster',
+      'default',
+      expect.objectContaining({ valuesYaml: defaults.valuesYaml }),
+    )
+    dryRun.mockRestore()
+  })
+
+  it('blocks install dry-run when values YAML is invalid and allows an empty override', async () => {
+    const chart = await helmMock.getChart('repo-harbor', 'nginx', '1.2.0')
+    const dryRun = vi.spyOn(helmMock, 'dryRunInstall')
+    const view = mount(
+      withQuery(
+        <MemoryRouter>
+          <HelmInstallDialog
+            open
+            onOpenChange={() => undefined}
+            clusterId="demo-cluster"
+            defaultNamespace="default"
+            chart={{
+              repositoryId: chart.repositoryId,
+              chartName: chart.chartName,
+              version: chart.version,
+              chartRef: chart.chartRef,
+              artifactId: chart.artifactId,
+            }}
+          />
+        </MemoryRouter>,
+      ),
+    )
+    root = view.root
+    container = view.container
+    const editor = await waitForEditor('helm-install-values', 'replicaCount: 1')
+    setTextArea(editor, 'replicaCount: [\n')
+    await flush()
+    expect(document.body.textContent).toContain('Values 不是合法的 YAML 对象')
+
+    const preview = () => Array.from(document.body.querySelectorAll('button')).find((button) => button.textContent?.includes('试运行'))
+    await act(async () => {
+      preview()?.click()
+    })
+    expect(dryRun).not.toHaveBeenCalled()
+    expect(document.body.querySelector('[role="alert"]')?.textContent).toContain('Values 不是合法的 YAML 对象')
+
+    setTextArea(editor, '')
+    await flush()
+    expect(document.body.textContent).not.toContain('Values 不是合法的 YAML 对象')
+    await act(async () => {
+      preview()?.click()
+    })
+    await flush()
+    expect(dryRun).toHaveBeenCalledWith('demo-cluster', 'default', expect.objectContaining({ valuesYaml: '' }))
+    dryRun.mockRestore()
   })
 
   it('shows release detail tabs and the upgrade drawer', async () => {
@@ -156,5 +219,32 @@ describe('helm pages', () => {
     })
     await waitForText(document.body, '保留当前自定义 Values')
     expect(document.body.textContent).toContain('重置为所选版本的默认 Values')
+    const editor = await waitForEditor('helm-upgrade-values', 'replicaCount: 2')
+    expect(editor.readOnly).toBe(false)
+    expect(editor.value).toContain('replicaCount: 2')
+    const defaults = await waitForEditor('helm-upgrade-defaults', 'tag: stable')
+    expect(defaults.readOnly).toBe(true)
+    expect(defaults.value).toContain('tag: stable')
+    expect(document.body.textContent).toContain('只读对照，不会提交')
   })
 })
+
+async function waitForEditor(id: string, expected: string) {
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    const editor = document.getElementById(id)
+    if (editor instanceof HTMLTextAreaElement && editor.value.includes(expected)) return editor
+    await flush()
+  }
+  const editor = document.getElementById(id)
+  expect(editor).toBeInstanceOf(HTMLTextAreaElement)
+  expect((editor as HTMLTextAreaElement).value).toContain(expected)
+  return editor as HTMLTextAreaElement
+}
+
+function setTextArea(element: HTMLTextAreaElement, value: string) {
+  const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')
+  descriptor?.set?.call(element, value)
+  act(() => {
+    element.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+}
