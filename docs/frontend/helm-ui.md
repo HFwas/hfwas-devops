@@ -75,7 +75,7 @@ Kong 仍剥掉 `/api`。`/container/**` 需要登录。Long 主键经全局 Jack
 | GET | `/{namespace}/{name}/history` | 历史 |
 | GET | `/{namespace}/{name}/values` | `{ valuesYaml }` |
 | GET | `/{namespace}/{name}/manifest` | `{ manifest }` |
-| GET | `/{namespace}/{name}/resources` | 从清单解析出的资源，状态为 `unknown` |
+| GET | `/{namespace}/{name}/resources` | 从清单解析出的资源，状态为 `unknown`。模板未写 `metadata.namespace` 时用该 Release 的命名空间 |
 | POST | `/{namespace}` | 安装 |
 | POST | `/{namespace}/dry-run` | 安装试运行 |
 | PUT | `/{namespace}/{name}/upgrade` | 升级 |
@@ -92,9 +92,9 @@ Release 对象：`clusterId`、`namespace`、`name`、`chartName`、`chartVersio
 | 情况 | HTTP | 业务码 |
 |------|------|--------|
 | Chart 同名同版本 | 409 | 30303 |
-| Release 已存在 | 409 | 30310 |
-| Release 不存在 | 404 | 30309 |
-| helm 失败（stderr 摘要，已去掉口令和 kubeconfig 样文本） | 200 | 30311 |
+| Release 已存在（`msg` 固定为「Helm Release 已存在」） | 409 | 30310 |
+| Release 不存在（`msg` 固定为「Helm Release 不存在」） | 404 | 30309 |
+| helm 失败（一行摘要，已去掉口令、kubeconfig 和 pull/digest 噪声） | 200 | 30311 |
 | Chart 拉取失败 | 200 | 30312 |
 | 参数无效（名称、values 不是对象、version 与 chartRef 不一致） | 200 | 30313 |
 | Chart 不存在 / 多个仓库未指定 repositoryId | 200 | 30306 / 30301 |

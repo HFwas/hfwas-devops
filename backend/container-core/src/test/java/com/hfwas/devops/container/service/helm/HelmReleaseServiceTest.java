@@ -2,6 +2,7 @@ package com.hfwas.devops.container.service.helm;
 
 import com.hfwas.devops.container.dto.HelmInstallRequest;
 import com.hfwas.devops.container.dto.HelmReleaseVO;
+import com.hfwas.devops.container.dto.HelmRollbackRequest;
 import com.hfwas.devops.container.dto.HelmUpgradeRequest;
 import com.hfwas.devops.container.entity.ClusterEntity;
 import com.hfwas.devops.container.entity.HelmChartArtifactEntity;
@@ -41,8 +42,9 @@ class HelmReleaseServiceTest {
 
     private static final String MARKER = "kube-marker-do-not-leak";
     private static final String PASSWORD = "s3cret-oci";
+    /** Mirrors helm 3.18 {@code helm status -o json}: no chart object. */
     private static final String STATUS = """
-            {"name":"demo","namespace":"edge","version":1,"manifest":"apiVersion: v1\\nkind: ConfigMap\\nmetadata:\\n  name: demo\\n","info":{"status":"deployed","last_deployed":"2026-10-08T00:00:00Z","notes":"installed"},"chart":{"metadata":{"name":"sample","version":"0.1.0","appVersion":"1.0.0"}}}
+            {"name":"demo","namespace":"edge","version":1,"manifest":"apiVersion: v1\\nkind: ConfigMap\\nmetadata:\\n  name: demo\\n","info":{"first_deployed":"2026-10-08T00:00:00Z","last_deployed":"2026-10-08T00:00:00Z","deleted":"","description":"Install complete","status":"deployed","notes":"installed"},"config":{},"hooks":null}
             """;
     private static final String HISTORY = """
             [{"revision":1,"updated":"2026-10-08 00:00:00.000000 +0000 UTC","status":"deployed","chart":"sample-0.1.0","app_version":"1.0.0","description":"Install complete"}]
@@ -122,10 +124,13 @@ class HelmReleaseServiceTest {
         assertEquals("demo", release.getName());
         assertEquals("sample", release.getChartName());
         assertEquals("0.1.0", release.getChartVersion());
+        assertEquals("1.0.0", release.getAppVersion());
         assertEquals(1, release.getRevision());
         assertEquals("replicaCount: 3\n", release.getValuesYaml());
         assertEquals(5L, release.getRepositoryId());
+        assertEquals(9L, release.getArtifactId());
         assertEquals("oci://harbor.example/charts/sample:0.1.0", release.getChartRef());
+        assertEquals("edge", release.getResources().get(0).getNamespace());
         assertFalse(Files.exists(runner.commands.get(0).workDir()));
         assertTrue(runner.commands.stream().anyMatch(command -> String.join(" ", command.argv()).contains("registry login")));
     }
@@ -139,8 +144,13 @@ class HelmReleaseServiceTest {
             if (joined.contains("registry login")) {
                 return ok("");
             }
-            return fail("Error: cannot re-use a name that is still in use\npassword: " + PASSWORD
-                    + "\nclient-key-data: " + MARKER);
+            return fail("""
+                    Pulled: harbor.example/charts/sample:0.1.0
+                    Digest: sha256:abc
+                    Error: INSTALLATION FAILED: cannot re-use a name that is still in use
+                    password: %s
+                    client-key-data: %s
+                    """.formatted(PASSWORD, MARKER));
         };
 
         HelmInstallRequest request = new HelmInstallRequest();
@@ -150,8 +160,11 @@ class HelmReleaseServiceTest {
                 () -> service.install(4L, "edge", request));
 
         assertEquals(ContainerErrorCode.HELM_RELEASE_EXISTS.getCode(), ex.getCode());
+        assertEquals("Helm Release 已存在", ex.getMessage());
         assertFalse(ex.getMessage().contains(PASSWORD));
         assertFalse(ex.getMessage().contains(MARKER));
+        assertFalse(ex.getMessage().contains("Pulled"));
+        assertFalse(ex.getMessage().contains("Digest"));
         assertFalse(Files.exists(runner.commands.get(0).workDir()));
     }
 
@@ -163,7 +176,146 @@ class HelmReleaseServiceTest {
         HelmReleaseNotFoundException ex = assertThrows(HelmReleaseNotFoundException.class,
                 () -> service.get(4L, "edge", "missing"));
         assertEquals(ContainerErrorCode.HELM_RELEASE_NOT_FOUND.getCode(), ex.getCode());
+        assertEquals("Helm Release 不存在", ex.getMessage());
         assertFalse(Files.exists(runner.commands.get(0).workDir()));
+    }
+
+    @Test
+    void secondUninstallIsNotFoundWithStableMessage() {
+        connectedCluster();
+        runner.handler = command -> fail("Error: uninstall: Release not loaded: demo");
+
+        HelmReleaseNotFoundException ex = assertThrows(HelmReleaseNotFoundException.class,
+                () -> service.uninstall(4L, "edge", "demo"));
+        assertEquals(ContainerErrorCode.HELM_RELEASE_NOT_FOUND.getCode(), ex.getCode());
+        assertEquals("Helm Release 不存在", ex.getMessage());
+        assertFalse(ex.getMessage().contains("Release not loaded"));
+    }
+
+    @Test
+    void detailFillsChartFromCurrentHistoryRevisionAndLinksArtifact() {
+        connectedCluster();
+        when(artifactMapper.selectList(any())).thenReturn(List.of(artifact("sample", "0.2.0",
+                "oci://harbor.example/charts/sample:0.2.0")));
+        runner.handler = command -> {
+            String joined = String.join(" ", command.argv());
+            if (joined.contains(" status ")) {
+                return ok("""
+                        {"name":"demo","namespace":"edge","version":2,"manifest":"apiVersion: apps/v1\\nkind: Deployment\\nmetadata:\\n  name: demo\\n","info":{"status":"deployed","last_deployed":"2026-10-08T01:00:00Z"},"config":{},"hooks":null}
+                        """);
+            }
+            if (joined.contains(" history ")) {
+                return ok("""
+                        [{"revision":1,"updated":"2026-10-08 00:00:00.000000 +0000 UTC","status":"superseded","chart":"oldchart-0.1.0","app_version":"0.1.0","description":"Install complete"},{"revision":2,"updated":"2026-10-08 01:00:00.000000 +0000 UTC","status":"deployed","chart":"sample-0.2.0","app_version":"2.0.0","description":"Upgrade complete"}]
+                        """);
+            }
+            if (joined.contains(" get values ")) {
+                return ok("replicaCount: 2\n");
+            }
+            return fail("unexpected " + joined);
+        };
+
+        HelmReleaseVO release = service.get(4L, "edge", "demo");
+
+        assertEquals("sample", release.getChartName());
+        assertEquals("0.2.0", release.getChartVersion());
+        assertEquals("2.0.0", release.getAppVersion());
+        assertEquals(9L, release.getArtifactId());
+        assertEquals(5L, release.getRepositoryId());
+        assertEquals("oci://harbor.example/charts/sample:0.2.0", release.getChartRef());
+        assertEquals("edge", release.getResources().get(0).getNamespace());
+    }
+
+    @Test
+    void rollbackResponseUsesChartFromNewRevision() {
+        connectedCluster();
+        when(artifactMapper.selectList(any())).thenReturn(List.of(artifact()));
+        runner.handler = command -> {
+            String joined = String.join(" ", command.argv());
+            if (joined.contains(" rollback ")) {
+                return ok("");
+            }
+            if (joined.contains(" status ")) {
+                return ok(STATUS.replace("\"version\":1", "\"version\":3"));
+            }
+            if (joined.contains(" history ")) {
+                return ok(HISTORY.replace("\"revision\":1", "\"revision\":3"));
+            }
+            if (joined.contains(" get values ")) {
+                return ok("replicaCount: 1\n");
+            }
+            return fail("unexpected " + joined);
+        };
+
+        HelmRollbackRequest request = new HelmRollbackRequest();
+        request.setRevision(1);
+        HelmReleaseVO release = service.rollback(4L, "edge", "demo", request);
+
+        assertEquals(3, release.getRevision());
+        assertEquals("sample", release.getChartName());
+        assertEquals("0.1.0", release.getChartVersion());
+        assertEquals("oci://harbor.example/charts/sample:0.1.0", release.getChartRef());
+        assertEquals("edge", release.getResources().get(0).getNamespace());
+    }
+
+    @Test
+    void resourcesInheritReleaseNamespace() {
+        connectedCluster();
+        runner.handler = command -> {
+            String joined = String.join(" ", command.argv());
+            if (joined.contains(" get manifest ")) {
+                return ok("""
+                        apiVersion: v1
+                        kind: ConfigMap
+                        metadata:
+                          name: demo
+                        ---
+                        apiVersion: v1
+                        kind: Service
+                        metadata:
+                          name: demo
+                          namespace: other
+                        """);
+            }
+            return fail("unexpected " + joined);
+        };
+
+        var resources = service.resources(4L, "edge", "demo");
+        assertEquals("edge", resources.get(0).getNamespace());
+        assertEquals("ConfigMap", resources.get(0).getKind());
+        assertEquals("other", resources.get(1).getNamespace());
+    }
+
+    @Test
+    void otherHelmFailureIsOneSanitizedLine() {
+        connectedCluster();
+        when(artifactMapper.selectList(any())).thenReturn(List.of(artifact()));
+        runner.handler = command -> {
+            String joined = String.join(" ", command.argv());
+            if (joined.contains("registry login")) {
+                return ok("");
+            }
+            return fail("""
+                    Pulled: harbor.example/charts/sample:0.1.0
+                    Digest: sha256:abc
+                    Status: Downloaded newer image for harbor.example/charts/sample:0.1.0
+                    Error: UPGRADE FAILED: password: %s refused
+                    client-key-data: %s
+                    """.formatted(PASSWORD, MARKER));
+        };
+
+        HelmUpgradeRequest request = new HelmUpgradeRequest();
+        request.setChartRef("oci://harbor.example/charts/sample:0.1.0");
+        BizException ex = assertThrows(BizException.class, () -> service.upgrade(4L, "edge", "demo", request));
+
+        assertEquals(ContainerErrorCode.HELM_RELEASE_FAILED.getCode(), ex.getCode());
+        assertEquals("升级失败: UPGRADE FAILED: password: ****** refused", ex.getMessage());
+        assertFalse(ex.getMessage().contains("\n"));
+        assertFalse(ex.getMessage().contains(PASSWORD));
+        assertFalse(ex.getMessage().contains(MARKER));
+        assertFalse(ex.getMessage().contains("Pulled"));
+        assertFalse(ex.getMessage().contains("Digest"));
+        assertFalse(ex.getMessage().contains("Downloaded"));
     }
 
     @Test
@@ -254,13 +406,17 @@ class HelmReleaseServiceTest {
     }
 
     private static HelmChartArtifactEntity artifact() {
+        return artifact("sample", "0.1.0", "oci://harbor.example/charts/sample:0.1.0");
+    }
+
+    private static HelmChartArtifactEntity artifact(String chartName, String version, String chartRef) {
         HelmChartArtifactEntity entity = new HelmChartArtifactEntity();
         entity.setId(9L);
         entity.setRepositoryId(5L);
         entity.setTenantId(0L);
-        entity.setChartName("sample");
-        entity.setVersion("0.1.0");
-        entity.setChartRef("oci://harbor.example/charts/sample:0.1.0");
+        entity.setChartName(chartName);
+        entity.setVersion(version);
+        entity.setChartRef(chartRef);
         return entity;
     }
 
