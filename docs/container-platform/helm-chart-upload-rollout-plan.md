@@ -1,7 +1,7 @@
 # Helm 包上传 → 仓库 → 安装/升级 实现 Plan
 
 > 日期：2026-10-08
-> 版本：v0.3
+> 版本：v0.4
 > 适用仓库：[HFwas/hfwas-devops](https://github.com/HFwas/hfwas-devops)
 > 参照：kite Helm Release（页面改 values + Install/Upgrade；**kite 本身不支持本地上传**，本方案在此之上补「上传并推仓」）
 > 目标：支持用户上传 Helm chart 包 → 后端推送到 Chart Hub（Helm repo / OCI）→ 前端改 values 部署；后续改参数或换版本可 Upgrade
@@ -13,6 +13,7 @@
 | v0.1 | 2026-10-08 | 初版：流程、API、数据模型、前后端任务拆分、验收与风险 |
 | v0.2 | 2026-10-08 | 前端交互明确对标 kite Helm 页；上传推仓为自研增强 |
 | v0.3 | 2026-10-08 | 锁定：Harbor OCI、禁同版本覆盖、后端调 helm；前后端并行开工 |
+| v0.4 | 2026-10-08 | 配置项对齐 `HELM_CHART_OCI_*`；后端镜像安装 helm CLI |
 
 ---
 
@@ -234,13 +235,17 @@ UI 规范：共享 console 组件 + kite 冷蓝/字体规范；values 用 mono �
 
 | 配置项 | 说明 |
 |--------|------|
-| `helm.chart.default-repository-id` | 默认推仓目标 |
-| `helm.chart.max-upload-mb` | 如 50 |
-| `helm.chart.allowed-extensions` | `.tgz` |
-| `helm.binary-path` / 超时 | CLI 模式时 |
-| Harbor 项目、机器人账号 | 仅后端持有 |
+| `HELM_CHART_OCI_URL` | 默认 OCI 仓库，如 `oci://harbor.example/charts`。空则未配置 |
+| `HELM_CHART_OCI_USERNAME` / `HELM_CHART_OCI_PASSWORD` | 机器人账号。口令只来自环境变量 / Helm Secret，默认空，不写入仓库 |
+| `HELM_CHART_OCI_INSECURE` | 默认 `false` |
+| `HELM_CHART_REPOSITORY_NAME` | 默认仓库显示名，默认 `default` |
+| `HELM_CHART_MAX_UPLOAD_MB` | 默认 50，且不大于 servlet multipart 上限 |
+| `HELM_BINARY_PATH` | 默认 `helm`。后端运行镜像已 `apk add helm` |
+| `HELM_CHART_PUSH_TIMEOUT_SECONDS` | 单次 helm 调用超时，默认 120 |
 
-本地开发：可用 `docker compose` 里的 Harbor，或临时 filesystem Helm repo（`helm repo index`）做 P0 演示。
+`deploy/charts/backend/values.yaml` 的 `helmChart.oci` 提供同样的空占位；口令进入 Secret `helm-oci-password`。
+
+本地开发：可用 `docker compose` 里的 Harbor。上传只接受 `.tgz`。
 
 ---
 

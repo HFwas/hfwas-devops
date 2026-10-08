@@ -1,4 +1,4 @@
-/** Helm chart / release 契约。后端未落地前由 mock 实现同一形状。 */
+/** Helm chart / release 的前端契约。当前由 mock 实现；与后端 DTO 的差异见 docs/frontend/helm-ui.md。 */
 
 export interface HelmRepository {
   id: string

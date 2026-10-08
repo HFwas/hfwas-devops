@@ -1,7 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   Activity,
-  BookOpen,
   Box,
   Clock,
   Container,
@@ -15,11 +14,18 @@ import {
   HardDrive,
   KeyRound,
   Layers,
+  LayoutDashboard,
+  LifeBuoy,
+  Link,
   Package,
+  Play,
+  Route,
   Search,
   Server,
+  Shield,
   Ship,
   Upload,
+  User,
 } from 'lucide-react'
 
 export interface ContainerNavItem {
@@ -45,8 +51,9 @@ export const CONTAINER_NAV_GROUPS: { key: string; label: string; items: Containe
     key: 'apps',
     label: '应用',
     items: [
-      { key: 'helm-releases', label: 'Helm Releases', icon: Package, suffix: '/helm', needsCluster: true },
-      { key: 'helm-charts', label: 'Helm Charts', icon: BookOpen, to: '/container/helm/charts', needsCluster: false },
+      { key: 'helm-releases', label: 'Helm Release', icon: Ship, to: '/container/helm/releases', needsCluster: false },
+      { key: 'helm-charts', label: 'Chart 目录', icon: Package, to: '/container/helm/charts', needsCluster: false },
+      { key: 'helm-upload', label: '上传 Chart', icon: Upload, to: '/container/helm/upload', needsCluster: false },
     ],
   },
   {
@@ -117,15 +124,6 @@ export const CONTAINER_NAV_GROUPS: { key: string; label: string; items: Containe
       { key: 'clusters', label: '集群管理', icon: Server, to: '/container/clusters', needsCluster: false },
       { key: 'registries', label: '镜像仓库', icon: Container, to: '/container/registries', needsCluster: false },
       { key: 'images', label: '镜像', icon: Search, to: '/container/images', needsCluster: false },
-    ],
-  },
-  {
-    key: 'helm',
-    label: '应用发布',
-    items: [
-      { key: 'helm-releases', label: 'Helm Release', icon: Ship, to: '/container/helm/releases', needsCluster: false },
-      { key: 'helm-charts', label: 'Chart 目录', icon: Package, to: '/container/helm/charts', needsCluster: false },
-      { key: 'helm-upload', label: '上传 Chart', icon: Upload, to: '/container/helm/upload', needsCluster: false },
     ],
   },
 ]

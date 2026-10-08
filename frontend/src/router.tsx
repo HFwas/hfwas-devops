@@ -151,8 +151,6 @@ export const router = createBrowserRouter([
               { path: 'clusters/:clusterId/namespaces', element: <NamespaceListPage /> },
               { path: 'clusters/:clusterId/events', element: <ResourceStubPage title="Event" /> },
               { path: 'clusters/:clusterId/crds', element: <ResourceStubPage title="CRD" /> },
-              { path: 'clusters/:clusterId/helm', element: <ResourceStubPage title="Helm Releases" /> },
-              { path: 'helm/charts', element: <ResourceStubPage title="Helm Charts" /> },
               { path: 'registries', element: <RegistryListPage /> },
               { path: 'registries/:registryId', element: <RegistryDetailPage /> },
               { path: 'registries/:registryId/projects/:project/repos', element: <RepoListPage /> },

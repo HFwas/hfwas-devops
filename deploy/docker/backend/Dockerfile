@@ -64,6 +64,11 @@ RUN --mount=type=cache,id=hfwas-pip,target=/root/.cache/pip \
     markdown \
     reportlab>=4.1.0
 
+# Chart 上传推 Harbor OCI 需要 helm CLI（可用 HELM_BINARY_PATH 覆盖）
+RUN apk add --no-cache helm \
+    && helm version --short \
+    && rm -rf /var/cache/apk/*
+
 # 图片处理：Magick 改像素，ExifTool 读标签（Perl 是 ExifTool 运行时）
 # 不装 imagemagick-pdf，降低 Magick 攻击面
 # 图片处理 + shell 语法验证依赖 bash
