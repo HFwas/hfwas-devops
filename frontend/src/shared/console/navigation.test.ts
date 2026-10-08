@@ -125,6 +125,21 @@ describe('resolveBreadcrumbs', () => {
   })
 })
 
+describe('container helm navigation', () => {
+  it('keeps one application group on the real helm pages', () => {
+    const apps = CONTAINER_NAV_GROUPS.filter((group) => group.key === 'apps' || group.key === 'helm')
+    expect(apps.map((group) => group.label)).toEqual(['应用'])
+    const keys = CONTAINER_NAV_GROUPS.flatMap((group) => group.items.map((item) => item.key))
+    expect(new Set(keys).size).toBe(keys.length)
+    expect(apps[0]?.items.map((item) => containerNavHref(item, 'c1'))).toEqual([
+      '/container/helm/releases',
+      '/container/helm/charts',
+      '/container/helm/upload',
+    ])
+    expect(CONTAINER_NAV_GROUPS.flatMap((group) => group.items).some((item) => item.suffix === '/helm')).toBe(false)
+  })
+})
+
 describe('isContainerNavActive', () => {
   it('highlights the resource segment without highlighting 集群管理', () => {
     expect(isContainerNavActive('/container/clusters/c1/nodes/node-a', { key: 'nodes', label: 'Node', icon: () => null, suffix: '/nodes', needsCluster: true })).toBe(true)

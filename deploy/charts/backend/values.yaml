@@ -55,6 +55,15 @@ otel:
   metricsPort: 9404
   serviceName: hfwas-devops-backend
 
+# Helm chart 上传到 Harbor OCI。口令只进 Secret，默认空，不要把真实凭据写入仓库。
+helmChart:
+  oci:
+    url: ""
+    username: ""
+    password: ""
+    insecure: "false"
+    repositoryName: default
+
 # 额外环境变量（不要再写 JAVA_TOOL_OPTIONS，用上面的 javaToolOptions）
 extraEnv:
   - name: MALLOC_ARENA_MAX

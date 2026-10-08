@@ -14,11 +14,13 @@ import type {
 } from '@/modules/container/types/helm'
 
 /**
- * 真实路径。容器产品内：
+ * 前端约定的真实路径。容器产品内：
  * - Chart 仓库与制品：`/container/helm/*`（不绑集群）
  * - Release：`/container/clusters/{clusterId}/helm/releases/*`
  *
- * TODO(helm-backend): origin/dev 尚无对应 Controller。接入后把 `helm.ts` 的 HELM_USE_MOCK 设为 false。
+ * 已落地的后端只有仓库、列表、版本和上传。详情仍走 `GET /charts/{name}`，
+ * values 仍走 `.../values`；这两处以及全部 Release 接口后端还没有。
+ * 字段差（`name`/`chartName`、`size`/`sizeBytes`、`repositoryName`）见 docs/frontend/helm-ui.md。
  */
 
 function seg(value: string) {

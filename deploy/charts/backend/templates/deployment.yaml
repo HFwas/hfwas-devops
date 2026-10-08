@@ -111,6 +111,11 @@ spec:
                 secretKeyRef:
                   name: {{ include "backend.fullname" . }}
                   key: secret
+            - name: HELM_CHART_OCI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "backend.fullname" . }}
+                  key: helm-oci-password
             - name: USER_JWT_EXPIRE_SECONDS
               value: {{ .Values.config.jwtExpireSeconds | quote }}
             - name: DOCGEN_SCRIPT_PATH

@@ -16,3 +16,7 @@ data:
   {{- if .Values.schema.init.enabled }}
   DEVOPS_SCHEMA_INIT: "external"
   {{- end }}
+  HELM_CHART_OCI_URL: {{ .Values.helmChart.oci.url | quote }}
+  HELM_CHART_OCI_USERNAME: {{ .Values.helmChart.oci.username | quote }}
+  HELM_CHART_OCI_INSECURE: {{ .Values.helmChart.oci.insecure | quote }}
+  HELM_CHART_REPOSITORY_NAME: {{ .Values.helmChart.oci.repositoryName | quote }}
