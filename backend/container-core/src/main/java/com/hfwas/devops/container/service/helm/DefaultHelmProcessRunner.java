@@ -10,6 +10,8 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -26,6 +28,7 @@ public class DefaultHelmProcessRunner implements HelmProcessRunner {
         builder.directory(workDir.toFile());
         builder.redirectOutput(stdout.toFile());
         builder.redirectError(stderr.toFile());
+        scrubInheritedSecrets(builder.environment());
         if (command.environment() != null) {
             builder.environment().putAll(command.environment());
         }
@@ -49,7 +52,32 @@ public class DefaultHelmProcessRunner implements HelmProcessRunner {
             process.destroyForcibly();
             throw new BizException(ContainerErrorCode.HELM_CHART_PUSH_FAILED, "helm 执行超时");
         }
-        return new HelmProcessResult(process.exitValue(), readLimited(stdout), readLimited(stderr));
+        int limit = command.maxCaptureBytes() > 0 ? command.maxCaptureBytes() : MAX_CAPTURE_BYTES;
+        return new HelmProcessResult(
+                process.exitValue(),
+                readLimited(stdout, limit, command.failIfTooLarge()),
+                readLimited(stderr, limit, command.failIfTooLarge()));
+    }
+
+    /**
+     * Helm inherits the backend process environment. Drop credential-shaped variables before the
+     * command's own environment is applied, so a kubeconfig path can still be set afterwards.
+     */
+    static void scrubInheritedSecrets(Map<String, String> environment) {
+        environment.keySet().removeIf(DefaultHelmProcessRunner::isSecretEnv);
+    }
+
+    static boolean isSecretEnv(String key) {
+        if (key == null || key.isBlank()) {
+            return false;
+        }
+        String upper = key.toUpperCase(Locale.ROOT);
+        return upper.contains("PASSWORD")
+                || upper.contains("SECRET")
+                || upper.contains("TOKEN")
+                || upper.contains("CREDENTIAL")
+                || upper.contains("PRIVATE_KEY")
+                || "KUBECONFIG".equals(upper);
     }
 
     private static void writeStdin(Process process, byte[] stdin) {
@@ -63,17 +91,23 @@ public class DefaultHelmProcessRunner implements HelmProcessRunner {
         }
     }
 
-    private static String readLimited(Path path) {
+    private static String readLimited(Path path, int limit, boolean failIfTooLarge) {
         try {
             if (!Files.exists(path)) {
                 return "";
             }
             long size = Files.size(path);
+            if (failIfTooLarge && size > limit) {
+                throw new BizException(ContainerErrorCode.HELM_RELEASE_FAILED,
+                        "helm 输出超过 " + limit + " 字节");
+            }
             try (InputStream in = Files.newInputStream(path)) {
-                int toRead = (int) Math.min(size, MAX_CAPTURE_BYTES);
+                int toRead = (int) Math.min(size, limit);
                 byte[] buf = in.readNBytes(toRead);
                 return new String(buf, StandardCharsets.UTF_8);
             }
+        } catch (BizException e) {
+            throw e;
         } catch (IOException e) {
             return "";
         }

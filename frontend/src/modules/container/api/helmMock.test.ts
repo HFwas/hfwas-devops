@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ApiError } from '@/shared/errors/apiError'
 import { ResultCode } from '@/shared/errors/resultCode'
+import { HELM_USE_MOCK } from '@/modules/container/api/helm'
 import { createHelmMockStore } from '@/modules/container/api/helmMock'
 import { valuesYamlError } from '@/modules/container/helm/yaml'
+
+describe('helm client switch', () => {
+  it('points pages at the real API', () => {
+    expect(HELM_USE_MOCK).toBe(false)
+  })
+})
 
 describe('helm mock session', () => {
   const store = createHelmMockStore()
@@ -13,7 +20,7 @@ describe('helm mock session', () => {
 
   it('rejects a duplicate chart version and keeps the catalog usable', async () => {
     const charts = await store.listCharts()
-    expect(charts.map((item) => item.name).sort()).toEqual(['nginx', 'redis'])
+    expect(charts.map((item) => item.chartName).sort()).toEqual(['nginx', 'redis'])
 
     const duplicate = new File(['chart'], 'nginx-1.2.0.tgz', { type: 'application/gzip' })
     await expect(store.uploadChart(duplicate, 'repo-harbor')).rejects.toMatchObject({
@@ -22,7 +29,7 @@ describe('helm mock session', () => {
 
     const uploaded = await store.uploadChart(new File(['chart'], 'demo-app-1.0.0.tgz'), 'repo-harbor')
     expect(uploaded.chartRef).toBe('oci://harbor.local/charts/demo-app:1.0.0')
-    expect((await store.listCharts({ name: 'demo-app' })).map((item) => item.name)).toEqual(['demo-app'])
+    expect((await store.listCharts({ name: 'demo-app' })).map((item) => item.chartName)).toEqual(['demo-app'])
   })
 
   it('installs, upgrades, and rolls back by appending revisions', async () => {

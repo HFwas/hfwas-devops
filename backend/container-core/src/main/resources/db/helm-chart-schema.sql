@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS helm_chart_artifact (
     chart_ref       TEXT NOT NULL,
     description     TEXT NOT NULL DEFAULT '',
     app_version     TEXT NOT NULL DEFAULT '',
+    keywords        TEXT NOT NULL DEFAULT '[]',
+    readme          TEXT NOT NULL DEFAULT '',
+    values_yaml     TEXT NOT NULL DEFAULT '',
+    content_cached  INTEGER NOT NULL DEFAULT 0,
     uploaded_by     INTEGER,
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(repository_id, chart_name, version),
@@ -33,3 +37,9 @@ CREATE TABLE IF NOT EXISTS helm_chart_artifact (
 
 CREATE INDEX IF NOT EXISTS idx_helm_chart_artifact_tenant_name
     ON helm_chart_artifact(tenant_id, chart_name);
+
+-- Existing databases created before content columns. Duplicate-column errors are ignored.
+ALTER TABLE helm_chart_artifact ADD COLUMN keywords TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE helm_chart_artifact ADD COLUMN readme TEXT NOT NULL DEFAULT '';
+ALTER TABLE helm_chart_artifact ADD COLUMN values_yaml TEXT NOT NULL DEFAULT '';
+ALTER TABLE helm_chart_artifact ADD COLUMN content_cached INTEGER NOT NULL DEFAULT 0;

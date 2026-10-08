@@ -10,6 +10,7 @@ import { helmApi } from '@/modules/container/api/helm'
 import { HelmMockNotice } from '@/modules/container/components/HelmMockNotice'
 import { helmChartPath } from '@/modules/container/helm/paths'
 import { formatHelmTime } from '@/modules/container/helm/yaml'
+import { errorMessage } from '@/shared/errors/apiError'
 
 export function HelmChartListPage() {
   const [keyword, setKeyword] = useState('')
@@ -35,10 +36,10 @@ export function HelmChartListPage() {
       <HelmMockNotice />
       <DataTable
         loading={query.isLoading}
-        error={query.isError ? 'Chart 列表加载失败' : undefined}
+        error={query.isError ? errorMessage(query.error, 'Chart 列表加载失败') : undefined}
         empty="还没有 Chart。可以上传 .tgz。"
         data={query.data ?? []}
-        getRowId={(row) => `${row.repositoryId}/${row.name}`}
+        getRowId={(row) => `${row.repositoryId}/${row.chartName}`}
         toolbar={
           <Input
             value={keyword}
@@ -53,8 +54,8 @@ export function HelmChartListPage() {
             id: 'name',
             header: 'Chart',
             cell: (row) => (
-              <Link className="font-medium text-primary hover:underline" to={helmChartPath(row.repositoryId, row.name)}>
-                {row.name}
+              <Link className="font-medium text-primary hover:underline" to={helmChartPath(row.repositoryId, row.chartName)}>
+                {row.chartName}
               </Link>
             ),
           },

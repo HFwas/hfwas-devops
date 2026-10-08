@@ -8,6 +8,7 @@ import { HelmMockNotice } from '@/modules/container/components/HelmMockNotice'
 import { helmReleasePath } from '@/modules/container/helm/paths'
 import { useHelmCluster } from '@/modules/container/helm/useHelmCluster'
 import { formatHelmTime } from '@/modules/container/helm/yaml'
+import { errorMessage } from '@/shared/errors/apiError'
 
 export function HelmReleaseListPage() {
   const { clusterId, namespace, synthetic } = useHelmCluster()
@@ -27,7 +28,7 @@ export function HelmReleaseListPage() {
       {!clusterId ? <p className="text-sm text-muted-foreground">请先接入并选择集群。</p> : null}
       <DataTable
         loading={query.isLoading}
-        error={query.isError ? 'Release 列表加载失败' : undefined}
+        error={query.isError ? errorMessage(query.error, 'Release 列表加载失败') : undefined}
         empty="这个集群还没有 Helm Release。"
         data={query.data ?? []}
         getRowId={(row) => `${row.namespace}/${row.name}`}

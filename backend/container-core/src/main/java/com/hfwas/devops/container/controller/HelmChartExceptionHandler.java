@@ -2,6 +2,8 @@ package com.hfwas.devops.container.controller;
 
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.container.error.HelmChartConflictException;
+import com.hfwas.devops.container.error.HelmReleaseConflictException;
+import com.hfwas.devops.container.error.HelmReleaseNotFoundException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,18 @@ public class HelmChartExceptionHandler {
     @ExceptionHandler(HelmChartConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public BaseResult<Void> conflict(HelmChartConflictException ex) {
+        return BaseResult.failed(ex.getCode(), ex.getMessage());
+    }
+
+    @ExceptionHandler(HelmReleaseConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public BaseResult<Void> releaseConflict(HelmReleaseConflictException ex) {
+        return BaseResult.failed(ex.getCode(), ex.getMessage());
+    }
+
+    @ExceptionHandler(HelmReleaseNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public BaseResult<Void> releaseMissing(HelmReleaseNotFoundException ex) {
         return BaseResult.failed(ex.getCode(), ex.getMessage());
     }
 }

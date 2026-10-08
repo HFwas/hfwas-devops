@@ -27,12 +27,16 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @ExtendWith(MockitoExtension.class)
 class HelmChartServiceTest {
@@ -43,6 +47,8 @@ class HelmChartServiceTest {
     private HelmChartArtifactMapper artifactMapper;
     @Mock
     private HelmChartOciPusher ociPusher;
+    @Mock
+    private HelmChartPackagePuller packagePuller;
 
     private HelmChartService service;
     private byte[] fixture;
@@ -53,6 +59,7 @@ class HelmChartServiceTest {
                 repositoryMapper,
                 artifactMapper,
                 ociPusher,
+                packagePuller,
                 new HelmChartArchiveInspector(),
                 properties());
         try (InputStream in = getClass().getResourceAsStream("/helm/sample-0.1.0.tgz")) {
@@ -92,12 +99,19 @@ class HelmChartServiceTest {
         assertEquals("0.1.0", vo.getVersion());
         assertEquals("sha256:pushed", vo.getDigest());
         assertEquals("oci://harbor.example/charts/sample:0.1.0", vo.getChartRef());
+        assertEquals("default", vo.getRepositoryName());
         assertEquals(42L, vo.getUploadedBy());
         assertTrue(vo.getSizeBytes() > 0);
 
         ArgumentCaptor<HelmChartRepositoryEntity> repoCaptor = ArgumentCaptor.forClass(HelmChartRepositoryEntity.class);
         verify(repositoryMapper).insert(repoCaptor.capture());
         assertEquals(9L, repoCaptor.getValue().getTenantId());
+        ArgumentCaptor<HelmChartArtifactEntity> stored = ArgumentCaptor.forClass(HelmChartArtifactEntity.class);
+        verify(artifactMapper).insert(stored.capture());
+        assertEquals(Boolean.TRUE, stored.getValue().getContentCached());
+        assertTrue(stored.getValue().getValuesYaml().contains("replicaCount: 1"));
+        assertEquals("[]", stored.getValue().getKeywords());
+
         assertEquals("oci://harbor.example/charts", repoCaptor.getValue().getUrl());
         assertEquals("oci", repoCaptor.getValue().getType());
 
@@ -175,6 +189,75 @@ class HelmChartServiceTest {
 
         HelmChartArtifactVO vo = service.getVersion("sample", "0.1.0", 5L);
         assertEquals("oci://harbor.example/charts/sample:0.1.0", vo.getChartRef());
+    }
+
+    @Test
+    void listFiltersByChartNameDescriptionOrRepository() {
+        when(artifactMapper.selectList(any())).thenReturn(List.of(
+                artifact("sample", "1.0.0", LocalDateTime.parse("2026-01-01T00:00:00")),
+                artifact("demo", "0.1.0", LocalDateTime.parse("2026-03-01T00:00:00"))));
+        when(repositoryMapper.selectList(any())).thenReturn(List.of(existingRepo()));
+
+        List<HelmChartSummaryVO> charts = service.listCharts(null, "default");
+        assertEquals(2, charts.size());
+
+        charts = service.listCharts(null, "samp");
+        assertEquals(1, charts.size());
+        assertEquals("sample", charts.get(0).getChartName());
+        assertEquals("default", charts.get(0).getRepositoryName());
+    }
+
+    @Test
+    void getChartReturnsReadmeAndVersionsFromCache() {
+        HelmChartArtifactEntity latest = artifact("sample", "1.2.0", LocalDateTime.parse("2026-05-01T00:00:00"));
+        latest.setId(8L);
+        latest.setContentCached(true);
+        latest.setKeywords("[\"web\"]");
+        latest.setReadme("# Sample\n");
+        latest.setValuesYaml("replicaCount: 2\n");
+        HelmChartArtifactEntity older = artifact("sample", "1.0.0", LocalDateTime.parse("2026-01-01T00:00:00"));
+        older.setId(7L);
+        older.setContentCached(true);
+        when(artifactMapper.selectList(any())).thenReturn(List.of(older, latest));
+        when(repositoryMapper.selectById(5L)).thenReturn(existingRepo());
+
+        var detail = service.getChart("sample", 5L, null);
+
+        assertEquals("sample", detail.getChartName());
+        assertEquals("1.2.0", detail.getVersion());
+        assertEquals("default", detail.getRepositoryName());
+        assertEquals(List.of("web"), detail.getKeywords());
+        assertEquals("# Sample\n", detail.getReadme());
+        assertEquals(2, detail.getVersions().size());
+        assertEquals("1.2.0", detail.getVersions().get(0).getVersion());
+        verify(packagePuller, never()).pull(any());
+
+        var values = service.getValues("sample", "1.2.0", 5L);
+        assertEquals("replicaCount: 2\n", values.getValuesYaml());
+    }
+
+    @Test
+    void pullsChartWhenContentIsNotCached() throws Exception {
+        HelmChartArtifactEntity row = artifact("sample", "0.1.0", LocalDateTime.parse("2026-04-01T00:00:00"));
+        row.setId(3L);
+        row.setContentCached(false);
+        row.setChartRef("oci://harbor.example/charts/sample:0.1.0");
+        when(artifactMapper.selectList(any())).thenReturn(List.of(row));
+        when(repositoryMapper.selectById(5L)).thenReturn(existingRepo());
+        when(packagePuller.pull(any())).thenAnswer(invocation -> {
+            OciPullRequest request = invocation.getArgument(0);
+            assertEquals("oci://harbor.example/charts/sample:0.1.0", request.chartRef());
+            assertFalse(request.toString().contains("s3cret"));
+            Path archive = request.destinationDir().resolve("sample-0.1.0.tgz");
+            Files.write(archive, fixture);
+            return archive;
+        });
+
+        var values = service.getValues("sample", "0.1.0", 5L);
+
+        assertTrue(values.getValuesYaml().contains("replicaCount: 1"));
+        assertEquals(Boolean.TRUE, row.getContentCached());
+        verify(artifactMapper).updateById(row);
     }
 
     @Test

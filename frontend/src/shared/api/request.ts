@@ -68,18 +68,19 @@ export async function post<T>(url: string, data?: unknown, timeout?: number): Pr
   return res.data.data
 }
 
-export async function put<T>(url: string, data?: unknown): Promise<T> {
-  const res = await request.put<BaseResult<T>>(url, data)
+export async function put<T>(url: string, data?: unknown, timeout?: number): Promise<T> {
+  const config = timeout ? { timeout } : undefined
+  const res = await request.put<BaseResult<T>>(url, data, config)
   return res.data.data
 }
 
-export async function get<T>(url: string, params?: unknown): Promise<T> {
-  const res = await request.get<BaseResult<T>>(url, { params })
+export async function get<T>(url: string, params?: unknown, timeout?: number): Promise<T> {
+  const res = await request.get<BaseResult<T>>(url, timeout ? { params, timeout } : { params })
   return res.data.data
 }
 
-export async function del<T>(url: string): Promise<T> {
-  const res = await request.delete<BaseResult<T>>(url)
+export async function del<T>(url: string, timeout?: number): Promise<T> {
+  const res = await request.delete<BaseResult<T>>(url, timeout ? { timeout } : undefined)
   return res.data.data
 }
 

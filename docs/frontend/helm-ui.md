@@ -1,7 +1,7 @@
 # 容器产品 Helm 界面
 
-> 日期：2026-10-07
-> 版本：v0.2
+> 日期：2026-10-08
+> 版本：v0.3
 > 关联：Helm 包上传与安装方案（Harbor OCI、禁止同版本覆盖）；交互参照 kite Helm 的目录、安装对话框与 Release 详情，视觉用本仓库冷蓝 token 与 `components/console`
 
 ### 变更记录
@@ -10,6 +10,7 @@
 |------|------|----------|
 | v0.1 | 2026-10-07 | 初版：容器侧栏入口、页面流、以及后端未落地时的 API 客户端 |
 | v0.2 | 2026-10-07 | 侧栏只保留「应用」一组真实入口；记下与已落地 Chart API 的字段/路径差，mock 仍整页开启 |
+| v0.3 | 2026-10-08 | 页面改走真实 API；补齐 Chart 详情/Values 与 Release 契约，字段以 `chartName`、`sizeBytes` 为准 |
 
 ---
 
@@ -23,7 +24,7 @@
 | Chart 目录 | `/container/helm/charts`、`/container/helm/charts/:repositoryId/:name` |
 | 上传 Chart | `/container/helm/upload` |
 
-`/container/helm` 重定向到 Release 列表。Release 使用顶栏当前集群；未选集群且仍在示例数据模式时，页面用 `demo-cluster` 以便先走通流程。
+`/container/helm` 重定向到 Release 列表。Release 使用顶栏当前集群。未选集群时页面提示先接入集群。只有把 `HELM_USE_MOCK` 改回 `true` 时，才会用 `demo-cluster` 走示例数据。
 
 ## 2. 页面流
 
@@ -34,46 +35,72 @@
 
 日志页目前只放共享 `LogPanel` 空态。Pod 日志聚合留给后端。
 
-## 3. API 客户端
+## 3. API 契约
 
-`frontend/src/modules/container/api/helm.ts` 的 `HELM_USE_MOCK` 仍为 `true`，目录、上传和 Release 共用这一开关。页面使用会话内示例数据。
+`frontend/src/modules/container/api/helm.ts` 的 `HELM_USE_MOCK` 为 `false`。页面走 `helmHttp`。`helmMock` 留给单测，以及本地没有后端时手动把开关改回 `true`。
 
-没有按能力拆开：Chart 列表和上传虽然已有 Controller，但详情与 values 还不能由现有接口填满，安装/升级也还没有。把开关改成 `false` 会让目录页和安装页一起打到未对齐的接口。
+Kong 仍剥掉 `/api`。`/container/**` 需要登录。Long 主键经全局 Jackson 写成 JSON 字符串，前端 id 保持 `string`。
 
-Chart 与仓库（前端客户端，不绑集群）：
+前端字段跟随后端：摘要和详情用 `chartName`，制品大小用 `sizeBytes`。列表和详情都带 `repositoryName`。`valuesYaml` 是 YAML 文本。安装引用 `chartRef` 或 `artifactId`，不把本地 tgz 直接装进集群。`valuesStrategy`（`keep` / `reset`）只给前端决定提交哪份 YAML，后端按收到的 `valuesYaml` 执行。
 
-| 方法 | 路径 |
-|------|------|
-| GET | `/container/helm/repositories` |
-| GET | `/container/helm/charts` |
-| GET | `/container/helm/charts/{name}?repositoryId&version` |
-| GET | `/container/helm/charts/{name}/versions/{version}/values?repositoryId` |
-| POST | `/container/helm/charts/upload`（`file`、`repositoryId`） |
+### 3.1 Chart（不绑集群）
 
-Release（绑集群）：
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/container/helm/repositories` | `{ id, name, type, url, insecure, createdAt }` |
+| GET | `/container/helm/charts?repositoryId&name` | 摘要列表。`name` 是对 chart 名、说明、仓库名的大小写不敏感包含匹配 |
+| GET | `/container/helm/charts/{name}?repositoryId&version` | 详情。省略 `version` 时取最新 SemVer。多个仓库都有该 Chart 且未给 `repositoryId` 时返回 30301 |
+| GET | `/container/helm/charts/{name}/versions?repositoryId` | 制品列表 |
+| GET | `/container/helm/charts/{name}/versions/{version}?repositoryId` | 单个制品 |
+| GET | `/container/helm/charts/{name}/versions/{version}/values?repositoryId` | `{ valuesYaml }`，chart 包里的默认 values |
+| POST | `/container/helm/charts/upload` | multipart `file`，可选 `repositoryId`。同名同版本 HTTP 409，业务码 30303 |
 
-| 方法 | 路径 |
-|------|------|
-| GET | `/container/clusters/{clusterId}/helm/releases` |
-| GET / DELETE | `/container/clusters/{clusterId}/helm/releases/{namespace}/{name}` |
-| POST | `…/releases/{namespace}` 安装 |
-| POST | `…/releases/{namespace}/dry-run` |
-| PUT | `…/releases/{namespace}/{name}/upgrade` 与 `…/upgrade/dry-run` |
-| PUT | `…/releases/{namespace}/{name}/rollback`，body `{ revision }` |
+摘要：`repositoryId`、`repositoryName`、`chartName`、`description`、`latestVersion`、`appVersion`、`versionCount`、`updatedAt`。
 
-请求里的 `valuesYaml` 是 YAML 文本，对应方案中的 values，由后端解析。安装引用 `chartRef` 或 `artifactId`，不把本地 tgz 直接装进集群。
+详情在摘要字段之外还有当前 `version`、`appVersion`、`chartRef`、`artifactId`、`keywords`、`readme`，以及 `versions[]`（`artifactId`、`version`、`appVersion`、`chartRef`、`digest`、`createdAt`）。
 
-### 3.1 与已落地后端的差异
+制品：`id`、`repositoryId`、`repositoryName`、`chartName`、`version`、`appVersion`、`description`、`digest`、`sizeBytes`、`chartRef`、`uploadedBy`、`createdAt`。`sizeBytes` 在 JSON 里是字符串。
 
-`HelmChartController`（`/container/helm`）已实现上传、仓库、列表和版本查询。Kong 仍是 `/api` 前缀剥离，安全配置里 `/container/**` 需要登录，与其它容器接口相同。multipart 字段名 `file`、`repositoryId` 一致；`repositoryId` 后端是可选的 Long。
+上传时从包里抽出 keywords、README.md、values.yaml，写入 `helm_chart_artifact` 并标记 `content_cached`。之后读详情或默认 Values 直接用库里的文本。`content_cached` 为假时，后端用配置的 OCI 凭据 `helm pull` 一次并回写。空的 values 只要已缓存就不会再拉。
 
-| 前端 `helmHttp` | 后端现状 |
-|------|------|
-| `GET /charts` 摘要含 `name`、`repositoryName` | 同路径。字段是 `chartName`，没有 `repositoryName` |
-| `GET /charts/{name}?repositoryId&version` 返回详情（`readme`、`keywords`、`versions`） | 没有该路径。已有 `GET /charts/{name}/versions` 和 `GET /charts/{name}/versions/{version}`，返回制品，不含 README |
-| `GET /charts/{name}/versions/{version}/values` | 未实现 |
-| 制品 `size`、`repositoryName`；id 为 string | 制品 `sizeBytes`，无 `repositoryName`；id 为 Long。多 `uploadedBy` |
-| 仓库 `id: string`，`type: 'oci'` | `id` 为 Long，多 `insecure` |
-| Release 全部路径 | 未实现（P1） |
+### 3.2 Release（绑当前集群）
 
-因此目录/上传不能单独切到真实客户端，同时让安装对话框继续用 mock 的 values。后端镜像已安装 `helm` CLI，`HELM_BINARY_PATH` 可覆盖；Chart 的 `HELM_CHART_OCI_*` 在 `application.yml` 与 backend Helm values 里是空占位，口令只进 Secret。
+前缀 `/container/clusters/{clusterId}/helm/releases`。集群必须是 `Connected`，kubeconfig 用现有集群存储解密，只放进当次命令的临时目录，命令结束即删。安装从 Harbor OCI `chartRef` 拉取，需要登录时密码走 stdin，不进 argv、日志或响应。
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `?namespace` | 列表。不含 values、清单和历史 |
+| GET | `/{namespace}/{name}` | 详情：用户 values、清单、资源、历史（每个 revision 的 values） |
+| GET | `/{namespace}/{name}/history` | 历史 |
+| GET | `/{namespace}/{name}/values` | `{ valuesYaml }` |
+| GET | `/{namespace}/{name}/manifest` | `{ manifest }` |
+| GET | `/{namespace}/{name}/resources` | 从清单解析出的资源，状态为 `unknown` |
+| POST | `/{namespace}` | 安装 |
+| POST | `/{namespace}/dry-run` | 安装试运行 |
+| PUT | `/{namespace}/{name}/upgrade` | 升级 |
+| PUT | `/{namespace}/{name}/upgrade/dry-run` | 升级试运行 |
+| PUT | `/{namespace}/{name}/rollback` | body `{ revision }` |
+| DELETE | `/{namespace}/{name}` | 卸载 |
+
+安装 body：`name`、`chartRef` 和/或 `artifactId`、`valuesYaml`、`createNamespace`、`wait`。升级 body 再加 `version`（须与 `chartRef` 的 tag 一致）、`valuesStrategy`、`rollbackOnFailure`。空 `valuesYaml` 表示用 chart 默认值，不传 `--values`。试运行返回 `{ manifest, resources }`。`rollbackOnFailure` 对应 `helm upgrade --atomic`；否则在 `wait` 为真时加 `--wait`。
+
+Release 对象：`clusterId`、`namespace`、`name`、`chartName`、`chartVersion`、`appVersion`、`chartRef`、`repositoryId`、`artifactId`、`status`、`revision`、`valuesYaml`、`notes`、`manifest`、`resources`、`history`、`updatedAt`。只有租户内恰好一条制品的 chart 名和版本对得上时，才会填 `repositoryId` / `artifactId`。
+
+### 3.3 错误与超时
+
+| 情况 | HTTP | 业务码 |
+|------|------|--------|
+| Chart 同名同版本 | 409 | 30303 |
+| Release 已存在 | 409 | 30310 |
+| Release 不存在 | 404 | 30309 |
+| helm 失败（stderr 摘要，已去掉口令和 kubeconfig 样文本） | 200 | 30311 |
+| Chart 拉取失败 | 200 | 30312 |
+| 参数无效（名称、values 不是对象、version 与 chartRef 不一致） | 200 | 30313 |
+| Chart 不存在 / 多个仓库未指定 repositoryId | 200 | 30306 / 30301 |
+| 集群未连接 | 200 | 30006 |
+
+页面用响应里的 `msg` 展示上传冲突、试运行、安装、升级、回滚和卸载失败。
+
+后端单次查询超时 60 秒，安装/升级/回滚/卸载 180 秒，`--wait` 或 `--atomic` 600 秒。前端在此之上为安装、升级和回滚多留 120 秒给详情回读；未缓存 Chart 的详情和默认 Values 用 300 秒，以盖住登录加 `helm pull`。
+
+helm 进程包在 `HelmProcessRunner` 后面，单测不需要集群或 Harbor。后端镜像已安装 `helm` CLI，`HELM_BINARY_PATH` 可覆盖。超时默认在 `application.yml`，可用 `HELM_RELEASE_TIMEOUT_SECONDS`、`HELM_RELEASE_WAIT_TIMEOUT_SECONDS`、`HELM_RELEASE_QUERY_TIMEOUT_SECONDS` 覆盖。OCI 仓库仍由 `HELM_CHART_OCI_*` 与 Secret `helm-oci-password` 配置。

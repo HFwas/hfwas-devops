@@ -2,10 +2,20 @@ import { act, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetHelmSession } from '@/modules/container/api/helm'
 import { helmMock } from '@/modules/container/api/helmMock'
+import { useContainerCluster } from '@/modules/container/clusterStore'
 import { HelmInstallDialog } from '@/modules/container/components/HelmInstallDialog'
+
+vi.mock('@/modules/container/api/helm', async () => {
+  const mock = await import('@/modules/container/api/helmMock')
+  return {
+    HELM_USE_MOCK: false,
+    helmApi: mock.helmMock,
+    resetHelmSession: () => mock.helmMock.reset(),
+  }
+})
 import { HelmChartDetailPage } from '@/modules/container/pages/HelmChartDetailPage'
 import { HelmChartListPage } from '@/modules/container/pages/HelmChartListPage'
 import { HelmReleaseDetailPage } from '@/modules/container/pages/HelmReleaseDetailPage'
@@ -45,6 +55,7 @@ describe('helm pages', () => {
 
   beforeEach(() => {
     ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+    useContainerCluster.setState({ currentId: 'demo-cluster', namespace: '' })
     resetHelmSession()
   })
 
@@ -55,6 +66,7 @@ describe('helm pages', () => {
     container?.remove()
     root = null
     container = null
+    useContainerCluster.setState({ currentId: null, namespace: '' })
   })
 
   it('lists charts and opens the install dialog from a chart', async () => {
@@ -99,7 +111,7 @@ describe('helm pages', () => {
             defaultNamespace="default"
             chart={{
               repositoryId: chart.repositoryId,
-              name: chart.name,
+              chartName: chart.chartName,
               version: chart.version,
               chartRef: chart.chartRef,
               artifactId: chart.artifactId,

@@ -21,6 +21,12 @@ public class HelmChartArtifactEntity {
     private String chartRef;
     private String description;
     private String appVersion;
+    /** JSON array of Chart.yaml keywords. */
+    private String keywords;
+    private String readme;
+    private String valuesYaml;
+    /** True once README and values were extracted from the package or a pull. */
+    private Boolean contentCached;
     private Long uploadedBy;
     private LocalDateTime createdAt;
 }

@@ -2,8 +2,10 @@ package com.hfwas.devops.container.controller;
 
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.container.dto.HelmChartArtifactVO;
+import com.hfwas.devops.container.dto.HelmChartDetailVO;
 import com.hfwas.devops.container.dto.HelmChartRepositoryVO;
 import com.hfwas.devops.container.dto.HelmChartSummaryVO;
+import com.hfwas.devops.container.dto.HelmValuesVO;
 import com.hfwas.devops.container.error.HelmChartConflictException;
 import com.hfwas.devops.container.service.helm.HelmChartService;
 import lombok.RequiredArgsConstructor;
@@ -21,8 +23,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 /**
- * Upload a Helm chart into Harbor OCI and list the stored artifacts.
- * Install and upgrade are intentionally not implemented here.
+ * Upload a Helm chart into Harbor OCI and read the catalog.
+ * Release install and upgrade live on {@link HelmReleaseController}.
  */
 @RestController
 @RequestMapping("/container/helm")
@@ -48,6 +50,22 @@ public class HelmChartController {
             @RequestParam(value = "repositoryId", required = false) Long repositoryId,
             @RequestParam(value = "name", required = false) String name) {
         return BaseResult.ok(helmChartService.listCharts(repositoryId, name));
+    }
+
+    @GetMapping("/charts/{name}")
+    public BaseResult<HelmChartDetailVO> getChart(
+            @PathVariable("name") String name,
+            @RequestParam(value = "repositoryId", required = false) Long repositoryId,
+            @RequestParam(value = "version", required = false) String version) {
+        return BaseResult.ok(helmChartService.getChart(name, repositoryId, version));
+    }
+
+    @GetMapping("/charts/{name}/versions/{version:.+}/values")
+    public BaseResult<HelmValuesVO> getValues(
+            @PathVariable("name") String name,
+            @PathVariable("version") String version,
+            @RequestParam(value = "repositoryId", required = false) Long repositoryId) {
+        return BaseResult.ok(helmChartService.getValues(name, version, repositoryId));
     }
 
     @GetMapping("/charts/{name}/versions")

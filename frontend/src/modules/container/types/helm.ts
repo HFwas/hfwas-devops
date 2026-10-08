@@ -1,10 +1,11 @@
-/** Helm chart / release 的前端契约。当前由 mock 实现；与后端 DTO 的差异见 docs/frontend/helm-ui.md。 */
+/** Helm chart / release 契约，与后端 DTO 对齐。说明见 docs/frontend/helm-ui.md。 */
 
 export interface HelmRepository {
   id: string
   name: string
   type: 'oci'
   url: string
+  insecure?: boolean
   createdAt: string
 }
 
@@ -20,7 +21,7 @@ export interface HelmChartVersion {
 export interface HelmChartSummary {
   repositoryId: string
   repositoryName: string
-  name: string
+  chartName: string
   description?: string
   latestVersion: string
   appVersion?: string
@@ -31,7 +32,7 @@ export interface HelmChartSummary {
 export interface HelmChartDetail {
   repositoryId: string
   repositoryName: string
-  name: string
+  chartName: string
   description?: string
   version: string
   appVersion?: string
@@ -51,7 +52,8 @@ export interface HelmChartArtifact {
   appVersion?: string
   description?: string
   digest?: string
-  size?: number
+  /** Jackson 把 Long 写成字符串；mock 会话里可以是数字。 */
+  sizeBytes?: number | string
   chartRef: string
   createdAt: string
 }

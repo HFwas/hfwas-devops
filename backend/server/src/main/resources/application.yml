@@ -72,6 +72,10 @@ helm:
       password: ${HELM_CHART_OCI_PASSWORD:}
       insecure: ${HELM_CHART_OCI_INSECURE:false}
       repository-name: ${HELM_CHART_REPOSITORY_NAME:default}
+  release:
+    timeout-seconds: ${HELM_RELEASE_TIMEOUT_SECONDS:180}
+    wait-timeout-seconds: ${HELM_RELEASE_WAIT_TIMEOUT_SECONDS:600}
+    query-timeout-seconds: ${HELM_RELEASE_QUERY_TIMEOUT_SECONDS:60}
 
 pipeline:
   credential-key: ${PIPELINE_CREDENTIAL_KEY:hfwas-dev-pipeline-key-32b!!}

@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 @Data
 public class HelmChartSummaryVO {
     private Long repositoryId;
+    private String repositoryName;
     private String chartName;
     private String latestVersion;
     private int versionCount;

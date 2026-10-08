@@ -1,7 +1,7 @@
 # Helm 包上传 → 仓库 → 安装/升级 实现 Plan
 
 > 日期：2026-10-08
-> 版本：v0.4
+> 版本：v0.5
 > 适用仓库：[HFwas/hfwas-devops](https://github.com/HFwas/hfwas-devops)
 > 参照：kite Helm Release（页面改 values + Install/Upgrade；**kite 本身不支持本地上传**，本方案在此之上补「上传并推仓」）
 > 目标：支持用户上传 Helm chart 包 → 后端推送到 Chart Hub（Helm repo / OCI）→ 前端改 values 部署；后续改参数或换版本可 Upgrade
@@ -14,6 +14,7 @@
 | v0.2 | 2026-10-08 | 前端交互明确对标 kite Helm 页；上传推仓为自研增强 |
 | v0.3 | 2026-10-08 | 锁定：Harbor OCI、禁同版本覆盖、后端调 helm；前后端并行开工 |
 | v0.4 | 2026-10-08 | 配置项对齐 `HELM_CHART_OCI_*`；后端镜像安装 helm CLI |
+| v0.5 | 2026-10-08 | P1 已落地：Chart 读侧与集群 Release API，前端关闭 mock。契约以 `docs/frontend/helm-ui.md` 为准 |
 
 ---
 
@@ -150,7 +151,7 @@ History → 选 revision → Rollback
 
 ## 5. API 草案
 
-前缀示例：`/container/helm` 或独立 `/helm`（与现有 `container-core` 边界对齐时再定）。
+已落地的路径、DTO 和错误码以 `docs/frontend/helm-ui.md` 为准。下面是开工时的草案，前缀当时尚未钉死。
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -300,7 +301,8 @@ UI 规范：共享 console 组件 + kite 冷蓝/字体规范；values 用 mono �
 
 ## 13. 执行状态
 
-1. PR-Docs：Plan 入库 `docs/`  
-2. PR-Backend-P0：上传 + 推 OCI + 制品列表  
-3. PR-Frontend：kite 对标 Helm UI + 上传入口（可先 mock API）  
-4. 随后 Backend-P1：Install/Upgrade/Rollback 与前端联调
+1. PR-Docs：Plan 入库 `docs/`
+2. PR-Backend-P0：上传 + 推 OCI + 制品列表（已合并）
+3. PR-Frontend：kite 对标 Helm UI + 上传入口（已合并，当时整页 mock）
+4. P1：Chart 详情、默认 Values、README 缓存在制品上；集群 Release 的列表、详情、历史、values、清单、资源、安装、升级、试运行、回滚、卸载由后端 `helm` CLI 执行。前端 `HELM_USE_MOCK = false`。最终契约见 `docs/frontend/helm-ui.md`
+5. 仍未做：P2 多仓库登记、RBAC 与审计；P3 values 表单与自动升级。Release 不以平台表为真相，仍读集群 Helm storage
