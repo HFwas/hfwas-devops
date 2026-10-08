@@ -37,6 +37,32 @@ class HelmChartArchiveInspectorTest {
     }
 
     @Test
+    void readsKeywordsReadmeAndValues() throws Exception {
+        String chart = """
+                apiVersion: v2
+                name: sample
+                description: Tiny fixture chart
+                type: application
+                version: 0.2.0
+                appVersion: "1.10"
+                keywords:
+                  - web
+                  - demo
+                """;
+        byte[] bytes = ChartArchiveFixtures.tgz(
+                ChartArchiveFixtures.file("sample/Chart.yaml", chart),
+                ChartArchiveFixtures.file("sample/values.yaml", "replicaCount: 2\n"),
+                ChartArchiveFixtures.file("sample/README.md", "# Hello\n"));
+        Path archive = ChartArchiveFixtures.write(tempDir, "meta.tgz", bytes);
+
+        HelmChartPackageMeta meta = inspector.inspect(archive, LIMITS);
+
+        assertEquals(java.util.List.of("web", "demo"), meta.keywords());
+        assertEquals("# Hello\n", meta.readme());
+        assertEquals("replicaCount: 2\n", meta.valuesYaml());
+    }
+
+    @Test
     void keepsUnquotedAppVersionDigits() throws Exception {
         Path archive = ChartArchiveFixtures.write(tempDir, "sample-1.10.0.tgz",
                 ChartArchiveFixtures.validChart("sample", "1.10.0"));

@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public class HelmChartArtifactVO {
     private Long id;
     private Long repositoryId;
+    private String repositoryName;
     private String chartName;
     private String version;
     private String digest;

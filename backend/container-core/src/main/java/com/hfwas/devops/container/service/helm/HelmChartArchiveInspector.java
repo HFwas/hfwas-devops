@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
@@ -35,9 +36,13 @@ public class HelmChartArchiveInspector {
 
     private static final Pattern CHART_NAME = Pattern.compile("[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?");
     private static final int MAX_PATH_LENGTH = 1024;
+    /** values.yaml and README.md are cached for the catalog. Larger files are rejected at upload. */
+    private static final int MAX_TEXT_FILE_BYTES = 1024 * 1024;
 
     public HelmChartPackageMeta inspect(Path archive, HelmChartArchiveLimits limits) {
         Map<String, byte[]> topLevelChartYaml = new HashMap<>();
+        Map<String, byte[]> topLevelValues = new HashMap<>();
+        Map<String, byte[]> topLevelReadme = new HashMap<>();
         List<String> chartYamlPaths = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         long uncompressed = 0;
@@ -67,8 +72,10 @@ public class HelmChartArchiveInspector {
                     uncompressed += drain(tar, room);
                     continue;
                 }
-                boolean chartYaml = name.equals("Chart.yaml") || name.endsWith("/Chart.yaml");
-                if (chartYaml && slashCount(name) <= 1) {
+                String baseName = name.substring(name.lastIndexOf('/') + 1);
+                boolean topLevel = slashCount(name) <= 1;
+                boolean chartYaml = "Chart.yaml".equals(baseName);
+                if (chartYaml && topLevel) {
                     byte[] body = readCapped(tar, limits.maxChartYamlBytes(), room, "Chart.yaml 过大");
                     uncompressed += body.length;
                     topLevelChartYaml.put(name, body);
@@ -76,6 +83,14 @@ public class HelmChartArchiveInspector {
                 } else if (chartYaml) {
                     uncompressed += drain(tar, room);
                     chartYamlPaths.add(name);
+                } else if (topLevel && "values.yaml".equals(baseName)) {
+                    byte[] body = readCapped(tar, MAX_TEXT_FILE_BYTES, room, "values.yaml 过大");
+                    uncompressed += body.length;
+                    topLevelValues.put(name, body);
+                } else if (topLevel && "readme.md".equals(baseName.toLowerCase(Locale.ROOT))) {
+                    byte[] body = readCapped(tar, MAX_TEXT_FILE_BYTES, room, "README.md 过大");
+                    uncompressed += body.length;
+                    topLevelReadme.put(name, body);
                 } else {
                     uncompressed += drain(tar, room);
                 }
@@ -107,7 +122,16 @@ public class HelmChartArchiveInspector {
                 throw invalid("非法的 Chart.yaml 位置: " + safe(path));
             }
         }
-        return meta;
+        String valuesPath = rootDir.isEmpty() ? "values.yaml" : rootDir + "/values.yaml";
+        return new HelmChartPackageMeta(
+                meta.name(),
+                meta.version(),
+                meta.description(),
+                meta.appVersion(),
+                meta.apiVersion(),
+                meta.keywords(),
+                decodeText(topLevelReadme.get(findReadme(topLevelReadme, rootDir))),
+                decodeText(topLevelValues.get(valuesPath)));
     }
 
     private static String selectRootChartYaml(List<String> paths) {
@@ -215,7 +239,56 @@ public class HelmChartArchiveInspector {
                 version,
                 clip(optionalString(map, "description"), 2000),
                 clip(optionalString(map, "appVersion"), 128),
-                apiVersion);
+                apiVersion,
+                keywords(map),
+                "",
+                "");
+    }
+
+    private static List<String> keywords(Map<String, Object> map) {
+        Object value = map.get("keywords");
+        if (value == null) {
+            return List.of();
+        }
+        if (!(value instanceof List<?> raw)) {
+            throw invalid("Chart.yaml keywords 必须是字符串列表");
+        }
+        List<String> keywords = new ArrayList<>();
+        for (Object item : raw) {
+            if (!(item instanceof String text)) {
+                throw invalid("Chart.yaml keywords 必须是字符串列表");
+            }
+            String trimmed = text.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            keywords.add(clip(trimmed, 64));
+            if (keywords.size() == 32) {
+                break;
+            }
+        }
+        return List.copyOf(keywords);
+    }
+
+    private static String findReadme(Map<String, byte[]> files, String rootDir) {
+        String expected = rootDir.isEmpty() ? "README.md" : rootDir + "/README.md";
+        for (String key : files.keySet()) {
+            if (key.equalsIgnoreCase(expected)) {
+                return key;
+            }
+        }
+        return null;
+    }
+
+    private static String decodeText(byte[] body) {
+        if (body == null || body.length == 0) {
+            return "";
+        }
+        String text = new String(body, StandardCharsets.UTF_8);
+        if (text.startsWith("\uFEFF")) {
+            text = text.substring(1);
+        }
+        return text.replace("\0", "");
     }
 
     private static String requiredString(Map<String, Object> map, String key) {

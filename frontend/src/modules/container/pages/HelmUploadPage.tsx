@@ -9,6 +9,7 @@ import { helmApi } from '@/modules/container/api/helm'
 import { HelmMockNotice } from '@/modules/container/components/HelmMockNotice'
 import { helmChartPath } from '@/modules/container/helm/paths'
 import type { HelmChartArtifact } from '@/modules/container/types/helm'
+import { errorMessage } from '@/shared/errors/apiError'
 
 const MAX_BYTES = 50 * 1024 * 1024
 
@@ -36,9 +37,9 @@ export function HelmUploadPage() {
       toast.success(`${result.chartName}@${result.version} 已登记`)
       await queryClient.invalidateQueries({ queryKey: ['helm-charts'] })
     },
-    onError: (err: Error) => {
+    onError: (err: unknown) => {
       setArtifact(null)
-      setError(err.message || '上传失败')
+      setError(errorMessage(err, '上传失败'))
     },
   })
 

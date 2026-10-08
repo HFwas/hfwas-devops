@@ -35,6 +35,11 @@ public enum ContainerErrorCode implements ErrorCode {
     HELM_CHART_NOT_FOUND(30306, "Helm Chart 不存在"),
     HELM_CHART_CREDENTIAL_INVALID(30307, "Helm Chart 仓库凭据无效"),
     HELM_CHART_REPOSITORY_NOT_FOUND(30308, "Chart 仓库不存在"),
+    HELM_RELEASE_NOT_FOUND(30309, "Helm Release 不存在"),
+    HELM_RELEASE_EXISTS(30310, "Helm Release 已存在"),
+    HELM_RELEASE_FAILED(30311, "Helm 操作失败"),
+    HELM_CHART_PULL_FAILED(30312, "拉取 Helm Chart 失败"),
+    HELM_RELEASE_INVALID(30313, "Helm Release 参数无效"),
     ;
 
     private final int code;

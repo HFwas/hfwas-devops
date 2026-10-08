@@ -11,6 +11,7 @@ import { HelmMockNotice } from '@/modules/container/components/HelmMockNotice'
 import { YamlEditor } from '@/modules/container/components/YamlEditor'
 import { useHelmCluster } from '@/modules/container/helm/useHelmCluster'
 import { formatHelmTime } from '@/modules/container/helm/yaml'
+import { errorMessage } from '@/shared/errors/apiError'
 
 const TABS = [
   { value: 'overview', label: '概览' },
@@ -46,7 +47,7 @@ export function HelmChartDetailPage() {
     if (!installFromQuery || !detail) return
     setInstallTarget({
       repositoryId: detail.repositoryId,
-      name: detail.name,
+      chartName: detail.chartName,
       version: detail.version,
       chartRef: detail.chartRef,
       artifactId: detail.artifactId,
@@ -62,7 +63,7 @@ export function HelmChartDetailPage() {
     }
     setInstallTarget({
       repositoryId: detail.repositoryId,
-      name: detail.name,
+      chartName: detail.chartName,
       version: row.version,
       chartRef: row.chartRef,
       artifactId: row.artifactId,
@@ -87,7 +88,7 @@ export function HelmChartDetailPage() {
         onValueChange={setTab}
       >
         {chart.isLoading ? <p className="text-sm text-muted-foreground">加载中…</p> : null}
-        {chart.isError ? <p className="text-sm text-destructive">Chart 加载失败</p> : null}
+        {chart.isError ? <p className="text-sm text-destructive">{errorMessage(chart.error, 'Chart 加载失败')}</p> : null}
         {detail && tab === 'overview' ? (
           <dl className="grid gap-3 sm:grid-cols-2">
             <Field label="仓库" value={detail.repositoryName} />
@@ -115,13 +116,16 @@ export function HelmChartDetailPage() {
           </dl>
         ) : null}
         {detail && tab === 'values' ? (
-          <YamlEditor
-            id="helm-chart-default-values"
-            label="默认 Values"
-            value={values.isLoading ? '加载中…' : (values.data?.valuesYaml ?? '')}
-            readOnly
-            minHeightClass="min-h-96"
-          />
+          <>
+            {values.isError ? <p className="mb-2 text-sm text-destructive">{errorMessage(values.error, '默认 Values 加载失败')}</p> : null}
+            <YamlEditor
+              id="helm-chart-default-values"
+              label="默认 Values"
+              value={values.isLoading ? '加载中…' : (values.data?.valuesYaml ?? '')}
+              readOnly
+              minHeightClass="min-h-96"
+            />
+          </>
         ) : null}
         {detail && tab === 'versions' ? (
           <DataTable

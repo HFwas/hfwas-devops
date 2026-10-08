@@ -11,10 +11,11 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { errorMessage } from '@/shared/errors/apiError'
 
 export interface HelmInstallTarget {
   repositoryId: string
-  name: string
+  chartName: string
   version: string
   chartRef: string
   artifactId: string
@@ -43,21 +44,21 @@ export function HelmInstallDialog({
   const [dryRunManifest, setDryRunManifest] = useState<string | null>(null)
 
   const defaults = useQuery({
-    queryKey: ['helm-chart-values', chart?.repositoryId, chart?.name, chart?.version],
-    queryFn: () => helmApi.getValues(chart!.repositoryId, chart!.name, chart!.version),
+    queryKey: ['helm-chart-values', chart?.repositoryId, chart?.chartName, chart?.version],
+    queryFn: () => helmApi.getValues(chart!.repositoryId, chart!.chartName, chart!.version),
     enabled: open && !!chart,
   })
 
   useEffect(() => {
     if (!open || !chart) return
-    setReleaseName(defaultReleaseName(chart.name))
+    setReleaseName(defaultReleaseName(chart.chartName))
     setNamespace(defaultNamespace?.trim() || 'default')
     setCreateNamespace(true)
     setWait(false)
     setValuesYaml('')
     setError('')
     setDryRunManifest(null)
-  }, [chart?.artifactId, chart?.name, defaultNamespace, open])
+  }, [chart?.artifactId, chart?.chartName, defaultNamespace, open])
 
   const buildRequest = () => {
     if (!chart || !clusterId) {
@@ -92,7 +93,7 @@ export function HelmInstallDialog({
       return helmApi.dryRunInstall(clusterId, payload.namespace, payload.body)
     },
     onSuccess: (result) => setDryRunManifest(result.manifest),
-    onError: (err: Error) => setError(err.message || '试运行失败'),
+    onError: (err: unknown) => setError(errorMessage(err, '试运行失败')),
   })
 
   const install = useMutation({
@@ -106,7 +107,7 @@ export function HelmInstallDialog({
       onOpenChange(false)
       void navigate(helmReleasePath(release.namespace, release.name))
     },
-    onError: (err: Error) => setError(err.message || '安装失败'),
+    onError: (err: unknown) => setError(errorMessage(err, '安装失败')),
   })
 
   const busy = dryRun.isPending || install.isPending
@@ -117,7 +118,7 @@ export function HelmInstallDialog({
         <DialogHeader>
           <DialogTitle>安装</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            {chart ? `${chart.name}:${chart.version}` : '选择 Chart 版本'}
+            {chart ? `${chart.chartName}:${chart.version}` : '选择 Chart 版本'}
           </p>
         </DialogHeader>
         {error ? (
@@ -174,7 +175,7 @@ export function HelmInstallDialog({
               />
             </div>
           )}
-          {defaults.isError ? <p className="text-sm text-destructive">默认 Values 加载失败</p> : null}
+          {defaults.isError ? <p className="text-sm text-destructive">{errorMessage(defaults.error, '默认 Values 加载失败')}</p> : null}
         </div>
         <DialogFooter className="items-center sm:justify-between">
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">

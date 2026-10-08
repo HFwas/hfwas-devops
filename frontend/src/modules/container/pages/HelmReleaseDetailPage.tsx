@@ -15,6 +15,7 @@ import { YamlEditor } from '@/modules/container/components/YamlEditor'
 import { useHelmCluster } from '@/modules/container/helm/useHelmCluster'
 import { formatHelmTime } from '@/modules/container/helm/yaml'
 import type { HelmReleaseHistoryItem } from '@/modules/container/types/helm'
+import { errorMessage } from '@/shared/errors/apiError'
 
 const TABS = [
   { value: 'overview', label: '概览' },
@@ -49,7 +50,7 @@ export function HelmReleaseDetailPage() {
       await queryClient.invalidateQueries({ queryKey: ['helm-release', clusterId, namespace, name] })
       await queryClient.invalidateQueries({ queryKey: ['helm-releases', clusterId] })
     },
-    onError: (error: Error) => toast.error(error.message || '回滚失败'),
+    onError: (error: unknown) => toast.error(errorMessage(error, '回滚失败')),
   })
 
   const remove = useMutation({
@@ -59,7 +60,7 @@ export function HelmReleaseDetailPage() {
       await queryClient.invalidateQueries({ queryKey: ['helm-releases', clusterId] })
       void navigate('/container/helm/releases')
     },
-    onError: (error: Error) => toast.error(error.message || '卸载失败'),
+    onError: (error: unknown) => toast.error(errorMessage(error, '卸载失败')),
   })
 
   return (
@@ -85,7 +86,7 @@ export function HelmReleaseDetailPage() {
       >
         {!clusterId ? <p className="text-sm text-muted-foreground">请先选择集群。</p> : null}
         {query.isLoading ? <p className="text-sm text-muted-foreground">加载中…</p> : null}
-        {query.isError ? <p className="text-sm text-destructive">Release 加载失败</p> : null}
+        {query.isError ? <p className="text-sm text-destructive">{errorMessage(query.error, 'Release 加载失败')}</p> : null}
         {release && tab === 'overview' ? (
           <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Info label="状态" value={<StatusIcon status={release.status} />} />

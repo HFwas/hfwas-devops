@@ -9,6 +9,7 @@ import type { HelmRelease } from '@/modules/container/types/helm'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { errorMessage } from '@/shared/errors/apiError'
 
 export function HelmUpgradeDrawer({
   open,
@@ -91,7 +92,7 @@ export function HelmUpgradeDrawer({
       return helmApi.dryRunUpgrade(release.clusterId, release.namespace, release.name, payload.body)
     },
     onSuccess: (result) => setDryRunManifest(result.manifest),
-    onError: (err: Error) => setError(err.message || '试运行失败'),
+    onError: (err: unknown) => setError(errorMessage(err, '试运行失败')),
   })
 
   const upgrade = useMutation({
@@ -105,7 +106,7 @@ export function HelmUpgradeDrawer({
       onOpenChange(false)
       onUpgraded()
     },
-    onError: (err: Error) => setError(err.message || '升级失败'),
+    onError: (err: unknown) => setError(errorMessage(err, '升级失败')),
   })
 
   const busy = dryRun.isPending || upgrade.isPending
@@ -126,6 +127,8 @@ export function HelmUpgradeDrawer({
               <pre className="mt-1 font-mono text-xs whitespace-pre-wrap">{error}</pre>
             </div>
           ) : null}
+          {chart.isError ? <p className="text-sm text-destructive">{errorMessage(chart.error, 'Chart 版本加载失败')}</p> : null}
+          {defaults.isError ? <p className="text-sm text-destructive">{errorMessage(defaults.error, '默认 Values 加载失败')}</p> : null}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="helm-upgrade-version">版本</Label>

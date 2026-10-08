@@ -3,8 +3,11 @@ package com.hfwas.devops.container.service.helm;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.container.dto.HelmChartArtifactVO;
+import com.hfwas.devops.container.dto.HelmChartDetailVO;
 import com.hfwas.devops.container.dto.HelmChartRepositoryVO;
 import com.hfwas.devops.container.dto.HelmChartSummaryVO;
+import com.hfwas.devops.container.dto.HelmChartVersionVO;
+import com.hfwas.devops.container.dto.HelmValuesVO;
 import com.hfwas.devops.container.entity.HelmChartArtifactEntity;
 import com.hfwas.devops.container.entity.HelmChartRepositoryEntity;
 import com.hfwas.devops.container.error.ContainerErrorCode;
@@ -25,14 +28,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -45,6 +51,7 @@ public class HelmChartService {
     private final HelmChartRepositoryMapper repositoryMapper;
     private final HelmChartArtifactMapper artifactMapper;
     private final HelmChartOciPusher ociPusher;
+    private final HelmChartPackagePuller packagePuller;
     private final HelmChartArchiveInspector archiveInspector;
     private final HelmChartProperties properties;
 
@@ -88,6 +95,7 @@ public class HelmChartService {
             entity.setChartRef(chartRef);
             entity.setDescription(meta.description() == null ? "" : meta.description());
             entity.setAppVersion(meta.appVersion() == null ? "" : meta.appVersion());
+            HelmChartContent.apply(entity, meta);
             entity.setUploadedBy(SecurityHelper.currentUserId());
             entity.setCreatedAt(LocalDateTime.now());
             try {
@@ -96,7 +104,7 @@ public class HelmChartService {
                 throw new HelmChartConflictException("相同 Chart 名称与版本已存在");
             }
             log.info("Stored helm chart artifact id={} ref={}", entity.getId(), chartRef);
-            return toArtifactVO(entity);
+            return toArtifactVO(entity, repository.getName());
         } catch (IOException e) {
             throw new BizException(ContainerErrorCode.HELM_CHART_INVALID, "读取上传文件失败");
         } finally {
@@ -110,8 +118,9 @@ public class HelmChartService {
         }
     }
 
-    public List<HelmChartSummaryVO> listCharts(Long repositoryId, String name) {
-        List<HelmChartArtifactEntity> rows = artifactMapper.selectList(artifactFilter(repositoryId, name));
+    public List<HelmChartSummaryVO> listCharts(Long repositoryId, String keyword) {
+        List<HelmChartArtifactEntity> rows = artifactMapper.selectList(artifactFilter(repositoryId, null));
+        Map<Long, String> repositoryNames = repositoryNames();
         Map<String, List<HelmChartArtifactEntity>> grouped = new LinkedHashMap<>();
         for (HelmChartArtifactEntity row : rows) {
             grouped.computeIfAbsent(row.getRepositoryId() + "\0" + row.getChartName(), key -> new ArrayList<>())
@@ -123,6 +132,7 @@ public class HelmChartService {
             HelmChartArtifactEntity latest = versions.get(0);
             HelmChartSummaryVO summary = new HelmChartSummaryVO();
             summary.setRepositoryId(latest.getRepositoryId());
+            summary.setRepositoryName(repositoryNames.getOrDefault(latest.getRepositoryId(), ""));
             summary.setChartName(latest.getChartName());
             summary.setLatestVersion(latest.getVersion());
             summary.setVersionCount(versions.size());
@@ -130,20 +140,60 @@ public class HelmChartService {
             summary.setAppVersion(latest.getAppVersion());
             summary.setUpdatedAt(versions.stream()
                     .map(HelmChartArtifactEntity::getCreatedAt)
-                    .filter(java.util.Objects::nonNull)
+                    .filter(Objects::nonNull)
                     .max(Comparator.naturalOrder())
                     .orElse(latest.getCreatedAt()));
             summaries.add(summary);
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            String needle = keyword.trim().toLowerCase(Locale.ROOT);
+            summaries.removeIf(summary -> !contains(summary.getChartName(), needle)
+                    && !contains(summary.getDescription(), needle)
+                    && !contains(summary.getRepositoryName(), needle));
         }
         summaries.sort(Comparator.comparing(HelmChartSummaryVO::getChartName, Comparator.nullsLast(String::compareTo))
                 .thenComparing(HelmChartSummaryVO::getRepositoryId, Comparator.nullsLast(Long::compareTo)));
         return summaries;
     }
 
-    public List<HelmChartArtifactVO> listVersions(String chartName, Long repositoryId) {
-        List<HelmChartArtifactEntity> rows = artifactMapper.selectList(artifactFilter(repositoryId, chartName));
+    public HelmChartDetailVO getChart(String chartName, Long repositoryId, String version) {
+        List<HelmChartArtifactEntity> rows = loadVersions(chartName, repositoryId);
+        HelmChartArtifactEntity selected = selectVersion(rows, version);
+        HelmChartRepositoryEntity repository = requireRepository(selected.getRepositoryId());
+        ensureContent(selected, repository);
         rows.sort(Comparator.comparing(HelmChartArtifactEntity::getVersion, HelmVersions.NEWER_FIRST));
-        return rows.stream().map(this::toArtifactVO).toList();
+        HelmChartDetailVO detail = new HelmChartDetailVO();
+        detail.setRepositoryId(selected.getRepositoryId());
+        detail.setRepositoryName(repository.getName());
+        detail.setChartName(selected.getChartName());
+        detail.setDescription(selected.getDescription());
+        detail.setVersion(selected.getVersion());
+        detail.setAppVersion(selected.getAppVersion());
+        detail.setChartRef(selected.getChartRef());
+        detail.setArtifactId(selected.getId());
+        detail.setKeywords(HelmChartContent.keywords(selected.getKeywords()));
+        detail.setReadme(selected.getReadme() == null ? "" : selected.getReadme());
+        detail.setVersions(rows.stream().map(this::toVersionVO).toList());
+        return detail;
+    }
+
+    public HelmValuesVO getValues(String chartName, String version, Long repositoryId) {
+        if (version == null || version.isBlank()) {
+            throw new BizException(ContainerErrorCode.HELM_CHART_INVALID, "version 不能为空");
+        }
+        HelmChartArtifactEntity selected = selectVersion(loadVersions(chartName, repositoryId), version);
+        HelmChartRepositoryEntity repository = requireRepository(selected.getRepositoryId());
+        ensureContent(selected, repository);
+        HelmValuesVO vo = new HelmValuesVO();
+        vo.setValuesYaml(selected.getValuesYaml() == null ? "" : selected.getValuesYaml());
+        return vo;
+    }
+
+    public List<HelmChartArtifactVO> listVersions(String chartName, Long repositoryId) {
+        List<HelmChartArtifactEntity> rows = loadVersions(chartName, repositoryId);
+        rows.sort(Comparator.comparing(HelmChartArtifactEntity::getVersion, HelmVersions.NEWER_FIRST));
+        Map<Long, String> names = repositoryNames();
+        return rows.stream().map(row -> toArtifactVO(row, names.getOrDefault(row.getRepositoryId(), ""))).toList();
     }
 
     public HelmChartArtifactVO getVersion(String chartName, String version, Long repositoryId) {
@@ -157,7 +207,59 @@ public class HelmChartService {
             throw new BizException(ContainerErrorCode.HELM_CHART_INVALID,
                     "多个仓库包含该版本，请指定 repositoryId");
         }
-        return toArtifactVO(rows.get(0));
+        HelmChartArtifactEntity row = rows.get(0);
+        return toArtifactVO(row, repositoryName(row.getRepositoryId()));
+    }
+
+    private List<HelmChartArtifactEntity> loadVersions(String chartName, Long repositoryId) {
+        return new ArrayList<>(artifactMapper.selectList(artifactFilter(repositoryId, chartName)));
+    }
+
+    private HelmChartArtifactEntity selectVersion(List<HelmChartArtifactEntity> rows, String version) {
+        List<HelmChartArtifactEntity> matched = rows;
+        if (version != null && !version.isBlank()) {
+            matched = rows.stream().filter(row -> version.equals(row.getVersion())).toList();
+        }
+        if (matched.isEmpty()) {
+            throw new BizException(ContainerErrorCode.HELM_CHART_NOT_FOUND);
+        }
+        long repositories = matched.stream().map(HelmChartArtifactEntity::getRepositoryId).distinct().count();
+        if (repositories > 1) {
+            throw new BizException(ContainerErrorCode.HELM_CHART_INVALID, "多个仓库包含该 Chart，请指定 repositoryId");
+        }
+        return matched.stream()
+                .min(Comparator.comparing(HelmChartArtifactEntity::getVersion, HelmVersions.NEWER_FIRST))
+                .orElseThrow(() -> new BizException(ContainerErrorCode.HELM_CHART_NOT_FOUND));
+    }
+
+    private void ensureContent(HelmChartArtifactEntity entity, HelmChartRepositoryEntity repository) {
+        if (Boolean.TRUE.equals(entity.getContentCached())) {
+            return;
+        }
+        Path dir = null;
+        try {
+            dir = HelmTempFiles.createPrivateDir("helm-pull-");
+            boolean plain = Boolean.TRUE.equals(repository.getInsecure()) || properties.getOci().isInsecure();
+            Path archive = packagePuller.pull(new OciPullRequest(
+                    entity.getChartRef(),
+                    plain,
+                    properties.getOci().getUsername(),
+                    properties.getOci().getPassword(),
+                    dir,
+                    Duration.ofSeconds(Math.max(5, properties.getPushTimeoutSeconds()))));
+            HelmChartPackageMeta meta = archiveInspector.inspect(archive, properties.archiveLimits());
+            if (!entity.getChartName().equals(meta.name()) || !entity.getVersion().equals(meta.version())) {
+                throw new BizException(ContainerErrorCode.HELM_CHART_INVALID, "拉取到的 Chart 与登记的名称或版本不一致");
+            }
+            HelmChartContent.apply(entity, meta);
+            artifactMapper.updateById(entity);
+        } catch (BizException e) {
+            throw e;
+        } catch (IOException e) {
+            throw new BizException(ContainerErrorCode.HELM_CHART_PULL_FAILED, "无法准备 Chart 临时目录");
+        } finally {
+            HelmTempFiles.deleteRecursively(dir);
+        }
     }
 
     public List<HelmChartRepositoryVO> listRepositories() {
@@ -318,10 +420,44 @@ public class HelmChartService {
         }
     }
 
-    private HelmChartArtifactVO toArtifactVO(HelmChartArtifactEntity entity) {
+    private Map<Long, String> repositoryNames() {
+        List<HelmChartRepositoryEntity> rows = repositoryMapper.selectList(
+                new LambdaQueryWrapper<HelmChartRepositoryEntity>()
+                        .eq(HelmChartRepositoryEntity::getTenantId, tenantId()));
+        Map<Long, String> names = new HashMap<>();
+        if (rows == null) {
+            return names;
+        }
+        for (HelmChartRepositoryEntity row : rows) {
+            names.put(row.getId(), row.getName() == null ? "" : row.getName());
+        }
+        return names;
+    }
+
+    private String repositoryName(Long repositoryId) {
+        return repositoryNames().getOrDefault(repositoryId, "");
+    }
+
+    private static boolean contains(String value, String needle) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(needle);
+    }
+
+    private HelmChartVersionVO toVersionVO(HelmChartArtifactEntity entity) {
+        HelmChartVersionVO vo = new HelmChartVersionVO();
+        vo.setArtifactId(entity.getId());
+        vo.setVersion(entity.getVersion());
+        vo.setAppVersion(entity.getAppVersion());
+        vo.setChartRef(entity.getChartRef());
+        vo.setDigest(entity.getDigest());
+        vo.setCreatedAt(entity.getCreatedAt());
+        return vo;
+    }
+
+    private HelmChartArtifactVO toArtifactVO(HelmChartArtifactEntity entity, String repositoryName) {
         HelmChartArtifactVO vo = new HelmChartArtifactVO();
         vo.setId(entity.getId());
         vo.setRepositoryId(entity.getRepositoryId());
+        vo.setRepositoryName(repositoryName == null ? "" : repositoryName);
         vo.setChartName(entity.getChartName());
         vo.setVersion(entity.getVersion());
         vo.setDigest(entity.getDigest());

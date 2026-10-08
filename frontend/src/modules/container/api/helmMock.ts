@@ -99,7 +99,7 @@ function seedArtifacts(repo: HelmRepository): ArtifactRecord[] {
     appVersion: '1.27.0',
     description: '示例 Web 服务 Chart',
     digest: 'sha256:nginx120',
-    size: 18432,
+    sizeBytes: 18432,
     chartRef: `${repo.url}/nginx:1.2.0`,
     keywords: ['web', 'nginx'],
     readme: NGINX_README,
@@ -125,7 +125,7 @@ function seedArtifacts(repo: HelmRepository): ArtifactRecord[] {
     appVersion: '7.2.0',
     description: '示例缓存 Chart',
     digest: 'sha256:redis080',
-    size: 22016,
+    sizeBytes: 22016,
     chartRef: `${repo.url}/redis:0.8.0`,
     keywords: ['cache', 'redis'],
     readme: '示例 Redis Chart。自定义 Values 与默认 Values 分栏编辑后再试运行。\n',
@@ -199,7 +199,7 @@ function toSummary(records: ArtifactRecord[]): HelmChartSummary[] {
     return {
       repositoryId: latest.repositoryId,
       repositoryName: latest.repositoryName,
-      name: latest.chartName,
+      chartName: latest.chartName,
       description: latest.description,
       latestVersion: latest.version,
       appVersion: latest.appVersion,
@@ -295,7 +295,7 @@ export function createHelmMockStore(): HelmMockStore {
         if (query?.repositoryId && item.repositoryId !== query.repositoryId) return false
         if (!keyword) return true
         return (
-          item.name.toLowerCase().includes(keyword) ||
+          item.chartName.toLowerCase().includes(keyword) ||
           (item.description ?? '').toLowerCase().includes(keyword) ||
           item.repositoryName.toLowerCase().includes(keyword)
         )
@@ -310,7 +310,7 @@ export function createHelmMockStore(): HelmMockStore {
       const detail: HelmChartDetail = {
         repositoryId: selected.repositoryId,
         repositoryName: selected.repositoryName,
-        name: selected.chartName,
+        chartName: selected.chartName,
         description: selected.description,
         version: selected.version,
         appVersion: selected.appVersion,
@@ -346,7 +346,7 @@ export function createHelmMockStore(): HelmMockStore {
         chartName: parsed.chartName,
         version: parsed.version,
         description: '本地上传的 Chart（示例会话，未推送 Harbor）',
-        size: file.size,
+        sizeBytes: file.size,
         chartRef: `${repo.url}/${parsed.chartName}:${parsed.version}`,
         keywords: ['upload'],
         readme: `${parsed.chartName} ${parsed.version}\n\n由上传向导写入当前会话。后端接入后，同一请求会校验 Chart.yaml 并 helm push 到 Harbor OCI。\n`,
