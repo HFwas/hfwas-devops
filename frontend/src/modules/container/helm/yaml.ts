@@ -1,4 +1,17 @@
+import { parseAllDocuments } from 'yaml'
+
 const DNS_LABEL = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/
+
+/** 与后端 HelmReleaseService 的 Values 上限一致。 */
+const MAX_VALUES_CHARS = 1024 * 1024
+
+const VALUES_PARSE_OPTIONS = {
+  version: '1.1' as const,
+  uniqueKeys: false,
+  logLevel: 'silent' as const,
+  maxAliasCount: 20,
+  strict: true,
+}
 
 export function defaultReleaseName(chartName: string): string {
   const normalized = chartName
@@ -17,17 +30,33 @@ export function dnsLabelError(value: string, label: string): string | null {
   return null
 }
 
-/** 轻量检查：非空时拒绝 YAML 列表。完整解析由后端完成。 */
+/**
+ * Helm values 必须是 YAML 映射。空白表示不传 --values，由 Chart 默认值生效。
+ * 语法错误与非映射根节点返回中文说明，供编辑时提示和提交前拦截。
+ */
 export function valuesYamlError(text: string): string | null {
-  const first = text
-    .split('\n')
-    .map((line) => line.trim())
-    .find((line) => line && !line.startsWith('#'))
-  if (!first) return null
-  if (first === '-' || first.startsWith('- ') || first.startsWith('[')) {
-    return 'Values 必须是 YAML 对象'
+  if (text.length > MAX_VALUES_CHARS) return 'Values 超过大小限制'
+  if (!text.trim()) return null
+  let loaded: unknown
+  try {
+    const docs = parseAllDocuments(text, VALUES_PARSE_OPTIONS)
+    if (docs.length > 1) return 'Values 不是合法的 YAML 对象'
+    const doc = docs[0]
+    if (!doc) return null
+    if (doc.errors.length > 0) return 'Values 不是合法的 YAML 对象'
+    loaded = doc.toJS()
+  } catch {
+    return 'Values 不是合法的 YAML 对象'
   }
+  if (loaded == null) return null
+  if (!isYamlMapping(loaded)) return 'Values 必须是 YAML 对象'
   return null
+}
+
+function isYamlMapping(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const proto = Object.getPrototypeOf(value)
+  return proto === Object.prototype || proto === null
 }
 
 export function formatHelmTime(value?: string): string {

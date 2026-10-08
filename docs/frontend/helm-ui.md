@@ -11,7 +11,7 @@
 | v0.1 | 2026-10-07 | 初版：容器侧栏入口、页面流、以及后端未落地时的 API 客户端 |
 | v0.2 | 2026-10-07 | 侧栏只保留「应用」一组真实入口；记下与已落地 Chart API 的字段/路径差，mock 仍整页开启 |
 | v0.3 | 2026-10-08 | 页面改走真实 API；补齐 Chart 详情/Values 与 Release 契约，字段以 `chartName`、`sizeBytes` 为准 |
-| v0.4 | 2026-10-08 | Release 已存在/不存在使用固定文案；其它 helm 失败改为一行摘要；资源未写 namespace 时回落到 Release 命名空间 |
+| v0.4 | 2026-10-08 | 安装改为单个可编辑 Values，打开后填入 Chart 默认 values.yaml；安装与升级在提交前做 YAML 对象校验 |
 
 ---
 
@@ -31,8 +31,8 @@
 
 - Chart 目录：搜索、版本与仓库，进入详情（概览 / Values / 版本 / README），从详情或某一版本打开安装对话框。
 - 上传向导：选 OCI 仓库 → 选 `.tgz`（最大 50 MB）→ 展示 name、version、chartRef。同仓库同版本返回重复错误，不覆盖。
-- 安装对话框：Release 名、命名空间、只读默认 Values、可编辑自定义 Values、试运行清单、安装。成功后进入 Release 详情。
-- Release 列表与详情：概览 / Values / 资源 / 历史 / 日志 / 清单。升级抽屉可选版本，并在「保留自定义 Values」和「重置为该版本默认 Values」之间选择，再试运行后升级。历史里可查看 Values 并回滚到指定 revision（回滚生成新 revision）。卸载需确认。
+- 安装对话框：Release 名、命名空间、一份可编辑 Values、试运行清单、安装。打开后 Values 填入该版本的默认 values.yaml，用户改的就是将要提交的内容。留空仍表示只使用 Chart 默认值（空 `valuesYaml`，不传 `--values`）。Values 须为 YAML 对象：语法错误或根节点不是映射时，编辑区直接提示，并阻止试运行和安装。成功后进入 Release 详情。
+- Release 列表与详情：概览 / Values / 资源 / 历史 / 日志 / 清单。升级抽屉可选版本，并在「保留当前自定义 Values」和「重置为所选版本的默认 Values」之间选择。主编辑区是将要提交的 Values（保留时填入当前 Release Values，重置时填入该版本默认 values.yaml），下方 Chart 默认 Values 只读、不提交。校验与安装对话框相同。历史里可查看 Values 并回滚到指定 revision（回滚生成新 revision）。卸载需确认。
 
 日志页目前只放共享 `LogPanel` 空态。Pod 日志聚合留给后端。
 
@@ -83,7 +83,7 @@ Kong 仍剥掉 `/api`。`/container/**` 需要登录。Long 主键经全局 Jack
 | PUT | `/{namespace}/{name}/rollback` | body `{ revision }` |
 | DELETE | `/{namespace}/{name}` | 卸载 |
 
-安装 body：`name`、`chartRef` 和/或 `artifactId`、`valuesYaml`、`createNamespace`、`wait`。升级 body 再加 `version`（须与 `chartRef` 的 tag 一致）、`valuesStrategy`、`rollbackOnFailure`。空 `valuesYaml` 表示用 chart 默认值，不传 `--values`。试运行返回 `{ manifest, resources }`。`rollbackOnFailure` 对应 `helm upgrade --atomic`；否则在 `wait` 为真时加 `--wait`。
+安装 body：`name`、`chartRef` 和/或 `artifactId`、`valuesYaml`、`createNamespace`、`wait`。升级 body 再加 `version`（须与 `chartRef` 的 tag 一致）、`valuesStrategy`、`rollbackOnFailure`。空 `valuesYaml` 表示用 chart 默认值，不传 `--values`。安装对话框会先把该版本的默认 values.yaml 填进可编辑 Values，用户修改后再提交这份文本。试运行、安装和升级前，前端解析 YAML：语法错误或根节点不是映射时不发请求，文案与后端 30313 一致（`Values 不是合法的 YAML 对象` / `Values 必须是 YAML 对象`）。试运行返回 `{ manifest, resources }`。`rollbackOnFailure` 对应 `helm upgrade --atomic`；否则在 `wait` 为真时加 `--wait`。
 
 Release 对象：`clusterId`、`namespace`、`name`、`chartName`、`chartVersion`、`appVersion`、`chartRef`、`repositoryId`、`artifactId`、`status`、`revision`、`valuesYaml`、`notes`、`manifest`、`resources`、`history`、`updatedAt`。只有租户内恰好一条制品的 chart 名和版本对得上时，才会填 `repositoryId` / `artifactId`。
 
