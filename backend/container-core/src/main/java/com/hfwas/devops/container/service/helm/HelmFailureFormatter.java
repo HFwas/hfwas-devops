@@ -18,25 +18,40 @@ final class HelmFailureFormatter {
     private HelmFailureFormatter() {
     }
 
+    /**
+     * One client-facing line. Pull/digest progress is dropped. Known release conflicts and
+     * missing releases are mapped by the caller to a stable message instead of this summary.
+     */
     static String summarize(HelmProcessResult result, String... secrets) {
         String stderr = result.stderr() == null ? "" : result.stderr();
         String stdout = result.stdout() == null ? "" : result.stdout();
         String text = stderr.isBlank() ? stdout : stderr;
         String redacted = redact(text, secrets);
-        String[] lines = redacted.split("\\R");
-        List<String> kept = new ArrayList<>();
-        for (String line : lines) {
+        List<String> lines = new ArrayList<>();
+        String errorLine = "";
+        for (String line : redacted.split("\\R")) {
             String trimmed = line.trim();
-            if (!trimmed.isEmpty()) {
-                kept.add(trimmed);
+            if (trimmed.isEmpty() || isPullNoise(trimmed)) {
+                continue;
+            }
+            lines.add(trimmed);
+            if (trimmed.regionMatches(true, 0, "Error:", 0, 6)) {
+                errorLine = trimmed.substring(6).trim();
             }
         }
-        int from = Math.max(0, kept.size() - 12);
-        String joined = String.join("\n", kept.subList(from, kept.size()));
-        if (joined.length() > 800) {
-            joined = joined.substring(joined.length() - 800);
+        String chosen = errorLine.isEmpty() && !lines.isEmpty() ? lines.get(lines.size() - 1) : errorLine;
+        chosen = chosen.replaceAll("\\s+", " ").trim();
+        if (chosen.length() > 240) {
+            chosen = chosen.substring(0, 240).trim();
         }
-        return joined;
+        return chosen;
+    }
+
+    private static boolean isPullNoise(String line) {
+        return line.regionMatches(true, 0, "Pulled:", 0, 7)
+                || line.regionMatches(true, 0, "Digest:", 0, 7)
+                || line.regionMatches(true, 0, "Size:", 0, 5)
+                || line.regionMatches(true, 0, "Status: Downloaded", 0, 18);
     }
 
     static String redact(String text, String... secrets) {

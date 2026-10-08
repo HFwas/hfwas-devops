@@ -90,6 +90,8 @@ final class HelmOutputParser {
         vo.setNotes(emptyToNull(text(info, "notes")));
         vo.setUpdatedAt(timestamp(firstText(info, "last_deployed", "lastDeployed")));
         JsonNode metadata = root.path("chart").path("metadata");
+        // helm status -o json (v3.18) has name/info/config/manifest/hooks/version/namespace
+        // and no chart object. Callers fill chart identity from history when these stay empty.
         vo.setChartName(text(metadata, "name"));
         vo.setChartVersion(text(metadata, "version"));
         vo.setAppVersion(firstText(metadata, "appVersion", "app_version"));
@@ -171,9 +173,18 @@ final class HelmOutputParser {
     }
 
     static List<HelmReleaseResourceVO> resources(String manifest) {
+        return resources(manifest, null);
+    }
+
+    /**
+     * @param releaseNamespace used when a document omits {@code metadata.namespace}
+     *                         (charts from {@code helm create} do this)
+     */
+    static List<HelmReleaseResourceVO> resources(String manifest, String releaseNamespace) {
         if (manifest == null || manifest.isBlank()) {
             return List.of();
         }
+        String fallback = releaseNamespace == null || releaseNamespace.isBlank() ? null : releaseNamespace.trim();
         List<HelmReleaseResourceVO> resources = new ArrayList<>();
         try {
             for (Object document : yaml().loadAll(manifest)) {
@@ -192,9 +203,10 @@ final class HelmOutputParser {
                 if (metadata instanceof Map<?, ?> meta) {
                     vo.setName(scalar(meta.get("name")));
                     String namespace = scalar(meta.get("namespace"));
-                    vo.setNamespace(namespace.isEmpty() ? null : namespace);
+                    vo.setNamespace(namespace.isEmpty() ? fallback : namespace);
                 } else {
                     vo.setName("");
+                    vo.setNamespace(fallback);
                 }
                 resources.add(vo);
             }

@@ -110,7 +110,8 @@ public class HelmReleaseService {
     }
 
     public List<HelmReleaseResourceVO> resources(Long clusterId, String namespace, String name) {
-        return HelmOutputParser.resources(manifest(clusterId, namespace, name).getManifest());
+        String ns = requireNamespace(namespace);
+        return HelmOutputParser.resources(manifest(clusterId, ns, name).getManifest(), ns);
     }
 
     public HelmDryRunVO dryRunInstall(Long clusterId, String namespace, HelmInstallRequest request) {
@@ -247,10 +248,57 @@ public class HelmReleaseService {
             release.setName(releaseName);
         }
         release.setValuesYaml(readValues(workspace, ns, releaseName, null));
-        release.setResources(HelmOutputParser.resources(release.getManifest()));
+        String releaseNamespace = release.getNamespace() == null || release.getNamespace().isBlank()
+                ? ns : release.getNamespace();
+        release.setResources(HelmOutputParser.resources(release.getManifest(), releaseNamespace));
         release.setHistory(history(workspace, ns, releaseName));
+        fillChartIdentity(release);
         attachArtifact(release);
         return release;
+    }
+
+    /**
+     * {@code helm status -o json} does not include chart metadata. The current revision's
+     * history row (or the newest row that has a chart) supplies name, version, and appVersion
+     * so artifact linking can run.
+     */
+    private static void fillChartIdentity(HelmReleaseVO release) {
+        HelmReleaseHistoryVO source = chartSource(release);
+        if (source == null) {
+            return;
+        }
+        if (blank(release.getChartName()) || blank(release.getChartVersion())) {
+            release.setChartName(source.getChartName() == null ? "" : source.getChartName());
+            release.setChartVersion(source.getChartVersion() == null ? "" : source.getChartVersion());
+        }
+        if (blank(release.getAppVersion()) && !blank(source.getAppVersion())) {
+            release.setAppVersion(source.getAppVersion());
+        }
+    }
+
+    private static HelmReleaseHistoryVO chartSource(HelmReleaseVO release) {
+        List<HelmReleaseHistoryVO> items = release.getHistory();
+        if (items == null || items.isEmpty()) {
+            return null;
+        }
+        HelmReleaseHistoryVO matched = null;
+        HelmReleaseHistoryVO newest = null;
+        for (HelmReleaseHistoryVO item : items) {
+            if (blank(item.getChartName())) {
+                continue;
+            }
+            if (newest == null || item.getRevision() >= newest.getRevision()) {
+                newest = item;
+            }
+            if (release.getRevision() > 0 && item.getRevision() == release.getRevision()) {
+                matched = item;
+            }
+        }
+        return matched != null ? matched : newest;
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.isBlank();
     }
 
     private List<HelmReleaseHistoryVO> history(HelmWorkspace workspace, String namespace, String name) {
@@ -317,17 +365,18 @@ public class HelmReleaseService {
     }
 
     private RuntimeException failure(HelmOp op, HelmProcessResult result, String password) {
-        String summary = HelmFailureFormatter.summarize(result, password);
         String blob = result.combined() == null ? "" : result.combined().toLowerCase(Locale.ROOT);
         if (op == HelmOp.INSTALL && (blob.contains("cannot re-use a name") || blob.contains("still in use"))) {
-            return new HelmReleaseConflictException(summary.isBlank() ? "Helm Release 已存在" : summary);
+            return new HelmReleaseConflictException(null);
         }
         if ((op == HelmOp.GET || op == HelmOp.UPGRADE || op == HelmOp.ROLLBACK || op == HelmOp.UNINSTALL)
                 && (blob.contains("release: not found")
+                || blob.contains("release not loaded")
                 || blob.contains("no revision")
                 || blob.contains("has no deployed releases"))) {
-            return new HelmReleaseNotFoundException(summary.isBlank() ? null : summary);
+            return new HelmReleaseNotFoundException(null);
         }
+        String summary = HelmFailureFormatter.summarize(result, password);
         String prefix = switch (op) {
             case INSTALL -> "安装失败";
             case UPGRADE -> "升级失败";
