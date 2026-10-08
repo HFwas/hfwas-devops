@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HelmOutputParserTest {
@@ -35,6 +36,44 @@ class HelmOutputParserTest {
                 """);
         assertEquals("my-sample", history.get(0).getChartName());
         assertEquals("1.0.0", history.get(0).getChartVersion());
+    }
+
+    @Test
+    void statusWithoutChartObjectLeavesChartIdentityEmpty() {
+        HelmReleaseVO status = HelmOutputParser.status("""
+                {"name":"demo","namespace":"edge","version":2,"manifest":"apiVersion: apps/v1\\nkind: Deployment\\nmetadata:\\n  name: demo\\n","info":{"first_deployed":"2026-10-08T00:00:00Z","last_deployed":"2026-10-08T00:00:00Z","deleted":"","description":"Upgrade complete","status":"deployed","notes":"hello"},"config":{},"hooks":null}
+                """);
+        assertEquals("demo", status.getName());
+        assertEquals("edge", status.getNamespace());
+        assertEquals(2, status.getRevision());
+        assertEquals("deployed", status.getStatus());
+        assertEquals("hello", status.getNotes());
+        assertEquals("", status.getChartName());
+        assertEquals("", status.getChartVersion());
+        assertEquals("", status.getAppVersion());
+        assertEquals("", status.getChartRef());
+        assertEquals(1, status.getResources().size());
+        assertNull(status.getResources().get(0).getNamespace());
+    }
+
+    @Test
+    void resourcesWithoutTemplateNamespaceInheritReleaseNamespace() {
+        String manifest = """
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  name: demo
+                ---
+                apiVersion: v1
+                kind: Service
+                metadata:
+                  name: demo
+                  namespace: other
+                """;
+        var inherited = HelmOutputParser.resources(manifest, "edge");
+        assertEquals("edge", inherited.get(0).getNamespace());
+        assertEquals("other", inherited.get(1).getNamespace());
+        assertNull(HelmOutputParser.resources(manifest).get(0).getNamespace());
     }
 
     @Test

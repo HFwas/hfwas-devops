@@ -1,7 +1,7 @@
 # 容器产品 Helm 界面
 
 > 日期：2026-10-08
-> 版本：v0.3
+> 版本：v0.4
 > 关联：Helm 包上传与安装方案（Harbor OCI、禁止同版本覆盖）；交互参照 kite Helm 的目录、安装对话框与 Release 详情，视觉用本仓库冷蓝 token 与 `components/console`
 
 ### 变更记录
@@ -11,6 +11,7 @@
 | v0.1 | 2026-10-07 | 初版：容器侧栏入口、页面流、以及后端未落地时的 API 客户端 |
 | v0.2 | 2026-10-07 | 侧栏只保留「应用」一组真实入口；记下与已落地 Chart API 的字段/路径差，mock 仍整页开启 |
 | v0.3 | 2026-10-08 | 页面改走真实 API；补齐 Chart 详情/Values 与 Release 契约，字段以 `chartName`、`sizeBytes` 为准 |
+| v0.4 | 2026-10-08 | Release 已存在/不存在使用固定文案；其它 helm 失败改为一行摘要；资源未写 namespace 时回落到 Release 命名空间 |
 
 ---
 
@@ -74,7 +75,7 @@ Kong 仍剥掉 `/api`。`/container/**` 需要登录。Long 主键经全局 Jack
 | GET | `/{namespace}/{name}/history` | 历史 |
 | GET | `/{namespace}/{name}/values` | `{ valuesYaml }` |
 | GET | `/{namespace}/{name}/manifest` | `{ manifest }` |
-| GET | `/{namespace}/{name}/resources` | 从清单解析出的资源，状态为 `unknown` |
+| GET | `/{namespace}/{name}/resources` | 从清单解析出的资源，状态为 `unknown`。模板未写 `metadata.namespace` 时用该 Release 的命名空间 |
 | POST | `/{namespace}` | 安装 |
 | POST | `/{namespace}/dry-run` | 安装试运行 |
 | PUT | `/{namespace}/{name}/upgrade` | 升级 |
@@ -91,9 +92,9 @@ Release 对象：`clusterId`、`namespace`、`name`、`chartName`、`chartVersio
 | 情况 | HTTP | 业务码 |
 |------|------|--------|
 | Chart 同名同版本 | 409 | 30303 |
-| Release 已存在 | 409 | 30310 |
-| Release 不存在 | 404 | 30309 |
-| helm 失败（stderr 摘要，已去掉口令和 kubeconfig 样文本） | 200 | 30311 |
+| Release 已存在（`msg` 固定为「Helm Release 已存在」） | 409 | 30310 |
+| Release 不存在（`msg` 固定为「Helm Release 不存在」） | 404 | 30309 |
+| helm 失败（一行摘要，已去掉口令、kubeconfig 和 pull/digest 噪声） | 200 | 30311 |
 | Chart 拉取失败 | 200 | 30312 |
 | 参数无效（名称、values 不是对象、version 与 chartRef 不一致） | 200 | 30313 |
 | Chart 不存在 / 多个仓库未指定 repositoryId | 200 | 30306 / 30301 |
