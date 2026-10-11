@@ -59,6 +59,17 @@ const buildKind: TaskKindVO = {
   ],
 }
 
+const disabledKind: TaskKindVO = {
+  ...buildKind,
+  kindValue: 'NOTIFY',
+  label: '隐藏通知',
+  taskGroup: '通知',
+  description: '不在添加列表里',
+  enabled: false,
+  sortOrder: 3,
+  params: [],
+}
+
 function mount(node: ReactNode) {
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -110,7 +121,7 @@ describe('PipelineEditorPage', () => {
 
   beforeEach(() => {
     ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-    vi.mocked(pipelineTaskKindApi.list).mockResolvedValue([cloneKind, buildKind])
+    vi.mocked(pipelineTaskKindApi.list).mockResolvedValue([cloneKind, buildKind, disabledKind])
     vi.mocked(pipelineCredentialApi.list).mockResolvedValue([{ id: '9', name: 'git-token', kind: 'TOKEN' }])
     vi.mocked(pipelineApi.toolchains).mockResolvedValue([])
     vi.mocked(pipelineApi.getDefaultParams).mockResolvedValue([])
@@ -141,7 +152,11 @@ describe('PipelineEditorPage', () => {
     container = null
   })
 
-  it('lays out palette, left-to-right stages, and the inspector', async () => {
+  function panel() {
+    return container?.querySelector('[data-slot="pipeline-side-panel"]') ?? null
+  }
+
+  async function renderNew() {
     const view = mount(
       withQuery(
         <MemoryRouter initialEntries={['/pipeline/pipelines/new']}>
@@ -154,55 +169,119 @@ describe('PipelineEditorPage', () => {
     )
     root = view.root
     container = view.container
-    await waitFor(container, '代码克隆')
+    await waitFor(container, '新建流水线')
+    return container
+  }
 
-    const palette = container.querySelector('[data-slot="pipeline-palette"]')
-    const lanes = container.querySelector('[data-slot="pipeline-lanes"]')
-    const inspector = container.querySelector('[data-slot="pipeline-inspector"]')
-    expect(palette).toBeTruthy()
+  it('swaps the right panel between config and a click-to-add task list', async () => {
+    const view = await renderNew()
+
+    const lanes = view.querySelector('[data-slot="pipeline-lanes"]')
+    expect(view.querySelector('[data-slot="pipeline-palette"]')).toBeNull()
+    expect(view.querySelector('[aria-label="搜索任务"]')).toBeNull()
+    expect(view.textContent).not.toContain('任务市场')
     expect(lanes).toBeTruthy()
-    expect(inspector).toBeTruthy()
-    expect(palette!.compareDocumentPosition(lanes!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(lanes!.compareDocumentPosition(inspector!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(container.textContent).toContain('基本信息')
-    expect(container.querySelector('[aria-label="仓库"]')).toBeTruthy()
-    expect(container.querySelector('[aria-label="分支"]')).toBeTruthy()
-    expect(container.querySelector('[aria-label="凭证"]')).toBeTruthy()
+    expect(panel()?.getAttribute('data-mode')).toBe('config')
+    expect(panel()?.querySelector('[data-slot="pipeline-inspector"]')).toBeTruthy()
+    expect(lanes!.compareDocumentPosition(panel()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(view.textContent).toContain('基本信息')
+    expect(view.textContent).toContain('任务配置')
+    expect(view.textContent).toContain('取消')
+    expect(view.textContent).toContain('保存并运行')
+    expect(view.querySelector('[aria-label="仓库"]')).toBeTruthy()
+    expect(view.querySelector('[aria-label="分支"]')).toBeTruthy()
+    expect(view.querySelector('[aria-label="凭证"]')).toBeTruthy()
 
-    click(container, '添加代码克隆')
+    click(view, '添加阶段')
     await flush()
-    const stage = container.querySelector('[data-slot="pipeline-stage"]')
+    expect(view.querySelectorAll('[data-slot="pipeline-stage"]')).toHaveLength(1)
+
+    click(view, '在阶段 1 添加任务')
+    await waitFor(view, '代码克隆')
+    expect(view.textContent).toContain('点击任务即可添加')
+    expect(panel()?.getAttribute('data-mode')).toBe('add')
+    expect(panel()?.querySelector('[data-slot="pipeline-task-list"]')).toBeTruthy()
+    expect(panel()?.querySelector('[data-slot="pipeline-inspector"]')).toBeNull()
+    expect(panel()?.querySelector('input, textarea')).toBeNull()
+    expect(view.textContent).toContain('添加任务到「阶段 1 · 未命名」')
+    expect(view.textContent).toContain('代码 (1)')
+    expect(view.textContent).toContain('构建 (1)')
+    expect(view.textContent).not.toContain('隐藏通知')
+    expect(view.querySelector('[aria-label="添加Maven 构建"]')).toBeNull()
+
+    click(view, '关闭添加任务')
+    await flush()
+    expect(panel()?.getAttribute('data-mode')).toBe('config')
+    expect(view.querySelector('[aria-label="选择代码克隆"]')).toBeNull()
+
+    click(view, '在阶段 1 添加任务')
+    await waitFor(view, '代码克隆')
+    click(view, '添加代码克隆')
+    await flush()
+    const stage = view.querySelector('[data-slot="pipeline-stage"]')
     expect(stage?.className).toContain('flex-col')
     expect(stage?.textContent).toContain('CLONE')
-    expect(container.textContent).not.toContain('GIT_PASSWORD')
-    expect(container.textContent).not.toContain('SECRET_TOKEN')
-    expect(container.textContent).toContain('GIT_REF')
+    expect(panel()?.getAttribute('data-mode')).toBe('config')
+    expect((view.querySelector('[aria-label="任务名称"]') as HTMLInputElement | null)?.value).toBe('代码克隆')
+    expect(view.textContent).not.toContain('GIT_PASSWORD')
+    expect(view.textContent).not.toContain('SECRET_TOKEN')
+    expect(view.textContent).toContain('GIT_REF')
 
-    click(container, '添加Maven 构建')
+    click(view, '在阶段 1 添加任务')
+    await waitFor(view, '添加任务到「阶段 1 · 拉取」')
+    expect(panel()?.getAttribute('data-mode')).toBe('add')
+    click(view, '构建 (1)')
     await flush()
-    expect(container.querySelectorAll('[data-slot="pipeline-stage"]')).toHaveLength(1)
-    const names = [...container.querySelectorAll('[aria-label^="选择"]')].map((node) => node.getAttribute('aria-label'))
+    click(view, '添加Maven 构建')
+    await flush()
+    expect(view.querySelectorAll('[data-slot="pipeline-stage"]')).toHaveLength(1)
+    expect(panel()?.getAttribute('data-mode')).toBe('config')
+    expect((view.querySelector('[aria-label="任务名称"]') as HTMLInputElement | null)?.value).toBe('Maven 构建')
+    const names = [...view.querySelectorAll('[aria-label^="选择"]')].map((node) => node.getAttribute('aria-label'))
     expect(names).toEqual(['选择代码克隆', '选择Maven 构建'])
 
-    click(container, '上移Maven 构建')
+    click(view, '在阶段 1 添加任务')
+    await waitFor(view, '点击任务即可添加')
+    click(view, '选择代码克隆')
     await flush()
-    const reordered = [...container.querySelectorAll('[aria-label^="选择"]')].map((node) => node.getAttribute('aria-label'))
+    expect(panel()?.getAttribute('data-mode')).toBe('config')
+    expect((view.querySelector('[aria-label="任务名称"]') as HTMLInputElement | null)?.value).toBe('代码克隆')
+
+    click(view, '在阶段 1 添加任务')
+    await waitFor(view, '添加任务到「阶段 1')
+    click(view, '添加阶段')
+    await flush()
+    expect(view.querySelectorAll('[data-slot="pipeline-stage"]')).toHaveLength(2)
+    expect(view.textContent).toContain('添加任务到「阶段 1')
+    expect(view.textContent).not.toContain('添加任务到「阶段 2')
+    click(view, '关闭添加任务')
+    await flush()
+    const extraStage = [...view.querySelectorAll('[aria-label="删除阶段"]')].at(-1) as HTMLElement
+    act(() => {
+      extraStage.click()
+    })
+    await flush()
+    expect(view.querySelectorAll('[data-slot="pipeline-stage"]')).toHaveLength(1)
+
+    click(view, '上移Maven 构建')
+    await flush()
+    const reordered = [...view.querySelectorAll('[aria-label^="选择"]')].map((node) => node.getAttribute('aria-label'))
     expect(reordered).toEqual(['选择Maven 构建', '选择代码克隆'])
 
-    click(container, '添加阶段')
+    click(view, '添加阶段')
     await flush()
-    expect(container.querySelectorAll('[data-slot="pipeline-stage"]')).toHaveLength(2)
-    const deleteStage = [...container.querySelectorAll('[aria-label="删除阶段"]')].at(-1) as HTMLElement
+    expect(view.querySelectorAll('[data-slot="pipeline-stage"]')).toHaveLength(2)
+    const deleteStage = [...view.querySelectorAll('[aria-label="删除阶段"]')].at(-1) as HTMLElement
     act(() => {
       deleteStage.click()
     })
     await flush()
-    expect(container.querySelectorAll('[data-slot="pipeline-stage"]')).toHaveLength(1)
+    expect(view.querySelectorAll('[data-slot="pipeline-stage"]')).toHaveLength(1)
 
-    setInput(container, '名称', '后端发布')
-    setInput(container, '仓库', 'https://github.com/HFwas/hfwas-devops.git')
-    setInput(container, '分支', 'dev')
-    const save = [...container.querySelectorAll('button')].find((button) => button.textContent?.trim() === '保存')
+    setInput(view, '名称', '后端发布')
+    setInput(view, '仓库', 'https://github.com/HFwas/hfwas-devops.git')
+    setInput(view, '分支', 'dev')
+    const save = [...view.querySelectorAll('button')].find((button) => button.textContent?.trim() === '保存')
     await act(async () => {
       save?.click()
     })
@@ -222,5 +301,29 @@ describe('PipelineEditorPage', () => {
     expect(payload.stages[0].jobs.map((job) => job.kind)).toEqual(['BUILD', 'CLONE'])
     expect(JSON.stringify(payload)).not.toContain('GIT_PASSWORD')
     expect(JSON.stringify(payload)).not.toContain('SECRET_TOKEN')
+  })
+
+  it('asks before deleting a job and keeps it when cancelled', async () => {
+    const confirm = vi.fn(() => false)
+    vi.stubGlobal('confirm', confirm)
+    const view = await renderNew()
+    click(view, '添加阶段')
+    await flush()
+    click(view, '在阶段 1 添加任务')
+    await waitFor(view, '代码克隆')
+    click(view, '添加代码克隆')
+    await flush()
+
+    click(view, '删除代码克隆')
+    await flush()
+    expect(confirm).toHaveBeenCalledWith('删除任务「代码克隆」？')
+    expect(view.querySelector('[aria-label="选择代码克隆"]')).toBeTruthy()
+
+    confirm.mockReturnValue(true)
+    click(view, '删除代码克隆')
+    await flush()
+    expect(view.querySelector('[aria-label="选择代码克隆"]')).toBeNull()
+    expect(panel()?.getAttribute('data-mode')).toBe('config')
+    vi.unstubAllGlobals()
   })
 })
