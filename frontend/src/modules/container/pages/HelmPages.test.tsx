@@ -204,6 +204,8 @@ describe('helm pages', () => {
     root = view.root
     container = view.container
     await waitForText(container, 'demo-nginx')
+    await waitForText(container, '示例 Release')
+    expect(container.textContent).toContain('说明')
     expect(container.textContent).toContain('资源')
     expect(container.textContent).toContain('历史')
 

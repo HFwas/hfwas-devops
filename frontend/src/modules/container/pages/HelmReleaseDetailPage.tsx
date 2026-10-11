@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { helmApi } from '@/modules/container/api/helm'
 import { HelmMockNotice } from '@/modules/container/components/HelmMockNotice'
+import { HelmNotes } from '@/modules/container/components/HelmNotes'
 import { HelmUpgradeDrawer } from '@/modules/container/components/HelmUpgradeDrawer'
 import { YamlEditor } from '@/modules/container/components/YamlEditor'
 import { useHelmCluster } from '@/modules/container/helm/useHelmCluster'
@@ -99,8 +100,8 @@ export function HelmReleaseDetailPage() {
               <Info label="chartRef" value={release.chartRef} mono />
             </div>
             {release.notes ? (
-              <div className="sm:col-span-2 lg:col-span-4">
-                <Info label="说明" value={release.notes} />
+              <div className="min-w-0 sm:col-span-2 lg:col-span-4">
+                <Info label="说明" value={<HelmNotes notes={release.notes} />} />
               </div>
             ) : null}
           </dl>
