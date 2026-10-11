@@ -29,6 +29,7 @@ import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineStageMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineTaskKindParamMapper;
 import com.hfwas.devops.pipeline.param.ParamBindings;
+import com.hfwas.devops.pipeline.param.TaskKindParamVisibility;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -43,6 +44,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -110,6 +112,9 @@ public class PipelineRunService {
             Map<String, JobParamBindingDTO> bindings = ParamBindings.parse(job.getParamBindings());
             List<PipelineTaskKindParamEntity> defs = byKind.getOrDefault(job.getKind(), List.of());
             for (PipelineTaskKindParamEntity def : defs) {
+                if (TaskKindParamVisibility.isHidden(def.getVisibility())) {
+                    continue;
+                }
                 JobParamBindingDTO binding = bindings.get(def.getParamKey());
                 if (!ParamBindings.isRuntime(binding)) {
                     continue;
@@ -573,6 +578,7 @@ public class PipelineRunService {
      */
     private Map<String, String> mergeRuntimeParams(Long pipelineId, Map<String, String> userParams) {
         Map<String, String> merged = new LinkedHashMap<>();
+        List<PipelineTaskKindParamEntity> hidden = new ArrayList<>();
         List<PipelineJobEntity> jobs = jobMapper.selectList(new LambdaQueryWrapper<PipelineJobEntity>()
                 .eq(PipelineJobEntity::getPipelineId, pipelineId)
                 .orderByAsc(PipelineJobEntity::getSortOrder));
@@ -581,6 +587,10 @@ public class PipelineRunService {
         for (PipelineJobEntity job : jobs) {
             Map<String, JobParamBindingDTO> bindings = ParamBindings.parse(job.getParamBindings());
             for (PipelineTaskKindParamEntity def : byKind.getOrDefault(job.getKind(), List.of())) {
+                if (TaskKindParamVisibility.isHidden(def.getVisibility())) {
+                    hidden.add(def);
+                    continue;
+                }
                 JobParamBindingDTO binding = bindings.get(def.getParamKey());
                 if (ParamBindings.isRuntime(binding)) {
                     continue;
@@ -597,6 +607,9 @@ public class PipelineRunService {
         if (userParams != null) {
             merged.putAll(userParams);
         }
+        for (PipelineTaskKindParamEntity def : hidden) {
+            merged.put(def.getParamKey(), def.getDefaultValue() != null ? def.getDefaultValue() : "");
+        }
         return merged;
     }
 
@@ -609,6 +622,9 @@ public class PipelineRunService {
         for (PipelineJobEntity job : jobs) {
             Map<String, JobParamBindingDTO> bindings = ParamBindings.parse(job.getParamBindings());
             for (PipelineTaskKindParamEntity param : byKind.getOrDefault(job.getKind(), List.of())) {
+                if (TaskKindParamVisibility.isHidden(param.getVisibility())) {
+                    continue;
+                }
                 if (!ParamBindings.isRuntime(bindings.get(param.getParamKey()))) {
                     continue;
                 }

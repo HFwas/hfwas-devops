@@ -33,6 +33,7 @@ public class SqliteSchemaInitializer implements ApplicationRunner {
         Files.createDirectories(Path.of("data"));
         dropStaleDependencyComponentTable();
         migrateTaskKindTable();
+        migrateTaskKindMarketplace();
         migratePipelineRunTable();
         migratePipelineJobParamTable();
         migratePipelineJobBindings();
@@ -105,6 +106,48 @@ public class SqliteSchemaInitializer implements ApplicationRunner {
             }
         } catch (Exception e) {
             log.warn("migrate pipeline_task_kind failed: {}", e.getMessage());
+        }
+    }
+
+    /** 任务市场：当前版本列、参数可见性。版本表由 pipeline-schema.sql 创建。 */
+    private void migrateTaskKindMarketplace() {
+        addColumnIfPresent(
+                "pipeline_task_kind",
+                "version",
+                "ALTER TABLE pipeline_task_kind ADD COLUMN version TEXT NOT NULL DEFAULT ''"
+        );
+        addColumnIfPresent(
+                "pipeline_task_kind_param",
+                "visibility",
+                "ALTER TABLE pipeline_task_kind_param ADD COLUMN visibility TEXT NOT NULL DEFAULT 'user'"
+        );
+    }
+
+    private void addColumnIfPresent(String table, String column, String alterSql) {
+        try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            boolean exists;
+            try (ResultSet rs = stmt.executeQuery(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='" + table + "'")) {
+                exists = rs.next();
+            }
+            if (!exists) {
+                return;
+            }
+            boolean hasColumn = false;
+            try (ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + table + ")")) {
+                while (rs.next()) {
+                    if (column.equalsIgnoreCase(rs.getString("name"))) {
+                        hasColumn = true;
+                        break;
+                    }
+                }
+            }
+            if (!hasColumn) {
+                stmt.execute(alterSql);
+                log.info("migrated {}: added {}", table, column);
+            }
+        } catch (Exception e) {
+            log.warn("migrate {}.{} failed: {}", table, column, e.getMessage());
         }
     }
 

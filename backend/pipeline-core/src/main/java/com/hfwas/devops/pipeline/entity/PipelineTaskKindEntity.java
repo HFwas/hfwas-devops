@@ -37,6 +37,8 @@ public class PipelineTaskKindEntity {
     private String cpuLimit;
     private String memoryRequest;
     private String memoryLimit;
+    /** 当前启用版本。未发布时为空，保存工作副本不会改它。 */
+    private String version;
 
     @TableLogic
     private Integer deleted;

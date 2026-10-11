@@ -20,5 +20,7 @@ public class TaskKindVO {
     private String cpuLimit;
     private String memoryRequest;
     private String memoryLimit;
+    /** 当前启用版本；未发布时为空字符串。 */
+    private String version;
     private java.util.List<TaskKindParamVO> params;
 }

@@ -1,8 +1,10 @@
 package com.hfwas.devops.pipeline.controller;
 
 import com.hfwas.devops.common.core.base.BaseResult;
+import com.hfwas.devops.pipeline.dto.TaskKindPublishDTO;
 import com.hfwas.devops.pipeline.dto.TaskKindUpdateDTO;
 import com.hfwas.devops.pipeline.dto.TaskKindVO;
+import com.hfwas.devops.pipeline.dto.TaskKindVersionVO;
 import com.hfwas.devops.pipeline.service.PipelineTaskKindService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -55,6 +57,27 @@ public class PipelineTaskKindController {
     public BaseResult<Void> toggle(@PathVariable("kind") String kind) {
         taskKindService.toggle(kind);
         return BaseResult.ok(null);
+    }
+
+    @GetMapping("/{kind}/versions")
+    public BaseResult<List<TaskKindVersionVO>> listVersions(@PathVariable("kind") String kind) {
+        return BaseResult.ok(taskKindService.listVersions(kind));
+    }
+
+    @PostMapping("/{kind}/versions")
+    public BaseResult<TaskKindVersionVO> publish(
+            @PathVariable("kind") String kind,
+            @RequestBody(required = false) TaskKindPublishDTO dto
+    ) {
+        return BaseResult.ok(taskKindService.publish(kind, dto));
+    }
+
+    @PutMapping("/{kind}/versions/{version}/activate")
+    public BaseResult<TaskKindVO> activate(
+            @PathVariable("kind") String kind,
+            @PathVariable("version") String version
+    ) {
+        return BaseResult.ok(taskKindService.activate(kind, version));
     }
 
     @PostMapping("/{kind}/validate")

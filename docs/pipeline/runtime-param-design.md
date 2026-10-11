@@ -1,7 +1,8 @@
 # 流水线运行时参数选择设计方案
 
-> 日期：2026-09-13
-> 版本：v0.5
+> 日期：2026-10-11
+> 版本：v0.6
+> 关联：[任务市场前端改造](./task-marketplace-frontend-spec.md)
 
 ### 变更记录
 
@@ -12,6 +13,7 @@
 | v0.3 | 2026-09-13 | 补齐入口：并行任务虚线占位、编辑器右侧常驻检查器、参数「写死 / 变量」、保存后回读 job.id、所有运行入口弹框 |
 | v0.4 | 2026-09-13 | 定义迁到任务市场：Task 预置环境变量（静态值/枚举/远程接口）；流水线只绑定写死或设为变量；运行时选项来自任务市场 |
 | v0.5 | 2026-09-13 | 补齐种子数据：IMAGE 的 DEST/IMAGE_PLATFORMS/DOCKERFILE/COSIGN_PRIVATE_KEY，LINT_SONAR 的 SONAR_*，UPLOAD 的 S3_*，CLONE 的 GIT_USERNAME/GIT_PASSWORD/GIT_EMBEDDED_AUTH |
+| v0.6 | 2026-10-11 | 约定 `visibility = hidden` 的预置参数不进入绑定列表和运行弹框 |
 
 ---
 
@@ -417,6 +419,8 @@ export interface RunParamValue {
 ### 6.2 任务市场定义 + 流水线绑定
 
 **任务市场**编辑 Task 时配置预置环境变量（`JobParamEditor.vue`）：静态值 / 枚举 / 远程接口，保存进 `PUT /pipeline/task-kinds/{kind}` 的 `params`。
+
+`visibility = hidden` 的预置参数只在任务市场给管理员配置，不进入下方绑定列表，也不进入运行弹框；运行时注入任务市场默认值。`user`（默认）仍按「写死 / 设为变量」绑定。见 [任务市场前端改造](./task-marketplace-frontend-spec.md)。
 
 **流水线编辑器**右侧检查器不再「添加参数」，只对任务市场已预置的变量做绑定（`JobParamBinder.vue`）：
 
