@@ -122,7 +122,7 @@ export function EventSummary({
 }) {
   if (loading) return <p className="text-sm text-muted-foreground">加载事件…</p>
   if (error) return <p className="text-sm text-destructive">事件加载失败</p>
-  if (!events?.length) return <p className="text-sm text-muted-foreground">暂无近期事件</p>
+  if (!events?.length) return <p className="text-sm text-muted-foreground">还没有近期事件。资源正常时这里可以是空的。</p>
   return (
     <ul className="flex flex-col gap-3">
       {events.slice(0, 6).map((item, index) => (
@@ -166,7 +166,7 @@ export function EventTable({
       getRowId={(row) => `${row.reason}-${row.lastTimestamp ?? ''}-${row.message}`}
       loading={loading}
       error={error ? '事件加载失败' : undefined}
-      empty="还没有事件"
+      empty="还没有事件。调度、镜像拉取或健康检查出问题时会记在这里。"
     />
   )
 }

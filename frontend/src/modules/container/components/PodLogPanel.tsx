@@ -3,7 +3,14 @@ import { useQuery } from '@tanstack/react-query'
 import { LogPanel, type ConnectionState } from '@/components/console/LogPanel'
 import { Button } from '@/components/ui/button'
 import { podApi } from '@/modules/container/api/pod'
+import { downloadTextFile, logDownloadName, tokenizeLog } from '@/modules/container/pod-log/session'
 import { getToken } from '@/shared/keycloak'
+
+const TONE_CLASS = {
+  plain: '',
+  danger: 'text-(--term-danger)',
+  warn: 'text-(--term-warn)',
+} as const
 
 export function PodLogPanel({
   clusterId,
@@ -18,6 +25,7 @@ export function PodLogPanel({
 }) {
   const [container, setContainer] = useState(containers[0] ?? '')
   const [follow, setFollow] = useState(true)
+  const [highlight, setHighlight] = useState(true)
   const [live, setLive] = useState('')
   const [connection, setConnection] = useState<ConnectionState>('idle')
   const viewRef = useRef<HTMLPreElement>(null)
@@ -88,15 +96,21 @@ export function PodLogPanel({
   }, [logs.data, live])
 
   const body = `${logs.data ?? ''}${live}`
+  const tokens = highlight ? tokenizeLog(logs.isLoading ? '' : body) : null
+
+  function download() {
+    downloadTextFile(logDownloadName(name, container), body)
+  }
 
   return (
     <LogPanel
       title="日志"
       connection={connection}
+      bodyClassName="bg-(--term-bg) text-(--term-fg)"
       toolbar={
         <>
           <select
-            className="h-7 rounded-md border border-input bg-background px-2 text-sm"
+            className="h-7 rounded-md border border-input bg-background px-2 text-sm text-foreground"
             value={container}
             aria-label="容器"
             onChange={(event) => setContainer(event.target.value)}
@@ -115,12 +129,36 @@ export function PodLogPanel({
             <input type="checkbox" checked={follow} onChange={(event) => setFollow(event.target.checked)} />
             实时跟踪
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={highlight}
+              aria-label="高亮 ERROR 和 WARN"
+              onChange={(event) => setHighlight(event.target.checked)}
+            />
+            高亮 ERROR/WARN
+          </label>
+          <Button variant="outline" size="sm" disabled={!body} onClick={download}>
+            下载
+          </Button>
         </>
       }
     >
       {logs.isError ? <p className="p-3 text-sm text-destructive">日志加载失败</p> : null}
       <pre ref={viewRef} className="min-h-full p-3 whitespace-pre-wrap">
-        {logs.isLoading ? '加载中…' : body || '暂无日志'}
+        {logs.isLoading ? '加载中…' : tokens ? (
+          tokens.length > 0 ? (
+            tokens.map((token, index) => (
+              <span key={`${index}-${token.text}`} className={TONE_CLASS[token.tone]}>
+                {token.text}
+              </span>
+            ))
+          ) : (
+            '暂无日志'
+          )
+        ) : (
+          body || '暂无日志'
+        )}
       </pre>
     </LogPanel>
   )

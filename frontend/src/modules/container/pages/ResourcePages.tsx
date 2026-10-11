@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
 import { Input } from '@/components/ui/input'
@@ -120,7 +120,14 @@ export function NodeListPage() {
 export function PodListPage() {
   const { clusterId = '' } = useParams()
   const namespace = useContainerCluster((s) => s.namespace)
-  const [keyword, setKeyword] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const keyword = searchParams.get('keyword') ?? ''
+  function setKeyword(value: string) {
+    const next = new URLSearchParams(searchParams)
+    if (value) next.set('keyword', value)
+    else next.delete('keyword')
+    setSearchParams(next, { replace: true })
+  }
   const query = useQuery({
     queryKey: ['container-pods', clusterId, namespace, keyword],
     queryFn: () => podApi.list(clusterId, { namespace: namespace || undefined, keyword: keyword || undefined, pageNo: 1, pageSize: 100 }),

@@ -25,6 +25,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import { clusterIdFromPath } from '@/modules/container/nav'
+import { shellSearchCopy } from '@/shared/console/shellSearch'
 import { getConsoleTheme, subscribeConsoleTheme, toggleConsoleTheme } from '@/shared/console/useConsoleTheme'
 import { useAuthStore } from '@/stores/auth'
 
@@ -45,6 +47,7 @@ export function AppShell() {
   const [dark, setDark] = useState(getConsoleTheme)
   const [actions, setActions] = useState<ReactNode>(null)
   const crumbs = resolveBreadcrumbs(location.pathname)
+  const searchCopy = shellSearchCopy(location.pathname)
 
   useEffect(() => subscribeConsoleTheme(() => setDark(getConsoleTheme())), [])
 
@@ -72,6 +75,18 @@ export function AppShell() {
   function onSearch() {
     const value = keyword.trim()
     if (!value) return
+    if (searchCopy.kind === 'pod') {
+      const clusterId = clusterIdFromPath(location.pathname)
+      if (!clusterId) {
+        toast.message('进入集群后再搜索 Pod')
+        return
+      }
+      void navigate({
+        pathname: `/container/clusters/${clusterId}/pods`,
+        search: `?keyword=${encodeURIComponent(value)}`,
+      })
+      return
+    }
     void navigate({ pathname: '/pm/projects', search: `?keyword=${encodeURIComponent(value)}` })
   }
 
@@ -83,19 +98,21 @@ export function AppShell() {
           <header className="sticky top-0 z-40 flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur">
             <SidebarTrigger className="-ml-1" aria-label="切换侧栏" />
             <Separator orientation="vertical" className="mr-1 data-[orientation=vertical]:h-4" />
-            <Breadcrumb className="min-w-0 flex-1 overflow-hidden">
-              <BreadcrumbList className="flex-nowrap">
+            <Breadcrumb className="min-w-0 flex-1">
+              <BreadcrumbList className="flex-nowrap overflow-hidden">
                 {crumbs.map((crumb, index) => {
                   const current = index === crumbs.length - 1
                   return (
                     <Fragment key={`${crumb.label}-${index}`}>
-                      {index > 0 && <BreadcrumbSeparator />}
-                      <BreadcrumbItem className="min-w-0">
+                      {index > 0 && <BreadcrumbSeparator className="shrink-0" />}
+                      <BreadcrumbItem className={current ? 'min-w-0 shrink' : 'shrink-0'}>
                         {current || !crumb.to ? (
-                          <BreadcrumbPage className="truncate">{crumb.label}</BreadcrumbPage>
+                          <BreadcrumbPage className="block max-w-full truncate" title={crumb.label}>
+                            {crumb.label}
+                          </BreadcrumbPage>
                         ) : (
                           <BreadcrumbLink asChild>
-                            <Link to={crumb.to} className="truncate">
+                            <Link to={crumb.to} className="whitespace-nowrap" title={crumb.label}>
                               {crumb.label}
                             </Link>
                           </BreadcrumbLink>
@@ -119,8 +136,8 @@ export function AppShell() {
                 <Input
                   value={keyword}
                   onChange={(event) => setKeyword(event.target.value)}
-                  placeholder="搜索项目名称或编码"
-                  aria-label="搜索项目"
+                  placeholder={searchCopy.placeholder}
+                  aria-label={searchCopy.label}
                   className="h-8 pl-8"
                 />
               </div>

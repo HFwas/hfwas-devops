@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 @Slf4j
 @Service
@@ -137,6 +138,9 @@ public class ClusterService {
         ClusterEntity entity = getById(id, tenantId);
         int nodeCount = 0;
         int podCount = 0;
+        int deploymentCount = 0;
+        int serviceCount = 0;
+        int namespaceCount = 0;
         double cpuTotal = 0;
         long memoryTotal = 0L;
         try {
@@ -150,8 +154,13 @@ public class ClusterService {
             List<Pod> pods = client.pods().inAnyNamespace().list().getItems();
             podCount = pods.size();
 
+            deploymentCount = countItems(() -> client.apps().deployments().inAnyNamespace().list().getItems(), id, "deployments");
+            serviceCount = countItems(() -> client.services().inAnyNamespace().list().getItems(), id, "services");
+            namespaceCount = countItems(() -> client.namespaces().list().getItems(), id, "namespaces");
+
             // CPU / Memory totals from node allocatable
             for (Node node : nodes) {
+                if (node.getStatus() == null) continue;
                 Map<String, io.fabric8.kubernetes.api.model.Quantity> allocatable = node.getStatus().getAllocatable();
                 if (allocatable != null) {
                     io.fabric8.kubernetes.api.model.Quantity cpu = allocatable.get("cpu");
@@ -163,7 +172,7 @@ public class ClusterService {
         } catch (Exception e) {
             log.warn("Failed to fetch cluster stats for id={}: {}", id, e.getMessage());
         }
-        return new ClusterStats(nodeCount, podCount, cpuTotal, memoryTotal);
+        return new ClusterStats(nodeCount, podCount, deploymentCount, serviceCount, namespaceCount, cpuTotal, memoryTotal);
     }
 
     /**
@@ -347,9 +356,26 @@ public class ClusterService {
 
     // ---- inner: stats VO ----
 
-    public record ClusterStats(int nodeCount, int podCount, double cpuTotal, long memoryTotal) {
+    public record ClusterStats(
+            int nodeCount,
+            int podCount,
+            int deploymentCount,
+            int serviceCount,
+            int namespaceCount,
+            double cpuTotal,
+            long memoryTotal) {
         ClusterStats() {
-            this(0, 0, 0, 0L);
+            this(0, 0, 0, 0, 0, 0, 0L);
+        }
+    }
+
+    private static int countItems(Supplier<List<?>> load, Long id, String kind) {
+        try {
+            List<?> items = load.get();
+            return items == null ? 0 : items.size();
+        } catch (Exception e) {
+            log.warn("Failed to count {} for cluster id={}: {}", kind, id, e.getMessage());
+            return 0;
         }
     }
 }

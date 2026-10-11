@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { DataTable } from '@/components/console/DataTable'
 import { DetailShell } from '@/components/console/DetailShell'
+import { EllipsisCopy } from '@/components/console/EllipsisCopy'
 import { ImageList, InfoPairs, OverviewCard, PillList, replicaMetricCards, ResourceOverview } from '@/components/console/ResourceOverview'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
@@ -28,6 +29,7 @@ import {
   useResourceEvents,
   workloadTabs,
 } from '@/modules/container/components/detailLayout'
+import { PodContainerTable } from '@/modules/container/components/podContainerColumns'
 import { PodLogPanel } from '@/modules/container/components/PodLogPanel'
 import { PodShell } from '@/modules/container/components/PodShell'
 import { YamlPanel } from '@/modules/container/components/YamlPanel'
@@ -38,6 +40,7 @@ import { NodeMonitor, PodMonitor } from '@/modules/container/components/Resource
 import { formatBytes } from '@/modules/container/utils/format'
 import {
   deploymentAvailability,
+  podListNote,
   recordPills,
   replicaField,
   selectorPills,
@@ -46,6 +49,12 @@ import type { NodeDetail } from '@/modules/container/types/resource'
 
 function namespaceLine(namespace: string) {
   return `命名空间：${namespace}`
+}
+
+function PodRosterNote({ desired, pods }: { desired: number; pods: { status: string }[] }) {
+  const note = podListNote(desired, pods)
+  if (!note) return null
+  return <p className="mb-3 text-sm text-muted-foreground">{note}</p>
 }
 
 function confirmDelete(label: string, name: string, run: () => void) {
@@ -211,7 +220,7 @@ export function PodDetailPage() {
               { label: '就绪', value: `${pod.readyContainers}/${pod.containerCount}`, hint: '个容器', emphasis: true },
               { label: '重启', value: pod.restarts, emphasis: true },
               { label: 'QoS', value: pod.qosClass || '—' },
-              { label: '节点', value: pod.nodeName || '—' },
+              { label: '节点', value: pod.nodeName ? <EllipsisCopy value={pod.nodeName} copyLabel="复制节点名" /> : '—' },
               { label: '创建', value: pod.age || '—', hint: pod.creationTimestamp || undefined, emphasis: true },
             ]
           : undefined
@@ -224,25 +233,14 @@ export function PodDetailPage() {
           main={
             <>
               <OverviewCard title={countLabel('容器', pod.containers.length)}>
-                <DataTable
-                  columns={[
-                    { id: 'name', header: '容器', cell: (item) => item.name },
-                    { id: 'state', header: '状态', cell: (item) => <StatusIcon variant="dot" status={item.state} /> },
-                    { id: 'image', header: '镜像', cell: (item) => item.image },
-                    { id: 'ready', header: '就绪', cell: (item) => (item.ready ? '是' : '否') },
-                    { id: 'restart', header: '重启', cell: (item) => String(item.restartCount) },
-                  ]}
-                  data={pod.containers}
-                  getRowId={(item) => item.name}
-                  empty="没有容器"
-                />
+                <PodContainerTable rows={pod.containers} />
               </OverviewCard>
               <OverviewCard title="信息">
                 <InfoPairs
                   rows={[
                     { label: '所有者', value: pod.ownerReference || '—' },
                     { label: 'IP', value: pod.podIP || '—' },
-                    { label: '节点', value: pod.nodeName || '—' },
+                    { label: '节点', value: pod.nodeName ? <EllipsisCopy value={pod.nodeName} copyLabel="复制节点名" /> : '—' },
                     { label: 'QoS', value: pod.qosClass || '—' },
                     { label: '镜像', value: <ImageList items={pod.containers} />, span: true },
                     { label: 'UID', value: pod.uid, span: true },
@@ -266,20 +264,7 @@ export function PodDetailPage() {
           }
         />
       )}
-      {tab === '容器' && pod && (
-        <DataTable
-          columns={[
-            { id: 'name', header: '容器', cell: (item) => item.name },
-            { id: 'state', header: '状态', cell: (item) => <StatusIcon variant="dot" status={item.state} /> },
-            { id: 'image', header: '镜像', cell: (item) => item.image },
-            { id: 'ready', header: '就绪', cell: (item) => (item.ready ? '是' : '否') },
-            { id: 'restart', header: '重启', cell: (item) => String(item.restartCount) },
-          ]}
-          data={pod.containers}
-          getRowId={(item) => item.name}
-          empty="没有容器"
-        />
-      )}
+      {tab === '容器' && pod && <PodContainerTable rows={pod.containers} />}
       {tab === '事件' && <EventTable events={events.data} loading={events.isLoading} error={events.isError} />}
       {tab === '监控' && <PodMonitor clusterId={clusterId} namespace={namespace} name={name} containers={containers} />}
       {tab === '日志' && <PodLogPanel clusterId={clusterId} namespace={namespace} name={name} containers={containers} />}
@@ -398,13 +383,14 @@ export function DeploymentDetailPage() {
           main={
             <>
               <OverviewCard title={countLabel('Pods', podRows.length)}>
+                {item ? <PodRosterNote desired={item.desiredReplicas} pods={podRows} /> : null}
                 <PodMiniTable clusterId={clusterId} pods={podRows} loading={pods.isLoading} />
               </OverviewCard>
               <OverviewCard title="信息">
                 <InfoPairs
                   rows={[
                     { label: '所有者', value: '—' },
-                    { label: '选择器', value: <PillList items={selectorPills(item.selector)} empty="没有选择器" /> },
+                    { label: '选择器', value: <PillList items={selectorPills(item.selector)} empty="没有选择器" copyLabel="复制选择器" /> },
                     { label: '镜像', value: <ImageList items={item.containers} />, span: true },
                     { label: '策略', value: item.strategy || '—' },
                     { label: '容器', value: String(item.containers?.length ?? 0) },
@@ -456,6 +442,7 @@ export function DeploymentDetailPage() {
           clusterId={clusterId}
           queryKey={['container-deployment-pods', clusterId, namespace, name]}
           load={() => deploymentApi.pods(clusterId, namespace, name)}
+          desired={item?.desiredReplicas}
         />
       )}
       {tab === '容器' && (
@@ -572,7 +559,7 @@ export function ServiceDetailPage() {
               <OverviewCard title="信息">
                 <InfoPairs
                   rows={[
-                    { label: '选择器', value: <PillList items={selectorPills(item.selector)} empty="没有选择器" /> },
+                    { label: '选择器', value: <PillList items={selectorPills(item.selector)} empty="没有选择器" copyLabel="复制选择器" /> },
                     { label: 'UID', value: item.uid },
                   ]}
                 />
