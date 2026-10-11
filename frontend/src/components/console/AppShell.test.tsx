@@ -126,6 +126,12 @@ describe('AppShell', () => {
     expect(sidebar()).not.toContain('项目管理')
     expect(sidebar()).not.toContain('流水线')
     expect(container.textContent).toContain('集群内容')
+    const podSearch = container.querySelector('[aria-label="搜索 Pod"]')
+    expect(podSearch?.getAttribute('placeholder')).toBe('搜索 Pod 名称')
+    const crumbs = [...(container.querySelectorAll('[data-slot="breadcrumb-item"]') ?? [])]
+    expect(crumbs[0]?.className).toContain('shrink-0')
+    expect(crumbs.at(-1)?.className).toContain('shrink')
+    expect(crumbs.at(-1)?.className).not.toContain('shrink-0')
 
     await act(async () => {
       await mounted.router.navigate('/api-test')

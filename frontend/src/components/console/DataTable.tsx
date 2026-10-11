@@ -23,6 +23,7 @@ export function DataTable<T>({
   error,
   empty = '暂无数据',
   className,
+  fixed = false,
 }: {
   columns: DataTableColumn<T>[]
   data: T[]
@@ -32,6 +33,8 @@ export function DataTable<T>({
   error?: ReactNode
   empty?: ReactNode
   className?: string
+  /** 按列宽分配，避免长文本把后面的窄列撑开。 */
+  fixed?: boolean
 }) {
   const showSkeleton = loading && data.length === 0
   const showError = !showSkeleton && Boolean(error) && data.length === 0
@@ -42,7 +45,7 @@ export function DataTable<T>({
       {toolbar ? <div className="flex flex-wrap items-center gap-2">{toolbar}</div> : null}
       {error && data.length > 0 ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className={cn(loading && data.length > 0 && 'opacity-75')}>
-        <Table aria-busy={loading || undefined}>
+        <Table aria-busy={loading || undefined} className={fixed ? 'table-fixed' : undefined}>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               {columns.map((column) => (

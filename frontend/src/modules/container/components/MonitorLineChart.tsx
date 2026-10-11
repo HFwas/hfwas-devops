@@ -15,6 +15,7 @@ export function MonitorLineChart({
   loading,
   stacked,
   referenceLines,
+  emptyText = '暂无数据',
 }: {
   title: string
   series: ChartSeries[]
@@ -22,6 +23,7 @@ export function MonitorLineChart({
   loading?: boolean
   stacked?: boolean
   referenceLines?: { value: number; label: string; color: string }[]
+  emptyText?: string
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<echarts.ECharts | null>(null)
@@ -107,7 +109,11 @@ export function MonitorLineChart({
       <h2 className="mb-2 text-sm font-medium">{title}</h2>
       <div className="relative h-72">
         {loading && <p className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">加载中…</p>}
-        {empty && <p className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">暂无数据</p>}
+        {empty && (
+          <p className="absolute inset-0 z-10 flex items-center justify-center px-4 text-center text-sm text-muted-foreground">
+            {emptyText}
+          </p>
+        )}
         <div ref={hostRef} className={`h-72 w-full ${empty ? 'invisible' : ''}`} />
       </div>
     </section>

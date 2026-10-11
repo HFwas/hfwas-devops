@@ -216,11 +216,18 @@ export function HelmReleaseDetailPage() {
   )
 }
 
+/** 空字符串显示为破折号。chartRef 没有唯一制品匹配时后端就是空的，这里不补写引用。 */
+export function presentField(value: ReactNode): ReactNode {
+  if (value == null) return '—'
+  if (typeof value === 'string') return value.trim() ? value : '—'
+  return value
+}
+
 function Info({ label, value, mono = false }: { label: string; value: ReactNode; mono?: boolean }) {
   return (
     <div className="flex flex-col gap-1 rounded-md border px-3 py-2">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className={mono ? 'font-mono text-xs break-all' : 'text-sm'}>{value}</dd>
+      <dd className={mono ? 'font-mono text-xs break-all' : 'text-sm'}>{presentField(value)}</dd>
     </div>
   )
 }

@@ -1,8 +1,10 @@
 import { useState, type ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import { Button } from '@/components/ui/button'
 import { MonitorLineChart, type ChartSeries } from '@/modules/container/components/MonitorLineChart'
 import { MonitorTimeRange } from '@/modules/container/components/MonitorTimeRange'
 import { monitorApi } from '@/modules/container/api/monitor'
+import { describeMonitorFailure, monitorEmptyText, type MonitorFailure } from '@/modules/container/monitor/failure'
 import { SERIES_COLORS, toChartPoints, type MonitorRange, type MonitorSeries } from '@/modules/container/types/monitor'
 
 function paint(
@@ -38,30 +40,35 @@ export function ClusterMonitor({ clusterId }: { clusterId: string }) {
     queryFn: () => monitorApi.nodeNetwork(clusterId, '.*', range),
     enabled: !!clusterId,
   })
-  const loading = cpu.isLoading || memory.isLoading || network.isLoading
-  const failed = cpu.isError && memory.isError && network.isError
+  const queries = [cpu, memory, network]
+  const state = monitorQueryState(queries)
 
   return (
     <MonitorGrid
       range={range}
       onRange={setRange}
-      loading={loading}
-      failed={failed}
+      loading={queries.some((query) => query.isLoading)}
+      failure={state.failure}
+      allFailed={state.allFailed}
+      onRetry={state.retry}
       charts={[
         {
           title: '节点 CPU',
           yAxisLabel: '%',
+          emptyText: cpu.isError ? monitorEmptyText(cpu.error) : undefined,
           series: paint(cpu.data, (item) => item.labels.nodename || item.labels.instance || 'CPU', (_item, index) => SERIES_COLORS[index % SERIES_COLORS.length]),
         },
         {
           title: '节点内存',
           yAxisLabel: '%',
+          emptyText: memory.isError ? monitorEmptyText(memory.error) : undefined,
           series: paint(memory.data, (item) => item.labels.nodename || item.labels.instance || '内存', (_item, index) => SERIES_COLORS[index % SERIES_COLORS.length]),
         },
         {
           title: '网络 IO',
           yAxisLabel: 'bytes/s',
           wide: true,
+          emptyText: network.isError ? monitorEmptyText(network.error) : undefined,
           series: paint(
             network.data,
             (item) => `${item.labels.device || 'eth'} ${directionName(item, 'RX', 'TX')}`,
@@ -107,18 +114,22 @@ export function NodeMonitor({ clusterId, name }: { clusterId: string; name: stri
     enabled,
   })
   const queries = [cpu, memory, network, disk, connections, load]
+  const state = monitorQueryState(queries)
   return (
     <MonitorGrid
       range={range}
       onRange={setRange}
       loading={queries.some((query) => query.isLoading)}
-      failed={queries.every((query) => query.isError)}
+      failure={state.failure}
+      allFailed={state.allFailed}
+      onRetry={state.retry}
       charts={[
-        { title: 'CPU 使用率', yAxisLabel: '%', series: paint(cpu.data, () => 'CPU', () => SERIES_COLORS[0]) },
-        { title: '内存使用率', yAxisLabel: '%', series: paint(memory.data, () => '内存', () => SERIES_COLORS[1]) },
+        { title: 'CPU 使用率', yAxisLabel: '%', emptyText: cpu.isError ? monitorEmptyText(cpu.error) : undefined, series: paint(cpu.data, () => 'CPU', () => SERIES_COLORS[0]) },
+        { title: '内存使用率', yAxisLabel: '%', emptyText: memory.isError ? monitorEmptyText(memory.error) : undefined, series: paint(memory.data, () => '内存', () => SERIES_COLORS[1]) },
         {
           title: '网络 IO',
           yAxisLabel: 'bytes/s',
+          emptyText: network.isError ? monitorEmptyText(network.error) : undefined,
           series: paint(
             network.data,
             (item) => `${item.labels.device || 'eth'} ${directionName(item, 'RX', 'TX')}`,
@@ -128,14 +139,15 @@ export function NodeMonitor({ clusterId, name }: { clusterId: string; name: stri
         {
           title: '磁盘 IO',
           yAxisLabel: 'bytes/s',
+          emptyText: disk.isError ? monitorEmptyText(disk.error) : undefined,
           series: paint(
             disk.data,
             (item) => directionName(item, '读', '写'),
             (item) => (item.labels.direction === 'read' ? SERIES_COLORS[4] : SERIES_COLORS[1]),
           ),
         },
-        { title: 'TCP 连接数', wide: true, series: paint(connections.data, () => 'TCP 连接数', () => SERIES_COLORS[0]) },
-        { title: '1 分钟负载', wide: true, series: paint(load.data, () => 'load1', () => SERIES_COLORS[2]) },
+        { title: 'TCP 连接数', wide: true, emptyText: connections.isError ? monitorEmptyText(connections.error) : undefined, series: paint(connections.data, () => 'TCP 连接数', () => SERIES_COLORS[0]) },
+        { title: '1 分钟负载', wide: true, emptyText: load.isError ? monitorEmptyText(load.error) : undefined, series: paint(load.data, () => 'load1', () => SERIES_COLORS[2]) },
       ]}
     />
   )
@@ -179,13 +191,17 @@ export function PodMonitor({
     if (!container) return series
     return (series ?? []).filter((item) => item.labels.container === container)
   }
+  const queries = [cpu, memory, network]
+  const state = monitorQueryState(queries)
   return (
     <div className="flex flex-col gap-4">
       <MonitorGrid
         range={range}
         onRange={setRange}
-        loading={cpu.isLoading || memory.isLoading || network.isLoading}
-        failed={cpu.isError && memory.isError && network.isError}
+        loading={queries.some((query) => query.isLoading)}
+        failure={state.failure}
+        allFailed={state.allFailed}
+        onRetry={state.retry}
         extra={
           containers.length > 1 ? (
             <select
@@ -207,18 +223,21 @@ export function PodMonitor({
             title: 'CPU 使用',
             yAxisLabel: 'millicores',
             wide: true,
+            emptyText: cpu.isError ? monitorEmptyText(cpu.error) : undefined,
             series: paint(filter(cpu.data), (item) => item.labels.container || 'cpu', (_item, index) => SERIES_COLORS[index % SERIES_COLORS.length]),
           },
           {
             title: '内存使用',
             yAxisLabel: 'bytes',
             wide: true,
+            emptyText: memory.isError ? monitorEmptyText(memory.error) : undefined,
             series: paint(filter(memory.data), (item) => item.labels.container || 'memory', (_item, index) => SERIES_COLORS[index % SERIES_COLORS.length]),
           },
           {
             title: '网络 IO',
             yAxisLabel: 'bytes/s',
             wide: true,
+            emptyText: network.isError ? monitorEmptyText(network.error) : undefined,
             series: paint(
               network.data,
               (item) => directionName(item, 'RX', 'TX'),
@@ -420,38 +439,74 @@ function threadStateName(item: MonitorSeries) {
   return `${daemon} / ${state}`
 }
 
+function monitorQueryState(queries: Pick<UseQueryResult, 'isError' | 'error' | 'refetch'>[]) {
+  const failed = queries.filter((query) => query.isError)
+  return {
+    failure: describeMonitorFailure(failed.map((query) => query.error)),
+    allFailed: queries.length > 0 && failed.length === queries.length,
+    retry: () => {
+      for (const query of queries) void query.refetch()
+    },
+  }
+}
+
+function MonitorFailureNotice({ failure, onRetry }: { failure: MonitorFailure; onRetry: () => void }) {
+  const misconfig = failure.kind === 'misconfig'
+  return (
+    <div role="alert" className="rounded-lg border bg-card px-4 py-4">
+      <p className="text-sm font-medium">{misconfig ? '监控未配置' : '监控请求失败'}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{failure.message}</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {misconfig
+          ? '在集群 labels 里设置 prometheusUrl 后再试。现在没有可绘制的曲线。'
+          : 'Prometheus 地址可能已配置，但这次没有拿到数据。可以重试。'}
+      </p>
+      <Button type="button" size="sm" variant="outline" className="mt-3" onClick={onRetry}>
+        重试
+      </Button>
+    </div>
+  )
+}
+
 function MonitorGrid({
   range,
   onRange,
   charts,
   loading,
-  failed,
+  failure,
+  allFailed,
+  onRetry,
   extra,
 }: {
   range: MonitorRange
   onRange: (value: MonitorRange) => void
-  charts: { title: string; series: ChartSeries[]; yAxisLabel?: string; wide?: boolean; stacked?: boolean }[]
+  charts: { title: string; series: ChartSeries[]; yAxisLabel?: string; wide?: boolean; stacked?: boolean; emptyText?: string }[]
   loading: boolean
-  failed: boolean
+  failure: MonitorFailure | null
+  allFailed: boolean
+  onRetry: () => void
   extra?: ReactNode
 }) {
   return (
     <div className="flex flex-col gap-3">
       <MonitorTimeRange value={range} onChange={onRange} extra={extra} />
-      {failed && <p className="text-sm text-destructive">监控数据加载失败</p>}
-      <div className="grid gap-3 lg:grid-cols-2">
-        {charts.map((chart) => (
-          <div key={chart.title} className={chart.wide ? 'lg:col-span-2' : undefined}>
-            <MonitorLineChart
-              title={chart.title}
-              series={chart.series}
-              yAxisLabel={chart.yAxisLabel}
-              loading={loading}
-              stacked={chart.stacked}
-            />
-          </div>
-        ))}
-      </div>
+      {failure ? <MonitorFailureNotice failure={failure} onRetry={onRetry} /> : null}
+      {allFailed ? null : (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {charts.map((chart) => (
+            <div key={chart.title} className={chart.wide ? 'lg:col-span-2' : undefined}>
+              <MonitorLineChart
+                title={chart.title}
+                series={chart.series}
+                yAxisLabel={chart.yAxisLabel}
+                loading={loading}
+                stacked={chart.stacked}
+                emptyText={chart.emptyText}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

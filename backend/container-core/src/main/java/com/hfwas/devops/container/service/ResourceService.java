@@ -801,6 +801,9 @@ public class ResourceService {
                 vo.setRestarts(restarts);
             }
         }
+        if (meta.getDeletionTimestamp() != null) {
+            vo.setStatus("Terminating");
+        }
         return vo;
     }
 

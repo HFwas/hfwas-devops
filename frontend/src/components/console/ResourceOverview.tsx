@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 export interface MetricItem {
@@ -14,9 +15,9 @@ export function OverviewMetricCards({ items }: { items: MetricItem[] }) {
   return (
     <div data-slot="overview-metric-cards" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       {items.map((item) => (
-        <div key={item.label} className="rounded-lg border bg-card px-4 py-3 shadow-sm">
+        <div key={item.label} className="min-w-0 overflow-hidden rounded-lg border bg-card px-4 py-3 shadow-sm">
           <div className="text-sm text-muted-foreground">{item.label}</div>
-          <div className={cn('mt-2', item.emphasis ? 'text-2xl font-bold tracking-tight' : 'text-base font-semibold')}>
+          <div className={cn('mt-2 min-w-0', item.emphasis ? 'text-2xl font-bold tracking-tight' : 'text-base font-semibold')}>
             {item.value}
           </div>
           {item.hint ? <div className="mt-1 text-xs text-muted-foreground">{item.hint}</div> : null}
@@ -104,31 +105,58 @@ export function PillList({
   items,
   empty = '—',
   stacked = false,
+  copyLabel,
 }: {
   items: string[]
   empty?: ReactNode
   /** 标签和注解按行铺开。选择器继续用默认的横排小药丸。 */
   stacked?: boolean
+  /** 复制全部条目。长选择器可以换行，同时留一份完整文本。 */
+  copyLabel?: string
 }) {
   if (items.length === 0) return <span className="text-sm text-muted-foreground">{empty}</span>
+  const copy = copyLabel ? (
+    <button
+      type="button"
+      className="self-start text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+      onClick={() => {
+        void navigator.clipboard.writeText(items.join('\n')).then(
+          () => toast.success('已复制'),
+          () => toast.error('复制失败'),
+        )
+      }}
+    >
+      {copyLabel}
+    </button>
+  ) : null
   if (stacked) {
     return (
-      <ul className="flex flex-col gap-1.5">
-        {items.map((item, index) => (
-          <li key={`${item}-${index}`} className="rounded-md border bg-muted/50 px-2 py-1 font-mono text-xs break-all">
-            {item}
-          </li>
-        ))}
-      </ul>
+      <div className="flex min-w-0 flex-col gap-2">
+        <ul className="flex min-w-0 flex-col gap-1.5">
+          {items.map((item, index) => (
+            <li key={`${item}-${index}`} className="rounded-md border bg-muted/50 px-2 py-1 font-mono text-xs break-all">
+              {item}
+            </li>
+          ))}
+        </ul>
+        {copy}
+      </div>
     )
   }
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {items.map((item, index) => (
-        <span key={`${item}-${index}`} className="rounded-md border bg-muted px-2 py-0.5 font-mono text-xs text-foreground">
-          {item}
-        </span>
-      ))}
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex min-w-0 flex-wrap gap-1.5">
+        {items.map((item, index) => (
+          <span
+            key={`${item}-${index}`}
+            className="inline-block max-w-full min-w-0 rounded-md border bg-muted px-2 py-0.5 font-mono text-xs break-all text-foreground"
+            title={item}
+          >
+            {item}
+          </span>
+        ))}
+      </div>
+      {copy}
     </div>
   )
 }

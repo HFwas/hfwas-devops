@@ -30,3 +30,24 @@ export function selectorPills(selector?: string | Record<string, string> | null)
 export function recordPills(record?: Record<string, string> | null): string[] {
   return Object.entries(record ?? {}).map(([key, value]) => (value ? `${key}=${value}` : key))
 }
+
+function countStatus(pods: { status: string }[], status: string) {
+  return pods.filter((pod) => pod.status.trim().toLowerCase() === status).length
+}
+
+/**
+ * 选择器列表可以比期望副本多（滚动更新、尚未退出的 Pod）。
+ * 只在多出来时说明，不改期望数，也不把未知状态说成终止中。
+ */
+export function podListNote(desired: number, pods: { status: string }[]): string | null {
+  if (!Number.isFinite(desired) || pods.length <= desired) return null
+  const marks: string[] = []
+  const terminating = countStatus(pods, 'terminating')
+  const pending = countStatus(pods, 'pending')
+  if (terminating > 0) marks.push(`${terminating} 个终止中`)
+  if (pending > 0) marks.push(`${pending} 个 Pending`)
+  const parts = [`选择器匹配到 ${pods.length} 个 Pod，期望副本是 ${desired}`]
+  if (marks.length > 0) parts.push(`其中 ${marks.join('、')}`)
+  parts.push('多出来的 Pod 仍显示在列表中，期望数以上方卡片为准')
+  return `${parts.join('。')}。`
+}

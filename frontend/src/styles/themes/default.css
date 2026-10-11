@@ -32,6 +32,11 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.55 0.22 235);
+  /* 会话内容区固定深色，不随页面亮暗翻转。 */
+  --term-bg: oklch(0.18 0.01 235);
+  --term-fg: oklch(0.85 0.005 235);
+  --term-danger: oklch(0.72 0.17 25);
+  --term-warn: oklch(0.86 0.14 90);
 }
 
 .dark {

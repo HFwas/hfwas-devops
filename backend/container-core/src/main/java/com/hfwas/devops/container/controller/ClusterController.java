@@ -102,6 +102,9 @@ public class ClusterController {
         ClusterStatsVO vo = new ClusterStatsVO();
         vo.setNodeCount(s.nodeCount());
         vo.setPodCount(s.podCount());
+        vo.setDeploymentCount(s.deploymentCount());
+        vo.setServiceCount(s.serviceCount());
+        vo.setNamespaceCount(s.namespaceCount());
         vo.setCpuTotal(s.cpuTotal());
         vo.setMemoryTotal(s.memoryTotal());
         return BaseResult.ok(vo);
