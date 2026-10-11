@@ -86,10 +86,16 @@ export function resolveBreadcrumbs(pathname: string): PathCrumb[] {
       { label: '运行详情' },
     ]
   }
+  if (/^\/pipeline\/pipelines\/[^/]+\/history\/?$/.test(pathname)) {
+    return [
+      { label: '流水线', to: '/pipeline/pipelines' },
+      { label: '运行历史' },
+    ]
+  }
   if (/^\/pipeline\/pipelines\/[^/]+$/.test(pathname)) {
     return [
       { label: '流水线', to: '/pipeline/pipelines' },
-      { label: '运行记录' },
+      { label: '详情' },
     ]
   }
   if (/^\/api-test\/collections\/[^/]+/.test(pathname)) {

@@ -24,6 +24,7 @@ export function DataTable<T>({
   empty = '暂无数据',
   className,
   fixed = false,
+  onRowClick,
 }: {
   columns: DataTableColumn<T>[]
   data: T[]
@@ -35,6 +36,8 @@ export function DataTable<T>({
   className?: string
   /** 按列宽分配，避免长文本把后面的窄列撑开。 */
   fixed?: boolean
+  /** 点击行内链接、按钮或输入框时不触发。 */
+  onRowClick?: (row: T) => void
 }) {
   const showSkeleton = loading && data.length === 0
   const showError = !showSkeleton && Boolean(error) && data.length === 0
@@ -79,7 +82,19 @@ export function DataTable<T>({
               </TableRow>
             )}
             {data.map((row) => (
-              <TableRow key={getRowId(row)} className="hover:bg-muted/50">
+              <TableRow
+                key={getRowId(row)}
+                className={cn('hover:bg-muted/50', onRowClick && 'cursor-pointer')}
+                onClick={
+                  onRowClick
+                    ? (event) => {
+                        const target = event.target
+                        if (target instanceof Element && target.closest('a, button, input, select, textarea')) return
+                        onRowClick(row)
+                      }
+                    : undefined
+                }
+              >
                 {columns.map((column) => (
                   <TableCell key={column.id} className={cn('p-2', column.className)}>
                     {column.cell(row)}

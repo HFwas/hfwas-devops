@@ -47,7 +47,7 @@ import { CredentialListPage } from '@/modules/pipeline/pages/CredentialListPage'
 import { PipelineEditorPage } from '@/modules/pipeline/pages/PipelineEditorPage'
 import { PipelineListPage } from '@/modules/pipeline/pages/PipelineListPage'
 import { PipelineRunDetailPage } from '@/modules/pipeline/pages/PipelineRunDetailPage'
-import { PipelineRunsPage } from '@/modules/pipeline/pages/PipelineRunsPage'
+import { PipelineDetailPage } from '@/modules/pipeline/pages/PipelineDetailPage'
 import { TaskKindDetailPage } from '@/modules/pipeline/pages/TaskKindDetailPage'
 import { TaskKindListPage } from '@/modules/pipeline/pages/TaskKindListPage'
 import { BoardPage } from '@/modules/pm/pages/BoardPage'
@@ -100,7 +100,8 @@ export const router = createBrowserRouter([
           { path: 'pipeline/pipelines', element: <PipelineListPage /> },
           { path: 'pipeline/pipelines/new', element: <PipelineEditorPage /> },
           { path: 'pipeline/pipelines/:pipelineId/edit', element: <PipelineEditorPage /> },
-          { path: 'pipeline/pipelines/:pipelineId', element: <PipelineRunsPage /> },
+          { path: 'pipeline/pipelines/:pipelineId/history', element: <PipelineDetailPage /> },
+          { path: 'pipeline/pipelines/:pipelineId', element: <PipelineDetailPage /> },
           { path: 'pipeline/pipelines/:pipelineId/runs/:runId', element: <PipelineRunDetailPage /> },
           { path: 'pipeline/credentials', element: <CredentialListPage /> },
           { path: 'pipeline/credentials/:credentialId', element: <CredentialDetailPage /> },

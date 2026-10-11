@@ -123,3 +123,21 @@ export function formatDuration(startedAt?: string | null, finishedAt?: string | 
   if (minutes > 0) return `${minutes}分${seconds}秒`
   return `${seconds}秒`
 }
+
+/** 运行历史表里的紧凑耗时，例如 `58s`、`1m 05s`。 */
+export function formatCompactDuration(startedAt?: string | null, finishedAt?: string | null, now = Date.now()): string {
+  if (!startedAt) return '—'
+  const start = parseInstant(startedAt)
+  if (Number.isNaN(start)) return '—'
+  const end = finishedAt ? parseInstant(finishedAt) : now
+  if (Number.isNaN(end) || end < start) return '—'
+  const total = Math.floor((end - start) / 1000)
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = total % 60
+  const ss = String(seconds).padStart(2, '0')
+  const mm = String(minutes).padStart(2, '0')
+  if (hours > 0) return `${hours}h ${mm}m`
+  if (minutes > 0) return `${minutes}m ${ss}s`
+  return `${seconds}s`
+}

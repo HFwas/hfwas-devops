@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { FolderGit2, GitBranch, MoreHorizontal, Pencil, Plus } from 'lucide-react'
+import { FolderGit2, GitBranch, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { DataTable } from '@/components/console/DataTable'
@@ -8,12 +8,6 @@ import { PageHeader } from '@/components/console/PageHeader'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { resolveStatusTone, STATUS_DOT_CLASS } from '@/components/console/status'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import { StartRunButton } from '@/modules/pipeline/components/StartRunButton'
@@ -22,9 +16,19 @@ import { formatGitRef, formatRelativeTime, runStatusLabel } from '@/modules/pipe
 import type { PipelineSummary } from '@/modules/pipeline/types/pipeline'
 import { cn } from '@/lib/utils'
 
+type ListStatusFilter = 'all' | 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+
+const STATUS_FILTERS: Array<{ id: ListStatusFilter; label: string }> = [
+  { id: 'all', label: '全部' },
+  { id: 'RUNNING', label: '运行中' },
+  { id: 'SUCCEEDED', label: '成功' },
+  { id: 'FAILED', label: '失败' },
+]
+
 export function PipelineListPage() {
   const queryClient = useQueryClient()
   const [keyword, setKeyword] = useState('')
+  const [statusFilter, setStatusFilter] = useState<ListStatusFilter>('all')
   const query = useQuery({
     queryKey: ['pipelines'],
     queryFn: () => pipelineApi.page({ pageNo: 1, pageSize: 100 }),
@@ -40,17 +44,19 @@ export function PipelineListPage() {
 
   const needle = keyword.trim().toLowerCase()
   const rows = (query.data?.records ?? []).filter((row) => {
+    if (statusFilter !== 'all' && row.lastRunStatus !== statusFilter) return false
     if (!needle) return true
     const branch = formatGitRef(row.gitRef).toLowerCase()
     return [row.name, row.repoUrl, repoShortName(row.repoUrl), branch].join(' ').toLowerCase().includes(needle)
   })
   const total = query.data?.total ?? rows.length
+  const narrowed = Boolean(needle) || statusFilter !== 'all'
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         title="流水线"
-        description={query.isSuccess ? `共 ${needle ? rows.length : total} 条流水线` : '查看流水线与最近一次运行'}
+        description={query.isSuccess ? `共 ${narrowed ? rows.length : total} 条流水线` : '查看流水线与最近一次运行'}
         actions={
           <>
             <Input
@@ -69,6 +75,25 @@ export function PipelineListPage() {
           </>
         }
       />
+      <div role="group" aria-label="按最近运行筛选" className="flex flex-wrap gap-1">
+        {STATUS_FILTERS.map((filter) => {
+          const selected = statusFilter === filter.id
+          return (
+            <button
+              key={filter.id}
+              type="button"
+              aria-pressed={selected}
+              className={cn(
+                'h-8 rounded-md px-3 text-sm',
+                selected ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted/60',
+              )}
+              onClick={() => setStatusFilter(filter.id)}
+            >
+              {filter.label}
+            </button>
+          )
+        })}
+      </div>
       <DataTable<PipelineSummary>
         fixed
         columns={[
@@ -132,9 +157,9 @@ export function PipelineListPage() {
             id: 'actions',
             header: '操作',
             className: 'py-3 align-middle whitespace-normal',
-            headClassName: 'w-[220px]',
+            headClassName: 'w-[300px]',
             cell: (row) => (
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 <StartRunButton pipelineId={row.id} />
                 <Button variant="outline" size="sm" asChild>
                   <Link to={`/pipeline/pipelines/${row.id}/edit`}>
@@ -142,39 +167,21 @@ export function PipelineListPage() {
                     编辑
                   </Link>
                 </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label={`${row.name}更多操作`}>
-                      <MoreHorizontal />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem asChild>
-                      <Link to={`/pipeline/pipelines/${row.id}`}>运行记录</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        if (!window.confirm(`删除流水线「${row.name}」？`)) return
-                        remove.mutate(row.id)
-                      }}
-                    >
-                      删除
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ),
-          },
-          {
-            id: 'actions',
-            header: '',
-            className: 'text-right',
-            cell: (row) => (
-              <div className="flex justify-end gap-1">
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to={`/pipeline/pipelines/${row.id}/edit`}>编辑</Link>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/pipeline/pipelines/${row.id}/history`}>历史</Link>
                 </Button>
-                <StartRunButton pipelineId={String(row.id)} variant="outline" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label={`删除${row.name}`}
+                  onClick={() => {
+                    if (!window.confirm(`删除流水线「${row.name}」？`)) return
+                    remove.mutate(row.id)
+                  }}
+                >
+                  <Trash2 />
+                  删除
+                </Button>
               </div>
             ),
           },
@@ -183,7 +190,7 @@ export function PipelineListPage() {
         getRowId={(row) => String(row.id)}
         loading={query.isFetching}
         error={query.isError ? '流水线列表加载失败' : undefined}
-        empty={needle ? '没有匹配的流水线' : '还没有流水线'}
+        empty={narrowed ? '没有匹配的流水线' : '还没有流水线'}
       />
     </div>
   )

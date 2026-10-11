@@ -146,7 +146,7 @@ export function PipelineRunDetailPage() {
     <DetailShell
       leading={
         <Button variant="ghost" size="sm" asChild>
-          <Link to={`/pipeline/pipelines/${pipelineId}`}>返回</Link>
+          <Link to={`/pipeline/pipelines/${pipelineId}/history`}>返回</Link>
         </Button>
       }
       title={run ? `${run.pipelineName} #${run.id}` : `运行 #${runId}`}
