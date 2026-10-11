@@ -187,7 +187,7 @@ describe('task marketplace pages', () => {
     root = view.root
     container = view.container
     await waitForText(container, '代码克隆')
-    const edit = [...container.querySelectorAll('button')].find((node) => node.textContent === '编辑')
+    const edit = [...container.querySelectorAll('button')].find((node) => node.textContent === '编辑概览')
     act(() => {
       edit?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
@@ -226,6 +226,8 @@ describe('task marketplace pages', () => {
       paramsTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
     await waitForText(container, '仅管理员')
+    expect(container.textContent).toContain('添加参数')
+    expect(container.textContent).toContain('删除')
 
     const versionsTab = [...container.querySelectorAll('[role="tab"]')].find((node) => node.textContent === '版本')
     act(() => {
@@ -244,5 +246,41 @@ describe('task marketplace pages', () => {
       await flush()
     }
     expect(pipelineTaskKindApi.publish).toHaveBeenCalledWith('CLONE', { note: undefined, version: undefined })
+  })
+
+  it('treats ADMIN role as admin and keeps members read-only', async () => {
+    useAuthStore.setState({
+      user: { username: 'admin', displayName: '管理员', role: 'ADMIN' },
+    })
+    const adminView = mount(withQuery(
+      <MemoryRouter initialEntries={['/pipeline/task-kinds/CLONE']}>
+        <Routes>
+          <Route path="/pipeline/task-kinds/:kind" element={<TaskKindDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    ))
+    root = adminView.root
+    container = adminView.container
+    await waitForText(container, '编辑概览')
+
+    act(() => {
+      root?.unmount()
+    })
+    container.remove()
+    useAuthStore.setState({
+      user: { username: 'user', displayName: '用户', role: 'user' },
+    })
+    const readonly = mount(withQuery(
+      <MemoryRouter initialEntries={['/pipeline/task-kinds/CLONE?tab=参数']}>
+        <Routes>
+          <Route path="/pipeline/task-kinds/:kind" element={<TaskKindDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    ))
+    root = readonly.root
+    container = readonly.container
+    await waitForText(container, 'Git Token')
+    expect(container.textContent).not.toContain('添加参数')
+    expect(container.textContent).toContain('参数为只读')
   })
 })

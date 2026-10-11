@@ -79,6 +79,14 @@ describe('resolveBreadcrumbs', () => {
       { label: '项目管理', to: '/pm/projects' },
       { label: '事项详情' },
     ])
+    expect(resolveBreadcrumbs('/pipeline/pipelines/new')).toEqual([
+      { label: '流水线', to: '/pipeline/pipelines' },
+      { label: '新建流水线' },
+    ])
+    expect(resolveBreadcrumbs('/pipeline/pipelines/4/edit')).toEqual([
+      { label: '流水线', to: '/pipeline/pipelines' },
+      { label: '编辑流水线' },
+    ])
     expect(resolveBreadcrumbs('/pipeline/pipelines/4')).toEqual([
       { label: '流水线', to: '/pipeline/pipelines' },
       { label: '运行记录' },

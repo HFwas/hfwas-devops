@@ -68,6 +68,18 @@ export function resolveBreadcrumbs(pathname: string): PathCrumb[] {
       { label: '任务详情' },
     ]
   }
+  if (pathname === '/pipeline/pipelines/new') {
+    return [
+      { label: '流水线', to: '/pipeline/pipelines' },
+      { label: '新建流水线' },
+    ]
+  }
+  if (/^\/pipeline\/pipelines\/[^/]+\/edit\/?$/.test(pathname)) {
+    return [
+      { label: '流水线', to: '/pipeline/pipelines' },
+      { label: '编辑流水线' },
+    ]
+  }
   if (/^\/pipeline\/pipelines\/[^/]+\/runs\/[^/]+/.test(pathname)) {
     return [
       { label: '流水线', to: '/pipeline/pipelines' },

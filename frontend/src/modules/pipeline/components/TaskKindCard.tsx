@@ -90,7 +90,13 @@ export function TaskKindCard({
         <StatusIcon status={item.enabled ? 'enabled' : 'disabled'} label={item.enabled ? '启用' : '停用'} />
       </Link>
       {showToggle ? (
-        <div className="flex justify-end border-t px-3 py-2">
+        <div className="flex justify-end gap-1 border-t px-3 py-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/pipeline/task-kinds/${encodeURIComponent(item.kindValue)}?edit=overview`}>编辑</Link>
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to={`/pipeline/task-kinds/${encodeURIComponent(item.kindValue)}?tab=参数`}>参数</Link>
+          </Button>
           <Button variant="ghost" size="sm" disabled={togglePending} onClick={onToggle}>
             {item.enabled ? '停用' : '启用'}
           </Button>

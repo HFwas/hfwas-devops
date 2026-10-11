@@ -97,11 +97,25 @@ export function TaskKindParamEditor({
     }
   }
 
+  function addParam() {
+    setDrafts((current) => [...current, emptyDraft()])
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        「仅管理员」的参数不会出现在流水线绑定和运行弹框，运行时使用这里的默认值。保存不会发布新版本。
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          直接添加、修改或删除参数。保存只更新当前配置，不会发布新版本。「仅管理员」的参数不会出现在流水线绑定和运行弹框。
+        </p>
+        <div className="flex gap-2">
+          <Button type="button" size="sm" onClick={addParam}>
+            添加参数
+          </Button>
+          <Button type="button" size="sm" disabled={saving} onClick={submit}>
+            保存
+          </Button>
+        </div>
+      </div>
       {drafts.length === 0 ? <p className="text-sm text-muted-foreground">还没有参数</p> : null}
       {drafts.map((draft, index) => (
         <section key={`${draft.paramKey}-${index}`} className="flex flex-col gap-3 rounded-xl border p-4">
@@ -269,7 +283,7 @@ export function TaskKindParamEditor({
         </section>
       ))}
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={() => setDrafts((current) => [...current, emptyDraft()])}>
+        <Button type="button" size="sm" onClick={addParam}>
           添加参数
         </Button>
         <Button type="button" size="sm" disabled={saving} onClick={submit}>
