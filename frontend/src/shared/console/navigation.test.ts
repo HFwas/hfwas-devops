@@ -89,7 +89,11 @@ describe('resolveBreadcrumbs', () => {
     ])
     expect(resolveBreadcrumbs('/pipeline/pipelines/4')).toEqual([
       { label: '流水线', to: '/pipeline/pipelines' },
-      { label: '运行记录' },
+      { label: '详情' },
+    ])
+    expect(resolveBreadcrumbs('/pipeline/pipelines/4/history')).toEqual([
+      { label: '流水线', to: '/pipeline/pipelines' },
+      { label: '运行历史' },
     ])
     expect(resolveBreadcrumbs('/pipeline/pipelines/4/runs/8')).toEqual([
       { label: '流水线', to: '/pipeline/pipelines' },

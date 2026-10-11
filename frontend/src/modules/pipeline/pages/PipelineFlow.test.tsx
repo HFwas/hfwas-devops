@@ -25,7 +25,7 @@ vi.mock('@/modules/pipeline/api/pipeline', () => ({
 
 import { pipelineApi, pipelineCredentialApi, pipelineTaskKindApi } from '@/modules/pipeline/api/pipeline'
 import { PipelineEditorPage } from '@/modules/pipeline/pages/PipelineEditorPage'
-import { PipelineRunsPage } from '@/modules/pipeline/pages/PipelineRunsPage'
+import { PipelineDetailPage } from '@/modules/pipeline/pages/PipelineDetailPage'
 
 const clone: TaskKindVO = {
   kindValue: 'CLONE',
@@ -112,6 +112,7 @@ describe('pipeline create and run', () => {
     ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
     vi.mocked(pipelineTaskKindApi.list).mockReset()
     vi.mocked(pipelineCredentialApi.list).mockReset()
+    vi.mocked(pipelineCredentialApi.list).mockResolvedValue([])
     vi.mocked(pipelineApi.create).mockReset()
     vi.mocked(pipelineApi.get).mockReset()
     vi.mocked(pipelineApi.pageRuns).mockReset()
@@ -188,14 +189,15 @@ describe('pipeline create and run', () => {
     const view = mount(withQuery(
       <MemoryRouter initialEntries={['/pipeline/pipelines/9']}>
         <Routes>
-          <Route path="/pipeline/pipelines/:pipelineId" element={<PipelineRunsPage />} />
+          <Route path="/pipeline/pipelines/:pipelineId/history" element={<PipelineDetailPage />} />
+          <Route path="/pipeline/pipelines/:pipelineId" element={<PipelineDetailPage />} />
           <Route path="/pipeline/pipelines/:pipelineId/runs/:runId" element={<p>运行详情</p>} />
         </Routes>
       </MemoryRouter>,
     ))
     root = view.root
     container = view.container
-    await waitForText(container, '还没有运行')
+    await waitForText(container, '发布')
     const run = [...container.querySelectorAll('button')].find((node) => node.textContent === '运行')
     act(() => {
       run?.dispatchEvent(new MouseEvent('click', { bubbles: true }))

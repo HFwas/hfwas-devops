@@ -112,6 +112,10 @@ describe('PipelineListPage', () => {
     expect(create?.textContent).toContain('新建流水线')
     const edit = container.querySelector('a[href="/pipeline/pipelines/1/edit"]')
     expect(edit?.textContent).toContain('编辑')
+    expect(container.querySelectorAll('a[href="/pipeline/pipelines/1/edit"]')).toHaveLength(1)
+    const history = container.querySelector('a[href="/pipeline/pipelines/1/history"]')
+    expect(history?.textContent).toContain('历史')
+    expect(container.textContent).toContain('删除')
     const nameCell = [...container.querySelectorAll('td')].find((cell) => cell.textContent?.includes('后端发布'))
     expect(nameCell?.className).toContain('py-3')
 

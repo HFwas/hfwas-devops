@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatCommit,
   formatDateTime,
+  formatCompactDuration,
   formatDuration,
   formatGitRef,
   formatRelativeTime,
@@ -52,6 +53,10 @@ describe('pipeline status helpers', () => {
     expect(formatCommit('48b618f9408d74b9eb5f260be9db9d087350203a')).toBe('48b618f9')
     expect(formatDuration('2026-09-08T09:37:00', '2026-09-08T09:40:59')).toBe('3分59秒')
     expect(formatDuration(null, null)).toBe('—')
+    expect(formatCompactDuration('2026-09-08T09:37:00Z', '2026-09-08T09:40:59Z')).toBe('3m 59s')
+    expect(formatCompactDuration('2026-09-08T09:37:00Z', '2026-09-08T09:38:05Z')).toBe('1m 05s')
+    expect(formatCompactDuration('2026-09-08T09:37:00Z', '2026-09-08T09:37:58Z')).toBe('58s')
+    expect(formatCompactDuration(null, null)).toBe('—')
   })
 
   it('treats naive backend timestamps as UTC so duration is not skewed by local offset', () => {
