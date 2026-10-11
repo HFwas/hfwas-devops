@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { DetailShell } from '@/components/console/DetailShell'
 import { LogPanel, type ConnectionState } from '@/components/console/LogPanel'
 import { StatusIcon } from '@/components/console/StatusIcon'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import { RunSwimlane } from '@/modules/pipeline/components/RunSwimlane'
@@ -14,18 +15,17 @@ import type { PipelineRunJob } from '@/modules/pipeline/types/pipeline'
 
 const NO_JOBS: PipelineRunJob[] = []
 
-type LogFocus = { type: 'job'; id: string } | { type: 'stage'; name: string }
+type LogFocus = { type: 'job'; id: string } | { type: 'stage'; name: string } | { type: 'overall' }
 
 function stageKey(job: { stageName?: string | null }): string {
   return job.stageName?.trim() || '未命名'
 }
 
-function resolveFocus(focus: LogFocus | null, jobs: PipelineRunJob[]): LogFocus | null {
-  if (!jobs.length) return null
-  if (focus?.type === 'job' && jobs.some((job) => String(job.id) === focus.id)) return focus
-  if (focus?.type === 'stage' && jobs.some((job) => stageKey(job) === focus.name)) return focus
-  const active = jobs.find((job) => job.status === 'RUNNING' || job.status === 'FAILED') ?? jobs[0]
-  return { type: 'job', id: String(active.id) }
+function focusValid(focus: LogFocus | null, jobs: PipelineRunJob[]): focus is LogFocus {
+  if (!focus) return false
+  if (focus.type === 'overall') return true
+  if (focus.type === 'job') return jobs.some((job) => String(job.id) === focus.id)
+  return jobs.some((job) => stageKey(job) === focus.name)
 }
 
 function runConnection(status: string | undefined, fetching: boolean, hasRun: boolean): ConnectionState {
@@ -40,6 +40,20 @@ function jobsConnection(jobs: PipelineRunJob[], fetching: boolean): ConnectionSt
   if (jobs.some((job) => job.status === 'RUNNING')) return 'connected'
   if (jobs.some((job) => job.status === 'QUEUED')) return 'connecting'
   return 'idle'
+}
+
+function TerminalLines({ text }: { text: string }) {
+  const lines = text.split('\n')
+  return (
+    <pre className="p-3 whitespace-pre-wrap break-all">
+      {lines.map((line, index) => (
+        <span key={index} className="flex gap-3">
+          <span className="w-8 shrink-0 text-right opacity-45 select-none">{index + 1}</span>
+          <span className="min-w-0 flex-1">{line || ' '}</span>
+        </span>
+      ))}
+    </pre>
+  )
 }
 
 export function PipelineRunDetailPage() {
@@ -63,6 +77,7 @@ export function PipelineRunDetailPage() {
   const stages = useMemo(() => groupJobsByStage(jobs), [jobs])
   const overallLog = useMemo(() => aggregateRunLog(jobs), [jobs])
   const running = jobs.some((job) => job.status === 'RUNNING')
+  const open = focusValid(focus, jobs)
 
   useEffect(() => {
     if (!running) return
@@ -70,25 +85,40 @@ export function PipelineRunDetailPage() {
     return () => window.clearInterval(timer)
   }, [running])
 
-  const resolved = resolveFocus(focus, jobs)
-  const focusedJob = resolved?.type === 'job' ? jobs.find((job) => String(job.id) === resolved.id) : undefined
-  const focusedStage =
-    resolved?.type === 'stage' ? stages.find((stage) => stage.name === resolved.name) : undefined
-  const detailJobs = resolved?.type === 'stage' ? (focusedStage?.jobs ?? []) : focusedJob ? [focusedJob] : []
+  useEffect(() => {
+    if (focus && !focusValid(focus, jobs)) setFocus(null)
+  }, [focus, jobs])
+
+  const focusedJob = focus?.type === 'job' ? jobs.find((job) => String(job.id) === focus.id) : undefined
+  const focusedStage = focus?.type === 'stage' ? stages.find((stage) => stage.name === focus.name) : undefined
+  const detailJobs =
+    focus?.type === 'overall'
+      ? jobs
+      : focus?.type === 'stage'
+        ? (focusedStage?.jobs ?? [])
+        : focusedJob
+          ? [focusedJob]
+          : []
   const detailTitle =
-    resolved?.type === 'stage'
-      ? `阶段 · ${resolved.name}`
-      : focusedJob
-        ? `${focusedJob.stageName} / ${focusedJob.jobName}`
-        : '日志'
+    focus?.type === 'overall'
+      ? '全程日志'
+      : focus?.type === 'stage'
+        ? `阶段 · ${focus.name}`
+        : focusedJob
+          ? `${focusedJob.stageName} / ${focusedJob.jobName}`
+          : '日志'
   const detailText =
-    resolved?.type === 'stage'
-      ? aggregateRunLog(detailJobs)
-      : focusedJob
-        ? logBody(focusedJob.logText, '')
-        : ''
-  const detailFollow = detailJobs.some((job) => job.status === 'RUNNING')
-  const detailKey = resolved ? `${resolved.type}:${resolved.type === 'job' ? resolved.id : resolved.name}` : 'none'
+    focus?.type === 'overall'
+      ? overallLog
+      : focus?.type === 'stage'
+        ? aggregateRunLog(detailJobs)
+        : focusedJob
+          ? logBody(focusedJob.logText, '')
+          : ''
+  const detailFollow =
+    focus?.type === 'overall' ? !!run && !isTerminalRunStatus(run.status) : detailJobs.some((job) => job.status === 'RUNNING')
+  const detailKey = focus ? `${focus.type}:${focus.type === 'job' ? focus.id : focus.type === 'stage' ? focus.name : 'all'}` : 'none'
+  const live = !!run && !isTerminalRunStatus(run.status)
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['pipeline-run', pipelineId, runId] })
@@ -111,8 +141,6 @@ export function PipelineRunDetailPage() {
     },
     onError: (error: Error) => toast.error(error.message || '审批失败'),
   })
-
-  const live = !!run && !isTerminalRunStatus(run.status)
 
   return (
     <DetailShell
@@ -164,42 +192,46 @@ export function PipelineRunDetailPage() {
             <Field label="开始" value={formatDateTime(run.startedAt)} />
             <Field label="耗时" value={formatDuration(run.startedAt, run.finishedAt, now)} />
           </div>
-          <div className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)]">
-            <div className="flex min-w-0 flex-col gap-3">
-              <RunSwimlane
-                stages={stages}
-                selectedJobId={resolved?.type === 'job' ? resolved.id : null}
-                selectedStageName={resolved?.type === 'stage' ? resolved.name : null}
-                now={now}
-                onSelectJob={(id) => setFocus({ type: 'job', id })}
-                onSelectStage={(name) => setFocus({ type: 'stage', name })}
-              />
-              <LogPanel
-                title={detailTitle}
-                connection={jobsConnection(detailJobs, runQuery.isFetching)}
-                follow={detailFollow}
-                followKey={detailKey}
-                className="shrink-0"
-              >
-                <pre className="p-3 whitespace-pre-wrap break-all">
-                  {detailText || (runQuery.isLoading ? '加载中…' : '这条任务还没有日志')}
-                </pre>
-              </LogPanel>
-            </div>
-            <LogPanel
-              title="总体日志"
-              connection={runConnection(run.status, runQuery.isFetching, true)}
-              follow={live}
-              followKey={String(run.id)}
-              className="h-[70vh]"
-            >
-              <pre className="p-3 whitespace-pre-wrap break-all">
-                {overallLog || '这次运行还没有日志'}
-              </pre>
-            </LogPanel>
-          </div>
+          <RunSwimlane
+            stages={stages}
+            runStatus={run.status}
+            selectedJobId={focus?.type === 'job' ? focus.id : null}
+            selectedStageName={focus?.type === 'stage' ? focus.name : null}
+            overallOpen={focus?.type === 'overall'}
+            now={now}
+            onSelectJob={(id) => setFocus({ type: 'job', id })}
+            onSelectStage={(name) => setFocus({ type: 'stage', name })}
+            onSelectOverall={() => setFocus({ type: 'overall' })}
+          />
         </div>
       )}
+      <Sheet open={open} onOpenChange={(next) => { if (!next) setFocus(null) }}>
+        <SheetContent
+          side="right"
+          className="w-[min(720px,92vw)] gap-0 bg-(--term-bg) p-0 text-(--term-fg) sm:max-w-none"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>{detailTitle}</SheetTitle>
+            <SheetDescription>运行日志</SheetDescription>
+          </SheetHeader>
+          <LogPanel
+            title={detailTitle}
+            connection={
+              focus?.type === 'overall'
+                ? runConnection(run?.status, runQuery.isFetching, !!run)
+                : jobsConnection(detailJobs, runQuery.isFetching)
+            }
+            follow={detailFollow}
+            followKey={detailKey}
+            variant="terminal"
+            resizable={false}
+            className="h-full rounded-none border-0"
+            bodyClassName="bg-(--term-bg) text-(--term-fg)"
+          >
+            <TerminalLines text={detailText || (runQuery.isLoading ? '加载中…' : '这条任务还没有日志')} />
+          </LogPanel>
+        </SheetContent>
+      </Sheet>
     </DetailShell>
   )
 }

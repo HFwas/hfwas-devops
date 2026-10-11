@@ -38,6 +38,17 @@ export const STATUS_TONE_CLASS: Record<StatusTone, string> = {
   neutral: 'text-muted-foreground',
 }
 
+/** 描边与圆点、图标共用同一套语义色。 */
+export const STATUS_BORDER_CLASS: Record<StatusTone, string> = {
+  success: 'border-green-500 dark:border-green-400',
+  failed: 'border-red-500 dark:border-red-400',
+  warning: 'border-yellow-500 dark:border-yellow-400',
+  progress: 'border-blue-500 dark:border-blue-400',
+  terminating: 'border-orange-500 dark:border-orange-400',
+  paused: 'border-purple-500 dark:border-purple-400',
+  neutral: 'border-border',
+}
+
 /** 圆点与图标共用同一套语义色。 */
 export const STATUS_DOT_CLASS: Record<StatusTone, string> = {
   success: 'bg-green-500 dark:bg-green-400',

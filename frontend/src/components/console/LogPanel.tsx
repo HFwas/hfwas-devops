@@ -47,6 +47,10 @@ export type LogPanelProps = {
   follow?: boolean
   /** 切换日志源（另一条任务、另一次运行）时重新开始跟随。 */
   followKey?: string | number | null
+  /** `terminal` 用会话表面的深色底，适合盖在画布右侧的日志抽屉。 */
+  variant?: 'default' | 'terminal'
+  /** 抽屉里高度由外层决定时关掉底边拖拽。 */
+  resizable?: boolean
 }
 
 function readMetrics(el: HTMLElement): ScrollMetrics {
@@ -67,6 +71,8 @@ export function LogPanel({
   bodyClassName,
   follow = false,
   followKey,
+  variant = 'default',
+  resizable = true,
 }: LogPanelProps) {
   const panelRef = useRef<HTMLElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -136,6 +142,7 @@ export function LogPanel({
   }
 
   const showResume = follow && mode === 'paused'
+  const terminal = variant === 'terminal'
 
   return (
     <section
@@ -144,11 +151,17 @@ export function LogPanel({
       style={height != null ? { height } : undefined}
       className={cn(
         'flex min-h-[120px] flex-col overflow-hidden rounded-lg border bg-background',
-        height == null && 'h-[40vh]',
+        height == null && !terminal && 'h-[40vh]',
+        terminal && 'border-(--term-fg)/15 bg-(--term-bg) text-(--term-fg)',
         className,
       )}
     >
-      <header className="flex min-h-10 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b bg-muted/50 px-2 py-1.5">
+      <header
+        className={cn(
+          'flex min-h-10 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-2 py-1.5',
+          terminal ? 'border-(--term-fg)/15 bg-(--term-bg) pr-10' : 'bg-muted/50',
+        )}
+      >
         <div className="flex shrink-0 items-center gap-2">
           <span className="text-sm font-medium">{title}</span>
           <ConnectionIndicator state={connection} />
@@ -173,12 +186,14 @@ export function LogPanel({
       >
         {children}
       </div>
-      <button
-        type="button"
-        aria-label="调整面板高度"
-        className="h-1.5 shrink-0 cursor-ns-resize bg-border hover:bg-primary/40"
-        onPointerDown={onResizePointerDown}
-      />
+      {resizable ? (
+        <button
+          type="button"
+          aria-label="调整面板高度"
+          className="h-1.5 shrink-0 cursor-ns-resize bg-border hover:bg-primary/40"
+          onPointerDown={onResizePointerDown}
+        />
+      ) : null}
     </section>
   )
 }

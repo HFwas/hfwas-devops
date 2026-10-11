@@ -6,6 +6,7 @@ import {
   formatGitRef,
   formatRelativeTime,
   jobRunDuration,
+  stageRunDuration,
   jobKindTone,
   parseInstant,
   runStatusLabel,
@@ -67,5 +68,22 @@ describe('pipeline status helpers', () => {
     expect(
       jobRunDuration({ status: 'SUCCEEDED', startedAt: '2026-09-08T07:31:12', finishedAt: '2026-09-08T07:32:46' }, now),
     ).toBe('1分34秒')
+  })
+
+  it('spans a stage from the earliest start to the latest finish', () => {
+    const now = Date.parse('2026-09-08T07:40:00Z')
+    expect(stageRunDuration([{ status: 'QUEUED' }], now)).toBe('')
+    expect(
+      stageRunDuration(
+        [
+          { status: 'SUCCEEDED', startedAt: '2026-09-08T07:31:12', finishedAt: '2026-09-08T07:31:20' },
+          { status: 'SUCCEEDED', startedAt: '2026-09-08T07:31:18', finishedAt: '2026-09-08T07:32:00' },
+        ],
+        now,
+      ),
+    ).toBe('48秒')
+    expect(
+      stageRunDuration([{ status: 'RUNNING', startedAt: '2026-09-08T07:39:50' }], now),
+    ).toBe('10秒')
   })
 })
