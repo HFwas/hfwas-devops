@@ -106,37 +106,51 @@ describe('PipelineRunDetailPage', () => {
     container = null
   })
 
-  it('shows a swimlane and keeps the selected job log beside the aggregated log', async () => {
+  it('keeps the canvas clear until a log is opened on the right', async () => {
     vi.mocked(pipelineApi.getRun).mockResolvedValue(running)
     const view = renderRun()
     root = view.root
     container = view.container
     await waitForText(container, '编译')
 
+    expect(container.querySelector('[data-slot="run-start"]')?.textContent).toContain('开始')
+    expect(container.querySelector('[data-slot="run-end"]')?.textContent).toContain('结束')
+    expect(container.textContent).toContain('查看全程日志')
+    expect(document.querySelector('[data-slot="log-panel"]')).toBeNull()
+    expect(document.body.textContent).not.toContain('clone ok')
+
     const stages = container.querySelectorAll('[data-slot="run-stage"]')
     expect(Array.from(stages).map((stage) => stage.getAttribute('data-status'))).toEqual(['SUCCEEDED', 'RUNNING'])
-    const overallPanel = Array.from(container.querySelectorAll('[data-slot="log-panel"]')).find((panel) =>
-      panel.querySelector('header')?.textContent?.includes('总体日志'),
-    )
-    const overall = overallPanel?.textContent ?? ''
-    expect(overall.indexOf('clone ok')).toBeGreaterThan(-1)
-    expect(overall.indexOf('clone ok')).toBeLessThan(overall.indexOf('compiling'))
-
-    const jobPanel = Array.from(container.querySelectorAll('[data-slot="log-panel"]')).find((panel) =>
-      panel.textContent?.includes('构建 / 编译'),
-    )
-    expect(jobPanel?.textContent).toContain('compiling')
-    expect(jobPanel?.textContent).not.toContain('clone ok')
+    expect(stages[0]?.className).toContain('border-green-500')
+    expect(stages[1]?.className).toContain('border-blue-500')
+    expect(container.querySelector('[data-slot="run-job"]')?.textContent).toContain('克隆')
 
     const stageButton = container.querySelector('[aria-label="查看阶段代码克隆日志"]') as HTMLButtonElement
     act(() => {
       stageButton.click()
     })
-    const stagePanel = Array.from(container.querySelectorAll('[data-slot="log-panel"]')).find((panel) =>
-      panel.textContent?.includes('阶段 · 代码克隆'),
-    )
+    await waitForText(document.body, 'clone ok')
+    const stagePanel = document.querySelector('[data-slot="log-panel"]')
+    expect(stagePanel?.textContent).toContain('阶段 · 代码克隆')
     expect(stagePanel?.textContent).toContain('clone ok')
     expect(stagePanel?.textContent).not.toContain('compiling')
+
+    const overallButton = [...container.querySelectorAll('button')].find((button) => button.textContent === '查看全程日志')
+    act(() => {
+      overallButton?.click()
+    })
+    await waitForText(document.body, 'compiling')
+    const overallPanel = document.querySelector('[data-slot="log-panel"]')
+    const overall = overallPanel?.textContent ?? ''
+    expect(overall).toContain('全程日志')
+    expect(overall.indexOf('clone ok')).toBeLessThan(overall.indexOf('compiling'))
+
+    const close = [...document.body.querySelectorAll('button')].find((button) => button.textContent?.includes('Close'))
+    act(() => {
+      close?.click()
+    })
+    await flush()
+    expect(document.querySelector('[data-slot="log-panel"]')).toBeNull()
     expect(container.textContent).toContain('取消')
     expect(container.textContent).not.toContain('通过')
   })

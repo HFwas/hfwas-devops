@@ -1,118 +1,147 @@
-import { ChevronRight } from 'lucide-react'
-import { resolveStatusTone, STATUS_DOT_CLASS } from '@/components/console/status'
-import { StatusIcon } from '@/components/console/StatusIcon'
-import { JobKindIcon } from '@/modules/pipeline/components/JobKindIcon'
-import { jobKindLabel } from '@/modules/pipeline/graph/jobCatalog'
+import { ChevronRight, Play, Power } from 'lucide-react'
+import { resolveStatusTone, STATUS_BORDER_CLASS, STATUS_TONE_CLASS } from '@/components/console/status'
 import type { RunStageGroup } from '@/modules/pipeline/runView'
-import { jobRunDuration, runStatusLabel } from '@/modules/pipeline/status'
+import { runStatusLabel, stageRunDuration } from '@/modules/pipeline/status'
 import type { PipelineRunJob } from '@/modules/pipeline/types/pipeline'
 import { cn } from '@/lib/utils'
 
-function StatusAccent({ status }: { status: string }) {
-  return <span aria-hidden className={cn('absolute inset-y-0 left-0 w-1', STATUS_DOT_CLASS[resolveStatusTone(status)])} />
+function FlowArrow() {
+  return (
+    <div className="mt-4 flex w-8 shrink-0 items-center text-muted-foreground" aria-hidden>
+      <span className="h-px flex-1 bg-border" />
+      <ChevronRight className="-ml-1 size-4" />
+    </div>
+  )
+}
+
+function FlowCap({
+  label,
+  icon: Icon,
+  iconClassName,
+  slot,
+}: {
+  label: string
+  icon: typeof Play
+  iconClassName?: string
+  slot: string
+}) {
+  return (
+    <div data-slot={slot} className="mt-1 flex h-10 shrink-0 items-center gap-2 rounded-md border bg-background px-3 text-sm shadow-xs">
+      <Icon className={cn('size-4', iconClassName)} aria-hidden />
+      {label}
+    </div>
+  )
 }
 
 /**
- * 运行中的阶段泳道：从左到右是阶段，阶段内任务自上而下。
- * 视觉与编辑器泳道一致（列宽、分隔箭头、任务卡片），只读，点击打开日志。
+ * 运行画布：开始 → 阶段卡片 → 结束。日志默认不展开，由卡片上的「日志」或右上角「查看全程日志」打开。
  */
 export function RunSwimlane({
   stages,
+  runStatus,
   selectedJobId,
   selectedStageName,
+  overallOpen,
   now,
   onSelectJob,
   onSelectStage,
+  onSelectOverall,
 }: {
   stages: RunStageGroup<PipelineRunJob>[]
+  runStatus?: string | null
   selectedJobId: string | null
   selectedStageName: string | null
+  overallOpen: boolean
   now: number
   onSelectJob: (id: string) => void
   onSelectStage: (name: string) => void
+  onSelectOverall: () => void
 }) {
-  if (stages.length === 0) {
-    return <p className="text-sm text-muted-foreground">这次运行没有任务</p>
-  }
+  const endTone = STATUS_TONE_CLASS[resolveStatusTone(runStatus)]
 
   return (
-    <section data-slot="run-lanes" className="flex max-h-[50vh] min-h-[240px] flex-col overflow-hidden rounded-lg border bg-muted/20">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-1.5">
-        <h2 className="text-sm font-medium">阶段</h2>
-        <span className="text-xs text-muted-foreground">点击阶段或任务查看日志</span>
+    <section data-slot="run-canvas" className="flex min-h-[280px] flex-col rounded-lg border bg-muted/20">
+      <div className="flex shrink-0 items-center justify-end px-4 py-2">
+        <button
+          type="button"
+          className={cn('text-sm text-primary hover:underline', overallOpen && 'font-medium')}
+          aria-pressed={overallOpen}
+          onClick={onSelectOverall}
+        >
+          查看全程日志
+        </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto p-4">
-        <div className="flex w-max min-w-full items-start gap-2">
-          {stages.map((stage, index) => {
+      <div className="min-h-0 flex-1 overflow-auto px-6 pt-4 pb-8">
+        {stages.length === 0 ? (
+          <p className="mb-4 text-sm text-muted-foreground">这次运行没有任务</p>
+        ) : null}
+        <div className="flex w-max min-w-full items-start">
+          <FlowCap slot="run-start" label="开始" icon={Play} iconClassName="text-primary" />
+          {stages.map((stage) => {
+            const tone = resolveStatusTone(stage.status)
             const stageSelected = selectedStageName === stage.name
-            const stageHasJob = stage.jobs.some((job) => String(job.id) === selectedJobId)
+            const duration = stageRunDuration(stage.jobs, now)
             return (
-              <div key={stage.name} className="flex items-start gap-2">
-                {index > 0 && <ChevronRight className="mt-16 size-4 shrink-0 text-muted-foreground" />}
-                <div
-                  data-slot="run-stage"
-                  data-status={stage.status}
-                  className={cn(
-                    'relative flex w-60 shrink-0 flex-col overflow-hidden rounded-lg border bg-background',
-                    (stageSelected || stageHasJob) && 'border-primary',
-                    stageSelected && 'ring-2 ring-primary/20',
-                  )}
-                >
-                  <StatusAccent status={stage.status} />
-                  <div className="flex items-center gap-2 border-b py-2 pr-2 pl-3">
+              <div key={stage.name} className="flex items-start">
+                <FlowArrow />
+                <div className="flex w-44 shrink-0 flex-col gap-2">
+                  <div
+                    data-slot="run-stage"
+                    data-status={stage.status}
+                    className={cn(
+                      'rounded-md border-2 bg-background px-3 py-2',
+                      STATUS_BORDER_CLASS[tone],
+                      stageSelected && 'ring-2 ring-primary/30',
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="truncate text-sm font-medium">{stage.name}</span>
+                      {duration ? <span className="shrink-0 text-xs text-muted-foreground">{duration}</span> : null}
+                    </div>
+                    <span className="sr-only">{runStatusLabel(stage.status)}</span>
                     <button
                       type="button"
-                      className="flex min-w-0 flex-1 items-center gap-1 text-left"
+                      className="text-sm text-primary hover:underline"
                       aria-pressed={stageSelected}
                       aria-label={`查看阶段${stage.name}日志`}
                       onClick={() => onSelectStage(stage.name)}
                     >
-                      <span className="shrink-0 text-xs text-muted-foreground">阶段 {index + 1}</span>
-                      <span className="truncate text-sm font-medium">{stage.name}</span>
+                      日志
                     </button>
-                    <StatusIcon status={stage.status} label={runStatusLabel(stage.status)} className="shrink-0 text-xs" />
                   </div>
-                  <div className="flex flex-col gap-2 p-2">
-                    {stage.jobs.map((job) => {
-                      const id = String(job.id)
-                      const selected = selectedJobId === id
-                      const duration = jobRunDuration(job, now)
-                      return (
-                        <div
-                          key={id}
-                          data-slot="run-job"
-                          data-status={job.status}
-                          className={cn(
-                            'relative overflow-hidden rounded-lg border bg-card shadow-xs',
-                            selected && 'border-primary ring-2 ring-primary/30',
-                          )}
+                  {stage.jobs.map((job) => {
+                    const id = String(job.id)
+                    const selected = selectedJobId === id
+                    const several = stage.jobs.length > 1
+                    return (
+                      <div
+                        key={id}
+                        data-slot="run-job"
+                        data-status={job.status}
+                        className={cn(
+                          'flex items-center justify-center gap-2 rounded-md border bg-background px-2 py-2 text-sm',
+                          selected && 'border-primary ring-2 ring-primary/30',
+                        )}
+                      >
+                        {several ? <span className="truncate">{job.jobName}</span> : null}
+                        <button
+                          type="button"
+                          className={cn(several ? 'shrink-0 text-primary hover:underline' : 'w-full truncate text-center')}
+                          aria-pressed={selected}
+                          aria-label={`查看${job.jobName}日志`}
+                          onClick={() => onSelectJob(id)}
                         >
-                          <StatusAccent status={job.status} />
-                          <button
-                            type="button"
-                            className="flex w-full items-start gap-2 p-2 pl-3 text-left"
-                            aria-pressed={selected}
-                            aria-label={`查看${job.jobName}日志`}
-                            onClick={() => onSelectJob(id)}
-                          >
-                            <JobKindIcon kind={job.kind} className="mt-0.5 size-4 shrink-0 text-primary" />
-                            <span className="min-w-0">
-                              <span className="block truncate text-sm font-medium">{job.jobName}</span>
-                              <span className="block truncate text-xs text-muted-foreground">{jobKindLabel(job.kind)}</span>
-                              <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                                <StatusIcon status={job.status} showLabel={false} />
-                                <span>{[duration, runStatusLabel(job.status)].filter(Boolean).join(' · ')}</span>
-                              </span>
-                            </span>
-                          </button>
-                        </div>
-                      )
-                    })}
-                  </div>
+                          {several ? '日志' : job.jobName}
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )
           })}
+          <FlowArrow />
+          <FlowCap slot="run-end" label="结束" icon={Power} iconClassName={endTone} />
         </div>
       </div>
     </section>

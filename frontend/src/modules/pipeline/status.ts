@@ -90,6 +90,25 @@ export function jobRunDuration(
   return formatDuration(job.startedAt, job.finishedAt, now)
 }
 
+/** 阶段耗时：最早开始到最晚结束；仍有任务在跑时算到 now。 */
+export function stageRunDuration(
+  jobs: readonly { status?: string | null; startedAt?: string | null; finishedAt?: string | null }[],
+  now = Date.now(),
+): string {
+  let earliest: string | null = null
+  let latestFinish: string | null = null
+  let open = false
+  for (const job of jobs) {
+    if (job.status === 'RUNNING') open = true
+    if (job.startedAt && (!earliest || parseInstant(job.startedAt) < parseInstant(earliest))) earliest = job.startedAt
+    if (job.finishedAt && (!latestFinish || parseInstant(job.finishedAt) > parseInstant(latestFinish))) {
+      latestFinish = job.finishedAt
+    }
+  }
+  if (!earliest) return ''
+  return formatDuration(earliest, open ? null : latestFinish, now)
+}
+
 export function formatDuration(startedAt?: string | null, finishedAt?: string | null, now = Date.now()): string {
   if (!startedAt) return '—'
   const start = parseInstant(startedAt)
