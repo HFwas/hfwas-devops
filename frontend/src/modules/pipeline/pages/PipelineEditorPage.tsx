@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
@@ -7,8 +7,6 @@ import {
   ChevronRight,
   ChevronUp,
   Plus,
-  Search,
-  SquareTerminal,
   Trash2,
   Workflow,
   X,
@@ -64,11 +62,10 @@ export function PipelineEditorPage() {
   const [ready, setReady] = useState(!pipelineId)
   const [selectedJobKey, setSelectedJobKey] = useState<string | null>(null)
   const [targetStageKey, setTargetStageKey] = useState<string | null>(null)
-  const [paletteQuery, setPaletteQuery] = useState('')
+  const [panelMode, setPanelMode] = useState<'config' | 'add'>('config')
   const [zoom, setZoom] = useState('100')
   const [busy, setBusy] = useState(false)
   const baseline = useRef(JSON.stringify(emptyDraft()))
-  const paletteSearchRef = useRef<HTMLInputElement>(null)
 
   const pipelineQuery = useQuery({
     queryKey: ['pipeline', pipelineId],
@@ -158,6 +155,7 @@ export function PipelineEditorPage() {
     setDraft(fresh)
     setSelectedJobKey(nextKey ?? null)
     setTargetStageKey(null)
+    setPanelMode('config')
     baseline.current = JSON.stringify(fresh)
   }
 
@@ -196,20 +194,23 @@ export function PipelineEditorPage() {
     }
     setDraft({ ...draft, stages: result.stages })
     setSelectedJobKey(job.clientKey)
+    setPanelMode('config')
     const host = result.stages.find((stage) => stage.jobs.some((item) => item.clientKey === job.clientKey))
     if (host) setTargetStageKey(host.clientKey)
   }
 
   function onAddStage() {
-    const stages = appendEmptyStage(draft.stages)
-    setDraft({ ...draft, stages })
-    setTargetStageKey(stages.at(-1)?.clientKey ?? null)
-    paletteSearchRef.current?.focus()
+    setDraft({ ...draft, stages: appendEmptyStage(draft.stages) })
   }
 
-  function onTargetStage(stageKey: string) {
+  function onSelectJob(jobKey: string) {
+    setSelectedJobKey(jobKey)
+    setPanelMode('config')
+  }
+
+  function onOpenAddList(stageKey: string) {
     setTargetStageKey(stageKey)
-    paletteSearchRef.current?.focus()
+    setPanelMode('add')
   }
 
   const destinationKey = resolveStageKey()
@@ -302,29 +303,16 @@ export function PipelineEditorPage() {
         </Field>
       </div>
 
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[240px_minmax(0,1fr)_320px]">
-        <Palette
-          kinds={kinds}
-          loading={kindsQuery.isLoading}
-          query={paletteQuery}
-          onQueryChange={setPaletteQuery}
-          searchRef={paletteSearchRef}
-          hint={
-            destination
-              ? `下一个任务将加入阶段 ${destinationIndex + 1} · ${destination.name}`
-              : '下一个任务会新建阶段'
-          }
-          onAdd={onAddKind}
-        />
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Lanes
           stages={draft.stages}
           selectedJobKey={selectedJobKey}
-          targetStageKey={targetStageKey}
+          targetStageKey={panelMode === 'add' ? targetStageKey : null}
           zoom={zoom}
           onZoom={setZoom}
           runJobs={runJobs}
-          onSelectJob={setSelectedJobKey}
-          onTargetStage={onTargetStage}
+          onSelectJob={onSelectJob}
+          onTargetStage={onOpenAddList}
           onAddStage={onAddStage}
           onRenameStage={(stageKey, name) =>
             setDraft({
@@ -336,7 +324,10 @@ export function PipelineEditorPage() {
           onRemoveStage={(stageKey) => {
             const stages = removeStage(draft.stages, stageKey)
             setDraft({ ...draft, stages })
-            if (targetStageKey === stageKey) setTargetStageKey(stages.at(-1)?.clientKey ?? null)
+            if (targetStageKey === stageKey) {
+              setTargetStageKey(null)
+              setPanelMode('config')
+            }
             if (selected && !stages.some((stage) => stage.jobs.some((job) => job.clientKey === selected.clientKey))) {
               setSelectedJobKey(null)
             }
@@ -352,28 +343,47 @@ export function PipelineEditorPage() {
             else setDraft({ ...draft, stages: result.stages })
           }}
           onRemoveJob={(jobKey) => {
+            const job = draft.stages.flatMap((stage) => stage.jobs).find((item) => item.clientKey === jobKey)
+            if (!job || !window.confirm(`删除任务「${job.name}」？`)) return
             setDraft({ ...draft, stages: removeJob(draft.stages, jobKey) })
             if (selectedJobKey === jobKey) setSelectedJobKey(null)
           }}
         />
-        <Inspector
-          job={selected}
-          stages={draft.stages}
-          kinds={kinds}
-          gitRef={draft.gitRef}
-          toolchains={toolchainsQuery.data ?? []}
-          onClose={() => setSelectedJobKey(null)}
-          onChange={(patch) => {
-            if (!selected) return
-            setDraft({ ...draft, stages: updateJob(draft.stages, selected.clientKey, patch) })
-          }}
-          onKind={(kind) => {
-            if (!selected) return
-            const result = changeJobKind(draft.stages, selected.clientKey, kind, kinds, draft.gitRef.trim() || 'main')
-            if (result.error) toast.error(result.error)
-            else setDraft({ ...draft, stages: result.stages })
-          }}
-        />
+        <aside
+          data-slot="pipeline-side-panel"
+          data-mode={panelMode === 'add' && destination ? 'add' : 'config'}
+          className="flex min-h-0 flex-col border-t lg:border-t-0 lg:border-l"
+        >
+          {panelMode === 'add' && destination ? (
+            <TaskAddList
+              stageIndex={destinationIndex}
+              stageName={destination.name}
+              kinds={kinds}
+              loading={kindsQuery.isLoading}
+              onClose={() => setPanelMode('config')}
+              onAdd={onAddKind}
+            />
+          ) : (
+            <Inspector
+              job={selected}
+              stages={draft.stages}
+              kinds={kinds}
+              gitRef={draft.gitRef}
+              toolchains={toolchainsQuery.data ?? []}
+              onClose={() => setSelectedJobKey(null)}
+              onChange={(patch) => {
+                if (!selected) return
+                setDraft({ ...draft, stages: updateJob(draft.stages, selected.clientKey, patch) })
+              }}
+              onKind={(kind) => {
+                if (!selected) return
+                const result = changeJobKind(draft.stages, selected.clientKey, kind, kinds, draft.gitRef.trim() || 'main')
+                if (result.error) toast.error(result.error)
+                else setDraft({ ...draft, stages: result.stages })
+              }}
+            />
+          )}
+        </aside>
       </div>
     </div>
   )
@@ -388,103 +398,84 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function Palette({
+function TaskAddList({
+  stageIndex,
+  stageName,
   kinds,
   loading,
-  query,
-  onQueryChange,
-  searchRef,
-  hint,
+  onClose,
   onAdd,
 }: {
+  stageIndex: number
+  stageName: string
   kinds: TaskKindVO[]
   loading: boolean
-  query: string
-  onQueryChange: (value: string) => void
-  searchRef: RefObject<HTMLInputElement | null>
-  hint: string
+  onClose: () => void
   onAdd: (kind: TaskKindVO) => void
 }) {
-  const needle = query.trim().toLowerCase()
-  const source = kinds.filter((kind) => kind.enabled)
-  const items = source.filter((kind) => {
-    if (!needle) return true
-    return [kind.label, kind.kindValue, kind.taskGroup, kind.description].join(' ').toLowerCase().includes(needle)
-  })
-  const groups = new Map<string, TaskKindVO[]>()
-  for (const kind of items) {
-    const name = kind.taskGroup || '其他'
-    groups.set(name, [...(groups.get(name) ?? []), kind])
-  }
+  const groups = useMemo(() => {
+    const grouped = new Map<string, TaskKindVO[]>()
+    for (const kind of kinds) {
+      if (!kind.enabled) continue
+      const name = kind.taskGroup || '其他'
+      grouped.set(name, [...(grouped.get(name) ?? []), kind])
+    }
+    return [...grouped.entries()]
+  }, [kinds])
+  const [openGroup, setOpenGroup] = useState<string | null>(null)
+  const activeGroup = openGroup === null ? (groups[0]?.[0] ?? null) : openGroup || null
 
   return (
-    <aside data-slot="pipeline-palette" className="flex min-h-0 flex-col border-b lg:border-r lg:border-b-0">
-      <div className="flex items-center gap-2 border-b px-3 py-2 text-sm font-medium">
-        <SquareTerminal className="size-4 text-primary" />
-        任务市场
-      </div>
-      <div className="border-b px-3 py-2">
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            ref={searchRef}
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="搜索任务…"
-            aria-label="搜索任务"
-            className="h-8 pl-7"
-          />
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">{hint}</p>
+    <div data-slot="pipeline-task-list" className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+        <div className="min-w-0 truncate text-sm font-medium">添加任务到「阶段 {stageIndex + 1} · {stageName}」</div>
+        <Button type="button" variant="ghost" size="icon" aria-label="关闭添加任务" onClick={onClose}>
+          <X />
+        </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-2">
         {loading && <p className="px-2 py-3 text-sm text-muted-foreground">加载中…</p>}
-        {!loading && items.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground">没有匹配的任务</p>}
-        {[...groups.entries()].map(([group, groupKinds]) => (
-          <PaletteGroup key={group} group={group} kinds={groupKinds} onAdd={onAdd} />
-        ))}
+        {!loading && groups.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground">没有可添加的任务</p>}
+        {groups.map(([group, groupKinds]) => {
+          const open = activeGroup === group
+          return (
+            <div key={group} className="mb-1">
+              <button
+                type="button"
+                className={cn(
+                  'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium',
+                  open ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                )}
+                aria-expanded={open}
+                aria-label={`${group} (${groupKinds.length})`}
+                onClick={() => setOpenGroup(open ? '' : group)}
+              >
+                <span className="min-w-0 flex-1 truncate text-left">
+                  {group} ({groupKinds.length})
+                </span>
+                <ChevronDown className={cn('size-4 shrink-0 transition-transform', open && 'rotate-180')} />
+              </button>
+              {open &&
+                groupKinds.map((kind) => (
+                  <button
+                    key={kind.kindValue}
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-muted"
+                    aria-label={`添加${kind.label}`}
+                    onClick={() => onAdd(kind)}
+                  >
+                    <JobKindIcon kind={kind.kindValue} className="size-4 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{kind.label}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{kind.description || kind.kindValue}</span>
+                    </span>
+                  </button>
+                ))}
+            </div>
+          )
+        })}
       </div>
-    </aside>
-  )
-}
-
-function PaletteGroup({
-  group,
-  kinds,
-  onAdd,
-}: {
-  group: string
-  kinds: TaskKindVO[]
-  onAdd: (kind: TaskKindVO) => void
-}) {
-  const [open, setOpen] = useState(true)
-  return (
-    <div className="mb-1">
-      <button
-        type="button"
-        className="flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <ChevronDown className={cn('size-3.5 transition-transform', open && 'rotate-180')} />
-        {group} ({kinds.length})
-      </button>
-      {open &&
-        kinds.map((kind) => (
-          <button
-            key={kind.kindValue}
-            type="button"
-            className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left hover:bg-muted"
-            aria-label={`添加${kind.label}`}
-            onClick={() => onAdd(kind)}
-          >
-            <JobKindIcon kind={kind.kindValue} className="mt-0.5 size-4 shrink-0 text-primary" />
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-medium">{kind.label}</span>
-              <span className="block truncate text-xs text-muted-foreground">{kind.description || kind.kindValue}</span>
-            </span>
-          </button>
-        ))}
+      <p className="border-t px-3 py-2.5 text-center text-xs text-muted-foreground">点击任务即可添加</p>
     </div>
   )
 }
@@ -535,7 +526,7 @@ function Lanes({
       <div className="min-h-0 flex-1 overflow-auto p-4">
         <div className="flex min-h-full items-start gap-2" style={{ zoom: Number(zoom) / 100 }}>
           {stages.length === 0 && (
-            <p className="self-center px-2 text-sm text-muted-foreground">从左侧任务市场添加任务，或先添加阶段。</p>
+            <p className="self-center px-2 text-sm text-muted-foreground">添加阶段，再在阶段中添加任务。</p>
           )}
           {stages.map((stage, index) => (
             <div key={stage.clientKey} className="flex items-start gap-2">
@@ -637,9 +628,10 @@ function Lanes({
                   })}
                   <button
                     type="button"
+                    aria-label={`在阶段 ${index + 1} 添加任务`}
                     className={cn(
                       'flex h-10 items-center justify-center gap-1 rounded-md border border-dashed text-xs text-muted-foreground hover:border-primary hover:text-primary',
-                      targetStageKey === stage.clientKey && 'border-primary text-primary',
+                      targetStageKey === stage.clientKey && 'border-solid border-primary bg-primary/10 text-primary',
                     )}
                     onClick={() => onTargetStage(stage.clientKey)}
                   >
@@ -693,7 +685,7 @@ function Inspector({
   const tools = job?.stack && job.runtimeVersion ? toolsFor(toolchains, job.stack, job.runtimeVersion) : []
 
   return (
-    <aside data-slot="pipeline-inspector" className="flex min-h-0 flex-col border-t lg:border-t-0 lg:border-l">
+    <div data-slot="pipeline-inspector" className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center justify-between border-b px-3 py-2">
         <div className="text-sm font-medium">任务配置</div>
         {job && (
@@ -898,7 +890,7 @@ function Inspector({
           </Collapsible>
         </div>
       )}
-    </aside>
+    </div>
   )
 }
 

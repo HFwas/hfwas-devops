@@ -149,8 +149,23 @@ describe('pipeline create and run', () => {
     root = view.root
     container = view.container
     await waitForText(container, '新建流水线')
-    setInput(container.querySelector('#pipeline-name') as HTMLInputElement, '夜间构建')
-    setInput(container.querySelector('#pipeline-repo') as HTMLInputElement, 'https://github.com/acme/app.git')
+    setInput(container.querySelector('[aria-label="名称"]') as HTMLInputElement, '夜间构建')
+    setInput(container.querySelector('[aria-label="仓库"]') as HTMLInputElement, 'https://github.com/acme/app.git')
+    const addStage = container.querySelector('[aria-label="添加阶段"]') as HTMLElement
+    act(() => {
+      addStage.click()
+    })
+    await flush()
+    const addTask = container.querySelector('[aria-label="在阶段 1 添加任务"]') as HTMLElement
+    act(() => {
+      addTask.click()
+    })
+    await waitForText(container, '代码克隆')
+    const addClone = container.querySelector('[aria-label="添加代码克隆"]') as HTMLElement
+    act(() => {
+      addClone.click()
+    })
+    await flush()
     const save = [...container.querySelectorAll('button')].find((node) => node.textContent === '保存')
     act(() => {
       save?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -185,8 +200,8 @@ describe('pipeline create and run', () => {
     act(() => {
       run?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
-    await waitForText(document.body, '开始运行')
-    const confirm = [...document.body.querySelectorAll('button')].find((node) => node.textContent === '开始运行')
+    await waitForText(document.body, '运行参数')
+    const confirm = [...document.body.querySelectorAll('[role="dialog"] button')].find((node) => node.textContent === '运行')
     act(() => {
       confirm?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
