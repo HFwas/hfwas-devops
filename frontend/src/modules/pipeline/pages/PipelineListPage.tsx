@@ -15,7 +15,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { StartRunButton } from '@/modules/pipeline/components/StartRunButton'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import { StartRunButton } from '@/modules/pipeline/components/StartRunButton'
 import { repoShortName } from '@/modules/pipeline/graph/pipelineGraph'

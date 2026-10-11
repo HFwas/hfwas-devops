@@ -206,6 +206,8 @@ export interface TaskKindParam {
   apiHeaders?: Record<string, string>
   apiResponsePath?: string
   placeholder?: string
+  /** 任务市场：`user` 对用户开放，`hidden` 仅管理员。 */
+  visibility?: TaskKindParamVisibility
   /** 平台注入或凭证类参数，不出现在流水线检查器里。 */
   hidden?: boolean
 }
