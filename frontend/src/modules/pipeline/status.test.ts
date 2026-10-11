@@ -4,6 +4,7 @@ import {
   formatDateTime,
   formatDuration,
   formatGitRef,
+  formatRelativeTime,
   jobRunDuration,
   jobKindTone,
   parseInstant,
@@ -26,6 +27,13 @@ describe('pipeline status helpers', () => {
     expect(stackTone('PYTHON')).toBe('amber')
     expect(jobKindTone('TEST')).toBe('green')
     expect(jobKindTone('APPROVAL')).toBe('violet')
+  })
+
+  it('formats a relative run time', () => {
+    const now = Date.parse('2026-10-11T00:00:00Z')
+    expect(formatRelativeTime(null, now)).toBe('—')
+    expect(formatRelativeTime('2026-10-10T23:58:30Z', now)).toBe('1分钟前')
+    expect(formatRelativeTime('2026-10-10T21:00:00Z', now)).toBe('3小时前')
   })
 
   it('formats timestamps without the T separator', () => {

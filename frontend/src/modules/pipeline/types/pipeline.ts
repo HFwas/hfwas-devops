@@ -206,7 +206,8 @@ export interface TaskKindParam {
   apiHeaders?: Record<string, string>
   apiResponsePath?: string
   placeholder?: string
-  visibility?: TaskKindParamVisibility
+  /** 平台注入或凭证类参数，不出现在流水线检查器里。 */
+  hidden?: boolean
 }
 
 export interface JobParamBinding {

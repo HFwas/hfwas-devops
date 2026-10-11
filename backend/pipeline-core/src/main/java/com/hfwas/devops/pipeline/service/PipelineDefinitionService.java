@@ -73,9 +73,7 @@ public class PipelineDefinitionService {
 
     public PipelineVO get(Long id) {
         PipelineEntity row = requireOwned(id);
-        PipelineVO vo = toListVo(row);
-        vo.setStages(loadStages(id));
-        return vo;
+        return toListVo(row);
     }
 
     @Transactional
@@ -253,6 +251,7 @@ public class PipelineDefinitionService {
         vo.setGitRef(row.getGitRef());
         vo.setCredentialId(row.getCredentialId());
         vo.setUpdateTime(row.getUpdateTime());
+        vo.setStages(loadStages(row.getId()));
         PipelineRunEntity last = runMapper.selectOne(new LambdaQueryWrapper<PipelineRunEntity>()
                 .eq(PipelineRunEntity::getPipelineId, row.getId())
                 .orderByDesc(PipelineRunEntity::getCreateTime)
