@@ -34,6 +34,7 @@ const cloneKind: TaskKindVO = {
     { paramKey: 'GIT_REF', paramLabel: '代码分支', paramType: 'input', defaultValue: 'main', required: true, sortOrder: 0 },
     { paramKey: 'GIT_PASSWORD', paramLabel: 'Git 密码', paramType: 'input', defaultValue: '', required: false, sortOrder: 1 },
     { paramKey: 'SECRET_TOKEN', paramLabel: '隐藏', paramType: 'input', defaultValue: 'x', required: false, sortOrder: 2, hidden: true },
+    { paramKey: 'ADMIN_ONLY', paramLabel: '仅管理员', paramType: 'input', defaultValue: '', required: false, sortOrder: 3, visibility: 'hidden' },
   ],
 }
 

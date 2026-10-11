@@ -68,10 +68,11 @@ export function draftFromPipeline(pipeline: PipelineSummary): PipelineDraft {
 export function isUserVisibleParam(param: {
   paramKey?: string | null
   hidden?: boolean | null
+  visibility?: string | null
   paramType?: string | null
 }): boolean {
   if (!param.paramKey) return false
-  if (param.hidden) return false
+  if (param.hidden || param.visibility === 'hidden') return false
   if (param.paramType === 'hidden') return false
   return !PLATFORM_HIDDEN_PARAM_KEYS.has(param.paramKey)
 }
