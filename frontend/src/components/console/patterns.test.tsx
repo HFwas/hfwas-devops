@@ -187,6 +187,32 @@ describe('shared console patterns', () => {
     expect(toolbar?.textContent).toContain('上传到该路径')
   })
 
+  it('pauses live log follow when the reader scrolls away, then pins to the bottom again', () => {
+    const view = mount(
+      <LogPanel title="日志" follow followKey="job-1">
+        line
+      </LogPanel>,
+    )
+    root = view.root
+    container = view.container
+    const body = container.querySelector('[data-slot="log-body"]') as HTMLDivElement
+    Object.defineProperty(body, 'scrollHeight', { configurable: true, value: 800 })
+    Object.defineProperty(body, 'clientHeight', { configurable: true, value: 200 })
+    body.scrollTop = 40
+    act(() => {
+      body.dispatchEvent(new Event('scroll'))
+    })
+    expect(body.getAttribute('data-follow')).toBe('paused')
+    const resume = Array.from(container.querySelectorAll('button')).find((button) => button.textContent === '跟随最新')
+    expect(resume).toBeTruthy()
+    act(() => {
+      resume?.click()
+    })
+    expect(body.scrollTop).toBe(600)
+    expect(body.getAttribute('data-follow')).toBe('follow')
+    expect(container.textContent).not.toContain('跟随最新')
+  })
+
   it('lays out overview metrics beside the two columns', () => {
     const view = mount(
       <ResourceOverview metrics={[{ label: '状态', value: 'Available' }]} main={<p>pods</p>} side={<p>events</p>} />,
