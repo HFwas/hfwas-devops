@@ -12,6 +12,7 @@ import {
   login as keycloakLogin,
   logout as keycloakLogout,
 } from '@/shared/keycloak'
+import { isPlatformAdmin } from '@/stores/adminRole'
 
 function readStoredTenantId(): string | null {
   return localStorage.getItem(TENANT_ID_KEY)
@@ -96,7 +97,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
     activeTenantId: readStoredTenantId(),
     activeTenantName: readStoredTenantName(),
     isLoggedIn: () => isAuthenticated() || !!get().token,
-    isAdmin: () => get().user?.role === 'admin',
+    isAdmin: () => isPlatformAdmin(get().user?.role),
     async syncToken() {
       set({ token: (await getToken()) ?? null })
     },

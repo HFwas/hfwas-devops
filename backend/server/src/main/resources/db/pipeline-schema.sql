@@ -147,6 +147,7 @@ CREATE TABLE IF NOT EXISTS pipeline_task_kind_param (
     api_headers_json    TEXT         NOT NULL DEFAULT '{}',
     api_response_path   TEXT         NOT NULL DEFAULT '',
     placeholder         TEXT         NOT NULL DEFAULT '',
+    visibility          TEXT         NOT NULL DEFAULT 'user',
     deleted             INTEGER      NOT NULL DEFAULT 0,
     create_by           INTEGER,
     update_by           INTEGER,
@@ -204,6 +205,7 @@ CREATE TABLE IF NOT EXISTS pipeline_task_kind (
     cpu_limit        TEXT         NOT NULL DEFAULT '',
     memory_request   TEXT         NOT NULL DEFAULT '',
     memory_limit     TEXT         NOT NULL DEFAULT '',
+    version          TEXT         NOT NULL DEFAULT '',
 
     deleted          INTEGER      NOT NULL DEFAULT 0,
     create_by        INTEGER,
@@ -280,6 +282,18 @@ INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, descrip
 
 CREATE INDEX IF NOT EXISTS idx_task_kind_tenant ON pipeline_task_kind (tenant_id, deleted);
 CREATE INDEX IF NOT EXISTS idx_task_kind_group ON pipeline_task_kind (task_group, sort_order);
+
+-- 任务市场版本快照。当前启用版本写在 pipeline_task_kind.version，未发布时为空。
+CREATE TABLE IF NOT EXISTS pipeline_task_kind_version (
+    id            INTEGER      NOT NULL PRIMARY KEY,
+    kind_value    TEXT         NOT NULL,
+    version       TEXT         NOT NULL,
+    note          TEXT         NOT NULL DEFAULT '',
+    snapshot_json TEXT         NOT NULL,
+    create_time   TEXT         NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (kind_value, version)
+);
+CREATE INDEX IF NOT EXISTS idx_task_kind_version_kind ON pipeline_task_kind_version (kind_value, create_time);
 
 -- ============================================================
 -- 流水线运行产物表（SBOM / 测试报告 / 覆盖率报告等）

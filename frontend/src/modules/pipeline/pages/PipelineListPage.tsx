@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { StartRunButton } from '@/modules/pipeline/components/StartRunButton'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import { StartRunButton } from '@/modules/pipeline/components/StartRunButton'
 import { repoShortName } from '@/modules/pipeline/graph/pipelineGraph'
@@ -162,6 +163,19 @@ export function PipelineListPage() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </div>
+            ),
+          },
+          {
+            id: 'actions',
+            header: '',
+            className: 'text-right',
+            cell: (row) => (
+              <div className="flex justify-end gap-1">
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to={`/pipeline/pipelines/${row.id}/edit`}>编辑</Link>
+                </Button>
+                <StartRunButton pipelineId={String(row.id)} variant="outline" />
               </div>
             ),
           },

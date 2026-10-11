@@ -1,4 +1,4 @@
-import { del, get, post, put } from '@/shared/api/request'
+import { del, get, patch, post, put } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
 import type {
   CredentialSavePayload,
@@ -11,9 +11,16 @@ import type {
   PipelineSummary,
   PodContainersVO,
   RunParamValue,
+  TaskKindPublishPayload,
+  TaskKindUpdatePayload,
   TaskKindVO,
+  TaskKindVersion,
   ToolchainOption,
 } from '@/modules/pipeline/types/pipeline'
+
+function kindPath(kind: string): string {
+  return encodeURIComponent(kind)
+}
 
 function asId(value: EntityId): string {
   return String(value)
@@ -67,11 +74,17 @@ export const pipelineCredentialApi = {
 
 export const pipelineTaskKindApi = {
   list: () => get<TaskKindVO[]>('/pipeline/task-kinds'),
-  get: (kind: string) => get<TaskKindVO>(`/pipeline/task-kinds/${kind}`),
-  update: (kind: string, data: Partial<TaskKindVO>) =>
-    put<void>(`/pipeline/task-kinds/${kind}`, data),
+  get: (kind: string) => get<TaskKindVO>(`/pipeline/task-kinds/${kindPath(kind)}`),
+  update: (kind: string, data: TaskKindUpdatePayload) =>
+    put<void>(`/pipeline/task-kinds/${kindPath(kind)}`, data),
   toggle: (kind: string) =>
-    put<void>(`/pipeline/task-kinds/${kind}/toggle`, {}),
+    patch<void>(`/pipeline/task-kinds/${kindPath(kind)}/toggle`),
+  versions: (kind: string) =>
+    get<TaskKindVersion[]>(`/pipeline/task-kinds/${kindPath(kind)}/versions`),
+  publish: (kind: string, data: TaskKindPublishPayload) =>
+    post<TaskKindVersion>(`/pipeline/task-kinds/${kindPath(kind)}/versions`, data),
+  activate: (kind: string, version: string) =>
+    put<TaskKindVO>(`/pipeline/task-kinds/${kindPath(kind)}/versions/${kindPath(version)}/activate`),
   validateTemplate: (kind: string, data: { script: string }) =>
-    post<{ valid: boolean; errors: string[] }>(`/pipeline/task-kinds/${kind}/validate`, data),
+    post<{ valid: boolean; errors: string[] }>(`/pipeline/task-kinds/${kindPath(kind)}/validate`, data),
 }

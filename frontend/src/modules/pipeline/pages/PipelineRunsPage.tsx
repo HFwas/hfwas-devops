@@ -4,6 +4,7 @@ import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
+import { StartRunButton } from '@/modules/pipeline/components/StartRunButton'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import { formatDateTime, formatDuration, formatGitRef, runStatusLabel } from '@/modules/pipeline/status'
 import type { PipelineRun } from '@/modules/pipeline/types/pipeline'
@@ -40,9 +41,15 @@ export function PipelineRunsPage() {
             : pipeline?.repoUrl || '查看这条流水线的运行'
         }
         actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/pipeline/pipelines">返回列表</Link>
-          </Button>
+          <>
+            <StartRunButton pipelineId={pipelineId} />
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/pipeline/pipelines/${pipelineId}/edit`}>编辑</Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/pipeline/pipelines">返回列表</Link>
+            </Button>
+          </>
         }
       />
       <DataTable<PipelineRun>
@@ -55,7 +62,7 @@ export function PipelineRunsPage() {
                 className="font-medium text-primary hover:underline"
                 to={`/pipeline/pipelines/${pipelineId}/runs/${run.id}`}
               >
-                #{run.id}
+                #{run.id} 查看详情
               </Link>
             ),
           },
@@ -94,7 +101,7 @@ export function PipelineRunsPage() {
         getRowId={(run) => String(run.id)}
         loading={runsQuery.isFetching}
         error={runsQuery.isError ? '运行记录加载失败' : undefined}
-        empty="还没有运行"
+        empty="还没有运行。点击「运行」后会打开这次运行的详情，可查看任务和日志。"
       />
     </div>
   )

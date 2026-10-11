@@ -7,6 +7,7 @@ import lombok.Data;
 public class TaskKindUpdateDTO {
     @NotBlank
     private String label;
+    private String taskGroup;
     private String description;
     private String hint;
     private String defaultCommand;
