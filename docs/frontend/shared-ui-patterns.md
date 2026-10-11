@@ -1,7 +1,7 @@
 # 共享界面模式
 
-> 日期：2026-10-07
-> 版本：v0.3
+> 日期：2026-10-11
+> 版本：v0.4
 > 关联：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md)、[frontend-style-unification-plan.md](./frontend-style-unification-plan.md)
 
 ### 变更记录
@@ -11,6 +11,7 @@
 | v0.1 | 2026-10-07 | 初版：DataTable、StatusIcon、PageHeader、DetailShell、LogPanel 的用法与试点范围 |
 | v0.2 | 2026-10-07 | 资源概览用 ResourceOverview；StatusIcon 增加同色圆点 |
 | v0.3 | 2026-10-07 | DetailShell 增加 metrics 槽；圆点变体里 Running 为绿点 |
+| v0.4 | 2026-10-11 | LogPanel / TerminalChrome 指向 Xshell 风格会话表面设计 |
 
 ---
 
@@ -30,7 +31,7 @@
 
 新的列表、详情、状态、日志页用这些组件。不要再写一套私有表格密度或状态色。
 
-`LogPanel` 和 `TerminalChrome` 只包外观。WebSocket、xterm 协议留在原来的业务组件里。
+`LogPanel` 和 `TerminalChrome` 只包外观。WebSocket、xterm 协议留在原来的业务组件里。Xshell 风格的统一会话表面方案见 [终端 / 日志界面设计方案](../container-platform/xshell-terminal-log-design.md)。
 
 ## 2. 状态字典
 
