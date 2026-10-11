@@ -57,6 +57,20 @@ export function formatDateTime(value?: string | null): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 }
 
+export function formatRelativeTime(value?: string | null, now = Date.now()): string {
+  if (!value) return '—'
+  const ms = parseInstant(String(value))
+  if (Number.isNaN(ms)) return '—'
+  const seconds = Math.max(0, Math.floor((now - ms) / 1000))
+  if (seconds < 60) return `${seconds}秒前`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}分钟前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  return `${days}天前`
+}
+
 export function formatGitRef(ref?: string | null): string {
   if (!ref) return '—'
   return ref.replace(/^refs\/heads\//, '').replace(/^refs\/tags\//, '')
