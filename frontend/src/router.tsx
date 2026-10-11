@@ -44,6 +44,7 @@ import { FileParserPage } from '@/modules/file-parser/pages/FileParserPage'
 import { ImageToolPage } from '@/modules/image/pages/ImageToolPage'
 import { CredentialDetailPage } from '@/modules/pipeline/pages/CredentialDetailPage'
 import { CredentialListPage } from '@/modules/pipeline/pages/CredentialListPage'
+import { PipelineEditorPage } from '@/modules/pipeline/pages/PipelineEditorPage'
 import { PipelineListPage } from '@/modules/pipeline/pages/PipelineListPage'
 import { PipelineRunDetailPage } from '@/modules/pipeline/pages/PipelineRunDetailPage'
 import { PipelineRunsPage } from '@/modules/pipeline/pages/PipelineRunsPage'
@@ -97,6 +98,8 @@ export const router = createBrowserRouter([
           { path: 'pm/projects/:projectId/board/:typeCode', element: <BoardPage /> },
           { path: 'pm/projects/:projectId/settings/workflow/:typeCode', element: <WorkflowPage /> },
           { path: 'pipeline/pipelines', element: <PipelineListPage /> },
+          { path: 'pipeline/pipelines/new', element: <PipelineEditorPage /> },
+          { path: 'pipeline/pipelines/:pipelineId/edit', element: <PipelineEditorPage /> },
           { path: 'pipeline/pipelines/:pipelineId', element: <PipelineRunsPage /> },
           { path: 'pipeline/pipelines/:pipelineId/runs/:runId', element: <PipelineRunDetailPage /> },
           { path: 'pipeline/credentials', element: <CredentialListPage /> },

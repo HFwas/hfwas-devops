@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
@@ -26,15 +26,20 @@ export function TaskKindDetailPage() {
   const isAdmin = useAuthStore((state) => state.isAdmin())
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [editing, setEditing] = useState<'overview' | 'params' | null>(null)
+  const [editingOverview, setEditingOverview] = useState(false)
+  const [paramEpoch, setParamEpoch] = useState(0)
   const tab = searchParams.get('tab') || '概览'
   const setTab = (value: string) => {
-    setEditing(null)
+    setEditingOverview(false)
     const next = new URLSearchParams(searchParams)
+    next.delete('edit')
     if (value === '概览') next.delete('tab')
     else next.set('tab', value)
     setSearchParams(next, { replace: true })
   }
+  useEffect(() => {
+    if (isAdmin && searchParams.get('edit') === 'overview' && tab === '概览') setEditingOverview(true)
+  }, [isAdmin, searchParams, tab])
   const query = useQuery({
     queryKey: ['pipeline-task-kind', kind],
     queryFn: () => pipelineTaskKindApi.get(kind),
@@ -53,7 +58,8 @@ export function TaskKindDetailPage() {
     mutationFn: (body: Parameters<typeof pipelineTaskKindApi.update>[1]) => pipelineTaskKindApi.update(kind, body),
     onSuccess: async () => {
       toast.success('已保存，版本号未变化')
-      setEditing(null)
+      setEditingOverview(false)
+      setParamEpoch((value) => value + 1)
       await queryClient.invalidateQueries({ queryKey: ['pipeline-task-kind', kind] })
       await queryClient.invalidateQueries({ queryKey: ['pipeline-task-kinds'] })
     },
@@ -103,9 +109,16 @@ export function TaskKindDetailPage() {
       }
       actions={
         isAdmin ? (
-          <Button variant="outline" size="sm" disabled={!item || toggle.isPending} onClick={() => toggle.mutate()}>
-            {item?.enabled ? '停用' : '启用'}
-          </Button>
+          <>
+            {tab === '概览' && !editingOverview ? (
+              <Button size="sm" disabled={!item} onClick={() => setEditingOverview(true)}>
+                编辑概览
+              </Button>
+            ) : null}
+            <Button variant="outline" size="sm" disabled={!item || toggle.isPending} onClick={() => toggle.mutate()}>
+              {item?.enabled ? '停用' : '启用'}
+            </Button>
+          </>
         ) : null
       }
       tabs={[
@@ -118,24 +131,22 @@ export function TaskKindDetailPage() {
     >
       {tab === '概览' && query.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
       {tab === '概览' && query.isError && <p className="text-sm text-destructive">任务加载失败</p>}
-      {tab === '概览' && item && editing === 'overview' && (
+      {tab === '概览' && item && editingOverview && isAdmin && (
         <TaskKindOverviewForm
           item={item}
           saving={save.isPending}
           onSave={saveOverview}
-          onCancel={() => setEditing(null)}
+          onCancel={() => setEditingOverview(false)}
         />
       )}
-      {tab === '概览' && item && editing !== 'overview' && (
+      {tab === '概览' && item && !(editingOverview && isAdmin) && (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <p className="text-sm text-muted-foreground">{item.description || item.hint || '没有说明'}</p>
-            {isAdmin ? (
-              <Button variant="outline" size="sm" onClick={() => setEditing('overview')}>
-                编辑
-              </Button>
-            ) : null}
-          </div>
+          {!isAdmin ? (
+            <p className="text-sm text-muted-foreground">
+              只有管理员可以编辑概览、参数和版本。判断依据是当前账号的 role 为 admin（忽略大小写），与用户管理使用同一套检查。
+            </p>
+          ) : null}
+          <p className="text-sm text-muted-foreground">{item.description || item.hint || '没有说明'}</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="版本" value={displayVersion(item.version)} />
             <Field label="镜像" value={item.toolImage || item.defaultImage} />
@@ -159,23 +170,18 @@ export function TaskKindDetailPage() {
           </section>
         </div>
       )}
-      {tab === '参数' && editing === 'params' && item && (
+      {tab === '参数' && isAdmin && item && (
         <TaskKindParamEditor
+          key={`${kind}-${paramEpoch}`}
           params={item.params ?? []}
           saving={save.isPending}
           onSave={saveParams}
-          onCancel={() => setEditing(null)}
+          onCancel={() => setParamEpoch((value) => value + 1)}
         />
       )}
-      {tab === '参数' && editing !== 'params' && (
+      {tab === '参数' && !isAdmin && (
         <div className="flex flex-col gap-3">
-          {isAdmin && item ? (
-            <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => setEditing('params')}>
-                编辑
-              </Button>
-            </div>
-          ) : null}
+          <p className="text-sm text-muted-foreground">参数为只读。管理员可以在这里添加、修改和删除参数。</p>
           <DataTable<TaskKindParam>
             columns={[
               { id: 'label', header: '名称', cell: (row) => <span className="font-medium">{row.paramLabel}</span> },

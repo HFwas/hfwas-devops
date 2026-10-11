@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/auth'
 import { cn } from '@/lib/utils'
 
 export function TaskKindListPage() {
+  const user = useAuthStore((state) => state.user)
   const isAdmin = useAuthStore((state) => state.isAdmin())
   const queryClient = useQueryClient()
   const [keyword, setKeyword] = useState('')
@@ -40,11 +41,13 @@ export function TaskKindListPage() {
       <PageHeader
         title="任务市场"
         description={
-          query.isSuccess
-            ? rows.length === total
-              ? `共 ${total} 种任务`
-              : `显示 ${rows.length} / ${total}`
-            : '流水线可选用的任务类型'
+          user && !isAdmin
+            ? '查看任务类型。修改概览和参数需要管理员（账号 role 为 admin）。'
+            : query.isSuccess
+              ? rows.length === total
+                ? `共 ${total} 种任务`
+                : `显示 ${rows.length} / ${total}`
+              : '流水线可选用的任务类型'
         }
         actions={
           <Input
