@@ -1,4 +1,11 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Button } from '@/components/ui/button'
+import {
+  followModeAfterScroll,
+  scrollTopForFollow,
+  type FollowMode,
+  type ScrollMetrics,
+} from '@/components/console/logFollow'
 import { cn } from '@/lib/utils'
 
 export type ConnectionState = 'idle' | 'connecting' | 'connected' | 'disconnected'
@@ -26,9 +33,30 @@ export function ConnectionIndicator({ state }: { state: ConnectionState }) {
   )
 }
 
+export type LogPanelProps = {
+  title?: ReactNode
+  connection?: ConnectionState
+  toolbar?: ReactNode
+  children: ReactNode
+  className?: string
+  bodyClassName?: string
+  /**
+   * 内容变长时贴底。用户上滚后暂停，直到滚回底部或点击「跟随最新」。
+   * 适合运行中的日志；已结束的日志保持关闭，从开头阅读。
+   */
+  follow?: boolean
+  /** 切换日志源（另一条任务、另一次运行）时重新开始跟随。 */
+  followKey?: string | number | null
+}
+
+function readMetrics(el: HTMLElement): ScrollMetrics {
+  return { scrollTop: el.scrollTop, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight }
+}
+
 /**
  * 日志 / 终端共用的底栏式外壳：约 40vh、可拖高、最小 120px、等宽内容区、连接指示。
  * 不负责 WebSocket 或 xterm 协议，只包住调用方已经接好的输出。
+ * `follow` 打开时，正文变长会滚到底部；读者上滚则暂停。
  */
 export function LogPanel({
   title = '日志',
@@ -37,16 +65,29 @@ export function LogPanel({
   children,
   className,
   bodyClassName,
-}: {
-  title?: ReactNode
-  connection?: ConnectionState
-  toolbar?: ReactNode
-  children: ReactNode
-  className?: string
-  bodyClassName?: string
-}) {
+  follow = false,
+  followKey,
+}: LogPanelProps) {
   const panelRef = useRef<HTMLElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const modeRef = useRef<FollowMode>('follow')
+  const programmatic = useRef<number | null>(null)
   const [height, setHeight] = useState<number>()
+  const [mode, setMode] = useState<FollowMode>('follow')
+
+  useLayoutEffect(() => {
+    modeRef.current = 'follow'
+    setMode('follow')
+  }, [followKey])
+
+  useLayoutEffect(() => {
+    const el = bodyRef.current
+    if (!follow || !el || modeRef.current !== 'follow') return
+    const top = scrollTopForFollow('follow', readMetrics(el))
+    if (top == null) return
+    programmatic.current = top
+    el.scrollTop = top
+  })
 
   function onResizePointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
     const handle = event.currentTarget
@@ -68,6 +109,34 @@ export function LogPanel({
     handle.addEventListener('pointerup', up)
   }
 
+  function onBodyScroll() {
+    if (!follow) return
+    const el = bodyRef.current
+    if (!el) return
+    const metrics = readMetrics(el)
+    if (programmatic.current != null && Math.abs(metrics.scrollTop - programmatic.current) <= 1) {
+      programmatic.current = null
+      return
+    }
+    programmatic.current = null
+    const next = followModeAfterScroll(metrics)
+    if (next === modeRef.current) return
+    modeRef.current = next
+    setMode(next)
+  }
+
+  function resumeFollow() {
+    modeRef.current = 'follow'
+    setMode('follow')
+    const el = bodyRef.current
+    if (!el) return
+    const top = Math.max(0, el.scrollHeight - el.clientHeight)
+    programmatic.current = top
+    el.scrollTop = top
+  }
+
+  const showResume = follow && mode === 'paused'
+
   return (
     <section
       ref={panelRef}
@@ -84,13 +153,26 @@ export function LogPanel({
           <span className="text-sm font-medium">{title}</span>
           <ConnectionIndicator state={connection} />
         </div>
-        {toolbar ? (
+        {toolbar || showResume ? (
           <div data-slot="log-toolbar" className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
             {toolbar}
+            {showResume ? (
+              <Button type="button" variant="outline" size="sm" onClick={resumeFollow}>
+                跟随最新
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </header>
-      <div className={cn('min-h-0 flex-1 overflow-auto font-mono text-xs leading-5', bodyClassName)}>{children}</div>
+      <div
+        ref={bodyRef}
+        data-slot="log-body"
+        data-follow={follow ? mode : 'off'}
+        className={cn('min-h-0 flex-1 overflow-auto font-mono text-xs leading-5', bodyClassName)}
+        onScroll={onBodyScroll}
+      >
+        {children}
+      </div>
       <button
         type="button"
         aria-label="调整面板高度"
@@ -101,16 +183,6 @@ export function LogPanel({
   )
 }
 
-export function TerminalChrome({
-  title = '终端',
-  ...props
-}: {
-  title?: ReactNode
-  connection?: ConnectionState
-  toolbar?: ReactNode
-  children: ReactNode
-  className?: string
-  bodyClassName?: string
-}) {
+export function TerminalChrome({ title = '终端', ...props }: LogPanelProps) {
   return <LogPanel title={title} {...props} />
 }

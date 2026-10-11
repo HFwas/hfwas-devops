@@ -1,40 +1,52 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { toast } from 'sonner'
-import { DataTable } from '@/components/console/DataTable'
 import { DetailShell } from '@/components/console/DetailShell'
 import { LogPanel, type ConnectionState } from '@/components/console/LogPanel'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
+import { RunSwimlane } from '@/modules/pipeline/components/RunSwimlane'
+import { aggregateRunLog, groupJobsByStage, isTerminalRunStatus, logBody } from '@/modules/pipeline/runView'
 import { formatCommit, formatDateTime, formatDuration, formatGitRef, runStatusLabel } from '@/modules/pipeline/status'
 import type { PipelineRunJob } from '@/modules/pipeline/types/pipeline'
 
-const TERMINAL = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED'])
 const NO_JOBS: PipelineRunJob[] = []
 
-function logConnection(job: PipelineRunJob | undefined, fetching: boolean): ConnectionState {
-  if (fetching && !job) return 'connecting'
-  if (job?.status === 'RUNNING') return 'connected'
-  if (job?.status === 'QUEUED') return 'connecting'
+type LogFocus = { type: 'job'; id: string } | { type: 'stage'; name: string }
+
+function stageKey(job: { stageName?: string | null }): string {
+  return job.stageName?.trim() || '未命名'
+}
+
+function resolveFocus(focus: LogFocus | null, jobs: PipelineRunJob[]): LogFocus | null {
+  if (!jobs.length) return null
+  if (focus?.type === 'job' && jobs.some((job) => String(job.id) === focus.id)) return focus
+  if (focus?.type === 'stage' && jobs.some((job) => stageKey(job) === focus.name)) return focus
+  const active = jobs.find((job) => job.status === 'RUNNING' || job.status === 'FAILED') ?? jobs[0]
+  return { type: 'job', id: String(active.id) }
+}
+
+function runConnection(status: string | undefined, fetching: boolean, hasRun: boolean): ConnectionState {
+  if (fetching && !hasRun) return 'connecting'
+  if (!status || isTerminalRunStatus(status)) return 'idle'
+  if (status === 'RUNNING') return 'connected'
+  return 'connecting'
+}
+
+function jobsConnection(jobs: PipelineRunJob[], fetching: boolean): ConnectionState {
+  if (fetching && jobs.length === 0) return 'connecting'
+  if (jobs.some((job) => job.status === 'RUNNING')) return 'connected'
+  if (jobs.some((job) => job.status === 'QUEUED')) return 'connecting'
   return 'idle'
 }
 
 export function PipelineRunDetailPage() {
   const { pipelineId = '', runId = '' } = useParams()
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const tab = searchParams.get('tab') || '任务'
-  const [jobId, setJobId] = useState<string | null>(null)
-
-  const setTab = (value: string) => {
-    const next = new URLSearchParams(searchParams)
-    if (value === '任务') next.delete('tab')
-    else next.set('tab', value)
-    setSearchParams(next, { replace: true })
-  }
+  const [focus, setFocus] = useState<LogFocus | null>(null)
+  const [now, setNow] = useState(() => Date.now())
 
   const runQuery = useQuery({
     queryKey: ['pipeline-run', pipelineId, runId],
@@ -42,21 +54,41 @@ export function PipelineRunDetailPage() {
     enabled: !!pipelineId && !!runId,
     refetchInterval: (query) => {
       const status = query.state.data?.status
-      if (!status || TERMINAL.has(status)) return false
+      if (!status || isTerminalRunStatus(status)) return false
       return 3000
     },
   })
   const run = runQuery.data
   const jobs = run?.jobs ?? NO_JOBS
+  const stages = useMemo(() => groupJobsByStage(jobs), [jobs])
+  const overallLog = useMemo(() => aggregateRunLog(jobs), [jobs])
+  const running = jobs.some((job) => job.status === 'RUNNING')
 
   useEffect(() => {
-    if (!jobs.length) return
-    if (jobId && jobs.some((job) => String(job.id) === jobId)) return
-    const active = jobs.find((job) => job.status === 'RUNNING' || job.status === 'FAILED') ?? jobs[0]
-    setJobId(String(active.id))
-  }, [jobId, jobs])
+    if (!running) return
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [running])
 
-  const selected = jobs.find((job) => String(job.id) === jobId)
+  const resolved = resolveFocus(focus, jobs)
+  const focusedJob = resolved?.type === 'job' ? jobs.find((job) => String(job.id) === resolved.id) : undefined
+  const focusedStage =
+    resolved?.type === 'stage' ? stages.find((stage) => stage.name === resolved.name) : undefined
+  const detailJobs = resolved?.type === 'stage' ? (focusedStage?.jobs ?? []) : focusedJob ? [focusedJob] : []
+  const detailTitle =
+    resolved?.type === 'stage'
+      ? `阶段 · ${resolved.name}`
+      : focusedJob
+        ? `${focusedJob.stageName} / ${focusedJob.jobName}`
+        : '日志'
+  const detailText =
+    resolved?.type === 'stage'
+      ? aggregateRunLog(detailJobs)
+      : focusedJob
+        ? logBody(focusedJob.logText, '')
+        : ''
+  const detailFollow = detailJobs.some((job) => job.status === 'RUNNING')
+  const detailKey = resolved ? `${resolved.type}:${resolved.type === 'job' ? resolved.id : resolved.name}` : 'none'
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['pipeline-run', pipelineId, runId] })
@@ -80,10 +112,7 @@ export function PipelineRunDetailPage() {
     onError: (error: Error) => toast.error(error.message || '审批失败'),
   })
 
-  const openLog = (id: string) => {
-    setJobId(id)
-    setTab('日志')
-  }
+  const live = !!run && !isTerminalRunStatus(run.status)
 
   return (
     <DetailShell
@@ -104,7 +133,7 @@ export function PipelineRunDetailPage() {
         ) : null
       }
       actions={
-        run && !TERMINAL.has(run.status) ? (
+        live ? (
           <>
             {run.status === 'WAITING_APPROVAL' && (
               <Button size="sm" disabled={approve.isPending} onClick={() => approve.mutate()}>
@@ -124,83 +153,51 @@ export function PipelineRunDetailPage() {
           </>
         ) : null
       }
-      tabs={[
-        { value: '任务', label: '任务' },
-        { value: '日志', label: '日志' },
-      ]}
-      value={tab}
-      onValueChange={setTab}
     >
-      {tab === '任务' && runQuery.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
-      {tab === '任务' && runQuery.isError && <p className="text-sm text-destructive">运行详情加载失败</p>}
-      {tab === '任务' && run && (
-        <div className="flex flex-col gap-4">
+      {runQuery.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
+      {runQuery.isError && <p className="text-sm text-destructive">运行详情加载失败</p>}
+      {run && (
+        <div className="flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="触发" value={run.trigger} />
             <Field label="触发人" value={run.triggeredByName} />
             <Field label="开始" value={formatDateTime(run.startedAt)} />
-            <Field label="耗时" value={formatDuration(run.startedAt, run.finishedAt)} />
+            <Field label="耗时" value={formatDuration(run.startedAt, run.finishedAt, now)} />
           </div>
-          <DataTable<PipelineRunJob>
-            columns={[
-              { id: 'stage', header: '阶段', cell: (job) => job.stageName },
-              { id: 'name', header: '任务', cell: (job) => <span className="font-medium">{job.jobName}</span> },
-              { id: 'kind', header: '类型', cell: (job) => job.kind },
-              {
-                id: 'status',
-                header: '状态',
-                cell: (job) => <StatusIcon status={job.status} label={runStatusLabel(job.status)} />,
-              },
-              { id: 'duration', header: '耗时', cell: (job) => formatDuration(job.startedAt, job.finishedAt) },
-              {
-                id: 'log',
-                header: <span className="sr-only">日志</span>,
-                className: 'text-right',
-                cell: (job) => (
-                  <Button variant="ghost" size="sm" onClick={() => openLog(String(job.id))}>
-                    日志
-                  </Button>
-                ),
-              },
-            ]}
-            data={jobs}
-            getRowId={(job) => String(job.id)}
-            empty="这次运行没有任务"
-          />
-        </div>
-      )}
-      {tab === '日志' && (
-        <div className="flex flex-col gap-3">
-          {jobs.length > 0 && (
-            <label className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">任务</span>
-              <select
-                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-                value={jobId ?? ''}
-                aria-label="选择任务日志"
-                onChange={(event) => setJobId(event.target.value)}
+          <div className="grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)]">
+            <div className="flex min-w-0 flex-col gap-3">
+              <RunSwimlane
+                stages={stages}
+                selectedJobId={resolved?.type === 'job' ? resolved.id : null}
+                selectedStageName={resolved?.type === 'stage' ? resolved.name : null}
+                now={now}
+                onSelectJob={(id) => setFocus({ type: 'job', id })}
+                onSelectStage={(name) => setFocus({ type: 'stage', name })}
+              />
+              <LogPanel
+                title={detailTitle}
+                connection={jobsConnection(detailJobs, runQuery.isFetching)}
+                follow={detailFollow}
+                followKey={detailKey}
+                className="shrink-0"
               >
-                {jobs.map((job) => (
-                  <option key={String(job.id)} value={String(job.id)}>
-                    {job.stageName} / {job.jobName}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <LogPanel
-            title={selected ? `${selected.stageName} / ${selected.jobName}` : '日志'}
-            connection={logConnection(selected, runQuery.isFetching)}
-            toolbar={
-              <Button variant="ghost" size="sm" onClick={() => void navigate(`/pipeline/pipelines/${pipelineId}`)}>
-                全部运行
-              </Button>
-            }
-          >
-            <pre className="p-3 whitespace-pre-wrap break-all">
-              {selected?.logText?.trim() || (runQuery.isLoading ? '加载中…' : '这条任务还没有日志')}
-            </pre>
-          </LogPanel>
+                <pre className="p-3 whitespace-pre-wrap break-all">
+                  {detailText || (runQuery.isLoading ? '加载中…' : '这条任务还没有日志')}
+                </pre>
+              </LogPanel>
+            </div>
+            <LogPanel
+              title="总体日志"
+              connection={runConnection(run.status, runQuery.isFetching, true)}
+              follow={live}
+              followKey={String(run.id)}
+              className="h-[70vh]"
+            >
+              <pre className="p-3 whitespace-pre-wrap break-all">
+                {overallLog || '这次运行还没有日志'}
+              </pre>
+            </LogPanel>
+          </div>
         </div>
       )}
     </DetailShell>

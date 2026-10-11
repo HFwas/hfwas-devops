@@ -3,24 +3,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
   ArrowRight,
-  Bell,
-  Box,
   ChevronDown,
   ChevronRight,
   ChevronUp,
-  FlaskConical,
-  GitBranch,
-  Hammer,
   Plus,
-  Rocket,
   Search,
-  Shield,
   SquareTerminal,
   Trash2,
-  UserCheck,
   Workflow,
   X,
-  type LucideIcon,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
@@ -28,6 +19,7 @@ import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
+import { JobKindIcon } from '@/modules/pipeline/components/JobKindIcon'
 import { StartRunButton } from '@/modules/pipeline/components/StartRunButton'
 import { pipelineApi, pipelineCredentialApi, pipelineTaskKindApi } from '@/modules/pipeline/api/pipeline'
 import { jobKindMeta } from '@/modules/pipeline/graph/jobCatalog'
@@ -61,22 +53,6 @@ import { cn } from '@/lib/utils'
 
 const controlClass =
   'flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
-
-const KIND_ICONS: Record<string, LucideIcon> = {
-  CLONE: GitBranch,
-  BUILD: Hammer,
-  IMAGE: Box,
-  SCAN: Shield,
-  DEPLOY: Rocket,
-  TEST: FlaskConical,
-  APPROVAL: UserCheck,
-  NOTIFY: Bell,
-}
-
-function KindIcon({ kind, className }: { kind: string; className?: string }) {
-  const Icon = KIND_ICONS[kind] ?? SquareTerminal
-  return <Icon className={className} aria-hidden />
-}
 
 export function PipelineEditorPage() {
   const { pipelineId } = useParams()
@@ -502,7 +478,7 @@ function PaletteGroup({
             aria-label={`添加${kind.label}`}
             onClick={() => onAdd(kind)}
           >
-            <KindIcon kind={kind.kindValue} className="mt-0.5 size-4 shrink-0 text-primary" />
+            <JobKindIcon kind={kind.kindValue} className="mt-0.5 size-4 shrink-0 text-primary" />
             <span className="min-w-0">
               <span className="block truncate text-sm font-medium">{kind.label}</span>
               <span className="block truncate text-xs text-muted-foreground">{kind.description || kind.kindValue}</span>
@@ -628,7 +604,7 @@ function Lanes({
                             aria-label={`选择${job.name}`}
                             onClick={() => onSelectJob(job.clientKey)}
                           >
-                            <KindIcon kind={job.kind} className="mt-0.5 size-4 shrink-0 text-primary" />
+                            <JobKindIcon kind={job.kind} className="mt-0.5 size-4 shrink-0 text-primary" />
                             <span className="min-w-0">
                               <span className="block truncate text-sm font-medium">{job.name}</span>
                               <span className="block text-xs text-muted-foreground">{job.kind}</span>

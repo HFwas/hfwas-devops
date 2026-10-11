@@ -1,7 +1,7 @@
 # 共享界面模式
 
 > 日期：2026-10-11
-> 版本：v0.5
+> 版本：v0.6
 > 关联：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md)、[frontend-style-unification-plan.md](./frontend-style-unification-plan.md)
 
 ### 变更记录
@@ -13,6 +13,7 @@
 | v0.3 | 2026-10-07 | DetailShell 增加 metrics 槽；圆点变体里 Running 为绿点 |
 | v0.4 | 2026-10-11 | LogPanel / TerminalChrome 指向 Xshell 风格会话表面设计 |
 | v0.5 | 2026-10-11 | LogPanel 顶栏改为至少一行高，工具栏放不下时在顶栏内换行 |
+| v0.6 | 2026-10-11 | LogPanel 增加可选跟随：内容变长时贴底，上滚暂停，回到底部或点「跟随最新」再跟上 |
 
 ---
 
@@ -28,7 +29,7 @@
 | `DetailShell` | `DetailShell.tsx` | 贴在顶栏下的标题行、操作、Tab；正文由调用方按当前 Tab 填 |
 | `OverviewMetricCards` | `ResourceOverview.tsx` | Tab 下方的指标卡。由 `DetailShell` 的 `metrics` 挂上 |
 | `ResourceOverview` | `ResourceOverview.tsx` | 概览左主栏 + 右侧栏；指标卡也可直接放在这里 |
-| `LogPanel` / `TerminalChrome` | `LogPanel.tsx` | 约 40vh、可拖到最小 120px、顶栏至少 `min-h-10` 且工具栏 `flex-wrap`、连接呼吸灯、等宽区 |
+| `LogPanel` / `TerminalChrome` | `LogPanel.tsx` | 约 40vh、可拖到最小 120px、顶栏至少 `min-h-10` 且工具栏 `flex-wrap`、连接呼吸灯、等宽区。可选 `follow`：内容变长时贴底；上滚后暂停，滚回底部或点「跟随最新」再跟上 |
 
 新的列表、详情、状态、日志页用这些组件。不要再写一套私有表格密度或状态色。
 
