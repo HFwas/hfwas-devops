@@ -30,6 +30,8 @@ public class PipelineTaskKindParamEntity {
     private String apiHeadersJson;
     private String apiResponsePath;
     private String placeholder;
+    /** user：流水线可绑定；hidden：仅任务市场配置，运行时注入默认值。 */
+    private String visibility;
 
     @TableLogic
     private Integer deleted;

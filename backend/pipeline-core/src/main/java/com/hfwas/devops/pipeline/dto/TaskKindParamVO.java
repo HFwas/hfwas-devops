@@ -21,4 +21,6 @@ public class TaskKindParamVO {
     private Map<String, String> apiHeaders;
     private String apiResponsePath;
     private String placeholder;
+    /** user | hidden，缺省按 user。 */
+    private String visibility;
 }

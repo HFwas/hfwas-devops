@@ -154,11 +154,42 @@ export interface TaskKindVO {
   cpuLimit?: string
   memoryRequest?: string
   memoryLimit?: string
+  /** 当前启用版本。未发布时为空，界面显示 —。 */
+  version?: string | null
+  params?: TaskKindParam[]
+}
+
+export interface TaskKindVersion {
+  version: string
+  note?: string | null
+  createdAt: string
+  isCurrent: boolean
+}
+
+export interface TaskKindPublishPayload {
+  note?: string
+  version?: string
+}
+
+export interface TaskKindUpdatePayload {
+  label: string
+  taskGroup?: string
+  description?: string
+  hint?: string
+  defaultCommand?: string
+  toolImage?: string
+  commandTemplate?: string
+  sortOrder?: number
+  cpuRequest?: string
+  cpuLimit?: string
+  memoryRequest?: string
+  memoryLimit?: string
   params?: TaskKindParam[]
 }
 
 export type JobParamType = 'input' | 'select' | 'api_select'
 export type JobParamValueMode = 'fixed' | 'runtime'
+export type TaskKindParamVisibility = 'user' | 'hidden'
 
 export interface TaskKindParam {
   id?: EntityId
@@ -175,6 +206,7 @@ export interface TaskKindParam {
   apiHeaders?: Record<string, string>
   apiResponsePath?: string
   placeholder?: string
+  visibility?: TaskKindParamVisibility
 }
 
 export interface JobParamBinding {

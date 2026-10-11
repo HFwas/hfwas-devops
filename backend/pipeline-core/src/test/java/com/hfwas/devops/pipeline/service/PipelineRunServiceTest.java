@@ -2,6 +2,8 @@ package com.hfwas.devops.pipeline.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hfwas.devops.pipeline.dto.PipelineRunVO;
+import com.hfwas.devops.pipeline.dto.RunParamDefinitionVO;
+import com.hfwas.devops.pipeline.entity.PipelineTaskKindParamEntity;
 import com.hfwas.devops.pipeline.entity.PipelineEntity;
 import com.hfwas.devops.pipeline.entity.PipelineJobEntity;
 import com.hfwas.devops.pipeline.entity.PipelineRunEntity;
@@ -29,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -184,6 +187,72 @@ class PipelineRunServiceTest {
         assertEquals("SUCCEEDED", jobs.get(0).getStatus());
         assertEquals("WAITING_APPROVAL", jobs.get(1).getStatus());
         verify(pipelineExecutor, never()).submit(99L);
+    }
+
+    @Test
+    void hiddenParamsStayOutOfRunDialogAndKeepMarketplaceDefault() {
+        PipelineRunService service = new PipelineRunService(
+                definitionService, runMapper, runJobMapper, stageMapper, jobMapper, jobParamMapper, taskKindParamMapper, currentUserAccessor,
+                new UnavailablePipelineExecutor(), 10);
+        PipelineEntity pipeline = new PipelineEntity();
+        pipeline.setId(1L);
+        pipeline.setTenantId(9L);
+        pipeline.setName("demo");
+        pipeline.setGitRef("main");
+        when(definitionService.requireOwned(1L)).thenReturn(pipeline);
+        when(currentUserAccessor.currentUserId()).thenReturn(7L);
+
+        PipelineTaskKindParamEntity hidden = param("TOKEN", "hidden", "secret");
+        PipelineTaskKindParamEntity visible = param("PROFILE", "user", "dev");
+        when(taskKindParamMapper.selectAll()).thenReturn(List.of(hidden, visible));
+
+        PipelineStageEntity stage = new PipelineStageEntity();
+        stage.setId(11L);
+        stage.setName("build");
+        when(stageMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(stage));
+
+        PipelineJobEntity job = new PipelineJobEntity();
+        job.setId(21L);
+        job.setStageId(11L);
+        job.setName("build");
+        job.setKind("BUILD");
+        job.setSortOrder(0);
+        job.setParamBindings("{\"PROFILE\":{\"mode\":\"runtime\"},\"TOKEN\":{\"mode\":\"runtime\"}}");
+        when(jobMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(job));
+        when(definitionService.loadGraph(1L)).thenReturn(new PipelineGraphSpec(List.of(
+                new PipelineStageSpec(11L, "build", 0, List.of(
+                        new PipelineJobSpec(21L, "build", PipelineJobKind.BUILD, "mvn package", null, null, null, 0)
+                ))
+        )));
+        AtomicReference<PipelineRunEntity> stored = new AtomicReference<>();
+        when(runMapper.insert(any(PipelineRunEntity.class))).thenAnswer(invocation -> {
+            PipelineRunEntity run = invocation.getArgument(0);
+            run.setId(99L);
+            stored.set(run);
+            return 1;
+        });
+        when(runMapper.selectById(99L)).thenAnswer(invocation -> stored.get());
+        when(runJobMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        List<RunParamDefinitionVO> dialog = service.getDefaultParams(1L);
+        assertEquals(List.of("PROFILE"), dialog.stream().map(RunParamDefinitionVO::getParamKey).toList());
+
+        service.start(1L, Map.of("TOKEN", "from-user", "PROFILE", "release"));
+
+        assertEquals(true, stored.get().getRuntimeParams().contains("\"TOKEN\":\"secret\""));
+        assertEquals(true, stored.get().getRuntimeParams().contains("\"PROFILE\":\"release\""));
+    }
+
+    private static PipelineTaskKindParamEntity param(String key, String visibility, String defaultValue) {
+        PipelineTaskKindParamEntity entity = new PipelineTaskKindParamEntity();
+        entity.setKindValue("BUILD");
+        entity.setParamKey(key);
+        entity.setParamLabel(key);
+        entity.setParamType("input");
+        entity.setVisibility(visibility);
+        entity.setDefaultValue(defaultValue);
+        entity.setRequired(0);
+        return entity;
     }
 
     private void stubOwned() {

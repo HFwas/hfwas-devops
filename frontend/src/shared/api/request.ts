@@ -74,6 +74,12 @@ export async function put<T>(url: string, data?: unknown, timeout?: number): Pro
   return res.data.data
 }
 
+export async function patch<T>(url: string, data?: unknown, timeout?: number): Promise<T> {
+  const config = timeout ? { timeout } : undefined
+  const res = await request.patch<BaseResult<T>>(url, data ?? {}, config)
+  return res.data.data
+}
+
 export async function get<T>(url: string, params?: unknown, timeout?: number): Promise<T> {
   const res = await request.get<BaseResult<T>>(url, timeout ? { params, timeout } : { params })
   return res.data.data
