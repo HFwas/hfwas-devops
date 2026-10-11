@@ -153,7 +153,38 @@ describe('shared console patterns', () => {
     expect(panel?.className).toContain('min-h-[120px]')
     expect(panel?.className).toContain('h-[40vh]')
     expect(panel?.textContent).toContain('已连接')
-    expect(container.querySelector('header')?.className).toContain('h-10')
+    const header = container.querySelector('header')
+    const headerClass = header?.className.split(/\s+/) ?? []
+    expect(headerClass).toContain('min-h-10')
+    expect(headerClass).toContain('flex-wrap')
+    expect(headerClass).not.toContain('h-10')
+  })
+
+  it('lets a crowded toolbar wrap inside the header instead of clipping it', () => {
+    const view = mount(
+      <LogPanel
+        title="终端"
+        connection="connected"
+        toolbar={
+          <>
+            <span>容器</span>
+            <span>/bin/sh</span>
+            <span>路径</span>
+            <span>上传到该路径</span>
+            <span>下载该路径</span>
+          </>
+        }
+      >
+        line
+      </LogPanel>,
+    )
+    root = view.root
+    container = view.container
+    const toolbar = container.querySelector('[data-slot="log-toolbar"]')
+    expect(toolbar?.className).toContain('flex-wrap')
+    expect(toolbar?.className).toContain('min-w-0')
+    expect(toolbar?.textContent).toContain('/bin/sh')
+    expect(toolbar?.textContent).toContain('上传到该路径')
   })
 
   it('lays out overview metrics beside the two columns', () => {

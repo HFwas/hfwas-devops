@@ -140,7 +140,7 @@ export function PodShell({
       toolbar={
         <>
           <select
-            className="h-7 rounded-md border border-input bg-background px-2 text-sm"
+            className="h-8 max-w-48 shrink-0 rounded-md border border-input bg-background px-2 text-sm"
             aria-label="容器"
             value={container}
             onChange={(event) => setContainer(event.target.value)}
@@ -152,7 +152,13 @@ export function PodShell({
               </option>
             ))}
           </select>
-          <Input value={path} onChange={(event) => setPath(event.target.value)} className="h-7 max-w-xs" placeholder="容器内路径" />
+          <Input
+            value={path}
+            onChange={(event) => setPath(event.target.value)}
+            aria-label="容器内路径"
+            placeholder="容器内路径"
+            className="h-8 w-56 min-w-36 max-w-full shrink-0"
+          />
           <input
             ref={fileRef}
             type="file"
