@@ -1,7 +1,7 @@
 # 应用镜像构建与 Helm 升级
 
 > 日期：2026-10-12
-> 版本：v0.4
+> 版本：v0.5
 
 ### 变更记录
 
@@ -11,6 +11,7 @@
 | v0.2 | 2026-10-01 | 构建命令改为 `deploy/docker/backend/Dockerfile` |
 | v0.3 | 2026-10-12 | 增加推送到阿里云杭州仓库 `dkyy` 的 `scripts/push-aliyun.sh` |
 | v0.4 | 2026-10-12 | 无 buildx 时回退 legacy builder；Dockerfile 去掉 BuildKit `--mount` |
+| v0.5 | 2026-10-12 | 修密码提示被吞；说明交互输入不回显，推荐用环境变量传密码 |
 
 ---
 
@@ -130,10 +131,13 @@ curl -sS http://localhost:30889/health/check
 `scripts/push-aliyun.sh` 用同一套 Dockerfile 构建，并推到 `registry.cn-hangzhou.aliyuncs.com/dkyy/<仓库名>:<版本>`。密码放在环境变量里，脚本不保存密码。
 
 ```bash
+# 推荐：密码走环境变量（交互输入不回显，容易误以为卡住）
 export ALIYUN_REGISTRY_PASSWORD='你的仓库密码'
 ./scripts/push-aliyun.sh backend          # 默认仓库名 devops-backend，版本为当前时间
 ./scripts/push-aliyun.sh frontend 1.2.0
 ./scripts/push-aliyun.sh all 1.2.0
+
+# 未 export 时脚本会问 Password: —— 直接打字回车即可，屏幕上不会显示字符
 ```
 
 远端仓库名可用 `ALIYUN_IMAGE_BACKEND`、`ALIYUN_IMAGE_FRONTEND` 改掉。例如把后端推成 `code-api`：

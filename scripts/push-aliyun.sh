@@ -16,7 +16,7 @@
 # 环境变量:
 #   ALIYUN_REGISTRY          默认 registry.cn-hangzhou.aliyuncs.com
 #   ALIYUN_REGISTRY_USERNAME 默认 dingtalk_eadbpj
-#   ALIYUN_REGISTRY_PASSWORD 仓库密码。未设置时在终端询问，不回显、不写入仓库
+#   ALIYUN_REGISTRY_PASSWORD 仓库密码。未设置时在终端询问（输入不回显），不写入仓库
 #   ALIYUN_NAMESPACE         默认 dkyy
 #   ALIYUN_IMAGE_BACKEND     远端仓库名，默认 devops-backend
 #   ALIYUN_IMAGE_FRONTEND    远端仓库名，默认 devops-frontend
@@ -25,6 +25,8 @@
 #   DOCKER_BUILDKIT          未设置时：有 buildx 用 1，否则回退 0（Colima 常见）
 #
 # 密码不要写进本脚本，也不要提交到 git。
+# DOCKER_BUILDKIT=0 请写成环境变量前缀，不要当第 2 个参数：
+#   DOCKER_BUILDKIT=0 ./scripts/push-aliyun.sh all
 # ============================================================
 set -euo pipefail
 
@@ -37,11 +39,12 @@ IMAGE_BACKEND="${ALIYUN_IMAGE_BACKEND:-devops-backend}"
 IMAGE_FRONTEND="${ALIYUN_IMAGE_FRONTEND:-devops-frontend}"
 SKIP_LATEST="${SKIP_LATEST:-0}"
 
-log() { printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
+# 日志走 stderr，避免被 $(...) 吞掉（例如读密码时的错误提示）
+log() { printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
 
 usage() {
-  sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 require_cmd() {
@@ -84,28 +87,32 @@ remote_ref() {
   printf '%s/%s/%s:%s' "$REGISTRY" "$NAMESPACE" "$name" "$tag"
 }
 
-read_password() {
+# 写入全局 REGISTRY_PASSWORD，避免 $(read) 吞掉提示/错误
+ask_password() {
   if [ -n "${ALIYUN_REGISTRY_PASSWORD:-}" ]; then
-    printf '%s' "$ALIYUN_REGISTRY_PASSWORD"
+    REGISTRY_PASSWORD="$ALIYUN_REGISTRY_PASSWORD"
     return
   fi
   if [ ! -t 0 ]; then
-    die "未设置 ALIYUN_REGISTRY_PASSWORD，且当前不是交互终端"
+    die "未设置 ALIYUN_REGISTRY_PASSWORD，且当前不是交互终端。请先: export ALIYUN_REGISTRY_PASSWORD='你的密码'"
   fi
-  local password
-  printf 'Password for %s: ' "$REGISTRY" >&2
-  read -rs password
+  log "请输入 ${REGISTRY} 的仓库密码（用户 ${USERNAME}；输入不回显，输完按回车）"
+  printf 'Password: ' >&2
+  # 从 /dev/tty 读，避免 stdin 被重定向时读不到
+  if [ -r /dev/tty ]; then
+    read -rs REGISTRY_PASSWORD </dev/tty
+  else
+    read -rs REGISTRY_PASSWORD
+  fi
   printf '\n' >&2
-  [ -n "$password" ] || die "密码为空"
-  printf '%s' "$password"
+  [ -n "${REGISTRY_PASSWORD:-}" ] || die "密码为空。也可先 export ALIYUN_REGISTRY_PASSWORD='你的密码' 再运行"
 }
 
 login_registry() {
-  local password
-  password="$(read_password)"
+  ask_password
   log "=== docker login ${REGISTRY} (${USERNAME}) ==="
-  printf '%s' "$password" | docker login --username "$USERNAME" --password-stdin "$REGISTRY"
-  unset password
+  printf '%s' "$REGISTRY_PASSWORD" | docker login --username "$USERNAME" --password-stdin "$REGISTRY"
+  unset REGISTRY_PASSWORD
 }
 
 build_backend() {
@@ -165,6 +172,9 @@ main() {
       die "未知目标: $target（可用 backend、frontend、all）"
       ;;
   esac
+  if [[ "$tag" == *=* ]]; then
+    die "第 2 个参数应是镜像版本（如 1.2.0），不是环境变量。请写成: DOCKER_BUILDKIT=0 ./scripts/push-aliyun.sh all"
+  fi
   [ -n "$tag" ] || tag="$(default_tag)"
 
   require_cmd docker
