@@ -1,7 +1,7 @@
 # 应用镜像构建与 Helm 升级
 
-> 日期：2026-10-01
-> 版本：v0.2
+> 日期：2026-10-12
+> 版本：v0.3
 
 ### 变更记录
 
@@ -9,6 +9,7 @@
 |------|------|----------|
 | v0.1 | 2026-09-13 | 初版：把原先手工 docker build + helm upgrade 收成 `deploy-app` 脚本 |
 | v0.2 | 2026-10-01 | 构建命令改为 `deploy/docker/backend/Dockerfile` |
+| v0.3 | 2026-10-12 | 增加推送到阿里云杭州仓库 `dkyy` 的 `scripts/push-aliyun.sh` |
 
 ---
 
@@ -109,3 +110,23 @@ curl -sS http://localhost:30889/health/check
 期望镜像带本次 `TAG`，健康检查返回 `UP`。
 
 前端经 Kong / 集群内 Service 访问，脚本不单独打前端 HTTP。旧流水线运行记录里的耗时等库内数据不会随镜像升级自动纠正，需要新跑一次业务验证。
+
+## 5. 推到阿里云
+
+`scripts/push-aliyun.sh` 用同一套 Dockerfile 构建，并推到 `registry.cn-hangzhou.aliyuncs.com/dkyy/<仓库名>:<版本>`。密码放在环境变量里，脚本不保存密码。
+
+```bash
+export ALIYUN_REGISTRY_PASSWORD='你的仓库密码'
+./scripts/push-aliyun.sh backend          # 默认仓库名 devops-backend，版本为当前时间
+./scripts/push-aliyun.sh frontend 1.2.0
+./scripts/push-aliyun.sh all 1.2.0
+```
+
+远端仓库名可用 `ALIYUN_IMAGE_BACKEND`、`ALIYUN_IMAGE_FRONTEND` 改掉。例如把后端推成 `code-api`：
+
+```bash
+ALIYUN_IMAGE_BACKEND=code-api ./scripts/push-aliyun.sh backend 1.2.0
+# docker pull registry.cn-hangzhou.aliyuncs.com/dkyy/code-api:1.2.0
+```
+
+未设置密码时，脚本会在终端询问。设 `SKIP_LATEST=1` 则不额外推 `:latest`。
