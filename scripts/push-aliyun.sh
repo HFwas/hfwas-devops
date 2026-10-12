@@ -22,6 +22,7 @@
 #   ALIYUN_IMAGE_FRONTEND    远端仓库名，默认 devops-frontend
 #   TAG                      镜像版本，默认 YYYYMMDD-HHMM；也可作为第 2 个参数
 #   SKIP_LATEST              设为 1 时不额外推 :latest
+#   DOCKER_BUILDKIT          未设置时：有 buildx 用 1，否则回退 0（Colima 常见）
 #
 # 密码不要写进本脚本，也不要提交到 git。
 # ============================================================
@@ -35,17 +36,42 @@ NAMESPACE="${ALIYUN_NAMESPACE:-dkyy}"
 IMAGE_BACKEND="${ALIYUN_IMAGE_BACKEND:-devops-backend}"
 IMAGE_FRONTEND="${ALIYUN_IMAGE_FRONTEND:-devops-frontend}"
 SKIP_LATEST="${SKIP_LATEST:-0}"
-export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
 
 log() { printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
 die() { log "ERROR: $*"; exit 1; }
 
 usage() {
-  sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "未找到命令: $1"
+}
+
+# Homebrew docker + Colima 常缺 buildx：DOCKER_BUILDKIT=1 会直接报
+# "buildx component is missing"。有 buildx 时用 BuildKit，否则强制 legacy。
+configure_docker_builder() {
+  local has_buildx=0
+  if docker buildx version >/dev/null 2>&1; then
+    has_buildx=1
+  fi
+
+  if [ -n "${DOCKER_BUILDKIT+x}" ]; then
+    if [ "$DOCKER_BUILDKIT" = "1" ] && [ "$has_buildx" != "1" ]; then
+      die "DOCKER_BUILDKIT=1 但本机没有可用的 docker buildx。请 brew install docker-buildx 并链到 ~/.docker/cli-plugins/，或改用 DOCKER_BUILDKIT=0"
+    fi
+    export DOCKER_BUILDKIT
+    log "使用 DOCKER_BUILDKIT=${DOCKER_BUILDKIT}（环境变量指定）"
+    return
+  fi
+
+  if [ "$has_buildx" = "1" ]; then
+    export DOCKER_BUILDKIT=1
+    log "使用 BuildKit（docker buildx 可用）"
+  else
+    export DOCKER_BUILDKIT=0
+    log "本机无 buildx，回退 legacy builder（DOCKER_BUILDKIT=0）"
+  fi
 }
 
 default_tag() {
@@ -142,6 +168,7 @@ main() {
   [ -n "$tag" ] || tag="$(default_tag)"
 
   require_cmd docker
+  configure_docker_builder
   login_registry
 
   case "$target" in

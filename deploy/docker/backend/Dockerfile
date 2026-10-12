@@ -1,6 +1,7 @@
 # =============================================================================
 # Stage 1: Build Spring Boot fat JAR
-# BuildKit cache：/root/.m2 跨构建复用，改业务代码不再全量拉依赖
+# 依赖层靠「先拷 POM、再拷源码」做 Docker layer cache；不使用 BuildKit
+# --mount，以便 Colima / 无 buildx 的本机也能用 legacy builder 构建。
 # =============================================================================
 FROM maven:3.9.9-eclipse-temurin-21 AS builder
 
@@ -22,14 +23,12 @@ COPY backend/container-core/pom.xml backend/container-core/
 COPY backend/server/pom.xml backend/server/
 
 # 预拉依赖（失败不阻断：个别 optional 解析失败时仍可用缓存继续 package）
-RUN --mount=type=cache,id=hfwas-m2,target=/root/.m2/repository \
-    mvn -B -pl backend/server -am -DskipTests dependency:go-offline || true
+RUN mvn -B -pl backend/server -am -DskipTests dependency:go-offline || true
 
 # 再拷源码；仅此处变化时跳过上面的依赖下载
 COPY backend/ backend/
 
-RUN --mount=type=cache,id=hfwas-m2,target=/root/.m2/repository \
-    mvn -B -pl backend/server -am -DskipTests package \
+RUN mvn -B -pl backend/server -am -DskipTests package \
     && cp "$(ls backend/server/target/server-*.jar | grep -v original | head -1)" /build/server.jar
 
 # =============================================================================
@@ -53,8 +52,7 @@ RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.aliyun.com#g' /etc/apk/repositories
     && rm -rf /var/cache/apk/*
 
 COPY --from=builder /build/backend/scripts /app/scripts
-RUN --mount=type=cache,id=hfwas-pip,target=/root/.cache/pip \
-    pip3 install --break-system-packages \
+RUN pip3 install --break-system-packages \
     -i https://mirrors.aliyun.com/pypi/simple/ \
     --trusted-host mirrors.aliyun.com \
     python-docx>=1.1.2 \

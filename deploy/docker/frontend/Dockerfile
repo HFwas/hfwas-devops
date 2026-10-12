@@ -1,14 +1,14 @@
 # =============================================================================
 # Stage 1: Build React frontend
-# BuildKit cache：npm 缓存跨构建复用；仅 package*.json 变化时才重跑 npm ci
+# 依赖层靠 package*.json 的 Docker layer cache；不使用 BuildKit --mount，
+# 以便 Colima / 无 buildx 的本机也能用 legacy builder 构建。
 # =============================================================================
 FROM node:20-alpine AS builder
 
 WORKDIR /build
 
 COPY package.json package-lock.json* ./
-RUN --mount=type=cache,id=hfwas-npm,target=/root/.npm \
-    npm ci --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 
 COPY . .
 RUN npm run build

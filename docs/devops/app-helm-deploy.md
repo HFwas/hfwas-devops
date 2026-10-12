@@ -1,7 +1,7 @@
 # 应用镜像构建与 Helm 升级
 
 > 日期：2026-10-12
-> 版本：v0.3
+> 版本：v0.4
 
 ### 变更记录
 
@@ -10,6 +10,7 @@
 | v0.1 | 2026-09-13 | 初版：把原先手工 docker build + helm upgrade 收成 `deploy-app` 脚本 |
 | v0.2 | 2026-10-01 | 构建命令改为 `deploy/docker/backend/Dockerfile` |
 | v0.3 | 2026-10-12 | 增加推送到阿里云杭州仓库 `dkyy` 的 `scripts/push-aliyun.sh` |
+| v0.4 | 2026-10-12 | 无 buildx 时回退 legacy builder；Dockerfile 去掉 BuildKit `--mount` |
 
 ---
 
@@ -100,6 +101,19 @@ Windows：
 
 `docker build` 使用 `--pull=false`，复用本机已有基础镜像，不强制拉外网。
 
+Homebrew `docker` + Colima 常常没有 `buildx`。此时若 `DOCKER_BUILDKIT=1`，会报
+`buildx component is missing`。`deploy-app.sh` / `push-aliyun.sh` 会探测 `docker buildx`：
+有则用 BuildKit，无则自动 `DOCKER_BUILDKIT=0`（legacy builder）。也可显式设置。
+
+可选安装 buildx（之后脚本会优先用 BuildKit）：
+
+```bash
+brew install docker-buildx
+mkdir -p ~/.docker/cli-plugins
+ln -sfn "$(brew --prefix)/opt/docker-buildx/bin/docker-buildx" ~/.docker/cli-plugins/docker-buildx
+docker buildx version
+```
+
 ## 4. 验证
 
 ```bash
@@ -130,3 +144,6 @@ ALIYUN_IMAGE_BACKEND=code-api ./scripts/push-aliyun.sh backend 1.2.0
 ```
 
 未设置密码时，脚本会在终端询问。设 `SKIP_LATEST=1` 则不额外推 `:latest`。
+
+若构建报 `BuildKit is enabled but the buildx component is missing`：脚本已自动回退；
+也可 `DOCKER_BUILDKIT=0 ./scripts/push-aliyun.sh all`，或按上面安装 buildx。

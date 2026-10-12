@@ -41,6 +41,27 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "未找到命令: $1"
 }
 
+# Homebrew docker + Colima 常缺 buildx；未设置时有 buildx 用 1，否则 0。
+configure_docker_builder() {
+  local has_buildx=0
+  if docker buildx version >/dev/null 2>&1; then
+    has_buildx=1
+  fi
+  if [ -n "${DOCKER_BUILDKIT+x}" ]; then
+    if [ "$DOCKER_BUILDKIT" = "1" ] && [ "$has_buildx" != "1" ]; then
+      die "DOCKER_BUILDKIT=1 但本机没有可用的 docker buildx。安装 docker-buildx，或改用 DOCKER_BUILDKIT=0"
+    fi
+    export DOCKER_BUILDKIT
+    return
+  fi
+  if [ "$has_buildx" = "1" ]; then
+    export DOCKER_BUILDKIT=1
+  else
+    export DOCKER_BUILDKIT=0
+    log "本机无 buildx，回退 legacy builder（DOCKER_BUILDKIT=0）"
+  fi
+}
+
 # 访问集群 / 本机 NodePort 不要走代理
 clear_cluster_proxy() {
   unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy || true
@@ -200,6 +221,7 @@ run_build() {
   local target=$1
   local tag=$2
   require_cmd docker
+  configure_docker_builder
   case "$target" in
     backend) build_backend "$tag" ;;
     frontend) build_frontend "$tag" ;;
