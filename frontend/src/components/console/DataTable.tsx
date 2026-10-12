@@ -11,8 +11,8 @@ export interface DataTableColumn<T> {
 }
 
 /**
- * 紧凑资源表。表头 h-10 / bg-muted / px-2，单元格 p-2，外框 rounded-lg border。
- * 已有行时加载只降低透明度，避免整表闪白。
+ * 紧凑资源表。表头 h-10 / bg-muted / px-2，单元格 p-2 tabular-nums，外框 rounded-lg border。
+ * 数字列不必再各自加 tabular-nums。已有行时加载只降低透明度，避免整表闪白。
  */
 export function DataTable<T>({
   columns,
@@ -96,7 +96,7 @@ export function DataTable<T>({
                 }
               >
                 {columns.map((column) => (
-                  <TableCell key={column.id} className={cn('p-2', column.className)}>
+                  <TableCell key={column.id} className={cn('p-2 tabular-nums', column.className)}>
                     {column.cell(row)}
                   </TableCell>
                 ))}

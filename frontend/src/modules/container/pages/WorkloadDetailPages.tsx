@@ -37,6 +37,7 @@ import { WorkloadEnvPanel } from '@/modules/container/components/WorkloadEnvPane
 import { WorkloadPodsPanel } from '@/modules/container/components/WorkloadPodsPanel'
 import { WorkloadVolumePanel } from '@/modules/container/components/WorkloadVolumePanel'
 import { NodeMonitor, PodMonitor } from '@/modules/container/components/ResourceMonitors'
+import { RequestLimitCell } from '@/modules/container/components/RequestLimitCell'
 import { formatBytes } from '@/modules/container/utils/format'
 import {
   deploymentAvailability,
@@ -155,8 +156,8 @@ function RecordList({ record }: { record?: Record<string, string> | null }) {
     <dl className="grid grid-cols-[minmax(0,10rem)_1fr] gap-x-3 gap-y-2 text-sm">
       {entries.map(([key, value]) => (
         <div key={key} className="contents">
-          <dt className="truncate text-muted-foreground">{key}</dt>
-          <dd className="truncate">{value}</dd>
+          <dt className="truncate text-xs text-muted-foreground">{key}</dt>
+          <dd className="truncate tabular-nums">{value}</dd>
         </div>
       ))}
     </dl>
@@ -451,8 +452,8 @@ export function DeploymentDetailPage() {
             columns={[
               { id: 'name', header: '容器', cell: (row) => row.name },
               { id: 'image', header: '镜像', cell: (row) => row.image },
-              { id: 'cpu', header: 'CPU', cell: (row) => `${row.cpuRequest || '—'} / ${row.cpuLimit || '—'}` },
-              { id: 'mem', header: '内存', cell: (row) => `${row.memRequest || '—'} / ${row.memLimit || '—'}` },
+              { id: 'cpu', header: 'CPU', cell: (row) => <RequestLimitCell request={row.cpuRequest} limit={row.cpuLimit} /> },
+              { id: 'mem', header: '内存', cell: (row) => <RequestLimitCell request={row.memRequest} limit={row.memLimit} /> },
             ]}
             data={item?.containers ?? []}
             getRowId={(row) => row.name}

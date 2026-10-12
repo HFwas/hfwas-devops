@@ -16,8 +16,13 @@ export function OverviewMetricCards({ items }: { items: MetricItem[] }) {
     <div data-slot="overview-metric-cards" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       {items.map((item) => (
         <div key={item.label} className="min-w-0 overflow-hidden rounded-lg border bg-card px-4 py-3 shadow-sm">
-          <div className="text-sm text-muted-foreground">{item.label}</div>
-          <div className={cn('mt-2 min-w-0', item.emphasis ? 'text-2xl font-bold tracking-tight' : 'text-base font-semibold')}>
+          <div className="text-xs text-muted-foreground">{item.label}</div>
+          <div
+            className={cn(
+              'mt-2 min-w-0 tabular-nums',
+              item.emphasis ? 'text-2xl font-bold tracking-tight' : 'text-base font-semibold',
+            )}
+          >
             {item.value}
           </div>
           {item.hint ? <div className="mt-1 text-xs text-muted-foreground">{item.hint}</div> : null}
@@ -61,7 +66,7 @@ export function InfoGrid({ rows }: { rows: { label: string; value: ReactNode }[]
     <dl className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-3 gap-y-3 text-sm">
       {rows.map((row) => (
         <div key={row.label} className="contents">
-          <dt className="pt-0.5 text-muted-foreground">{row.label}</dt>
+          <dt className="pt-0.5 text-xs text-muted-foreground">{row.label}</dt>
           <dd className="min-w-0">{row.value == null || row.value === '' ? '—' : row.value}</dd>
         </div>
       ))}
@@ -78,7 +83,7 @@ export function InfoPairs({ rows }: { rows: { label: string; value: ReactNode; s
           key={row.label}
           className={cn('grid grid-cols-[7.5rem_minmax(0,1fr)] items-start gap-x-3', row.span && 'md:col-span-2')}
         >
-          <dt className="pt-0.5 text-muted-foreground">{row.label}</dt>
+          <dt className="pt-0.5 text-xs text-muted-foreground">{row.label}</dt>
           <dd className="min-w-0">{row.value == null || row.value === '' ? '—' : row.value}</dd>
         </div>
       ))}

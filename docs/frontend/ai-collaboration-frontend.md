@@ -1,8 +1,9 @@
 # AI 协作前端规范
 
-> 日期：2026-10-07
-> 版本：v0.4
+> 日期：2026-10-12
+> 版本：v0.5
 > 状态：强制。Agent 写前端代码前必须遵守；执行摘要在 `AGENTS.md`「前端」一节。
+> 视觉真相：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.8；落地范围：[frontend-style-unification-plan.md](./frontend-style-unification-plan.md) v0.10；组件用法：[shared-ui-patterns.md](./shared-ui-patterns.md)
 
 ### 变更记录
 
@@ -12,6 +13,7 @@
 | v0.2 | 2026-10-01 | `frontend/` 破坏性改为 React 轨，取消 Vue 轨道 |
 | v0.3 | 2026-10-07 | 新 UI 必须使用全局 CSS 变量与共享 token；主色为冷蓝；禁止模块私有主题 |
 | v0.4 | 2026-10-07 | 新列表/详情/状态/日志必须用 `components/console` 共享模式，禁止私有表格皮肤 |
+| v0.5 | 2026-10-12 | 强制指向样式规范 v0.8 与统一 Plan：token、`components/console`、禁止硬编码色和私有表格皮肤；补 tabular-nums 与信息层级 |
 
 ---
 
@@ -62,13 +64,13 @@ React 19 + TypeScript + Vite
 1. 用 `npx shadcn@latest init` 初始化，组件用 `npx shadcn@latest add <name>` 安装。安装后的源码提交进仓库，Agent 直接改这些文件。
 2. 保留 `components.json`。改组件前先读它，确认别名、图标库、已安装组件和 Tailwind 版本。
 3. 样式只写 Tailwind 工具类，颜色、圆角、字体、暗色只改全局 CSS 变量（`@theme` / `:root` / `.dark`）。业务组件引用 `bg-background`、`text-foreground`、`bg-primary` 这类语义色，不写死十六进制颜色。
-4. 新 UI 必须使用全站共享 token，禁止为单个模块另起 `:root`、私有品牌色或第二套主题。主色是冷蓝：亮色 `--primary: oklch(0.55 0.22 235)`，暗色 `--primary: oklch(0.65 0.18 235)`，`--ring` 同色相。基准圆角 `--radius: 0.5rem`。规范见 `docs/frontend/kite-frontend-style-guide.md`。
+4. 新 UI 必须使用全站共享 token，禁止为单个模块另起 `:root`、私有品牌色或第二套主题。主色是冷蓝：亮色 `--primary: oklch(0.55 0.22 235)`，暗色 `--primary: oklch(0.65 0.18 235)`，`--ring` 同色相。基准圆角 `--radius: 0.5rem`。颜色只写语义 token（`bg-background`、`text-muted-foreground`、`bg-primary`、`border-border`），禁止在业务页写死十六进制或随意的 `bg-blue-*` / `bg-orange-*`。默认正文字体是系统 sans，不要改 `--app-font-sans`，不要把整站改成 Maple Mono，不要默认打开 95% display-scale。视觉以 `docs/frontend/kite-frontend-style-guide.md` 为准，节奏以 `docs/frontend/frontend-style-unification-plan.md` 为准。
 5. 新按钮、输入框、对话框、下拉菜单从 `src/components/ui` 组合而来。禁止平行手写一套同名基础组件。
 6. 图标只用 Lucide（与 `components.json` 的 icon library 一致）。
 7. 接口数据用 TanStack Query。校验与表单 schema 用 Zod。
 8. TypeScript 打开严格模式。生成代码后以类型检查结果为准再改。
 9. 仓库内放置 `components.json`；若使用 Cursor / Claude，安装官方 shadcn skill，使 Agent 读取项目里的真实组件而不是猜 API。
-10. 列表、详情、状态、日志用 `frontend/src/components/console/` 的 `PageHeader`、`DataTable`、`StatusIcon`、`DetailShell`、`LogPanel` / `TerminalChrome`。禁止再写私有表格密度或另一套状态色。用法见 `docs/frontend/shared-ui-patterns.md`。
+10. 列表、详情、状态、日志、指标和用量条用 `frontend/src/components/console/` 的 `PageHeader`、`DataTable`、`StatusIcon`、`DetailShell`、`OverviewMetricCards`、`UsageBar`、`LogPanel` / `TerminalChrome`。禁止再写私有表格密度、私有 Table 皮肤或另一套状态色。`DataTable` 单元格自带 `tabular-nums`；指标名和字段名用 `text-xs text-muted-foreground`，数字保持 semibold 或指标卡上的强调粗体。用法见 `docs/frontend/shared-ui-patterns.md`。
 
 ### 3.3 目录
 
@@ -97,9 +99,10 @@ components.json
 - 禁止 Vue，以及 Element Plus、Ant Design、naive-ui 等封闭组件库。
 - 禁止 CSS-in-JS（styled-components、Emotion）和除 Tailwind 以外的第二套原子化 CSS。
 - 禁止把基础组件封进私有运行时黑盒。视觉定制改仓库里的组件源码和 CSS 变量。
-- 禁止在业务代码里堆裸十六进制颜色和各写各的间距。先用全局主题 token。
-- 禁止私有表格皮肤、私有状态色和另一套详情 Tab 壳。用 `components/console` 里的共享模式。
+- 禁止在业务代码里堆裸十六进制颜色和各写各的间距。先用全局主题 token。业务页不要写 `#hex`，也不要写 `bg-blue-500` 这类非状态字典的色阶来充当主色或用量色。
+- 禁止私有表格皮肤、私有状态色和另一套详情 Tab 壳。用 `components/console` 里的共享模式。新列表走 `DataTable`，不要再包一层自己的 `Table` 密度。
 - 禁止模块私有主题（独立 `--primary`、硬编码品牌色、第二套 `:root`）。全站只消费共享 token，主色为冷蓝。
+- 信息层级固定：标签 `text-xs text-muted-foreground`，数值 `tabular-nums`（指标强调 `text-2xl font-bold`，其余保持 semibold），标识 `font-mono text-xs`。用量条用 `UsageBar`，不要在业务页再画一条进度条。
 - 交付运维平台是独立产品，界面禁止落到本仓库 `frontend/`（见 `AGENTS.md`）。
 
 ## 6. Agent 动手前

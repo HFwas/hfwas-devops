@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
+import { OverviewMetricCards } from '@/components/console/ResourceOverview'
 import { PageHeader } from '@/components/console/PageHeader'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -48,15 +49,17 @@ export function ClusterDetailPage() {
         }
       />
       {stats.isError && <p className="text-sm text-destructive">统计信息加载失败</p>}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="节点" value={numbers?.nodeCount} />
-        <Stat label="命名空间" value={numbers?.namespaceCount} />
-        <Stat label="Pod" value={numbers?.podCount} />
-        <Stat label="Deployment" value={numbers?.deploymentCount} />
-        <Stat label="Service" value={numbers?.serviceCount} />
-        <Stat label="CPU" value={numbers ? formatCpu(numbers.cpuTotal) : '—'} />
-        <Stat label="内存" value={numbers ? formatBytes(numbers.memoryTotal) : '—'} />
-      </div>
+      <OverviewMetricCards
+        items={[
+          { label: '节点', value: numbers?.nodeCount ?? '—', emphasis: true },
+          { label: '命名空间', value: numbers?.namespaceCount ?? '—', emphasis: true },
+          { label: 'Pod', value: numbers?.podCount ?? '—', emphasis: true },
+          { label: 'Deployment', value: numbers?.deploymentCount ?? '—', emphasis: true },
+          { label: 'Service', value: numbers?.serviceCount ?? '—', emphasis: true },
+          { label: 'CPU', value: numbers ? formatCpu(numbers.cpuTotal) : '—', emphasis: true },
+          { label: '内存', value: numbers ? formatBytes(numbers.memoryTotal) : '—', emphasis: true },
+        ]}
+      />
       <ClusterMonitor clusterId={clusterId} />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {links.map(([path, label]) => (
@@ -74,13 +77,3 @@ export function ClusterDetailPage() {
   )
 }
 
-function Stat({ label, value }: { label: string; value?: number | string }) {
-  return (
-    <Card>
-      <CardHeader className="p-4">
-        <CardDescription>{label}</CardDescription>
-        <CardTitle>{value ?? '—'}</CardTitle>
-      </CardHeader>
-    </Card>
-  )
-}

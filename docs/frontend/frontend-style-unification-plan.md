@@ -1,8 +1,8 @@
 # 前端样式统一落地 Plan（参照 Kite，全产品共用）
 
 > 日期：2026-10-12
-> 版本：v0.9
-> 关联规范：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.7
+> 版本：v0.10
+> 关联规范：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.8
 > 目标仓库：[HFwas/hfwas-devops](https://github.com/HFwas/hfwas-devops)（`frontend/`，默认分支 `dev`）
 > 目标：全站统一视觉与交互语言（token / 壳层 / 列表 / 详情 / 状态 / 日志终端），各业务模块共用，不限于容器
 
@@ -19,6 +19,7 @@
 | v0.7 | 2026-10-07 | Phase 4：各产品再接一处列表和详情（事项、运行记录、Pod、接口、工作台与用户） |
 | v0.8 | 2026-10-07 | Phase 5：凭证、任务市场、节点与其余工作负载、仓库镜像、集合与环境、调试工作台、PM 看板外围已换共享壳；画布与内联编辑器延期 |
 | v0.9 | 2026-10-12 | 关联规范改为 v0.7。主色维持冷蓝；字体与密度以规范为准（系统 sans 为推荐默认，整站 maple / 95% 仅可选档） |
+| v0.10 | 2026-10-12 | Phase 6：指标卡、tabular-nums、用量条已进共享组件；协作规范、Cursor 规则与视觉回归清单已补。画布与趋势图仍延期。默认字体仍是系统 sans |
 
 ---
 
@@ -27,7 +28,7 @@
 ### 1.1 现状
 
 - 栈已对齐方向：React 19 + Vite + Tailwind 4 + Radix/shadcn + lucide。
-- 开工时视觉与密度不统一：圆角/主色与 kite 不一致；缺完整 sidebar token；各业务页观感偏散。Phase 1 起 token 已对齐，见第 8 节。字体和显示密度的剩余差异以规范 v0.7 为准。
+- 开工时视觉与密度不统一：圆角/主色与 kite 不一致；缺完整 sidebar token；各业务页观感偏散。Phase 1 起 token 已对齐，见第 8 节。字体和显示密度以规范 v0.8 为准。默认正文是系统 sans。
 - 用户要求：**全产品共用一套规范**，以 [kite-org/kite](https://github.com/kite-org/kite) 为主要参照。
 
 ### 1.2 成功标准
@@ -53,7 +54,7 @@
 
 1. **先基建，后铺开**：token → 壳 → 共享模式 → 跨模块试点 → 全量换皮。
 2. **学模式不抄仓库**：对齐 token 与交互；业务代码自写；大段粘贴需 Apache-2.0 合规。
-3. **主色全站唯一**：冷蓝 hue 235，已锁定，见规范 v0.7。模块不得私自改 hue。字体与密度也以该规范为准：推荐默认是系统 sans，Maple Mono 用于代码区；kite 的整站 maple 与 95% display-scale 只作为可选密度档，不改当前默认。
+3. **主色全站唯一**：冷蓝 hue 235，已锁定，见规范 v0.8。模块不得私自改 hue。字体与密度也以该规范为准：推荐默认是系统 sans，Maple Mono 用于代码区；kite 的整站 maple 与 95% display-scale 只作为可选密度档，不改当前默认。
 4. **增量可回滚**：每阶段独立 PR；先暗色/亮色与壳，再单页，避免巨型 PR。
 5. **对照规范文档**：实现以 `kite-frontend-style-guide.md` 为准，本 Plan 管节奏与范围。
 
@@ -66,7 +67,7 @@
 | 主色 | 对齐 kite 冷蓝：`--primary: oklch(0.55 0.22 235)`（亮）/ `oklch(0.65 0.18 235)`（暗）；`--ring` 同色相 |
 | 壳层范围 | **全站立刻侧栏化**（Phase 2 全站 AppShell inset sidebar） |
 | 落地方式 | **Cloud Agent 按阶段开 PR**（基于 `dev`） |
-| 字体与密度 | 规范 v0.7（2026-10-12）：推荐默认系统 sans + 代码区 Maple Mono；整站 maple 与 95% display-scale 只作可选档 |
+| 字体与密度 | 规范 v0.8：推荐默认系统 sans + 代码区 Maple Mono；整站 maple 与 95% display-scale 只作可选档 |
 
 后续阶段以本表为准，不再二次确认除非你改口。
 
@@ -208,10 +209,28 @@ Phase 3 已覆盖项目列表、流水线列表、集群列表、Deployment 详�
 
 | 事项 | 动作 |
 |------|------|
-| 规范升版 | 已到 v0.7：字体默认、tabular-nums、可选密度档写入规范。Phase 6 做视觉回归；不在本 Plan 把默认字体改成 maple |
-| AI/协作约束 | 更新 `docs/frontend/ai-collaboration-frontend.md`：强制用共享组件与 token |
-| Cursor rules（可选） | `.cursor/rules` 增加「禁止业务页硬编码色 / 禁止私有 Table 皮肤」 |
-| 视觉回归清单 | 登录、工作台、PM、流水线、容器、API 测试各 3 个关键屏 |
+| 规范升版 | 规范 v0.8：字体默认仍是系统 sans。本阶段把指标卡 `text-xs`、数字 `tabular-nums`、`UsageBar` 写进组件。不把默认字体改成 maple，不打开 95% display-scale |
+| 组件 | `OverviewMetricCards` / `InfoGrid` / `InfoPairs` 标签收到 `text-xs`；`DataTable` 单元格默认 `tabular-nums`；`UsageBar` 画已有的请求/上限，不新造监控页 |
+| AI/协作约束 | `docs/frontend/ai-collaboration-frontend.md` v0.5：强制 token、`components/console`、禁止硬编码色与私有表格皮肤 |
+| Cursor rules | `.cursor/rules/frontend-console-style.mdc` |
+| 视觉回归清单 | `docs/frontend/visual-regression-checklist.md`。登录、工作台、PM、流水线、容器、API 测试各 3 个关键屏。手测留给可登录环境 |
+
+**验收：**
+
+- [x] 指标卡标签 `text-xs text-muted-foreground`，数值 `tabular-nums`（强调态保持 `text-2xl font-bold`，其余 `font-semibold`）
+- [x] `DataTable` 在共享层补 `tabular-nums`，业务页不必逐列再写
+- [x] `UsageBar` 轨道 `h-2`，Requests 蓝 / Limits 橙，超过 60% 黄、超过 90% 红。Deployment 容器列沿用原来的「请求 / 上限」文本
+- [x] 协作规范与 Cursor 规则指向本 Plan 和样式规范
+- [x] 视觉回归清单已列出关键屏，并标明手测外置
+- [ ] 清单中的屏在可登录环境手测（本阶段不代跑）
+
+**本阶段不做（延期说明保留）：**
+
+- PM 工作流画布、流水线 DAG、Argo 工作流画布
+- 容器环境变量、挂载卷的行内编辑
+- 图片裁剪画布；文档生成的批量规格与加密
+- 文件解析历史（没有历史列表接口）
+- 项目监控趋势图，以及集群监控里的 ECharts 趋势图（不改成用量条，也不重做图表）
 
 ---
 
@@ -259,7 +278,7 @@ Phase 3 已覆盖项目列表、流水线列表、集群列表、Deployment 详�
 4. ~~Phase 3~~ 共享模式在 `frontend/src/components/console/`：`DataTable`、`StatusIcon` + `status.ts`、`PageHeader`、`DetailShell`、`LogPanel` / `TerminalChrome`。说明见 `docs/frontend/shared-ui-patterns.md`。试点：PM 项目列表、流水线列表、容器集群列表、Deployment 详情、Pod 日志与终端外壳。日志外壳不改 WebSocket 协议。
 5. ~~Phase 4~~ 各产品再接一处列表和详情：PM 事项列表与详情、流水线运行记录与运行详情（`LogPanel`）、容器 Pod 列表与 StatefulSet 详情、API 测试接口列表与详情、工作台卡片密度、用户列表与账号设置。页面清单见 `shared-ui-patterns.md`。看板 / DAG 未进 `DataTable`。
 6. ~~Phase 5~~ 其余高流量页已换共享壳：流水线凭证与任务市场，容器节点 / 其余工作负载 / 仓库 / 镜像，API 集合、环境与调试工作台（`LogPanel`），PM 看板外围与工作流表，文件解析 / 文档生成 / 图片记录。页面见 `shared-ui-patterns.md`。看板和 DAG 没有进 `DataTable`。
-7. **下一步：Phase 6** 收尾。延期项：工作流 / 流水线 / Argo 画布，环境变量与挂载卷行内编辑，图片裁剪，文档批量规格，文件解析历史，项目监控趋势图。视觉约定以规范 v0.7 为准（系统 sans 为推荐默认）。指标卡 `text-xs` 标签、数字列 `tabular-nums`、用量条仍待组件落地，不在本 Plan 里改默认字体。
+7. ~~Phase 6~~ 收尾已完成。指标卡标签 `text-xs`、数值与 `DataTable` 的 `tabular-nums`、`UsageBar` 已进共享组件。协作规范 v0.5、`.cursor/rules/frontend-console-style.mdc`、视觉回归清单已补。默认字体仍是系统 sans，95% display-scale 未打开。手测清单留给可登录环境。延期项不在本阶段重写：工作流 / 流水线 / Argo 画布，环境变量与挂载卷行内编辑，图片裁剪，文档批量规格，文件解析历史，项目监控与集群监控趋势图。
 
 ---
 
