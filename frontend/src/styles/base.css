@@ -106,6 +106,11 @@ samp {
   font-family: var(--font-mono) !important;
 }
 
+/* 名称里中英混排：拉丁走 Maple Mono，汉字回退系统无衬线。不要拿它替换全站正文。 */
+.font-console {
+  font-family: "Maple Mono", var(--font-sans);
+}
+
 /* xterm draws on canvas from options.fontFamily. This covers the DOM shell; PodShell reads --font-mono. */
 .xterm {
   font-family: var(--font-mono);

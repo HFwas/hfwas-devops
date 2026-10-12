@@ -222,7 +222,7 @@ export function PipelineEditorPage() {
   if (pipelineId && !ready) return <p className="text-sm text-muted-foreground">加载中…</p>
 
   return (
-    <div className="flex h-[calc(100svh-var(--header-height)-2rem)] min-h-[640px] flex-col overflow-hidden rounded-lg border bg-background">
+    <div className="flex h-[calc(100svh-var(--header-height)-2rem)] min-h-[640px] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
         <div className="text-sm font-medium">{pipelineId ? '编辑流水线' : '新建流水线'}</div>
         <div className="flex items-center gap-2">
@@ -261,7 +261,7 @@ export function PipelineEditorPage() {
             aria-label="名称"
             value={draft.name}
             placeholder="后端发布"
-            className="h-8"
+            className="h-8 font-console text-sm"
             onChange={(event) => setDraft({ ...draft, name: event.target.value })}
           />
         </Field>
@@ -270,7 +270,7 @@ export function PipelineEditorPage() {
             aria-label="仓库"
             value={draft.repoUrl}
             placeholder="https://github.com/org/repo.git"
-            className="h-8"
+            className="h-8 font-mono text-xs"
             onChange={(event) => setDraft({ ...draft, repoUrl: event.target.value })}
           />
         </Field>
@@ -279,7 +279,7 @@ export function PipelineEditorPage() {
             aria-label="分支"
             value={draft.gitRef}
             placeholder="main"
-            className="h-8"
+            className="h-8 font-mono text-xs"
             onChange={(event) => setDraft({ ...draft, gitRef: event.target.value })}
           />
         </Field>
@@ -534,7 +534,7 @@ function Lanes({
               <div
                 data-slot="pipeline-stage"
                 className={cn(
-                  'flex w-60 shrink-0 flex-col rounded-lg border bg-background',
+                  'flex w-60 shrink-0 flex-col rounded-lg border bg-card shadow-sm',
                   targetStageKey === stage.clientKey && 'border-primary ring-2 ring-primary/20',
                 )}
                 onDragOver={(event) => event.preventDefault()}
@@ -550,7 +550,7 @@ function Lanes({
                   <input
                     aria-label={`阶段 ${index + 1} 名称`}
                     value={stage.name}
-                    className="h-7 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-sm font-medium outline-none hover:border-input focus:border-input"
+                    className="h-7 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 font-console text-sm font-medium outline-none hover:border-input focus:border-input"
                     onChange={(event) => onRenameStage(stage.clientKey, event.target.value)}
                   />
                   <IconButton label="左移阶段" disabled={index === 0} onClick={() => onMoveStage(stage.clientKey, -1)}>
@@ -583,7 +583,7 @@ function Lanes({
                           if (raw.startsWith('job:')) onMoveJobBefore(raw.slice(4), stage.clientKey, jobIndex)
                         }}
                         className={cn(
-                          'rounded-lg border bg-card shadow-xs',
+                          'rounded-lg border bg-background shadow-sm',
                           selectedJobKey === job.clientKey && 'border-primary ring-2 ring-primary/30',
                         )}
                       >
@@ -597,8 +597,8 @@ function Lanes({
                           >
                             <JobKindIcon kind={job.kind} className="mt-0.5 size-4 shrink-0 text-primary" />
                             <span className="min-w-0">
-                              <span className="block truncate text-sm font-medium">{job.name}</span>
-                              <span className="block text-xs text-muted-foreground">{job.kind}</span>
+                              <span className="block truncate font-console text-sm font-medium tracking-tight">{job.name}</span>
+                              <span className="block font-mono text-xs text-muted-foreground">{job.kind}</span>
                               {runJob && (
                                 <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                                   <StatusIcon status={runJob.status} showLabel={false} />

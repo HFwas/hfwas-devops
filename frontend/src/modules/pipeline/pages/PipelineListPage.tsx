@@ -56,7 +56,13 @@ export function PipelineListPage() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="流水线"
-        description={query.isSuccess ? `共 ${narrowed ? rows.length : total} 条流水线` : '查看流水线与最近一次运行'}
+        description={
+          query.isSuccess ? (
+            <span className="tabular-nums">共 {narrowed ? rows.length : total} 条流水线</span>
+          ) : (
+            '查看流水线与最近一次运行'
+          )
+        }
         actions={
           <>
             <Input
@@ -75,7 +81,11 @@ export function PipelineListPage() {
           </>
         }
       />
-      <div role="group" aria-label="按最近运行筛选" className="flex flex-wrap gap-1">
+      <div
+        role="group"
+        aria-label="按最近运行筛选"
+        className="flex w-fit flex-wrap gap-1 rounded-lg border bg-card p-1 shadow-sm"
+      >
         {STATUS_FILTERS.map((filter) => {
           const selected = statusFilter === filter.id
           return (
@@ -84,7 +94,7 @@ export function PipelineListPage() {
               type="button"
               aria-pressed={selected}
               className={cn(
-                'h-8 rounded-md px-3 text-sm',
+                'h-7 rounded-md px-2.5 text-xs',
                 selected ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted/60',
               )}
               onClick={() => setStatusFilter(filter.id)}
@@ -100,11 +110,14 @@ export function PipelineListPage() {
           {
             id: 'name',
             header: '流水线名称',
-            className: 'py-3 align-top whitespace-normal',
+            className: 'align-top whitespace-normal',
             headClassName: 'w-[28%]',
             cell: (row) => (
-              <div className="flex min-w-0 flex-col gap-1 py-1">
-                <Link className="font-medium text-primary hover:underline" to={`/pipeline/pipelines/${row.id}`}>
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <Link
+                  className="truncate font-console text-sm font-medium tracking-tight text-primary hover:underline"
+                  to={`/pipeline/pipelines/${row.id}`}
+                >
                   {row.name}
                 </Link>
                 <span className="line-clamp-2 text-xs text-muted-foreground">{pipelineBlurb(row)}</span>
@@ -114,10 +127,10 @@ export function PipelineListPage() {
           {
             id: 'repo',
             header: '仓库 / 分支',
-            className: 'py-3 align-top whitespace-normal',
+            className: 'align-top whitespace-normal',
             headClassName: 'w-[24%]',
             cell: (row) => (
-              <div className="flex flex-col gap-1 py-1 text-sm">
+              <div className="flex flex-col gap-0.5 font-mono text-xs">
                 <span className="inline-flex min-w-0 items-center gap-1.5">
                   <FolderGit2 className="size-3.5 shrink-0 text-muted-foreground" />
                   <span className="truncate">{repoShortName(row.repoUrl)}</span>
@@ -132,46 +145,46 @@ export function PipelineListPage() {
           {
             id: 'stages',
             header: '阶段预览',
-            className: 'py-3 align-middle',
+            className: 'align-middle',
             headClassName: 'w-[16%]',
             cell: (row) => <StagePreview row={row} />,
           },
           {
             id: 'status',
             header: '最近运行',
-            className: 'py-3 align-top whitespace-normal',
+            className: 'align-top whitespace-normal',
             cell: (row) =>
               row.lastRunId ? (
-                <Link className="flex flex-col gap-1 py-1" to={`/pipeline/pipelines/${row.id}/runs/${row.lastRunId}`}>
+                <Link className="flex flex-col gap-0.5" to={`/pipeline/pipelines/${row.id}/runs/${row.lastRunId}`}>
                   <StatusIcon status={row.lastRunStatus} label={runStatusLabel(row.lastRunStatus)} />
-                  <span className="text-xs text-muted-foreground">{formatRelativeTime(row.lastRunTime)}</span>
+                  <span className="font-mono text-xs text-muted-foreground tabular-nums">{formatRelativeTime(row.lastRunTime)}</span>
                 </Link>
               ) : (
-                <div className="flex flex-col gap-1 py-1">
+                <div className="flex flex-col gap-0.5">
                   <StatusIcon status={row.lastRunStatus} label={runStatusLabel(row.lastRunStatus)} />
-                  <span className="text-xs text-muted-foreground">{formatRelativeTime(row.lastRunTime)}</span>
+                  <span className="font-mono text-xs text-muted-foreground tabular-nums">{formatRelativeTime(row.lastRunTime)}</span>
                 </div>
               ),
           },
           {
             id: 'actions',
             header: '操作',
-            className: 'py-3 align-middle whitespace-normal',
-            headClassName: 'w-[300px]',
+            className: 'align-middle whitespace-normal',
+            headClassName: 'w-[220px]',
             cell: (row) => (
-              <div className="flex flex-wrap items-center gap-1">
+              <div className="flex flex-wrap items-center gap-0.5">
                 <StartRunButton pipelineId={row.id} />
-                <Button variant="outline" size="sm" asChild>
+                <Button variant="ghost" size="sm" asChild>
                   <Link to={`/pipeline/pipelines/${row.id}/edit`}>
                     <Pencil />
                     编辑
                   </Link>
                 </Button>
-                <Button variant="outline" size="sm" asChild>
+                <Button variant="ghost" size="sm" asChild>
                   <Link to={`/pipeline/pipelines/${row.id}/history`}>历史</Link>
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   aria-label={`删除${row.name}`}
                   onClick={() => {
@@ -210,13 +223,18 @@ function StagePreview({ row }: { row: PipelineSummary }) {
   }
   const dots = stages.length > 0 ? stages : [{ id: 'run', name: '' }]
   return (
-    <span className="inline-flex items-center gap-1.5" title={runStatusLabel(row.lastRunStatus)}>
+    <span className="inline-flex flex-wrap items-center gap-1" title={runStatusLabel(row.lastRunStatus)}>
       {dots.slice(0, 8).map((stage, index) => (
         <span
           key={String(stage.id ?? index)}
-          data-slot="stage-dot"
-          className={cn('size-2.5 rounded-full', STATUS_DOT_CLASS[tone], tone === 'progress' && 'animate-pulse')}
-        />
+          className="inline-flex max-w-28 items-center gap-1 rounded-md border bg-card px-1.5 py-0.5 shadow-sm"
+        >
+          <span
+            data-slot="stage-dot"
+            className={cn('size-1.5 shrink-0 rounded-full', STATUS_DOT_CLASS[tone], tone === 'progress' && 'animate-pulse')}
+          />
+          {stage.name ? <span className="truncate font-console text-xs leading-4">{stage.name}</span> : null}
+        </span>
       ))}
     </span>
   )
