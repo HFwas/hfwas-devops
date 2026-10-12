@@ -208,7 +208,7 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   return (
     <div className="flex flex-col gap-1 rounded-md border px-3 py-2">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="truncate text-sm">{value?.trim() ? value : '—'}</span>
+      <span className="truncate text-sm tabular-nums">{value?.trim() ? value : '—'}</span>
     </div>
   )
 }

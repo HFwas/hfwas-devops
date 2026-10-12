@@ -46,6 +46,7 @@ describe('shared console patterns', () => {
     expect(head?.className).toContain('bg-muted')
     expect(head?.className).not.toMatch(/\bpx-3\b/)
     expect(cell?.className).toContain('p-2')
+    expect(cell?.className).toContain('tabular-nums')
     expect(cell?.textContent).toBe('demo')
     expect(container.querySelector('table')?.parentElement?.className).toContain('rounded-lg')
 
@@ -139,6 +140,15 @@ describe('shared console patterns', () => {
     expect(cards?.textContent).toContain('状态')
     expect(cards?.textContent).toContain('期望')
     expect(tabs?.compareDocumentPosition(cards as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    const label = cards?.firstElementChild?.firstElementChild
+    const value = label?.nextElementSibling
+    expect(label?.className).toContain('text-xs')
+    expect(label?.className).toContain('text-muted-foreground')
+    expect(value?.className).toContain('font-semibold')
+    expect(value?.className).toContain('tabular-nums')
+    const emphasis = cards?.children[1]?.children[1]
+    expect(emphasis?.className).toContain('font-bold')
+    expect(emphasis?.className).toContain('tabular-nums')
   })
 
   it('shows the log chrome connection light without owning a socket', () => {

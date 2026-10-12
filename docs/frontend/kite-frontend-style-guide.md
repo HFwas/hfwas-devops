@@ -1,7 +1,7 @@
 # 前端样式规范（参照 Kite，全产品共用）
 
 > 日期：2026-10-12
-> 版本：v0.7
+> 版本：v0.8
 > 来源参照：[kite-org/kite](https://github.com/kite-org/kite)（默认分支 `main`，许可证 Apache-2.0）；产品站 [kitehq.dev](https://kitehq.dev/)
 > 适用范围：**hfwas-devops 全部前端产品面**（工作台、用户中心、PM、流水线/CI、容器平台、API 测试、文档生成、文件解析、图片处理等）
 > 原则：**学规范与模式，不整仓拷贝**。本文是 `frontend/` 视觉的唯一真相。落地节奏见 [frontend-style-unification-plan.md](./frontend-style-unification-plan.md)，组件用法见 [shared-ui-patterns.md](./shared-ui-patterns.md)
@@ -17,6 +17,7 @@
 | v0.5 | 2026-10-07 | 工作负载概览补指标卡和左右栏；状态可用同色圆点 |
 | v0.6 | 2026-10-07 | 指标卡挂在详情 Tab 下；圆点变体的 Running 用成功绿 |
 | v0.7 | 2026-10-12 | 纠正字体：kite 默认整站 Maple Mono，本仓库推荐默认保持系统 sans + 代码区 mono；纳入 tabular-nums，display-scale 95% 只作可选密度档；补齐 token、材质、信息层级与可复制片段，并标明已落地 / 待落地 |
+| v0.8 | 2026-10-12 | Phase 6：指标卡与字段名收到 `text-xs`，数值与 `DataTable` 单元格补 `tabular-nums`；用量条落地为 `UsageBar`。默认字体仍是系统 sans |
 
 ---
 
@@ -125,16 +126,16 @@ JetBrains Mono 留在 `@font-face` 里，供第 3.3 节的可选档使用。不�
 
 ## 4. 密度与数字
 
-### 4.1 `tabular-nums`（纳入，部分待落地）
+### 4.1 `tabular-nums`（已落地）
 
 计数、副本数、容量、百分比、耗时、时间戳、指标卡上的数字使用 `tabular-nums`，避免位数变化时列宽跳动。
 
 | 状态 | 位置 |
 |------|------|
-| 已落地 | `sidebar.tsx` 的侧栏徽标；`podContainerColumns.tsx` 的窄数字列 |
-| 待落地 | `OverviewMetricCards` 的数值；多数 `DataTable` 数字列。调用方先在列上写 `className: 'tabular-nums'` |
+| 已落地 | `sidebar.tsx` 的侧栏徽标；`podContainerColumns.tsx` 的重启列；`OverviewMetricCards` 的数值；`DataTable` 单元格默认带 `tabular-nums` |
+| 调用方 | 不必在每个业务页再写一遍。标识列继续加 `font-mono text-xs` |
 
-`tabular-nums` 只改数字宽度，不改字体族。标识仍然用 `font-mono`。
+`tabular-nums` 只改数字宽度，不改字体族。标识仍然用 `font-mono`。默认正文字体仍是系统 sans。
 
 ### 4.2 显示密度（display-scale 不作为默认）
 
@@ -278,11 +279,11 @@ Tailwind 映射在 `base.css` 的 `@theme inline`：`bg-primary`、`border-borde
 | 空态 | 单元格 `h-40`，`text-sm text-muted-foreground` 居中 |
 | 加载中且已有行 | 容器 `opacity-75` |
 | 标识列 | 列 `className: 'font-mono text-xs'` |
-| 数字列 | 列 `className: 'tabular-nums'`（待各页补齐） |
+| 数字列 | `DataTable` 单元格已带 `tabular-nums`。右对齐时再加 `text-right` |
 
 `components/ui/table.tsx` 的原始单元格是 `px-3 py-2`、行 hover 是 `hover:bg-muted/40`。`DataTable` 会盖住表头和单元格。新列表走 `DataTable`，避免两套密度。
 
-### 6.3 详情（已落地，标签字号待收紧）
+### 6.3 详情（已落地）
 
 - 列表页标题：`PageHeader`，`text-xl font-semibold tracking-tight`，描述 `text-sm text-muted-foreground`。
 - 详情：`DetailShell`。标题 `text-2xl font-bold tracking-tight`，说明 `text-sm text-muted-foreground`。标题行 `sticky top-(--header-height)`，底边 `border-b`，底 `bg-background/95 backdrop-blur`。
@@ -291,11 +292,11 @@ Tailwind 映射在 `base.css` 的 `@theme inline`：`bg-primary`、`border-borde
 - 指标卡挂在 `DetailShell` 的 `metrics` 上，由 `OverviewMetricCards` 渲染。左右栏用 `ResourceOverview`（主栏 + 侧栏 `xl:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.85fr)]`）。
 - 字段表用 `InfoGrid` / `InfoPairs`。镜像用 `ImageList`，标签和选择器用 `PillList`（`font-mono text-xs`）。单行复制用 `EllipsisCopy`。
 
-待落地：`OverviewMetricCards` 的标签仍是 `text-sm`，数值没有 `tabular-nums`。`InfoGrid` / `InfoPairs` 的字段名仍是 `text-sm text-muted-foreground`。收到 `text-xs` 时改这两个组件，不要在每个详情页各写一套。
+`OverviewMetricCards` 的标签是 `text-xs text-muted-foreground`，数值带 `tabular-nums`（强调态 `text-2xl font-bold`，其余 `font-semibold`）。`InfoGrid` / `InfoPairs` 的字段名是 `text-xs text-muted-foreground`。字号只改这两个组件，不要在每个详情页各写一套。
 
-### 6.4 用量条（待落地）
+### 6.4 用量条（已落地）
 
-集群 CPU / 内存这类双条还没有共享组件。需要时再放到 `components/console/`，名字避开第 8 节已有导出。阈值：
+共享组件是 `UsageBar`（`frontend/src/components/console/UsageBar.tsx`）。轨道 `h-2`，不要再做一条更高的进度条。阈值：
 
 | 条 | 低于 60% | 大于 60% | 大于 90% |
 |----|----------|----------|----------|
@@ -303,6 +304,8 @@ Tailwind 映射在 `base.css` 的 `@theme inline`：`bg-primary`、`border-borde
 | Limits | `bg-orange-500` | `bg-yellow-500` | `bg-red-500` |
 
 轨道 `h-2 rounded-full bg-muted`。旁边的核心数、GiB、百分比用 `text-xs tabular-nums`。Limits 的橙色是语义点缀，不是第二主色。
+
+Deployment 容器表的 CPU / 内存列原来就是「请求 / 上限」文本，现由 `RequestLimitCell` 渲染：两边都能解析时，以上限为分母画 **Requests** 条。这一行没有节点容量，不另画一条总会顶满的 Limits 条。`usageFill(..., 'limits')` 的橙色留给已经有容量分母的调用。集群监控趋势图仍延期，不在用量条里重做。
 
 ### 6.5 日志 / 终端 / 等宽区（已落地）
 
@@ -351,7 +354,7 @@ Tailwind 映射在 `base.css` 的 `@theme inline`：`bg-primary`、`border-borde
 
 ### 7.3 指标卡
 
-`OverviewMetricCards` 收紧后的目标结构（待落地的是标签 `text-xs` 和数字 `tabular-nums`；`text-2xl font-bold` 与现组件一致）：
+`OverviewMetricCards` 的结构（标签 `text-xs`，数字 `tabular-nums`；强调态 `text-2xl font-bold`）：
 
 ```tsx
 <div className="min-w-0 overflow-hidden rounded-lg border bg-card px-4 py-3 shadow-sm">
@@ -364,6 +367,8 @@ Tailwind 映射在 `base.css` 的 `@theme inline`：`bg-primary`、`border-borde
 页面把数据交给 `DetailShell` 的 `metrics`。字号在 `OverviewMetricCards` 里改，业务页不要复制这段 div。
 
 ### 7.4 表格列
+
+`DataTable` 单元格已经带 `tabular-nums`。标识列再加 `font-mono text-xs`。需要右对齐时加 `text-right`。
 
 ```tsx
 const columns = [
@@ -384,7 +389,7 @@ const columns = [
 
 ### 7.5 字段行
 
-目标（待落地到 `InfoGrid`；新详情优先用 `InfoGrid`，标识用 `PillList` / `ImageList`）：
+`InfoGrid` 已按这个结构收字段名。新详情优先用 `InfoGrid`，标识用 `PillList` / `ImageList`：
 
 ```tsx
 <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-3 gap-y-3 text-sm">
@@ -393,19 +398,15 @@ const columns = [
 </div>
 ```
 
-### 7.6 用量条（待落地，还没有共享组件）
+### 7.6 用量条
+
+用 `UsageBar`，不要在页面里再写一条轨道。`ratio` 是用量除以容量（或限额），大于 1 时宽度截到满条。
 
 ```tsx
-function usageFill(ratio: number, kind: 'requests' | 'limits') {
-  if (ratio > 0.9) return 'bg-red-500'
-  if (ratio > 0.6) return 'bg-yellow-500'
-  return kind === 'limits' ? 'bg-orange-500' : 'bg-primary'
-}
+import { UsageBar } from '@/components/console/UsageBar'
 
-<div className="h-2 overflow-hidden rounded-full bg-muted">
-  <div className={cn('h-full', usageFill(ratio, 'requests'))} style={{ width: `${Math.min(ratio, 1) * 100}%` }} />
-</div>
-<p className="text-xs text-muted-foreground tabular-nums">2.9 / 8.00 cores</p>
+<UsageBar kind="requests" ratio={2.9 / 8} caption="2.9 / 8.00 cores" />
+<UsageBar kind="limits" ratio={4.1 / 8} caption="4.1 / 8.00 cores" />
 ```
 
 ### 7.7 页面内容区（已落地于 `AppShell`）
@@ -444,6 +445,7 @@ button、input、label、badge、card、table、tabs、dialog、sheet、dropdown
 | `OverviewMetricCards` / `ResourceOverview` / `OverviewCard` / `InfoGrid` / `InfoPairs` / `ImageList` / `PillList` | `ResourceOverview.tsx` | 概览指标、左右栏、字段、镜像、标签 |
 | `LogPanel` / `TerminalChrome` | `LogPanel.tsx` | 日志与终端外壳 |
 | `EllipsisCopy` | `EllipsisCopy.tsx` | 单行省略 + 复制 |
+| `UsageBar` | `UsageBar.tsx` | Requests / Limits 细用量条。阈值色在组件内 |
 
 `CodePane` 尚未抽取。YAML / 脚本继续用现有 `YamlEditor` 或 `pre` 的 `font-mono text-xs leading-5`。不要为了对齐本文新造一个同职责组件，除非一次改动把这些入口收拢。
 
@@ -498,13 +500,13 @@ kite 仓库代码是 Apache-2.0。可以读、可以按本规范重写。不要�
 | 字体档 / display-scale 95% | 待落地，默认关闭 | 无 Provider |
 | `--radius: 0.5rem`、冷蓝 hue 235、sidebar token | 已落地 | `styles/themes/default.css` |
 | 卡片 `shadow-sm` + 极淡边框 | 已落地 | `components/ui/card.tsx` |
-| `tabular-nums` | 部分已落地 | 侧栏徽标、Pod 容器列；指标卡和多数数字列待补 |
-| 指标卡 / 字段名 `text-xs` | 待落地 | `OverviewMetricCards`、`InfoGrid`、`InfoPairs` 仍是 `text-sm` |
+| `tabular-nums` | 已落地 | 侧栏徽标、指标卡数值、`DataTable` 单元格 |
+| 指标卡 / 字段名 `text-xs` | 已落地 | `OverviewMetricCards`、`InfoGrid`、`InfoPairs` |
 | 侧栏分组与激活态 | 已落地 | `AppSidebar.tsx`、`sidebar.tsx` |
 | `DataTable` 密度 | 已落地 | `DataTable.tsx` |
 | 状态字典与圆点 | 已落地 | `status.ts`、`StatusIcon.tsx` |
 | `AppShell` / `DetailShell` / `LogPanel` | 已落地 | `components/console/` |
-| 用量条阈值色 | 待落地 | 无共享组件 |
+| 用量条阈值色 | 已落地 | `UsageBar`；容器请求/上限列画 Requests 条。无容量分母时不画 Limits 条 |
 | `CodePane` | 待落地 | 页面暂用 `font-mono text-xs` |
 | `Badge` 的 destructive 变体 | 不要求 | 失败态走 `StatusIcon` 或 destructive 按钮 |
 

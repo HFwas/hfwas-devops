@@ -1,0 +1,14 @@
+---
+description: 业务页禁止硬编码色和私有表格皮肤，必须用共享 console 模式
+globs: frontend/**/*.{ts,tsx,css}
+alwaysApply: false
+---
+
+# 前端视觉
+
+写 `frontend/` 前先读 `docs/frontend/kite-frontend-style-guide.md` 和 `docs/frontend/shared-ui-patterns.md`。
+
+- 颜色只用语义 token（`bg-background`、`text-muted-foreground`、`bg-primary`、`border-border`）。业务页禁止写死十六进制，禁止用 `bg-blue-*` / `bg-orange-*` 充当主色或用量色。状态色走 `StatusIcon`。
+- 列表、详情、指标、用量条、日志用 `frontend/src/components/console/`。禁止再写一套私有 Table 皮肤或表格密度。
+- `DataTable` 单元格已有 `tabular-nums`。指标名和字段名用 `text-xs text-muted-foreground`。标识用 `font-mono text-xs`。
+- 默认正文是系统 sans。不要改 `--app-font-sans`，不要默认打开 95% display-scale。

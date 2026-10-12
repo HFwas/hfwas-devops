@@ -135,7 +135,7 @@ export function EventSummary({
               showLabel={false}
             />
             <span className="font-medium">{item.reason || item.type}</span>
-            {item.count != null ? <span className="text-muted-foreground">×{item.count}</span> : null}
+            {item.count != null ? <span className="text-muted-foreground tabular-nums">×{item.count}</span> : null}
           </div>
           {item.message ? <p className="mt-1 text-sm text-muted-foreground">{item.message}</p> : null}
         </li>

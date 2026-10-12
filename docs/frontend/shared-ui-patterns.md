@@ -1,8 +1,8 @@
 # 共享界面模式
 
 > 日期：2026-10-12
-> 版本：v0.8
-> 关联：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.7、[frontend-style-unification-plan.md](./frontend-style-unification-plan.md)
+> 版本：v0.9
+> 关联：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.8、[frontend-style-unification-plan.md](./frontend-style-unification-plan.md) v0.10
 
 ### 变更记录
 
@@ -16,6 +16,7 @@
 | v0.6 | 2026-10-11 | LogPanel 增加可选跟随：内容变长时贴底，上滚暂停，回到底部或点「跟随最新」再跟上 |
 | v0.7 | 2026-10-11 | LogPanel 增加 terminal 变体，描边状态色与圆点共用同一套语义色 |
 | v0.8 | 2026-10-12 | 对齐规范 v0.7：字体默认仍是系统 sans；数字列与指标值应加 tabular-nums，指标卡标签目标是 text-xs，组件尚未改 |
+| v0.9 | 2026-10-12 | Phase 6：指标卡与字段名改为 text-xs，数值与 DataTable 补 tabular-nums；新增 UsageBar。画布、行内编辑和趋势图仍延期 |
 
 ---
 
@@ -32,10 +33,13 @@
 | `OverviewMetricCards` | `ResourceOverview.tsx` | Tab 下方的指标卡。由 `DetailShell` 的 `metrics` 挂上 |
 | `ResourceOverview` | `ResourceOverview.tsx` | 概览左主栏 + 右侧栏；指标卡也可直接放在这里 |
 | `LogPanel` / `TerminalChrome` | `LogPanel.tsx` | 约 40vh、可拖到最小 120px、顶栏至少 `min-h-10` 且工具栏 `flex-wrap`、连接呼吸灯、等宽区。可选 `follow`：内容变长时贴底；上滚后暂停，滚回底部或点「跟随最新」再跟上。`variant="terminal"` 用深色会话底，抽屉里可关底边拖拽 |
+| `UsageBar` | `UsageBar.tsx` | Requests / Limits 细条，高 `h-2`。低于等于 60% 时 Requests 为 `bg-primary`、Limits 为 `bg-orange-500`；再高转黄、红 |
 
 新的列表、详情、状态、日志页用这些组件。不要再写一套私有表格密度或状态色。
 
-字体默认是系统无衬线，标识用 `font-mono text-xs`，见规范 v0.7。计数、容量、副本数、百分比在列上加 `tabular-nums`。指标卡标签的目标是 `text-xs text-muted-foreground`，数字加 `tabular-nums`。`OverviewMetricCards` 目前仍是 `text-sm` 标签，数值还没有 `tabular-nums`（待落地，改组件时再收，不要在每个详情页各写一套）。
+字体默认是系统无衬线，标识用 `font-mono text-xs`，见规范 v0.8。`DataTable` 单元格已经带 `tabular-nums`，计数、容量、副本数、百分比不用在每个页面再写。`OverviewMetricCards` 的标签是 `text-xs text-muted-foreground`，数值带 `tabular-nums`（强调态 `font-bold`，其余 `font-semibold`）。`InfoGrid` / `InfoPairs` 的字段名同样是 `text-xs`。这些字号在共享组件里改，不要在每个详情页各写一套。
+
+`UsageBar` 只画已经有比例的用量。Deployment 容器的 CPU / 内存列用 `RequestLimitCell`：原文仍是「请求 / 上限」，能解析时以上限为分母画 Requests 条。没有节点容量时不画 Limits 条。监控趋势图不改成这条。
 
 `LogPanel` 和 `TerminalChrome` 只包外观。WebSocket、xterm 协议留在原来的业务组件里。Xshell 风格的统一会话表面方案见 [终端 / 日志界面设计方案](../container-platform/xshell-terminal-log-design.md)。
 
@@ -95,8 +99,15 @@ PM 自定义工作流码不在字典里时，给 `StatusIcon` 传 `tone`，不�
 | PM | 项目监控 | 项目 `DataTable`，链到看板 |
 | 文件解析 / 文档生成 / 图片 | 工具页 | `PageHeader`、`StatusIcon`；图片记录与解析分页、生成结果用 `DataTable` |
 
-环境变量和挂载卷仍是详情里的行内表单。图片裁剪、文档批量规格、Argo 画布、流水线 DAG、监控趋势图留到 Phase 6。
+环境变量和挂载卷仍是详情里的行内表单。图片裁剪、文档批量规格、Argo 画布、流水线 DAG、监控趋势图在 Phase 6 **没有改业务**，仍按原页面保留。
 
-## 5. 下一步
+## 5. Phase 6 之后
 
-- **Phase 6**：按 `frontend-style-unification-plan.md` 的延期项收尾，并做视觉回归。新列表和详情继续用本章组件。
+Phase 6 已把指标卡、数字列和用量条收进本章组件，并写了视觉回归清单（`visual-regression-checklist.md`）。清单上的屏留给可登录环境手测。
+
+新列表和详情继续用本章组件。下面这些不进 `DataTable`，也不要为了对齐样式重写：
+
+- PM 工作流画布、流水线 DAG、Argo 工作流画布
+- 环境变量与挂载卷的行内编辑
+- 图片裁剪、文档批量规格、文件解析历史
+- 项目监控与集群监控的趋势图
