@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, Hand, Pencil, Webhook } from 'lucide-react'
 import { Link, useMatch, useNavigate, useParams } from 'react-router'
 import { DataTable } from '@/components/console/DataTable'
 import { DetailShell } from '@/components/console/DetailShell'
+import { OverviewMetricCards } from '@/components/console/ResourceOverview'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -95,7 +96,9 @@ export function PipelineDetailPage() {
           </Link>
         </Button>
       }
-      title={pipeline?.name || (pipelineQuery.isLoading ? '加载中…' : '流水线')}
+      title={
+        <span className="font-console tracking-tight">{pipeline?.name || (pipelineQuery.isLoading ? '加载中…' : '流水线')}</span>
+      }
       actions={
         <>
           <Button variant="outline" size="sm" asChild>
@@ -116,17 +119,28 @@ export function PipelineDetailPage() {
         navigate(value === 'history' ? `/pipeline/pipelines/${pipelineId}/history` : `/pipeline/pipelines/${pipelineId}`)
       }}
     >
-      <div data-slot="pipeline-detail-meta" className="mb-4 grid gap-4 rounded-lg border bg-card px-4 py-3 sm:grid-cols-2 lg:grid-cols-5">
-        <MetaField label="仓库">{repoShortName(pipeline?.repoUrl)}</MetaField>
-        <MetaField label="分支">{formatGitRef(pipeline?.gitRef)}</MetaField>
-        <MetaField label="阶段">{stageNames.length > 0 ? stageNames.join(' · ') : '尚未配置'}</MetaField>
-        <MetaField label="最近运行">
-          <span className="inline-flex min-w-0 items-center gap-1.5">
-            <StatusIcon status={pipeline?.lastRunStatus} label={runStatusLabel(pipeline?.lastRunStatus)} />
-            {pipeline?.lastRunTime ? <span className="truncate text-muted-foreground">· {formatRelativeTime(pipeline.lastRunTime)}</span> : null}
-          </span>
-        </MetaField>
-        <MetaField label="凭证">{credentialName}</MetaField>
+      <div data-slot="pipeline-detail-meta" className="mb-4">
+        <OverviewMetricCards
+          items={[
+            { label: '仓库', value: <MonoValue>{repoShortName(pipeline?.repoUrl)}</MonoValue> },
+            { label: '分支', value: <MonoValue>{formatGitRef(pipeline?.gitRef)}</MonoValue> },
+            { label: '阶段', value: <MonoValue>{stageNames.length > 0 ? stageNames.join(' · ') : '尚未配置'}</MonoValue> },
+            {
+              label: '最近运行',
+              value: (
+                <span className="flex min-w-0 flex-col gap-1">
+                  <StatusIcon status={pipeline?.lastRunStatus} label={runStatusLabel(pipeline?.lastRunStatus)} />
+                  {pipeline?.lastRunTime ? (
+                    <span className="truncate font-mono text-xs text-muted-foreground tabular-nums">
+                      {formatRelativeTime(pipeline.lastRunTime)}
+                    </span>
+                  ) : null}
+                </span>
+              ),
+            },
+            { label: '凭证', value: <MonoValue>{credentialName}</MonoValue> },
+          ]}
+        />
       </div>
       <div data-slot="pipeline-detail-body">
         {pipelineQuery.isError ? <p className="text-sm text-destructive">流水线加载失败</p> : null}
@@ -151,13 +165,8 @@ export function PipelineDetailPage() {
   )
 }
 
-function MetaField({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="min-w-0" data-label={label}>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 truncate text-sm">{children}</div>
-    </div>
-  )
+function MonoValue({ children }: { children: ReactNode }) {
+  return <span className="block truncate font-console text-sm font-medium tracking-tight">{children}</span>
 }
 
 function RunHistory({
@@ -199,10 +208,15 @@ function RunHistory({
             header: '运行编号',
             cell: (run) => (
               <div className="flex min-w-0 flex-col">
-                <Link className="font-medium text-primary hover:underline" to={`/pipeline/pipelines/${pipelineId}/runs/${run.id}`}>
+                <Link
+                  className="font-mono text-sm font-medium tracking-tight text-primary hover:underline"
+                  to={`/pipeline/pipelines/${pipelineId}/runs/${run.id}`}
+                >
                   #{run.id}
                 </Link>
-                <span className="text-xs text-muted-foreground">{run.commitSha ? formatCommit(run.commitSha) : run.triggeredByName || '—'}</span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {run.commitSha ? formatCommit(run.commitSha) : run.triggeredByName || '—'}
+                </span>
               </div>
             ),
           },
@@ -214,6 +228,7 @@ function RunHistory({
           {
             id: 'ref',
             header: '分支',
+            className: 'font-mono text-xs',
             cell: (run) => formatGitRef(run.gitRef),
           },
           {
@@ -224,11 +239,13 @@ function RunHistory({
           {
             id: 'started',
             header: '开始时间',
+            className: 'font-mono text-xs tabular-nums',
             cell: (run) => formatDateTime(run.startedAt),
           },
           {
             id: 'duration',
             header: '耗时',
+            className: 'font-mono text-xs tabular-nums',
             cell: (run) => formatCompactDuration(run.startedAt, run.finishedAt),
           },
           {

@@ -90,7 +90,7 @@ describe('PipelineListPage', () => {
     container = null
   })
 
-  it('shows thicker rows with repo, branch, run and edit', async () => {
+  it('shows a dense list with mono name, repo, branch, run and edit', async () => {
     const view = mount(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <MemoryRouter>
@@ -116,8 +116,11 @@ describe('PipelineListPage', () => {
     const history = container.querySelector('a[href="/pipeline/pipelines/1/history"]')
     expect(history?.textContent).toContain('历史')
     expect(container.textContent).toContain('删除')
+    const nameLink = container.querySelector('a[href="/pipeline/pipelines/1"]')
+    expect(nameLink?.className).toContain('font-console')
     const nameCell = [...container.querySelectorAll('td')].find((cell) => cell.textContent?.includes('后端发布'))
-    expect(nameCell?.className).toContain('py-3')
+    expect(nameCell?.className).not.toContain('py-3')
+    expect(container.querySelector('[data-slot="stage-dot"]')?.parentElement?.className).toContain('shadow-sm')
 
     const search = container.querySelector('[aria-label="搜索流水线、仓库或分支"]') as HTMLInputElement
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
