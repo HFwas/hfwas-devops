@@ -1,8 +1,8 @@
 # 共享界面模式
 
-> 日期：2026-10-11
-> 版本：v0.7
-> 关联：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md)、[frontend-style-unification-plan.md](./frontend-style-unification-plan.md)
+> 日期：2026-10-12
+> 版本：v0.8
+> 关联：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.7、[frontend-style-unification-plan.md](./frontend-style-unification-plan.md)
 
 ### 变更记录
 
@@ -15,6 +15,7 @@
 | v0.5 | 2026-10-11 | LogPanel 顶栏改为至少一行高，工具栏放不下时在顶栏内换行 |
 | v0.6 | 2026-10-11 | LogPanel 增加可选跟随：内容变长时贴底，上滚暂停，回到底部或点「跟随最新」再跟上 |
 | v0.7 | 2026-10-11 | LogPanel 增加 terminal 变体，描边状态色与圆点共用同一套语义色 |
+| v0.8 | 2026-10-12 | 对齐规范 v0.7：字体默认仍是系统 sans；数字列与指标值应加 tabular-nums，指标卡标签目标是 text-xs，组件尚未改 |
 
 ---
 
@@ -33,6 +34,8 @@
 | `LogPanel` / `TerminalChrome` | `LogPanel.tsx` | 约 40vh、可拖到最小 120px、顶栏至少 `min-h-10` 且工具栏 `flex-wrap`、连接呼吸灯、等宽区。可选 `follow`：内容变长时贴底；上滚后暂停，滚回底部或点「跟随最新」再跟上。`variant="terminal"` 用深色会话底，抽屉里可关底边拖拽 |
 
 新的列表、详情、状态、日志页用这些组件。不要再写一套私有表格密度或状态色。
+
+字体默认是系统无衬线，标识用 `font-mono text-xs`，见规范 v0.7。计数、容量、副本数、百分比在列上加 `tabular-nums`。指标卡标签的目标是 `text-xs text-muted-foreground`，数字加 `tabular-nums`。`OverviewMetricCards` 目前仍是 `text-sm` 标签，数值还没有 `tabular-nums`（待落地，改组件时再收，不要在每个详情页各写一套）。
 
 `LogPanel` 和 `TerminalChrome` 只包外观。WebSocket、xterm 协议留在原来的业务组件里。Xshell 风格的统一会话表面方案见 [终端 / 日志界面设计方案](../container-platform/xshell-terminal-log-design.md)。
 
