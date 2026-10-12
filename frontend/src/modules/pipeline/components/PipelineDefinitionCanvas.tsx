@@ -15,7 +15,7 @@ function FlowArrow() {
 
 function FlowCap({ label, slot, icon: Icon }: { label: string; slot: string; icon: typeof Play }) {
   return (
-    <div data-slot={slot} className="mt-6 flex h-10 shrink-0 items-center gap-2 rounded-md border bg-background px-3 text-sm shadow-xs">
+    <div data-slot={slot} className="mt-6 flex h-10 shrink-0 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-sm">
       <Icon className={cn('size-4', slot.endsWith('start') ? 'text-primary' : 'text-muted-foreground')} aria-hidden />
       {label}
     </div>
@@ -27,7 +27,7 @@ export function PipelineDefinitionCanvas({ stages }: { stages?: PipelineStage[] 
   const columns = [...(stages ?? [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
 
   return (
-    <section data-slot="pipeline-definition-canvas" className="min-h-[320px] overflow-auto rounded-lg border bg-muted/20 p-6">
+    <section data-slot="pipeline-definition-canvas" className="min-h-[320px] overflow-auto rounded-lg border bg-muted/30 p-6 shadow-sm">
       {columns.length === 0 ? (
         <p className="mb-4 text-sm text-muted-foreground">这条流水线还没有阶段。点右上角「编辑」后，阶段会显示在这里。</p>
       ) : null}
@@ -38,9 +38,11 @@ export function PipelineDefinitionCanvas({ stages }: { stages?: PipelineStage[] 
           return (
             <div key={String(stage.id ?? `${stage.name}-${index}`)} className="flex items-start">
               <FlowArrow />
-              <div data-slot="definition-stage" className="flex w-56 shrink-0 flex-col rounded-lg border bg-background">
-                <div className="border-b px-3 py-2 text-sm font-medium">
-                  阶段 {index + 1} · {stage.name || '未命名'}
+              <div data-slot="definition-stage" className="flex w-56 shrink-0 flex-col rounded-lg border bg-card shadow-sm">
+                <div className="border-b px-3 py-2 text-xs font-medium">
+                  <span className="text-muted-foreground">阶段 {index + 1}</span>
+                  <span className="mx-1 text-muted-foreground">·</span>
+                  <span className="font-console">{stage.name || '未命名'}</span>
                 </div>
                 <div className="flex flex-col gap-2 p-2">
                   {jobs.length === 0 ? <p className="px-1 py-2 text-xs text-muted-foreground">这个阶段没有任务</p> : null}
@@ -48,13 +50,13 @@ export function PipelineDefinitionCanvas({ stages }: { stages?: PipelineStage[] 
                     <div
                       key={String(job.id ?? `${job.kind}-${jobIndex}`)}
                       data-slot="definition-job"
-                      className="rounded-lg border bg-card px-2 py-2"
+                      className="rounded-lg border bg-background px-2 py-2 shadow-sm"
                     >
                       <div className="flex items-start gap-2">
                         <JobKindIcon kind={job.kind} className="mt-0.5 size-4 shrink-0 text-primary" />
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium">{job.name}</span>
-                          <span className="block truncate text-xs text-muted-foreground">{jobKindLabel(job.kind)}</span>
+                          <span className="block truncate font-console text-sm font-medium tracking-tight">{job.name}</span>
+                          <span className="block truncate font-mono text-xs text-muted-foreground">{jobKindLabel(job.kind)}</span>
                         </span>
                       </div>
                     </div>
