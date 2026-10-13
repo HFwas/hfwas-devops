@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
+import { Pagination } from '@/components/console/Pagination'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -23,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { pipelineCredentialApi } from '@/modules/pipeline/api/pipeline'
 import { formatDateTime } from '@/modules/pipeline/status'
 import type { CredentialKind, PipelineCredential } from '@/modules/pipeline/types/pipeline'
+import { DEFAULT_PAGE_SIZE, pageCountOf } from '@/shared/types/pagination'
 import { asId } from '@/lib/utils'
 
 const KIND_LABEL: Record<string, string> = {
@@ -44,9 +46,14 @@ export function CredentialListPage() {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
+  useEffect(() => {
+    setPage(1)
+  }, [keyword])
   const query = useQuery({
-    queryKey: ['pipeline-credentials'],
-    queryFn: () => pipelineCredentialApi.list(),
+    queryKey: ['pipeline-credentials', keyword, page],
+    queryFn: () =>
+      pipelineCredentialApi.page({ pageNo: page, pageSize: DEFAULT_PAGE_SIZE, keyword: keyword.trim() || undefined }),
   })
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -81,14 +88,15 @@ export function CredentialListPage() {
     onError: (error: Error) => toast.error(error.message || '删除失败'),
   })
 
-  const needle = keyword.trim().toLowerCase()
-  const rows = (query.data ?? []).filter((item) => !needle || item.name.toLowerCase().includes(needle))
+  const rows = query.data?.records ?? []
+  const total = Number(query.data?.total ?? rows.length)
+  const pageCount = pageCountOf(query.data, DEFAULT_PAGE_SIZE)
 
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">
       <PageHeader
         title="凭证"
-        description={query.isSuccess ? `共 ${rows.length} 条凭证` : '仓库拉取与集群访问使用的凭据'}
+        description={query.isSuccess ? `共 ${total} 条凭证` : '仓库拉取与集群访问使用的凭据'}
         actions={
           <>
             <Input
@@ -145,6 +153,7 @@ export function CredentialListPage() {
         error={query.isError ? '凭证列表加载失败' : undefined}
         empty="还没有凭证"
       />
+      <Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

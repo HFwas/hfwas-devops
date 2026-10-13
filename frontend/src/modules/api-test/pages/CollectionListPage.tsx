@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
+import { Pagination } from '@/components/console/Pagination'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,6 +22,7 @@ import { Label } from '@/components/ui/label'
 import { collectionApi } from '@/modules/api-test/collection/api/collection'
 import type { CollectionVO } from '@/modules/api-test/collection/types/collection'
 import { ProjectSelect } from '@/modules/api-test/pages/ProjectSelect'
+import { DEFAULT_PAGE_SIZE, pageCountOf } from '@/shared/types/pagination'
 import { useAuthStore } from '@/stores/auth'
 
 const schema = z.object({
@@ -40,6 +42,7 @@ export function CollectionListPage() {
   const queryClient = useQueryClient()
   const [projectId, setProjectId] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -50,14 +53,18 @@ export function CollectionListPage() {
     if (!open) form.reset({ name: '', description: '' })
   }, [form, open])
 
+  useEffect(() => {
+    setPage(1)
+  }, [keyword, projectId])
+
   const query = useQuery({
-    queryKey: ['api-collections', projectId, keyword],
+    queryKey: ['api-collections', projectId, keyword, page],
     queryFn: () =>
       collectionApi.page({
         projectId,
         keyword: keyword.trim() || undefined,
-        pageNo: 1,
-        pageSize: 50,
+        pageNo: page,
+        pageSize: DEFAULT_PAGE_SIZE,
       }),
     enabled: !!projectId,
   })
@@ -73,6 +80,7 @@ export function CollectionListPage() {
 
   const rows = query.data?.records ?? []
   const total = query.data?.total ?? rows.length
+  const pageCount = pageCountOf(query.data, DEFAULT_PAGE_SIZE)
 
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">
@@ -118,6 +126,7 @@ export function CollectionListPage() {
         error={query.isError ? '集合列表加载失败' : undefined}
         empty={projectId ? '这个项目还没有集合' : '先选择项目'}
       />
+      <Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

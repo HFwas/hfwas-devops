@@ -1,9 +1,11 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
+import { Pagination } from '@/components/console/Pagination'
 import { Input } from '@/components/ui/input'
+import { DEFAULT_PAGE_SIZE, pageCountOf } from '@/shared/types/pagination'
 import { configMapApi } from '@/modules/container/api/configmap'
 import { deploymentApi } from '@/modules/container/api/deployment'
 import { nodeApi } from '@/modules/container/api/node'
@@ -48,6 +50,7 @@ function ResourceList<T>({
   getRowId,
   loading,
   error,
+  footer,
 }: {
   title: string
   description?: string
@@ -58,6 +61,8 @@ function ResourceList<T>({
   getRowId: (row: T) => string
   loading: boolean
   error?: string
+  /** 分页控件，作为表格下方的独立一行。 */
+  footer?: ReactNode
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -67,6 +72,7 @@ function ResourceList<T>({
         actions={onKeyword ? <KeywordInput value={keyword ?? ''} onChange={onKeyword} label={`搜索${title}`} /> : undefined}
       />
       <DataTable columns={columns} data={rows} getRowId={getRowId} loading={loading} error={error} empty={`没有匹配的${title}`} />
+      {footer}
     </div>
   )
 }
@@ -83,17 +89,22 @@ function nameLink(label: ReactNode, to?: string) {
 export function NodeListPage() {
   const { clusterId = '' } = useParams()
   const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
+  useEffect(() => {
+    setPage(1)
+  }, [keyword, clusterId])
   const query = useQuery({
-    queryKey: ['container-nodes', clusterId, keyword],
-    queryFn: () => nodeApi.list(clusterId, keyword || undefined),
+    queryKey: ['container-nodes', clusterId, keyword, page],
+    queryFn: () => nodeApi.page(clusterId, { pageNo: page, pageSize: DEFAULT_PAGE_SIZE, keyword: keyword || undefined }),
     enabled: !!clusterId,
   })
-  const rows = query.data ?? []
+  const rows = query.data?.records ?? []
+  const pageCount = pageCountOf(query.data, DEFAULT_PAGE_SIZE)
 
   return (
     <ResourceList<NodeSummary>
       title="节点"
-      description={query.isSuccess ? `共 ${rows.length} 个节点` : '查看节点容量与状态'}
+      description={query.isSuccess ? `共 ${query.data?.total ?? rows.length} 个节点` : '查看节点容量与状态'}
       keyword={keyword}
       onKeyword={setKeyword}
       columns={[
@@ -113,6 +124,7 @@ export function NodeListPage() {
       getRowId={(node) => node.name}
       loading={query.isFetching}
       error={query.isError ? '节点列表加载失败' : undefined}
+      footer={<Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />}
     />
   )
 }
@@ -128,12 +140,17 @@ export function PodListPage() {
     else next.delete('keyword')
     setSearchParams(next, { replace: true })
   }
+  const [page, setPage] = useState(1)
+  useEffect(() => {
+    setPage(1)
+  }, [keyword, namespace, clusterId])
   const query = useQuery({
-    queryKey: ['container-pods', clusterId, namespace, keyword],
-    queryFn: () => podApi.list(clusterId, { namespace: namespace || undefined, keyword: keyword || undefined, pageNo: 1, pageSize: 100 }),
+    queryKey: ['container-pods', clusterId, namespace, keyword, page],
+    queryFn: () => podApi.list(clusterId, { namespace: namespace || undefined, keyword: keyword || undefined, pageNo: page, pageSize: DEFAULT_PAGE_SIZE }),
     enabled: !!clusterId,
   })
   const rows = query.data?.records ?? []
+  const pageCount = pageCountOf(query.data, DEFAULT_PAGE_SIZE)
   const scope = namespace ? `命名空间 ${namespace}` : '全部命名空间'
 
   return (
@@ -160,6 +177,7 @@ export function PodListPage() {
       getRowId={(pod) => `${pod.namespace}/${pod.name}`}
       loading={query.isFetching}
       error={query.isError ? 'Pod 列表加载失败' : undefined}
+      footer={<Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />}
     />
   )
 }
@@ -169,7 +187,7 @@ export function DeploymentListPage() {
     <PagedList
       title="Deployment"
       queryKey="container-deployments"
-      load={(clusterId, namespace, keyword) => deploymentApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
+      load={(clusterId, namespace, keyword, page) => deploymentApi.list(clusterId, { namespace, keyword, pageNo: page, pageSize: DEFAULT_PAGE_SIZE })}
       columns={(clusterId) => [
         {
           id: 'name',
@@ -190,7 +208,7 @@ export function StatefulSetListPage() {
     <PagedList
       title="StatefulSet"
       queryKey="container-statefulsets"
-      load={(clusterId, namespace, keyword) => statefulSetApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
+      load={(clusterId, namespace, keyword, page) => statefulSetApi.list(clusterId, { namespace, keyword, pageNo: page, pageSize: DEFAULT_PAGE_SIZE })}
       columns={(clusterId) => [
         {
           id: 'name',
@@ -214,7 +232,7 @@ export function ServiceListPage() {
     <PagedList
       title="Service"
       queryKey="container-services"
-      load={(clusterId, namespace, keyword) => serviceApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
+      load={(clusterId, namespace, keyword, page) => serviceApi.list(clusterId, { namespace, keyword, pageNo: page, pageSize: DEFAULT_PAGE_SIZE })}
       columns={(clusterId) => [
         {
           id: 'name',
@@ -236,7 +254,7 @@ export function ConfigMapListPage() {
     <PagedList
       title="ConfigMap"
       queryKey="container-configmaps"
-      load={(clusterId, namespace, keyword) => configMapApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
+      load={(clusterId, namespace, keyword, page) => configMapApi.list(clusterId, { namespace, keyword, pageNo: page, pageSize: DEFAULT_PAGE_SIZE })}
       columns={(clusterId) => [
         {
           id: 'name',
@@ -256,7 +274,7 @@ export function SecretListPage() {
     <PagedList
       title="Secret"
       queryKey="container-secrets"
-      load={(clusterId, namespace, keyword) => secretApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
+      load={(clusterId, namespace, keyword, page) => secretApi.list(clusterId, { namespace, keyword, pageNo: page, pageSize: DEFAULT_PAGE_SIZE })}
       columns={() => [
         { id: 'name', header: '名称', cell: (item) => <span className="font-medium">{item.name}</span> },
         { id: 'namespace', header: '命名空间', cell: (item) => item.namespace },
@@ -272,7 +290,7 @@ export function PvcListPage() {
     <PagedList
       title="PVC"
       queryKey="container-pvcs"
-      load={(clusterId, namespace, keyword) => pvcApi.list(clusterId, { namespace, keyword, pageNo: 1, pageSize: 100 })}
+      load={(clusterId, namespace, keyword, page) => pvcApi.list(clusterId, { namespace, keyword, pageNo: page, pageSize: DEFAULT_PAGE_SIZE })}
       columns={() => [
         { id: 'name', header: '名称', cell: (item) => <span className="font-medium">{item.name}</span> },
         { id: 'namespace', header: '命名空间', cell: (item) => item.namespace },
@@ -286,17 +304,25 @@ export function PvcListPage() {
 
 export function StorageClassListPage() {
   const { clusterId = '' } = useParams()
+  const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
+  useEffect(() => {
+    setPage(1)
+  }, [keyword, clusterId])
   const query = useQuery({
-    queryKey: ['container-storageclasses', clusterId],
-    queryFn: () => storageClassApi.list(clusterId),
+    queryKey: ['container-storageclasses', clusterId, keyword, page],
+    queryFn: () => storageClassApi.page(clusterId, { pageNo: page, pageSize: DEFAULT_PAGE_SIZE, keyword: keyword || undefined }),
     enabled: !!clusterId,
   })
-  const rows = query.data ?? []
+  const rows = query.data?.records ?? []
+  const pageCount = pageCountOf(query.data, DEFAULT_PAGE_SIZE)
 
   return (
     <ResourceList<StorageClassSummary>
       title="StorageClass"
-      description={query.isSuccess ? `共 ${rows.length} 个存储类` : '集群存储类'}
+      description={query.isSuccess ? `共 ${query.data?.total ?? rows.length} 个存储类` : '集群存储类'}
+      keyword={keyword}
+      onKeyword={setKeyword}
       columns={[
         { id: 'name', header: '名称', cell: (item) => <span className="font-medium">{item.name}</span> },
         { id: 'provisioner', header: 'Provisioner', cell: (item) => item.provisioner || '—' },
@@ -307,6 +333,7 @@ export function StorageClassListPage() {
       getRowId={(item) => item.name}
       loading={query.isFetching}
       error={query.isError ? 'StorageClass 列表加载失败' : undefined}
+      footer={<Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />}
     />
   )
 }
@@ -319,18 +346,28 @@ function PagedList<T extends { name: string; namespace: string }>({
 }: {
   title: string
   queryKey: string
-  load: (clusterId: string, namespace: string | undefined, keyword: string | undefined) => Promise<{ records: T[]; total?: number | string }>
+  load: (
+    clusterId: string,
+    namespace: string | undefined,
+    keyword: string | undefined,
+    page: number,
+  ) => Promise<{ records: T[]; total?: number | string; pages?: number | string }>
   columns: (clusterId: string) => DataTableColumn<T>[]
 }) {
   const { clusterId = '' } = useParams()
   const namespace = useContainerCluster((s) => s.namespace)
   const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
+  useEffect(() => {
+    setPage(1)
+  }, [keyword, namespace, clusterId])
   const query = useQuery({
-    queryKey: [queryKey, clusterId, namespace, keyword],
-    queryFn: () => load(clusterId, namespace || undefined, keyword || undefined),
+    queryKey: [queryKey, clusterId, namespace, keyword, page],
+    queryFn: () => load(clusterId, namespace || undefined, keyword || undefined, page),
     enabled: !!clusterId,
   })
   const records = query.data?.records ?? []
+  const pageCount = pageCountOf(query.data, DEFAULT_PAGE_SIZE)
   const scope = namespace ? `命名空间 ${namespace}` : '全部命名空间'
 
   return (
@@ -344,6 +381,7 @@ function PagedList<T extends { name: string; namespace: string }>({
       getRowId={(item) => `${item.namespace}/${item.name}`}
       loading={query.isFetching}
       error={query.isError ? `${title}列表加载失败` : undefined}
+      footer={<Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />}
     />
   )
 }

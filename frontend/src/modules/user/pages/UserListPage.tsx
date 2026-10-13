@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
+import { Pagination } from '@/components/console/Pagination'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Input } from '@/components/ui/input'
 import { userManageApi } from '@/modules/user/api'
 import type { UserProfile } from '@/modules/user/types'
 import { asId } from '@/modules/pm/utils/id'
+import { DEFAULT_PAGE_SIZE, pageCountOf } from '@/shared/types/pagination'
 import { useAuthStore } from '@/stores/auth'
 
 const ROLE_LABEL: Record<string, string> = {
@@ -17,13 +19,18 @@ const ROLE_LABEL: Record<string, string> = {
 export function UserListPage() {
   const isAdmin = useAuthStore((s) => s.isAdmin())
   const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
+  useEffect(() => {
+    setPage(1)
+  }, [keyword])
   const query = useQuery({
-    queryKey: ['user-accounts', keyword],
-    queryFn: () => userManageApi.page({ pageNo: 1, pageSize: 50, keyword: keyword.trim() || undefined }),
+    queryKey: ['user-accounts', keyword, page],
+    queryFn: () => userManageApi.page({ pageNo: page, pageSize: DEFAULT_PAGE_SIZE, keyword: keyword.trim() || undefined }),
     enabled: isAdmin,
   })
   const rows = query.data?.records ?? []
   const total = query.data?.total ?? rows.length
+  const pageCount = pageCountOf(query.data, DEFAULT_PAGE_SIZE)
 
   if (!isAdmin) {
     return <p className="text-sm text-muted-foreground">需要管理员权限才能查看用户列表。</p>
@@ -74,6 +81,7 @@ export function UserListPage() {
         error={query.isError ? '用户列表加载失败' : undefined}
         empty="没有匹配的用户"
       />
+      <Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />
     </div>
   )
 }

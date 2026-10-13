@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { AsyncSelect } from '@/components/console/AsyncSelect'
 import { DataTable } from '@/components/console/DataTable'
 import { LogPanel } from '@/components/console/LogPanel'
 import { StatusIcon } from '@/components/console/StatusIcon'
@@ -44,11 +45,6 @@ export function DebugWorkbench({ definition }: { definition: ApiDefinitionDetail
     setResult(null)
   }, [definition])
 
-  const environments = useQuery({
-    queryKey: ['api-environments', 'debug', definition.projectId],
-    queryFn: () => environmentApi.listAll(definition.projectId),
-    enabled: definition.projectId != null,
-  })
   const history = useQuery({
     queryKey: ['api-debug-history', definition.id],
     queryFn: () => debugHistoryApi.listByDefinition(definition.id, 20),
@@ -111,20 +107,29 @@ export function DebugWorkbench({ definition }: { definition: ApiDefinitionDetail
           <Label htmlFor="debug-env" className="text-xs">
             环境
           </Label>
-          <select
-            id="debug-env"
-            aria-label="调试环境"
-            className="h-8 max-w-48 rounded-md border border-input bg-background px-2 text-sm"
+          <AsyncSelect
+            label="调试环境"
+            className="max-w-48"
             value={environmentId}
-            onChange={(event) => setEnvironmentId(event.target.value)}
-          >
-            <option value="">不使用环境</option>
-            {(environments.data ?? []).map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
+            onChange={setEnvironmentId}
+            clearLabel="不使用环境"
+            searchPlaceholder="搜索环境"
+            emptyText="没有环境"
+            disabled={definition.projectId == null}
+            fetchPage={async ({ page, pageSize, keyword }) => {
+              const result = await environmentApi.page({
+                projectId: String(definition.projectId ?? ''),
+                keyword: keyword || undefined,
+                pageNo: page,
+                pageSize,
+              })
+              return {
+                records: (result.records ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+                total: result.total,
+                pages: result.pages,
+              }
+            }}
+          />
         </div>
         <Button size="sm" className="h-8" disabled={!url.trim() || execute.isPending} onClick={() => execute.mutate()}>
           发送

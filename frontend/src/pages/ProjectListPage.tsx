@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
+import { Pagination } from '@/components/console/Pagination'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,6 +22,7 @@ import { Label } from '@/components/ui/label'
 import { pmProjectApi } from '@/modules/pm/api'
 import type { PmProject } from '@/modules/pm/types'
 import { asId } from '@/modules/pm/utils/id'
+import { DEFAULT_PAGE_SIZE, pageCountOf } from '@/shared/types/pagination'
 import { useAuthStore } from '@/stores/auth'
 
 const projectSchema = z.object({
@@ -39,10 +41,15 @@ export function ProjectListPage() {
   const activeTenantId = useAuthStore((s) => s.activeTenantId)
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
+  const [page, setPage] = useState(1)
+
+  useEffect(() => {
+    setPage(1)
+  }, [keyword, activeTenantId, tenantVersion])
 
   const query = useQuery({
-    queryKey: ['pm-projects', activeTenantId, tenantVersion, keyword],
-    queryFn: () => pmProjectApi.page({ pageNo: 1, pageSize: 18, keyword: keyword.trim() || undefined }),
+    queryKey: ['pm-projects', activeTenantId, tenantVersion, keyword, page],
+    queryFn: () => pmProjectApi.page({ pageNo: page, pageSize: DEFAULT_PAGE_SIZE, keyword: keyword.trim() || undefined }),
   })
 
   const form = useForm<ProjectForm>({
@@ -75,6 +82,7 @@ export function ProjectListPage() {
 
   const projects = query.data?.records ?? []
   const total = query.data?.total ?? projects.length
+  const pageCount = pageCountOf(query.data, DEFAULT_PAGE_SIZE)
 
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">
@@ -159,6 +167,7 @@ export function ProjectListPage() {
             </div>
           }
         />
+        <Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>

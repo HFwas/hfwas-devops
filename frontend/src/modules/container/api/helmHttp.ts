@@ -1,4 +1,5 @@
 import { del, get, post, postFormData, put } from '@/shared/api/request'
+import type { PageResult } from '@/shared/types/common'
 import type { HelmClient } from '@/modules/container/api/helmClient'
 import type {
   HelmChartArtifact,
@@ -40,6 +41,8 @@ function releaseBase(clusterId: string, namespace: string) {
 
 export const helmHttp: HelmClient = {
   listRepositories: () => get<HelmRepository[]>('/container/helm/repositories', undefined, QUERY_MS),
+  listRepositoriesPage: (params) =>
+    get<PageResult<HelmRepository>>('/container/helm/repositories/page', params, QUERY_MS),
   listCharts: (query) => get<HelmChartSummary[]>('/container/helm/charts', query, QUERY_MS),
   getChart: (repositoryId, name, version) =>
     get<HelmChartDetail>(`/container/helm/charts/${seg(name)}`, { repositoryId, version }, CHART_CONTENT_MS),

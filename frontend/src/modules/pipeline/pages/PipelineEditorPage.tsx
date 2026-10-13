@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
+import { AsyncSelect } from '@/components/console/AsyncSelect'
 import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
@@ -149,10 +150,6 @@ export function PipelineEditorPage() {
   const kindsQuery = useQuery({
     queryKey: ['pipeline-task-kinds'],
     queryFn: () => pipelineTaskKindApi.list(),
-  })
-  const credentialsQuery = useQuery({
-    queryKey: ['pipeline-credentials'],
-    queryFn: () => pipelineCredentialApi.list(),
   })
   const toolchainsQuery = useQuery({
     queryKey: ['pipeline-toolchains'],
@@ -400,18 +397,23 @@ export function PipelineEditorPage() {
           />
         </Field>
         <Field label="凭证">
-          <ChoiceSelect
+          <AsyncSelect
             label="凭证"
+            className="w-full"
             value={draft.credentialId}
             onChange={(value) => setDraft({ ...draft, credentialId: value })}
-            allowEmpty
-            emptyLabel="不使用凭证"
-            options={[
-              ...(credentialsQuery.data ?? []).map((item) => ({ value: String(item.id), label: item.name })),
-              ...(draft.credentialId && !(credentialsQuery.data ?? []).some((item) => String(item.id) === draft.credentialId)
-                ? [{ value: draft.credentialId, label: '当前凭证' }]
-                : []),
-            ]}
+            clearLabel="不使用凭证"
+            selectedLabel="当前凭证"
+            searchPlaceholder="搜索凭证"
+            emptyText="没有凭证"
+            fetchPage={async ({ page, pageSize, keyword }) => {
+              const result = await pipelineCredentialApi.page({ pageNo: page, pageSize, keyword: keyword || undefined })
+              return {
+                records: (result.records ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+                total: result.total,
+                pages: result.pages,
+              }
+            }}
           />
         </Field>
       </div>

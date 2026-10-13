@@ -73,11 +73,15 @@ public class RegistryService {
         return entity.getId();
     }
 
-    public IPage<RegistryVO> page(int pageNo, int pageSize) {
+    public IPage<RegistryVO> page(int pageNo, int pageSize, String keyword) {
         Long tenantId = SecurityHelper.currentTenantId();
         LambdaQueryWrapper<RegistryEntity> wrapper = new LambdaQueryWrapper<RegistryEntity>()
                 .eq(tenantId != null, RegistryEntity::getTenantId, tenantId)
                 .orderByDesc(RegistryEntity::getUpdatedAt);
+        if (keyword != null && !keyword.isBlank()) {
+            String kw = keyword.trim();
+            wrapper.and(w -> w.like(RegistryEntity::getName, kw).or().like(RegistryEntity::getAlias, kw));
+        }
         IPage<RegistryEntity> page = registryMapper.selectPage(new Page<>(pageNo, pageSize), wrapper);
         return page.convert(this::toVO);
     }

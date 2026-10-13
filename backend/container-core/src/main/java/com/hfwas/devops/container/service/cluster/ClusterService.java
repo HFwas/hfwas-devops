@@ -65,12 +65,16 @@ public class ClusterService {
     }
 
     /**
-     * Paginated list filtered by tenant.
+     * Paginated list filtered by tenant, optionally matching name / alias.
      */
-    public IPage<ClusterEntity> page(int pageNo, int pageSize, Long tenantId) {
+    public IPage<ClusterEntity> page(int pageNo, int pageSize, Long tenantId, String keyword) {
         LambdaQueryWrapper<ClusterEntity> wrapper = new LambdaQueryWrapper<ClusterEntity>()
                 .eq(tenantId != null, ClusterEntity::getTenantId, tenantId)
                 .orderByDesc(ClusterEntity::getUpdatedAt);
+        if (keyword != null && !keyword.isBlank()) {
+            String kw = keyword.trim();
+            wrapper.and(w -> w.like(ClusterEntity::getName, kw).or().like(ClusterEntity::getAlias, kw));
+        }
         return clusterMapper.selectPage(new Page<>(pageNo, pageSize), wrapper);
     }
 

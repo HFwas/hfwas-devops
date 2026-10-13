@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
+import { Pagination } from '@/components/console/Pagination'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,6 +22,7 @@ import { Label } from '@/components/ui/label'
 import { environmentApi } from '@/modules/api-test/environment/api/environment'
 import type { EnvironmentVO } from '@/modules/api-test/environment/types/environment'
 import { ProjectSelect } from '@/modules/api-test/pages/ProjectSelect'
+import { DEFAULT_PAGE_SIZE, pageCountOf } from '@/shared/types/pagination'
 import { useAuthStore } from '@/stores/auth'
 
 const schema = z.object({
@@ -40,6 +42,7 @@ export function EnvironmentListPage() {
   const queryClient = useQueryClient()
   const [projectId, setProjectId] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -50,14 +53,18 @@ export function EnvironmentListPage() {
     if (!open) form.reset({ name: '', description: '' })
   }, [form, open])
 
+  useEffect(() => {
+    setPage(1)
+  }, [keyword, projectId])
+
   const query = useQuery({
-    queryKey: ['api-environments', projectId, keyword],
+    queryKey: ['api-environments', projectId, keyword, page],
     queryFn: () =>
       environmentApi.page({
         projectId,
         keyword: keyword.trim() || undefined,
-        pageNo: 1,
-        pageSize: 50,
+        pageNo: page,
+        pageSize: DEFAULT_PAGE_SIZE,
       }),
     enabled: !!projectId,
   })
@@ -73,6 +80,7 @@ export function EnvironmentListPage() {
 
   const rows = query.data?.records ?? []
   const total = query.data?.total ?? rows.length
+  const pageCount = pageCountOf(query.data, DEFAULT_PAGE_SIZE)
 
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">
@@ -117,6 +125,7 @@ export function EnvironmentListPage() {
         error={query.isError ? '环境列表加载失败' : undefined}
         empty={projectId ? '这个项目还没有环境' : '先选择项目'}
       />
+      <Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
