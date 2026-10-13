@@ -1,8 +1,10 @@
 # =============================================================================
 # Stage 1: Build Spring Boot fat JAR
 # BuildKit cache：/root/.m2 跨构建复用，改业务代码不再全量拉依赖
+# --platform=$BUILDPLATFORM：多架构构建时在宿主架构上编译（产物是架构无关的 JAR），
+# 避免 arm64 平台用 QEMU 跑 Maven 导致构建极慢。
 # =============================================================================
-FROM maven:3.9.9-eclipse-temurin-21 AS builder
+FROM --platform=$BUILDPLATFORM maven:3.9.9-eclipse-temurin-21 AS builder
 
 WORKDIR /build
 
