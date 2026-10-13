@@ -1,7 +1,7 @@
 # 应用镜像构建与 Helm 升级
 
-> 日期：2026-10-12
-> 版本：v0.3
+> 日期：2026-10-14
+> 版本：v0.4
 
 ### 变更记录
 
@@ -10,6 +10,7 @@
 | v0.1 | 2026-09-13 | 初版：把原先手工 docker build + helm upgrade 收成 `deploy-app` 脚本 |
 | v0.2 | 2026-10-01 | 构建命令改为 `deploy/docker/backend/Dockerfile` |
 | v0.3 | 2026-10-12 | 增加推送到阿里云杭州仓库 `dkyy` 的 `scripts/push-aliyun.sh` |
+| v0.4 | 2026-10-14 | `push-aliyun.sh` 默认 `PLATFORM=linux/amd64`；ARM Mac 交叉构建走 buildx |
 
 ---
 
@@ -122,6 +123,20 @@ export ALIYUN_REGISTRY_PASSWORD='你的仓库密码'
 ./scripts/push-aliyun.sh all 1.2.0
 ```
 
+默认 **`PLATFORM=linux/amd64`**（云主机常见 x86）。Apple Silicon + Colima 是 arm64，脚本会走 `docker buildx` 交叉构建。本机调试可改：
+
+```bash
+PLATFORM=linux/arm64 ./scripts/push-aliyun.sh all
+```
+
+交叉构建需要 buildx（Homebrew）：
+
+```bash
+brew install docker-buildx
+mkdir -p ~/.docker/cli-plugins
+ln -sfn "$(brew --prefix)/opt/docker-buildx/bin/docker-buildx" ~/.docker/cli-plugins/docker-buildx
+```
+
 远端仓库名可用 `ALIYUN_IMAGE_BACKEND`、`ALIYUN_IMAGE_FRONTEND` 改掉。例如把后端推成 `code-api`：
 
 ```bash
@@ -129,4 +144,4 @@ ALIYUN_IMAGE_BACKEND=code-api ./scripts/push-aliyun.sh backend 1.2.0
 # docker pull registry.cn-hangzhou.aliyuncs.com/dkyy/code-api:1.2.0
 ```
 
-未设置密码时，脚本会在终端询问。设 `SKIP_LATEST=1` 则不额外推 `:latest`。
+未设置密码时，脚本会在终端询问（输入不回显）。设 `SKIP_LATEST=1` 则不额外推 `:latest`。
