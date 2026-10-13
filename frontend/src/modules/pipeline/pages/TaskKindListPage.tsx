@@ -15,15 +15,18 @@ export function TaskKindListPage() {
   const queryClient = useQueryClient()
   const [keyword, setKeyword] = useState('')
   const [group, setGroup] = useState('全部')
+  const [pendingKind, setPendingKind] = useState<string | null>(null)
   const query = useQuery({
     queryKey: ['pipeline-task-kinds'],
     queryFn: () => pipelineTaskKindApi.list(),
   })
   const toggle = useMutation({
     mutationFn: (kind: string) => pipelineTaskKindApi.toggle(kind),
+    onMutate: (kind: string) => setPendingKind(kind),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['pipeline-task-kinds'] })
     },
+    onSettled: () => setPendingKind(null),
     onError: (error: Error) => toast.error(error.message || '切换失败'),
   })
 
@@ -59,15 +62,14 @@ export function TaskKindListPage() {
           />
         }
       />
-      <div role="tablist" aria-label="任务分组" className="flex gap-1 overflow-x-auto">
+      <div role="group" aria-label="任务分组" className="flex gap-1 overflow-x-auto">
         {['全部', ...groups].map((item) => {
           const selected = item === group
           return (
             <button
               key={item}
               type="button"
-              role="tab"
-              aria-selected={selected}
+              aria-pressed={selected}
               className={cn(
                 'rounded-md px-3 py-1.5 text-sm whitespace-nowrap',
                 selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground',
@@ -89,7 +91,7 @@ export function TaskKindListPage() {
               key={item.kindValue}
               item={item}
               showToggle={isAdmin}
-              togglePending={toggle.isPending}
+              togglePending={pendingKind === item.kindValue}
               onToggle={() => toggle.mutate(item.kindValue)}
             />
           ))}

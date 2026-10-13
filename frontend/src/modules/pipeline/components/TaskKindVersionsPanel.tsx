@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { DataTable } from '@/components/console/DataTable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -100,18 +102,17 @@ export function TaskKindVersionsPanel({ kind, isAdmin }: { kind: string; isAdmin
             className: 'text-right',
             cell: (row) =>
               isAdmin && !row.isCurrent ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={activate.isPending}
-                  onClick={() => {
-                    if (window.confirm(`切换到版本 ${row.version}？未发布的修改会被该版本覆盖。`)) {
-                      activate.mutate(row.version)
-                    }
-                  }}
+                <ConfirmDialog
+                  title={`切换到版本 ${row.version}？`}
+                  description="未发布的修改会被该版本覆盖。"
+                  confirmText="切换"
+                  confirmDisabled={activate.isPending}
+                  onConfirm={() => activate.mutate(row.version)}
                 >
-                  设为当前
-                </Button>
+                  <Button variant="ghost" size="sm" disabled={activate.isPending}>
+                    设为当前
+                  </Button>
+                </ConfirmDialog>
               ) : null,
           },
         ]}
@@ -139,9 +140,9 @@ export function TaskKindVersionsPanel({ kind, isAdmin }: { kind: string; isAdmin
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="task-kind-version-note">备注</Label>
-              <textarea
+              <Textarea
                 id="task-kind-version-note"
-                className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-20"
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
               />

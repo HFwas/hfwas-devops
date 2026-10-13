@@ -1,19 +1,21 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Clock, Hand, Pencil, Webhook } from 'lucide-react'
-import { Link, useMatch, useNavigate, useParams } from 'react-router'
+import { ArrowLeft, ChevronLeft, ChevronRight, Clock, Hand, Pencil, Webhook } from 'lucide-react'
+import { Link, useMatch, useNavigate, useParams, useSearchParams } from 'react-router'
 import { DataTable } from '@/components/console/DataTable'
 import { DetailShell } from '@/components/console/DetailShell'
 import { OverviewMetricCards } from '@/components/console/ResourceOverview'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { pipelineApi, pipelineCredentialApi } from '@/modules/pipeline/api/pipeline'
 import { PipelineDefinitionCanvas } from '@/modules/pipeline/components/PipelineDefinitionCanvas'
 import { StartRunButton } from '@/modules/pipeline/components/StartRunButton'
 import { repoShortName } from '@/modules/pipeline/graph/pipelineGraph'
 import {
   filterPipelineRuns,
+  rangeLabel,
   recentSuccessRate,
   triggerLabel,
   type RunStatusFilter,
@@ -23,6 +25,8 @@ import { formatCompactDuration, formatCommit, formatDateTime, formatGitRef, form
 import type { PipelineRun } from '@/modules/pipeline/types/pipeline'
 
 const TERMINAL = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED'])
+/** 运行历史一次拉取的上限；超过则只能看到最近这些。 */
+const HISTORY_FETCH_LIMIT = 200
 const PAGE_SIZE = 10
 
 const STATUS_OPTIONS: Array<{ value: RunStatusFilter; label: string }> = [
@@ -42,8 +46,21 @@ const RANGE_OPTIONS: Array<{ value: RunTimeRange; label: string }> = [
   { value: 'all', label: '全部时间' },
 ]
 
-const controlClass =
-  'flex h-8 rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
+const RUN_STATUS_VALUES = new Set(STATUS_OPTIONS.map((option) => option.value))
+const RUN_RANGE_VALUES = new Set(RANGE_OPTIONS.map((option) => option.value))
+
+function readStatus(value: string | null): RunStatusFilter {
+  return value && RUN_STATUS_VALUES.has(value as RunStatusFilter) ? (value as RunStatusFilter) : 'all'
+}
+
+function readRange(value: string | null): RunTimeRange {
+  return value && RUN_RANGE_VALUES.has(value as RunTimeRange) ? (value as RunTimeRange) : '7d'
+}
+
+function pageParam(value: string | null): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 1
+}
 
 /**
  * 流水线详情壳。垂直顺序固定为：返回与名称、编辑/运行、页签、仓库元信息、页签正文。
@@ -66,7 +83,7 @@ export function PipelineDetailPage() {
   })
   const runsQuery = useQuery({
     queryKey: ['pipeline-runs', pipelineId],
-    queryFn: () => pipelineApi.pageRuns(pipelineId, { pageNo: 1, pageSize: 100 }),
+    queryFn: () => pipelineApi.pageRuns(pipelineId, { pageNo: 1, pageSize: HISTORY_FETCH_LIMIT }),
     enabled: !!pipelineId,
     refetchInterval: (query) => {
       const records = query.state.data?.records ?? []
@@ -76,7 +93,6 @@ export function PipelineDetailPage() {
 
   const pipeline = pipelineQuery.data
   const records = runsQuery.data?.records ?? []
-  const total = Number(runsQuery.data?.total ?? records.length)
   const credentialName = pipeline?.credentialId
     ? (credentialsQuery.data ?? []).find((item) => String(item.id) === String(pipeline.credentialId))?.name || '当前凭证'
     : '未配置'
@@ -154,7 +170,6 @@ export function PipelineDetailPage() {
           <RunHistory
             pipelineId={pipelineId}
             records={records}
-            total={total}
             loading={runsQuery.isFetching}
             error={runsQuery.isError}
             onOpen={(runId) => navigate(`/pipeline/pipelines/${pipelineId}/runs/${runId}`)}
@@ -172,32 +187,47 @@ function MonoValue({ children }: { children: ReactNode }) {
 function RunHistory({
   pipelineId,
   records,
-  total,
   loading,
   error,
   onOpen,
 }: {
   pipelineId: string
   records: PipelineRun[]
-  total: number
   loading: boolean
   error: boolean
   onOpen: (runId: string) => void
 }) {
-  const [status, setStatus] = useState<RunStatusFilter>('all')
-  const [range, setRange] = useState<RunTimeRange>('7d')
-  const [keyword, setKeyword] = useState('')
-  const [page, setPage] = useState(1)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const status = readStatus(searchParams.get('status'))
+  const range = readRange(searchParams.get('range'))
+  const keyword = searchParams.get('q') ?? ''
+  const page = pageParam(searchParams.get('page'))
+  const [draftKeyword, setDraftKeyword] = useState(keyword)
+
+  function patchParams(patch: Record<string, string | null>, replace = false) {
+    const next = new URLSearchParams(searchParams)
+    for (const [key, value] of Object.entries(patch)) {
+      if (value == null || value === '') next.delete(key)
+      else next.set(key, value)
+    }
+    setSearchParams(next, { replace })
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const next = draftKeyword.trim()
+      if (next === keyword) return
+      patchParams({ q: next || null, page: null }, true)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [draftKeyword, keyword, searchParams, setSearchParams])
+
   const filtered = filterPipelineRuns(records, { status, range, keyword })
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, pageCount)
   const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
-  const rate = recentSuccessRate(records)
+  const rate = recentSuccessRate(records, range)
   const rateText = rate == null ? '—' : `${rate}%`
-
-  function resetPage() {
-    setPage(1)
-  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -266,78 +296,71 @@ function RunHistory({
         onRowClick={(run) => onOpen(String(run.id))}
         toolbar={
           <>
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              状态
-              <select
-                aria-label="状态"
-                className={controlClass}
-                value={status}
-                onChange={(event) => {
-                  setStatus(event.target.value as RunStatusFilter)
-                  resetPage()
-                }}
-              >
+            <Select
+              value={status}
+              onValueChange={(value) => patchParams({ status: value === 'all' ? null : value, page: null })}
+            >
+              <SelectTrigger aria-label="状态" size="sm" className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
                 {STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
+                  <SelectItem key={option.value} value={option.value}>
                     {option.label}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
-            </label>
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              时间
-              <select
-                aria-label="时间"
-                className={controlClass}
-                value={range}
-                onChange={(event) => {
-                  setRange(event.target.value as RunTimeRange)
-                  resetPage()
-                }}
-              >
+              </SelectContent>
+            </Select>
+            <Select
+              value={range}
+              onValueChange={(value) => patchParams({ range: value === '7d' ? null : value, page: null })}
+            >
+              <SelectTrigger aria-label="时间" size="sm" className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
                 {RANGE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
+                  <SelectItem key={option.value} value={option.value}>
                     {option.label}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
-            </label>
+              </SelectContent>
+            </Select>
             <Input
-              value={keyword}
-              onChange={(event) => {
-                setKeyword(event.target.value)
-                resetPage()
-              }}
+              value={draftKeyword}
+              onChange={(event) => setDraftKeyword(event.target.value)}
               placeholder="搜索运行编号、分支"
               aria-label="搜索运行编号、分支"
               className="h-8 w-56"
             />
-            <span className="ml-auto text-sm text-muted-foreground">
-              共 {total} 次运行 · 近 7 天成功率 {rateText}
+            <span className="ml-auto text-sm text-muted-foreground tabular-nums">
+              最近 {records.length} 次中 {filtered.length} 条 · {rangeLabel(range)}成功率 {rateText}
             </span>
           </>
         }
       />
       <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>共 {filtered.length} 条</span>
+        <span className="tabular-nums">第 {safePage} / {pageCount} 页</span>
         {pageCount > 1 ? (
           <div className="flex items-center gap-1">
-            {Array.from({ length: pageCount }, (_, index) => index + 1).map((item) => (
-              <button
-                key={item}
-                type="button"
-                aria-label={`第 ${item} 页`}
-                aria-current={item === safePage ? 'page' : undefined}
-                className={
-                  item === safePage
-                    ? 'flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground'
-                    : 'flex size-8 items-center justify-center rounded-md hover:bg-muted'
-                }
-                onClick={() => setPage(item)}
-              >
-                {item}
-              </button>
-            ))}
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="上一页"
+              disabled={safePage <= 1}
+              onClick={() => patchParams({ page: safePage - 1 > 1 ? String(safePage - 1) : null })}
+            >
+              <ChevronLeft />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="下一页"
+              disabled={safePage >= pageCount}
+              onClick={() => patchParams({ page: String(safePage + 1) })}
+            >
+              <ChevronRight />
+            </Button>
           </div>
         ) : null}
       </div>

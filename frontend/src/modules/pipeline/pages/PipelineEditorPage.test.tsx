@@ -304,8 +304,6 @@ describe('PipelineEditorPage', () => {
   })
 
   it('asks before deleting a job and keeps it when cancelled', async () => {
-    const confirm = vi.fn(() => false)
-    vi.stubGlobal('confirm', confirm)
     const view = await renderNew()
     click(view, '添加阶段')
     await flush()
@@ -314,16 +312,31 @@ describe('PipelineEditorPage', () => {
     click(view, '添加代码克隆')
     await flush()
 
+    // 打开确认弹窗后取消，任务保留。
     click(view, '删除代码克隆')
     await flush()
-    expect(confirm).toHaveBeenCalledWith('删除任务「代码克隆」？')
+    const dialog = document.body.querySelector('[data-slot="alert-dialog-content"]')
+    expect(dialog?.textContent).toContain('删除任务「代码克隆」？')
+    const cancel = [...document.body.querySelectorAll('[data-slot="alert-dialog-content"] button')].find(
+      (node) => node.textContent === '取消',
+    )
+    act(() => {
+      cancel?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await flush()
     expect(view.querySelector('[aria-label="选择代码克隆"]')).toBeTruthy()
 
-    confirm.mockReturnValue(true)
+    // 再次打开并确认删除。
     click(view, '删除代码克隆')
+    await flush()
+    const confirm = [...document.body.querySelectorAll('[data-slot="alert-dialog-content"] button')].find(
+      (node) => node.textContent === '删除',
+    )
+    act(() => {
+      confirm?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
     await flush()
     expect(view.querySelector('[aria-label="选择代码克隆"]')).toBeNull()
     expect(panel()?.getAttribute('data-mode')).toBe('config')
-    vi.unstubAllGlobals()
   })
 })

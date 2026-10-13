@@ -1,10 +1,9 @@
 import { del, get, patch, post, put } from '@/shared/api/request'
+import { asId } from '@/lib/utils'
 import type { PageResult } from '@/shared/types/common'
 import type {
   CredentialSavePayload,
   EntityId,
-  JobParamDefinition,
-  JobParamSavePayload,
   PipelineCredential,
   PipelineRun,
   PipelineSavePayload,
@@ -20,10 +19,6 @@ import type {
 
 function kindPath(kind: string): string {
   return encodeURIComponent(kind)
-}
-
-function asId(value: EntityId): string {
-  return String(value)
 }
 
 export const pipelineApi = {
@@ -51,16 +46,6 @@ export const pipelineApi = {
 }
 
 export const pipelineJobParamApi = {
-  list: (pipelineId: EntityId) =>
-    get<JobParamDefinition[]>(`/pipeline/job-params`, { pipelineId }),
-  get: (id: EntityId) =>
-    get<JobParamDefinition>(`/pipeline/job-params/${asId(id)}`),
-  create: (data: JobParamSavePayload) =>
-    post<EntityId>('/pipeline/job-params', data),
-  update: (id: EntityId, data: JobParamSavePayload) =>
-    put<void>(`/pipeline/job-params/${asId(id)}`, data),
-  delete: (id: EntityId) =>
-    del<void>(`/pipeline/job-params/${asId(id)}`),
   previewApi: (data: { apiUrl: string; apiMethod?: string; apiHeaders?: Record<string, string>; apiResponsePath?: string }) =>
     post<{ success: boolean; options: string[]; errorMessage?: string }>('/pipeline/job-params/preview-api', data),
 }
@@ -85,6 +70,4 @@ export const pipelineTaskKindApi = {
     post<TaskKindVersion>(`/pipeline/task-kinds/${kindPath(kind)}/versions`, data),
   activate: (kind: string, version: string) =>
     put<TaskKindVO>(`/pipeline/task-kinds/${kindPath(kind)}/versions/${kindPath(version)}/activate`),
-  validateTemplate: (kind: string, data: { script: string }) =>
-    post<{ valid: boolean; errors: string[] }>(`/pipeline/task-kinds/${kindPath(kind)}/validate`, data),
 }

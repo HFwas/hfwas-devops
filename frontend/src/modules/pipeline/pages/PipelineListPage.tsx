@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { FolderGit2, GitBranch, Pencil, Plus, Trash2 } from 'lucide-react'
-import { Link } from 'react-router'
+import { useEffect, useState } from 'react'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight, FolderGit2, GitBranch, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
 import { StatusIcon } from '@/components/console/StatusIcon'
@@ -16,6 +17,8 @@ import { formatGitRef, formatRelativeTime, runStatusLabel } from '@/modules/pipe
 import type { PipelineSummary } from '@/modules/pipeline/types/pipeline'
 import { cn } from '@/lib/utils'
 
+const PAGE_SIZE = 20
+
 type ListStatusFilter = 'all' | 'RUNNING' | 'SUCCEEDED' | 'FAILED'
 
 const STATUS_FILTERS: Array<{ id: ListStatusFilter; label: string }> = [
@@ -25,13 +28,23 @@ const STATUS_FILTERS: Array<{ id: ListStatusFilter; label: string }> = [
   { id: 'FAILED', label: '失败' },
 ]
 
+function pageParam(value: string | null): number {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 1
+}
+
 export function PipelineListPage() {
   const queryClient = useQueryClient()
-  const [keyword, setKeyword] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const q = searchParams.get('q')?.trim() ?? ''
+  const page = pageParam(searchParams.get('page'))
+  const [keyword, setKeyword] = useState(q)
   const [statusFilter, setStatusFilter] = useState<ListStatusFilter>('all')
+
   const query = useQuery({
-    queryKey: ['pipelines'],
-    queryFn: () => pipelineApi.page({ pageNo: 1, pageSize: 100 }),
+    queryKey: ['pipelines', page, q],
+    queryFn: () => pipelineApi.page({ pageNo: page, pageSize: PAGE_SIZE, keyword: q || undefined }),
+    placeholderData: keepPreviousData,
   })
   const remove = useMutation({
     mutationFn: (id: PipelineSummary['id']) => pipelineApi.delete(id),
@@ -42,15 +55,35 @@ export function PipelineListPage() {
     onError: (error: Error) => toast.error(error.message || '删除失败'),
   })
 
-  const needle = keyword.trim().toLowerCase()
-  const rows = (query.data?.records ?? []).filter((row) => {
-    if (statusFilter !== 'all' && row.lastRunStatus !== statusFilter) return false
-    if (!needle) return true
-    const branch = formatGitRef(row.gitRef).toLowerCase()
-    return [row.name, row.repoUrl, repoShortName(row.repoUrl), branch].join(' ').toLowerCase().includes(needle)
-  })
-  const total = query.data?.total ?? rows.length
-  const narrowed = Boolean(needle) || statusFilter !== 'all'
+  // 输入防抖后写进 URL；关键词交给服务端过滤，避免逐键 refetch。
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const next = keyword.trim()
+      if (next === q) return
+      const params = new URLSearchParams(searchParams)
+      if (next) params.set('q', next)
+      else params.delete('q')
+      params.delete('page')
+      setSearchParams(params, { replace: true })
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [keyword, q, searchParams, setSearchParams])
+
+  const pageRows = query.data?.records ?? []
+  // 后端 /page 只支持 keyword，不支持按状态筛选；状态快捷筛选仅作用于当前页。
+  const rows = statusFilter === 'all' ? pageRows : pageRows.filter((row) => row.lastRunStatus === statusFilter)
+  const total = Number(query.data?.total ?? pageRows.length)
+  const pageCount = Math.max(1, Number(query.data?.pages ?? Math.ceil(total / PAGE_SIZE)) || 1)
+  const safePage = Math.min(page, pageCount)
+  const narrowed = Boolean(q) || statusFilter !== 'all'
+
+  function goToPage(next: number) {
+    const target = Math.min(Math.max(1, next), pageCount)
+    const params = new URLSearchParams(searchParams)
+    if (target > 1) params.set('page', String(target))
+    else params.delete('page')
+    setSearchParams(params)
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -58,7 +91,7 @@ export function PipelineListPage() {
         title="流水线"
         description={
           query.isSuccess ? (
-            <span className="tabular-nums">共 {narrowed ? rows.length : total} 条流水线</span>
+            <span className="tabular-nums">共 {total} 条流水线</span>
           ) : (
             '查看流水线与最近一次运行'
           )
@@ -81,28 +114,31 @@ export function PipelineListPage() {
           </>
         }
       />
-      <div
-        role="group"
-        aria-label="按最近运行筛选"
-        className="flex w-fit flex-wrap gap-1 rounded-lg border bg-card p-1 shadow-sm"
-      >
-        {STATUS_FILTERS.map((filter) => {
-          const selected = statusFilter === filter.id
-          return (
-            <button
-              key={filter.id}
-              type="button"
-              aria-pressed={selected}
-              className={cn(
-                'h-7 rounded-md px-2.5 text-xs',
-                selected ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted/60',
-              )}
-              onClick={() => setStatusFilter(filter.id)}
-            >
-              {filter.label}
-            </button>
-          )
-        })}
+      <div className="flex w-fit flex-wrap items-center gap-2">
+        <div
+          role="group"
+          aria-label="按最近运行筛选（仅当前页）"
+          className="flex w-fit flex-wrap gap-1 rounded-lg border bg-card p-1 shadow-sm"
+        >
+          {STATUS_FILTERS.map((filter) => {
+            const selected = statusFilter === filter.id
+            return (
+              <button
+                key={filter.id}
+                type="button"
+                aria-pressed={selected}
+                className={cn(
+                  'h-7 rounded-md px-2.5 text-xs',
+                  selected ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted/60',
+                )}
+                onClick={() => setStatusFilter(filter.id)}
+              >
+                {filter.label}
+              </button>
+            )
+          })}
+        </div>
+        <span className="text-xs text-muted-foreground">状态筛选仅作用于当前页</span>
       </div>
       <DataTable<PipelineSummary>
         fixed
@@ -183,18 +219,19 @@ export function PipelineListPage() {
                 <Button variant="ghost" size="sm" asChild>
                   <Link to={`/pipeline/pipelines/${row.id}/history`}>历史</Link>
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`删除${row.name}`}
-                  onClick={() => {
-                    if (!window.confirm(`删除流水线「${row.name}」？`)) return
-                    remove.mutate(row.id)
-                  }}
+                <ConfirmDialog
+                  title={`删除流水线「${row.name}」？`}
+                  description="删除后无法恢复，运行历史会一并移除。"
+                  confirmText="删除"
+                  destructive
+                  confirmDisabled={remove.isPending}
+                  onConfirm={() => remove.mutate(row.id)}
                 >
-                  <Trash2 />
-                  删除
-                </Button>
+                  <Button variant="ghost" size="sm" aria-label={`删除${row.name}`}>
+                    <Trash2 />
+                    删除
+                  </Button>
+                </ConfirmDialog>
               </div>
             ),
           },
@@ -205,6 +242,34 @@ export function PipelineListPage() {
         error={query.isError ? '流水线列表加载失败' : undefined}
         empty={narrowed ? '没有匹配的流水线' : '还没有流水线'}
       />
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <span className="tabular-nums">
+          第 {safePage} / {pageCount} 页
+          {statusFilter !== 'all' ? ` · 当前页 ${rows.length} / ${pageRows.length} 条符合状态` : null}
+        </span>
+        {pageCount > 1 ? (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="上一页"
+              disabled={safePage <= 1}
+              onClick={() => goToPage(safePage - 1)}
+            >
+              <ChevronLeft />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="下一页"
+              disabled={safePage >= pageCount}
+              onClick={() => goToPage(safePage + 1)}
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

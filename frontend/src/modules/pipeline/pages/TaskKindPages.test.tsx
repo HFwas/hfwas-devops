@@ -151,7 +151,7 @@ describe('task marketplace pages', () => {
     expect(container.querySelector('[data-kind="BUILD"]')?.textContent).toContain('1.2.0')
     expect(toggleButtons(container)).toHaveLength(2)
 
-    const buildTab = [...container.querySelectorAll('[role="tab"]')].find((node) => node.textContent === '构建')
+    const buildTab = [...container.querySelectorAll('button')].find((node) => node.textContent === '构建')
     act(() => {
       buildTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })

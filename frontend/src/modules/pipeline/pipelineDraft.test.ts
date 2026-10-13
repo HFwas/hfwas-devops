@@ -10,6 +10,7 @@ import {
   moveJob,
   moveJobBefore,
   moveStage,
+  moveStageBefore,
   removeJob,
   toSavePayload,
   validateDraft,
@@ -144,5 +145,24 @@ describe('pipelineDraft', () => {
     expect(changed.error).toBeNull()
     expect(changed.stages[0].jobs[0]).toMatchObject({ name: '拉代码', kind: 'BUILD', command: 'mvn package' })
     expect(bindingsForKind(buildKind.params, 'dev').DEST).toEqual({ mode: 'fixed', value: '' })
+  })
+
+  it('reorders stages by drop position and keeps sortOrder contiguous', () => {
+    const a = createEditorJob('BUILD', { name: 'A' })
+    const b = createEditorJob('TEST', { name: 'B' })
+    const c = createEditorJob('DEPLOY', { name: 'C' })
+    let stages = addPaletteJob([], null, a).stages
+    stages = addPaletteJob(stages, null, b).stages
+    stages = addPaletteJob(stages, null, c).stages
+    expect(stages.map((stage) => stage.jobs[0].name)).toEqual(['A', 'B', 'C'])
+
+    // 把第一列拖到第三列之前 → A 落到 B 之后。
+    const moved = moveStageBefore(stages, stages[0].clientKey, 2)
+    expect(moved.map((stage) => stage.jobs[0].name)).toEqual(['B', 'A', 'C'])
+    expect(moved.map((stage) => stage.sortOrder)).toEqual([0, 1, 2])
+
+    // 拖到末尾。
+    const toEnd = moveStageBefore(moved, moved[0].clientKey, null)
+    expect(toEnd.map((stage) => stage.jobs[0].name)).toEqual(['A', 'C', 'B'])
   })
 })
