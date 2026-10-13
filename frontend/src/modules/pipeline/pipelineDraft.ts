@@ -255,6 +255,23 @@ export function moveStage(stages: EditorStage[], stageKey: string, delta: -1 | 1
 }
 
 /**
+ * 拖拽排序阶段：把 `stageKey` 移到 `beforeIndex` 之前；`null` 表示放到末尾。
+ * `beforeIndex` 是移动前目标序列里的下标。
+ */
+export function moveStageBefore(stages: EditorStage[], stageKey: string, beforeIndex: number | null): EditorStage[] {
+  const from = stages.findIndex((stage) => stage.clientKey === stageKey)
+  if (from < 0) return stages
+  const item = stages[from]
+  const remaining = stages.filter((stage) => stage.clientKey !== stageKey)
+  let index = beforeIndex == null ? remaining.length : beforeIndex
+  if (beforeIndex != null && from < beforeIndex) index -= 1
+  index = Math.max(0, Math.min(index, remaining.length))
+  const copy = remaining.slice()
+  copy.splice(index, 0, item)
+  return reindex(copy)
+}
+
+/**
  * 把任务插到目标阶段。`beforeIndex` 是移动前目标阶段里的下标；`null` 表示放到末尾。
  */
 export function moveJobBefore(

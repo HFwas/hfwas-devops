@@ -38,19 +38,28 @@ export function filterPipelineRuns(
   })
 }
 
-/** 近 7 天已结束运行的成功率。没有已结束运行时返回 null。 */
-export function recentSuccessRate(runs: PipelineRun[], now = Date.now()): number | null {
-  const windowMs = RANGE_MS['7d']
+/** 指定时间窗口内已结束运行的成功率；`all` 表示不限时间。没有已结束运行时返回 null。 */
+export function recentSuccessRate(runs: PipelineRun[], range: RunTimeRange = '7d', now = Date.now()): number | null {
+  const windowMs = range === 'all' ? null : RANGE_MS[range]
   let success = 0
   let finished = 0
   for (const run of runs) {
     if (!run.startedAt) continue
     const started = parseInstant(run.startedAt)
-    if (Number.isNaN(started) || now - started > windowMs) continue
+    if (Number.isNaN(started)) continue
+    if (windowMs != null && now - started > windowMs) continue
     if (run.status !== 'SUCCEEDED' && run.status !== 'FAILED' && run.status !== 'CANCELLED') continue
     finished += 1
     if (run.status === 'SUCCEEDED') success += 1
   }
   if (finished === 0) return null
   return Math.round((success / finished) * 100)
+}
+
+/** 时间窗口的中文标签，供成功率文案使用。 */
+export function rangeLabel(range: RunTimeRange): string {
+  if (range === '24h') return '近 24 小时'
+  if (range === '7d') return '近 7 天'
+  if (range === '30d') return '近 30 天'
+  return '全部时间'
 }

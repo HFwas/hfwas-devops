@@ -41,8 +41,8 @@ describe('pipeline run history filters', () => {
     expect(filterPipelineRuns(runs, { status: 'all', range: 'all', keyword: '128', now }).map((item) => item.id)).toEqual([128])
   })
 
-  it('computes the 7 day success rate from finished runs', () => {
-    expect(recentSuccessRate(runs, now)).toBe(0)
+  it('computes the success rate for the chosen time window from finished runs', () => {
+    expect(recentSuccessRate(runs, '7d', now)).toBe(0)
     expect(
       recentSuccessRate(
         [
@@ -51,8 +51,21 @@ describe('pipeline run history filters', () => {
           run({ id: 3, status: 'RUNNING' }),
           run({ id: 4, status: 'SUCCEEDED', startedAt: '2026-09-01T00:00:00Z' }),
         ],
+        '7d',
         now,
       ),
     ).toBe(50)
+    // 放宽到「全部时间」后，更早的那次成功计入，成功率上升。
+    expect(
+      recentSuccessRate(
+        [
+          run({ id: 1, status: 'SUCCEEDED' }),
+          run({ id: 2, status: 'FAILED' }),
+          run({ id: 4, status: 'SUCCEEDED', startedAt: '2026-09-01T00:00:00Z' }),
+        ],
+        'all',
+        now,
+      ),
+    ).toBe(67)
   })
 })

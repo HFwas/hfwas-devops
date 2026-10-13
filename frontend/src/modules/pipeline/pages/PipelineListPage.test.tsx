@@ -122,14 +122,17 @@ describe('PipelineListPage', () => {
     expect(nameCell?.className).not.toContain('py-3')
     expect(container.querySelector('[data-slot="stage-dot"]')?.parentElement?.className).toContain('shadow-sm')
 
+    // 关键词交给服务端：防抖后带 keyword 重新查询（不再前端过滤）。
     const search = container.querySelector('[aria-label="搜索流水线、仓库或分支"]') as HTMLInputElement
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
     setter?.call(search, 'dev')
     act(() => {
       search.dispatchEvent(new Event('input', { bubbles: true }))
     })
-    expect(container.textContent).toContain('前端构建')
-    expect(container.textContent).not.toContain('后端发布')
-    expect(container.textContent).toContain('共 1 条流水线')
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      if (vi.mocked(pipelineApi.page).mock.calls.some((call) => call[0]?.keyword === 'dev')) break
+      await flush()
+    }
+    expect(pipelineApi.page).toHaveBeenCalledWith(expect.objectContaining({ pageNo: 1, pageSize: 20, keyword: 'dev' }))
   })
 })

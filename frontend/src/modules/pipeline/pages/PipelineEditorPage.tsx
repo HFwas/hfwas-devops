@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  GripVertical,
   Plus,
   Trash2,
   Workflow,
@@ -13,10 +15,13 @@ import {
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { JobKindIcon } from '@/modules/pipeline/components/JobKindIcon'
 import { StartRunButton } from '@/modules/pipeline/components/StartRunButton'
 import { pipelineApi, pipelineCredentialApi, pipelineTaskKindApi } from '@/modules/pipeline/api/pipeline'
@@ -31,10 +36,12 @@ import {
   draftFromPipeline,
   emptyDraft,
   jobAt,
+  kindNeedsCommand,
   locateJob,
   moveJob,
   moveJobBefore,
   moveStage,
+  moveStageBefore,
   paramChoices,
   removeJob,
   removeStage,
@@ -49,8 +56,72 @@ import { coerceToolchain, stackLabel, toolsFor, uniqueStacks, runtimesFor } from
 import type { EditorJob, EditorStage, EntityId, JobKind, JobParamBinding, PipelineRunJob, TaskKindVO } from '@/modules/pipeline/types/pipeline'
 import { cn } from '@/lib/utils'
 
-const controlClass =
-  'flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
+/** Radix Select 不接受空字符串作为 item value；用哨兵代表「不指定」。 */
+const NONE = '__none__'
+
+function ChoiceSelect({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  allowEmpty = false,
+  emptyLabel = '不指定',
+  disabled,
+  className,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Array<{ value: string; label: string }>
+  placeholder?: string
+  allowEmpty?: boolean
+  emptyLabel?: string
+  disabled?: boolean
+  className?: string
+}) {
+  return (
+    <Select
+      value={value === '' ? NONE : value}
+      onValueChange={(next) => onChange(next === NONE ? '' : next)}
+      disabled={disabled}
+    >
+      <SelectTrigger aria-label={label} size="sm" className={cn('w-full', className)}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {allowEmpty ? <SelectItem value={NONE}>{emptyLabel}</SelectItem> : null}
+        {options
+          .filter((option) => option.value !== '')
+          .map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+/** 画布缩放：用 transform 缩放内容，并按缩放后尺寸撑开外层，保证滚动区正确。 */
+function ScalableTrack({ scale, children }: { scale: number; children: ReactNode }) {
+  const innerRef = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState({ w: 0, h: 0 })
+  useLayoutEffect(() => {
+    const el = innerRef.current
+    if (!el) return
+    const w = el.offsetWidth
+    const h = el.offsetHeight
+    setSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }))
+  })
+  return (
+    <div style={{ width: size.w ? size.w * scale : undefined, height: size.h ? size.h * scale : undefined }}>
+      <div ref={innerRef} className="flex w-max items-start gap-2 origin-top-left" style={{ transform: `scale(${scale})` }}>
+        {children}
+      </div>
+    </div>
+  )
+}
 
 export function PipelineEditorPage() {
   const { pipelineId } = useParams()
@@ -59,13 +130,16 @@ export function PipelineEditorPage() {
   const [createdId, setCreatedId] = useState<EntityId | null>(null)
   const effectiveId = pipelineId ?? (createdId == null ? '' : String(createdId))
   const [draft, setDraft] = useState<PipelineDraft>(emptyDraft)
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(emptyDraft()))
   const [ready, setReady] = useState(!pipelineId)
   const [selectedJobKey, setSelectedJobKey] = useState<string | null>(null)
   const [targetStageKey, setTargetStageKey] = useState<string | null>(null)
   const [panelMode, setPanelMode] = useState<'config' | 'add'>('config')
   const [zoom, setZoom] = useState('100')
   const [busy, setBusy] = useState(false)
-  const baseline = useRef(JSON.stringify(emptyDraft()))
+  const [error, setError] = useState<string | null>(null)
+
+  const dirty = useMemo(() => JSON.stringify(draft) !== savedSnapshot, [draft, savedSnapshot])
 
   const pipelineQuery = useQuery({
     queryKey: ['pipeline', pipelineId],
@@ -98,7 +172,7 @@ export function PipelineEditorPage() {
     if (!pipelineId || !pipelineQuery.data || ready) return
     const next = draftFromPipeline(pipelineQuery.data)
     setDraft(next)
-    baseline.current = JSON.stringify(next)
+    setSavedSnapshot(JSON.stringify(next))
     setSelectedJobKey(next.stages.flatMap((stage) => stage.jobs)[0]?.clientKey ?? null)
     setReady(true)
   }, [pipelineId, pipelineQuery.data, ready])
@@ -124,11 +198,13 @@ export function PipelineEditorPage() {
   }
 
   async function persist(): Promise<EntityId | null> {
-    const error = validateDraft(draft, kinds)
-    if (error) {
-      toast.error(error)
+    const validationError = validateDraft(draft, kinds)
+    if (validationError) {
+      setError(validationError)
+      toast.error(validationError)
       return null
     }
+    setError(null)
     const payload = toSavePayload(draft)
     try {
       if (!effectiveId) {
@@ -153,10 +229,10 @@ export function PipelineEditorPage() {
     const loc = locateJob(draft.stages, selectedJobKey)
     const nextKey = loc ? jobAt(fresh.stages, loc.stageIndex, loc.jobIndex)?.clientKey : fresh.stages[0]?.jobs[0]?.clientKey
     setDraft(fresh)
+    setSavedSnapshot(JSON.stringify(fresh))
     setSelectedJobKey(nextKey ?? null)
     setTargetStageKey(null)
     setPanelMode('config')
-    baseline.current = JSON.stringify(fresh)
   }
 
   async function onSave() {
@@ -175,10 +251,32 @@ export function PipelineEditorPage() {
     }
   }
 
-  function onCancel() {
-    if (JSON.stringify(draft) !== baseline.current && !window.confirm('放弃未保存的修改？')) return
-    void navigate('/pipeline/pipelines')
-  }
+  const goToList = () => void navigate('/pipeline/pipelines')
+
+  // L2：Ctrl/Cmd+S 保存。
+  const saveRef = useRef(() => {})
+  saveRef.current = () => void onSave()
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        saveRef.current()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  // M3：有未保存改动时拦截关闭/刷新。
+  useEffect(() => {
+    if (!dirty) return
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
 
   function onAddKind(kind: TaskKindVO) {
     const stageKey = resolveStageKey()
@@ -216,6 +314,8 @@ export function PipelineEditorPage() {
   const destinationKey = resolveStageKey()
   const destinationIndex = draft.stages.findIndex((stage) => stage.clientKey === destinationKey)
   const destination = destinationIndex >= 0 ? draft.stages[destinationIndex] : null
+  const nameInvalid = !!error && error.includes('名称')
+  const repoInvalid = !!error && error.includes('仓库')
 
   if (pipelineId && pipelineQuery.isLoading) return <p className="text-sm text-muted-foreground">加载中…</p>
   if (pipelineId && pipelineQuery.isError) return <p className="text-sm text-destructive">流水线加载失败</p>
@@ -226,9 +326,23 @@ export function PipelineEditorPage() {
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
         <div className="text-sm font-medium">{pipelineId ? '编辑流水线' : '新建流水线'}</div>
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-            取消
-          </Button>
+          {dirty ? (
+            <ConfirmDialog
+              title="放弃未保存的修改？"
+              description="未保存的改动会丢失。"
+              confirmText="放弃"
+              destructive
+              onConfirm={goToList}
+            >
+              <Button type="button" variant="outline" size="sm">
+                取消
+              </Button>
+            </ConfirmDialog>
+          ) : (
+            <Button type="button" variant="outline" size="sm" onClick={goToList}>
+              取消
+            </Button>
+          )}
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void onSave()}>
             保存
           </Button>
@@ -259,6 +373,7 @@ export function PipelineEditorPage() {
         <Field label="名称">
           <Input
             aria-label="名称"
+            aria-invalid={nameInvalid || undefined}
             value={draft.name}
             placeholder="后端发布"
             className="h-8 font-console text-sm"
@@ -268,6 +383,7 @@ export function PipelineEditorPage() {
         <Field label="仓库">
           <Input
             aria-label="仓库"
+            aria-invalid={repoInvalid || undefined}
             value={draft.repoUrl}
             placeholder="https://github.com/org/repo.git"
             className="h-8 font-mono text-xs"
@@ -284,24 +400,32 @@ export function PipelineEditorPage() {
           />
         </Field>
         <Field label="凭证">
-          <select
-            aria-label="凭证"
-            className={controlClass}
+          <ChoiceSelect
+            label="凭证"
             value={draft.credentialId}
-            onChange={(event) => setDraft({ ...draft, credentialId: event.target.value })}
-          >
-            <option value="">不使用凭证</option>
-            {(credentialsQuery.data ?? []).map((item) => (
-              <option key={String(item.id)} value={String(item.id)}>
-                {item.name}
-              </option>
-            ))}
-            {draft.credentialId && !(credentialsQuery.data ?? []).some((item) => String(item.id) === draft.credentialId) ? (
-              <option value={draft.credentialId}>当前凭证</option>
-            ) : null}
-          </select>
+            onChange={(value) => setDraft({ ...draft, credentialId: value })}
+            allowEmpty
+            emptyLabel="不使用凭证"
+            options={[
+              ...(credentialsQuery.data ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+              ...(draft.credentialId && !(credentialsQuery.data ?? []).some((item) => String(item.id) === draft.credentialId)
+                ? [{ value: draft.credentialId, label: '当前凭证' }]
+                : []),
+            ]}
+          />
         </Field>
       </div>
+
+      {error ? (
+        <div
+          role="alert"
+          data-slot="pipeline-error"
+          className="flex items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive"
+        >
+          <AlertCircle className="size-4 shrink-0" aria-hidden />
+          {error}
+        </div>
+      ) : null}
 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Lanes
@@ -321,6 +445,7 @@ export function PipelineEditorPage() {
             })
           }
           onMoveStage={(stageKey, delta) => setDraft({ ...draft, stages: moveStage(draft.stages, stageKey, delta) })}
+          onMoveStageBefore={(stageKey, beforeIndex) => setDraft({ ...draft, stages: moveStageBefore(draft.stages, stageKey, beforeIndex) })}
           onRemoveStage={(stageKey) => {
             const stages = removeStage(draft.stages, stageKey)
             setDraft({ ...draft, stages })
@@ -343,8 +468,6 @@ export function PipelineEditorPage() {
             else setDraft({ ...draft, stages: result.stages })
           }}
           onRemoveJob={(jobKey) => {
-            const job = draft.stages.flatMap((stage) => stage.jobs).find((item) => item.clientKey === jobKey)
-            if (!job || !window.confirm(`删除任务「${job.name}」？`)) return
             setDraft({ ...draft, stages: removeJob(draft.stages, jobKey) })
             if (selectedJobKey === jobKey) setSelectedJobKey(null)
           }}
@@ -480,6 +603,8 @@ function TaskAddList({
   )
 }
 
+type DragState = { kind: 'job' | 'stage'; key: string } | null
+
 function Lanes({
   stages,
   selectedJobKey,
@@ -492,6 +617,7 @@ function Lanes({
   onAddStage,
   onRenameStage,
   onMoveStage,
+  onMoveStageBefore,
   onRemoveStage,
   onMoveJob,
   onMoveJobBefore,
@@ -508,140 +634,197 @@ function Lanes({
   onAddStage: () => void
   onRenameStage: (stageKey: string, name: string) => void
   onMoveStage: (stageKey: string, delta: -1 | 1) => void
+  onMoveStageBefore: (stageKey: string, beforeIndex: number | null) => void
   onRemoveStage: (stageKey: string) => void
   onMoveJob: (jobKey: string, delta: -1 | 1) => void
   onMoveJobBefore: (jobKey: string, stageKey: string, beforeIndex: number | null) => void
   onRemoveJob: (jobKey: string) => void
 }) {
+  const [dragging, setDragging] = useState<DragState>(null)
+  const [overKey, setOverKey] = useState<string | null>(null)
+  const scale = Number(zoom) / 100
+
+  function endDrag() {
+    setDragging(null)
+    setOverKey(null)
+  }
+
+  function dropOnStage(event: DragEvent<HTMLDivElement>, stage: EditorStage, index: number) {
+    event.preventDefault()
+    const raw = event.dataTransfer.getData('text/plain')
+    if (raw.startsWith('job:')) onMoveJobBefore(raw.slice(4), stage.clientKey, null)
+    else if (raw.startsWith('stage:')) onMoveStageBefore(raw.slice(6), index)
+    endDrag()
+  }
+
+  function dropOnJob(event: DragEvent<HTMLDivElement>, stage: EditorStage, index: number, jobIndex: number) {
+    event.preventDefault()
+    event.stopPropagation()
+    const raw = event.dataTransfer.getData('text/plain')
+    if (raw.startsWith('job:')) onMoveJobBefore(raw.slice(4), stage.clientKey, jobIndex)
+    else if (raw.startsWith('stage:')) onMoveStageBefore(raw.slice(6), index)
+    endDrag()
+  }
+
   return (
     <section data-slot="pipeline-lanes" className="flex min-h-0 min-w-0 flex-col bg-muted/20">
       <div className="flex items-center justify-end gap-2 border-b px-3 py-1.5">
-        <select aria-label="缩放" className="h-7 rounded-md border bg-background px-2 text-xs" value={zoom} onChange={(event) => onZoom(event.target.value)}>
-          <option value="75">75%</option>
-          <option value="100">100%</option>
-          <option value="125">125%</option>
-          <option value="150">150%</option>
-        </select>
+        <ChoiceSelect
+          label="缩放"
+          value={zoom}
+          onChange={onZoom}
+          className="h-7 w-24 text-xs"
+          options={[
+            { value: '75', label: '75%' },
+            { value: '100', label: '100%' },
+            { value: '125', label: '125%' },
+            { value: '150', label: '150%' },
+          ]}
+        />
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-4">
-        <div className="flex min-h-full items-start gap-2" style={{ zoom: Number(zoom) / 100 }}>
+        <ScalableTrack scale={scale}>
           {stages.length === 0 && (
             <p className="self-center px-2 text-sm text-muted-foreground">添加阶段，再在阶段中添加任务。</p>
           )}
-          {stages.map((stage, index) => (
-            <div key={stage.clientKey} className="flex items-start gap-2">
-              {index > 0 && <ChevronRight className="mt-16 size-4 shrink-0 text-muted-foreground" />}
-              <div
-                data-slot="pipeline-stage"
-                className={cn(
-                  'flex w-60 shrink-0 flex-col rounded-lg border bg-card shadow-sm',
-                  targetStageKey === stage.clientKey && 'border-primary ring-2 ring-primary/20',
-                )}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
-                  const raw = event.dataTransfer.getData('text/plain')
-                  if (!raw.startsWith('job:')) return
-                  event.preventDefault()
-                  onMoveJobBefore(raw.slice(4), stage.clientKey, null)
-                }}
-              >
-                <div className="flex items-center gap-1 border-b px-2 py-2">
-                  <span className="shrink-0 text-xs text-muted-foreground">阶段 {index + 1} ·</span>
-                  <input
-                    aria-label={`阶段 ${index + 1} 名称`}
-                    value={stage.name}
-                    className="h-7 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 font-console text-sm font-medium outline-none hover:border-input focus:border-input"
-                    onChange={(event) => onRenameStage(stage.clientKey, event.target.value)}
-                  />
-                  <IconButton label="左移阶段" disabled={index === 0} onClick={() => onMoveStage(stage.clientKey, -1)}>
-                    <ArrowLeft />
-                  </IconButton>
-                  <IconButton label="右移阶段" disabled={index === stages.length - 1} onClick={() => onMoveStage(stage.clientKey, 1)}>
-                    <ArrowRight />
-                  </IconButton>
-                  <IconButton label="删除阶段" onClick={() => onRemoveStage(stage.clientKey)}>
-                    <Trash2 />
-                  </IconButton>
-                </div>
-                <div className="flex flex-col gap-2 p-2">
-                  {stage.jobs.map((job, jobIndex) => {
-                    const runJob = job.id == null ? undefined : runJobs.get(String(job.id))
-                    const duration = runJob ? jobRunDuration(runJob) : ''
-                    return (
-                      <div
-                        key={job.clientKey}
-                        draggable
-                        onDragStart={(event) => {
-                          event.dataTransfer.setData('text/plain', `job:${job.clientKey}`)
-                          event.dataTransfer.effectAllowed = 'move'
-                        }}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          const raw = event.dataTransfer.getData('text/plain')
-                          if (raw.startsWith('job:')) onMoveJobBefore(raw.slice(4), stage.clientKey, jobIndex)
-                        }}
-                        className={cn(
-                          'rounded-lg border bg-background shadow-sm',
-                          selectedJobKey === job.clientKey && 'border-primary ring-2 ring-primary/30',
-                        )}
-                      >
-                        <div className="flex items-start gap-1 p-2">
-                          <button
-                            type="button"
-                            className="flex min-w-0 flex-1 items-start gap-2 text-left"
-                            aria-pressed={selectedJobKey === job.clientKey}
-                            aria-label={`选择${job.name}`}
-                            onClick={() => onSelectJob(job.clientKey)}
-                          >
-                            <JobKindIcon kind={job.kind} className="mt-0.5 size-4 shrink-0 text-primary" />
-                            <span className="min-w-0">
-                              <span className="block truncate font-console text-sm font-medium tracking-tight">{job.name}</span>
-                              <span className="block font-mono text-xs text-muted-foreground">{job.kind}</span>
-                              {runJob && (
-                                <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                                  <StatusIcon status={runJob.status} showLabel={false} />
-                                  <span>{[duration, runStatusLabel(runJob.status)].filter(Boolean).join(' · ')}</span>
-                                </span>
-                              )}
-                            </span>
-                          </button>
-                          <div className="flex shrink-0 flex-col">
-                            <IconButton label={`上移${job.name}`} disabled={jobIndex === 0} onClick={() => onMoveJob(job.clientKey, -1)}>
-                              <ChevronUp />
-                            </IconButton>
-                            <IconButton
-                              label={`下移${job.name}`}
-                              disabled={jobIndex === stage.jobs.length - 1}
-                              onClick={() => onMoveJob(job.clientKey, 1)}
+          {stages.map((stage, index) => {
+            const highlighted = overKey === stage.clientKey
+            return (
+              <div key={stage.clientKey} className="flex items-start gap-2">
+                {index > 0 && <ChevronRight className="mt-16 size-4 shrink-0 text-muted-foreground" />}
+                <div
+                  data-slot="pipeline-stage"
+                  className={cn(
+                    'flex w-60 shrink-0 flex-col rounded-lg border bg-card shadow-sm',
+                    targetStageKey === stage.clientKey && 'border-primary ring-2 ring-primary/20',
+                    highlighted && 'ring-2 ring-primary',
+                  )}
+                  onDragOver={(event) => {
+                    event.preventDefault()
+                    setOverKey(stage.clientKey)
+                  }}
+                  onDragLeave={(event) => {
+                    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
+                    setOverKey((current) => (current === stage.clientKey ? null : current))
+                  }}
+                  onDrop={(event) => dropOnStage(event, stage, index)}
+                >
+                  <div className="flex items-center gap-1 border-b px-2 py-2">
+                    <span
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData('text/plain', `stage:${stage.clientKey}`)
+                        event.dataTransfer.effectAllowed = 'move'
+                        setDragging({ kind: 'stage', key: stage.clientKey })
+                      }}
+                      onDragEnd={endDrag}
+                      aria-label={`拖拽移动阶段 ${index + 1}`}
+                      className="cursor-grab text-muted-foreground active:cursor-grabbing"
+                    >
+                      <GripVertical className="size-4" />
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">阶段 {index + 1} ·</span>
+                    <input
+                      aria-label={`阶段 ${index + 1} 名称`}
+                      value={stage.name}
+                      className="h-7 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 font-console text-sm font-medium outline-none hover:border-input focus:border-input"
+                      onChange={(event) => onRenameStage(stage.clientKey, event.target.value)}
+                    />
+                    <IconButton label="左移阶段" disabled={index === 0} onClick={() => onMoveStage(stage.clientKey, -1)}>
+                      <ArrowLeft />
+                    </IconButton>
+                    <IconButton label="右移阶段" disabled={index === stages.length - 1} onClick={() => onMoveStage(stage.clientKey, 1)}>
+                      <ArrowRight />
+                    </IconButton>
+                    <IconButton label="删除阶段" onClick={() => onRemoveStage(stage.clientKey)}>
+                      <Trash2 />
+                    </IconButton>
+                  </div>
+                  <div className="flex flex-col gap-2 p-2">
+                    {stage.jobs.map((job, jobIndex) => {
+                      const runJob = job.id == null ? undefined : runJobs.get(String(job.id))
+                      const duration = runJob ? jobRunDuration(runJob) : ''
+                      return (
+                        <div
+                          key={job.clientKey}
+                          draggable
+                          onDragStart={(event) => {
+                            event.dataTransfer.setData('text/plain', `job:${job.clientKey}`)
+                            event.dataTransfer.effectAllowed = 'move'
+                            setDragging({ kind: 'job', key: job.clientKey })
+                          }}
+                          onDragEnd={endDrag}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={(event) => dropOnJob(event, stage, index, jobIndex)}
+                          className={cn(
+                            'rounded-lg border bg-background shadow-sm',
+                            dragging?.kind === 'job' && dragging.key === job.clientKey && 'opacity-50',
+                            selectedJobKey === job.clientKey && 'border-primary ring-2 ring-primary/30',
+                          )}
+                        >
+                          <div className="flex items-start gap-1 p-2">
+                            <button
+                              type="button"
+                              className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                              aria-pressed={selectedJobKey === job.clientKey}
+                              aria-label={`选择${job.name}`}
+                              onClick={() => onSelectJob(job.clientKey)}
                             >
-                              <ChevronDown />
-                            </IconButton>
-                            <IconButton label={`删除${job.name}`} onClick={() => onRemoveJob(job.clientKey)}>
-                              <Trash2 />
-                            </IconButton>
+                              <JobKindIcon kind={job.kind} className="mt-0.5 size-4 shrink-0 text-primary" />
+                              <span className="min-w-0">
+                                <span className="block truncate font-console text-sm font-medium tracking-tight">{job.name}</span>
+                                <span className="block font-mono text-xs text-muted-foreground">{job.kind}</span>
+                                {runJob && (
+                                  <span className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                                    <StatusIcon status={runJob.status} showLabel={false} />
+                                    <span>{[duration, runStatusLabel(runJob.status)].filter(Boolean).join(' · ')}</span>
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                            <div className="flex shrink-0 flex-col">
+                              <IconButton label={`上移${job.name}`} disabled={jobIndex === 0} onClick={() => onMoveJob(job.clientKey, -1)}>
+                                <ChevronUp />
+                              </IconButton>
+                              <IconButton
+                                label={`下移${job.name}`}
+                                disabled={jobIndex === stage.jobs.length - 1}
+                                onClick={() => onMoveJob(job.clientKey, 1)}
+                              >
+                                <ChevronDown />
+                              </IconButton>
+                              <ConfirmDialog
+                                title={`删除任务「${job.name}」？`}
+                                confirmText="删除"
+                                destructive
+                                onConfirm={() => onRemoveJob(job.clientKey)}
+                              >
+                                <Button type="button" variant="ghost" size="icon" className="size-6" aria-label={`删除${job.name}`}>
+                                  <Trash2 />
+                                </Button>
+                              </ConfirmDialog>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  })}
-                  <button
-                    type="button"
-                    aria-label={`在阶段 ${index + 1} 添加任务`}
-                    className={cn(
-                      'flex h-10 items-center justify-center gap-1 rounded-md border border-dashed text-xs text-muted-foreground hover:border-primary hover:text-primary',
-                      targetStageKey === stage.clientKey && 'border-solid border-primary bg-primary/10 text-primary',
-                    )}
-                    onClick={() => onTargetStage(stage.clientKey)}
-                  >
-                    <Plus className="size-3.5" />
-                    添加任务
-                  </button>
+                      )
+                    })}
+                    <button
+                      type="button"
+                      aria-label={`在阶段 ${index + 1} 添加任务`}
+                      className={cn(
+                        'flex h-10 items-center justify-center gap-1 rounded-md border border-dashed text-xs text-muted-foreground hover:border-primary hover:text-primary',
+                        targetStageKey === stage.clientKey && 'border-solid border-primary bg-primary/10 text-primary',
+                      )}
+                      onClick={() => onTargetStage(stage.clientKey)}
+                    >
+                      <Plus className="size-3.5" />
+                      添加任务
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           {stages.length > 0 && <ChevronRight className="mt-16 size-4 shrink-0 text-muted-foreground" />}
           <button
             type="button"
@@ -652,7 +835,7 @@ function Lanes({
             <Plus className="size-4" />
             添加阶段
           </button>
-        </div>
+        </ScalableTrack>
       </div>
     </section>
   )
@@ -683,6 +866,7 @@ function Inspector({
   const stacks = uniqueStacks(toolchains)
   const runtimes = job?.stack ? runtimesFor(toolchains, job.stack) : []
   const tools = job?.stack && job.runtimeVersion ? toolsFor(toolchains, job.stack, job.runtimeVersion) : []
+  const needsCommand = job ? kindNeedsCommand(job.kind, kinds) : false
 
   return (
     <div data-slot="pipeline-inspector" className="flex min-h-0 flex-1 flex-col">
@@ -701,24 +885,24 @@ function Inspector({
             <Input aria-label="任务名称" className="h-8" value={job.name} onChange={(event) => onChange({ name: event.target.value })} />
           </Field>
           <Field label="任务类型">
-            <select aria-label="任务类型" className={controlClass} value={job.kind} onChange={(event) => onKind(event.target.value)}>
-              {choices.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+            <ChoiceSelect label="任务类型" value={job.kind} onChange={onKind} options={choices} />
           </Field>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs text-muted-foreground">命令</span>
-            <textarea
-              aria-label="命令"
-              value={job.command ?? ''}
-              rows={8}
-              className="min-h-32 w-full rounded-md border border-input bg-background px-2 py-1.5 font-mono text-xs leading-5 shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              onChange={(event) => onChange({ command: event.target.value })}
-            />
-          </label>
+          {needsCommand ? (
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">命令</span>
+              <Textarea
+                aria-label="命令"
+                value={job.command ?? ''}
+                rows={8}
+                className="min-h-32 font-mono text-xs leading-5"
+                onChange={(event) => onChange({ command: event.target.value })}
+              />
+            </label>
+          ) : (
+            <p className="rounded-md border border-dashed px-2 py-1.5 text-xs text-muted-foreground">
+              这个任务类型不需要命令{job.kind === 'CLONE' ? '，克隆命令由平台生成' : ''}。
+            </p>
+          )}
           {kindMeta?.hint ? <p className="text-xs text-muted-foreground">{kindMeta.hint}</p> : null}
           <section className="flex flex-col gap-2">
             <h3 className="text-sm font-medium" title="隐藏参数由平台或凭证注入，不在这里编辑">
@@ -737,25 +921,22 @@ function Inspector({
                     {param.paramKey}
                     {param.required ? ' *' : ''}
                   </span>
-                  <select
-                    aria-label={`${param.paramKey} 绑定方式`}
-                    className={controlClass}
+                  <ChoiceSelect
+                    label={`${param.paramKey} 绑定方式`}
                     value={binding.mode}
-                    onChange={(event) =>
+                    onChange={(mode) =>
                       onChange({
                         paramBindings: {
                           ...job.paramBindings,
-                          [param.paramKey]: {
-                            mode: event.target.value as JobParamBinding['mode'],
-                            value: binding.value,
-                          },
+                          [param.paramKey]: { mode: mode as JobParamBinding['mode'], value: binding.value },
                         },
                       })
                     }
-                  >
-                    <option value="fixed">写死</option>
-                    <option value="runtime">变量</option>
-                  </select>
+                    options={[
+                      { value: 'fixed', label: '写死' },
+                      { value: 'runtime', label: '变量' },
+                    ]}
+                  />
                   {binding.mode === 'runtime' ? (
                     <span className="text-xs text-muted-foreground">运行时填写</span>
                   ) : param.paramKey === 'GIT_REF' ? (
@@ -763,26 +944,19 @@ function Inspector({
                       使用分支
                     </span>
                   ) : param.paramType === 'select' && choicesForParam.length > 0 ? (
-                    <select
-                      aria-label={param.paramLabel || param.paramKey}
-                      className={controlClass}
+                    <ChoiceSelect
+                      label={param.paramLabel || param.paramKey}
                       value={binding.value ?? ''}
-                      onChange={(event) =>
+                      allowEmpty
+                      placeholder="请选择"
+                      emptyLabel="请选择"
+                      options={choicesForParam}
+                      onChange={(value) =>
                         onChange({
-                          paramBindings: {
-                            ...job.paramBindings,
-                            [param.paramKey]: { mode: 'fixed', value: event.target.value },
-                          },
+                          paramBindings: { ...job.paramBindings, [param.paramKey]: { mode: 'fixed', value } },
                         })
                       }
-                    >
-                      <option value="">请选择</option>
-                      {choicesForParam.map((choice) => (
-                        <option key={choice.value} value={choice.value}>
-                          {choice.label}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   ) : (
                     <Input
                       aria-label={param.paramLabel || param.paramKey}
@@ -811,45 +985,32 @@ function Inspector({
             <CollapsibleContent className="flex flex-col gap-2 pt-2">
               <Field label="技术栈">
                 {stacks.length > 0 ? (
-                  <select
-                    aria-label="技术栈"
-                    className={controlClass}
+                  <ChoiceSelect
+                    label="技术栈"
                     value={job.stack ?? ''}
-                    onChange={(event) => {
-                      const stack = event.target.value
+                    allowEmpty
+                    options={stacks.map((stack) => ({ value: stack, label: stackLabel(stack) }))}
+                    onChange={(stack) => {
                       const toolchain = coerceToolchain(toolchains, stack, job.runtimeVersion ?? '', job.toolVersion)
                       onChange(toolchainPatch(toolchain?.stack ?? stack, toolchain?.runtimeVersion ?? '', toolchain?.toolVersion ?? ''))
                     }}
-                  >
-                    <option value="">不指定</option>
-                    {stacks.map((stack) => (
-                      <option key={stack} value={stack}>
-                        {stackLabel(stack)}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 ) : (
                   <Input aria-label="技术栈" className="h-8" value={job.stack ?? ''} onChange={(event) => onChange({ stack: event.target.value })} />
                 )}
               </Field>
               <Field label="运行时">
                 {runtimes.length > 0 ? (
-                  <select
-                    aria-label="运行时"
-                    className={controlClass}
+                  <ChoiceSelect
+                    label="运行时"
                     value={job.runtimeVersion ?? ''}
-                    onChange={(event) => {
-                      const runtime = event.target.value
+                    allowEmpty
+                    options={runtimes.map((runtime) => ({ value: runtime, label: runtime }))}
+                    onChange={(runtime) => {
                       const toolchain = coerceToolchain(toolchains, job.stack ?? '', runtime, null)
                       onChange(toolchainPatch(job.stack ?? '', runtime, toolchain?.toolVersion ?? ''))
                     }}
-                  >
-                    {runtimes.map((runtime) => (
-                      <option key={runtime} value={runtime}>
-                        {runtime}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 ) : (
                   <Input
                     aria-label="运行时"
@@ -861,18 +1022,13 @@ function Inspector({
               </Field>
               <Field label="工具版本">
                 {tools.length > 0 ? (
-                  <select
-                    aria-label="工具版本"
-                    className={controlClass}
+                  <ChoiceSelect
+                    label="工具版本"
                     value={job.toolVersion ?? ''}
-                    onChange={(event) => onChange({ toolVersion: event.target.value })}
-                  >
-                    {tools.map((tool) => (
-                      <option key={tool} value={tool}>
-                        {tool}
-                      </option>
-                    ))}
-                  </select>
+                    allowEmpty
+                    options={tools.map((tool) => ({ value: tool, label: tool }))}
+                    onChange={(tool) => onChange({ toolVersion: tool })}
+                  />
                 ) : (
                   <Input
                     aria-label="工具版本"

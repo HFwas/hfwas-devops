@@ -12,12 +12,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import { paramChoices } from '@/modules/pipeline/pipelineDraft'
 import type { EntityId, RunParamValue } from '@/modules/pipeline/types/pipeline'
 
-const controlClass =
-  'flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
+/** Radix Select 不接受空字符串；用哨兵代表「请选择」。 */
+const NONE = '__none__'
 
 export function StartRunButton({
   pipelineId,
@@ -100,6 +101,7 @@ export function StartRunButton({
           <div className="flex flex-col gap-3">
             {defs.map((param) => {
               const choices = paramChoices(param.options)
+              const value = values[param.paramKey] ?? ''
               return (
                 <div key={param.paramKey} className="flex flex-col gap-1.5">
                   <Label htmlFor={`run-param-${param.paramKey}`}>
@@ -107,23 +109,28 @@ export function StartRunButton({
                     {param.required ? ' *' : ''}
                   </Label>
                   {param.paramType === 'select' && choices.length > 0 ? (
-                    <select
-                      id={`run-param-${param.paramKey}`}
-                      className={controlClass}
-                      value={values[param.paramKey] ?? ''}
-                      onChange={(event) => setValues((current) => ({ ...current, [param.paramKey]: event.target.value }))}
+                    <Select
+                      value={value === '' ? NONE : value}
+                      onValueChange={(next) =>
+                        setValues((current) => ({ ...current, [param.paramKey]: next === NONE ? '' : next }))
+                      }
                     >
-                      <option value="">请选择</option>
-                      {choices.map((choice) => (
-                        <option key={choice.value} value={choice.value}>
-                          {choice.label}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger id={`run-param-${param.paramKey}`} aria-label={param.paramLabel || param.paramKey} className="w-full">
+                        <SelectValue placeholder="请选择" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>请选择</SelectItem>
+                        {choices.map((choice) => (
+                          <SelectItem key={choice.value} value={choice.value}>
+                            {choice.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : (
                     <Input
                       id={`run-param-${param.paramKey}`}
-                      value={values[param.paramKey] ?? ''}
+                      value={value}
                       placeholder={param.placeholder || undefined}
                       onChange={(event) => setValues((current) => ({ ...current, [param.paramKey]: event.target.value }))}
                     />

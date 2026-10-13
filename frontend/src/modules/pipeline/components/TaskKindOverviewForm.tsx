@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { overviewFromKind } from '@/modules/pipeline/taskKindView'
 import type { TaskKindVO } from '@/modules/pipeline/types/pipeline'
 
@@ -23,8 +24,6 @@ const schema = z.object({
 })
 
 type FormValues = z.output<typeof schema>
-
-const textAreaClass = 'min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
 export function TaskKindOverviewForm({
   item,
@@ -60,10 +59,10 @@ export function TaskKindOverviewForm({
         </TextField>
       </div>
       <TextField id="task-kind-description" label="描述" error={form.formState.errors.description?.message}>
-        <textarea id="task-kind-description" className={textAreaClass} {...form.register('description')} />
+        <Textarea id="task-kind-description" className="min-h-20" {...form.register('description')} />
       </TextField>
       <TextField id="task-kind-hint" label="提示" error={form.formState.errors.hint?.message}>
-        <textarea id="task-kind-hint" className={textAreaClass} {...form.register('hint')} />
+        <Textarea id="task-kind-hint" className="min-h-20" {...form.register('hint')} />
       </TextField>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <TextField id="task-kind-cpu-request" label="CPU 请求">
@@ -80,9 +79,9 @@ export function TaskKindOverviewForm({
         </TextField>
       </div>
       <TextField id="task-kind-command" label="命令模板">
-        <textarea
+        <Textarea
           id="task-kind-command"
-          className={`${textAreaClass} min-h-36 font-mono text-xs`}
+          className="min-h-36 font-mono text-xs"
           {...form.register('commandTemplate')}
         />
       </TextField>

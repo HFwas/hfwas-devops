@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { DetailShell } from '@/components/console/DetailShell'
 import { LogPanel, type ConnectionState } from '@/components/console/LogPanel'
 import { StatusIcon } from '@/components/console/StatusIcon'
@@ -42,19 +43,20 @@ function jobsConnection(jobs: PipelineRunJob[], fetching: boolean): ConnectionSt
   return 'idle'
 }
 
-function TerminalLines({ text }: { text: string }) {
+/** 运行中的日志隐藏行号（内容在变，行号会跳），结束后再显示。 */
+const TerminalLines = memo(function TerminalLines({ text, numbered }: { text: string; numbered: boolean }) {
   const lines = text.split('\n')
   return (
     <pre className="p-3 whitespace-pre-wrap break-all">
       {lines.map((line, index) => (
         <span key={index} className="flex gap-3">
-          <span className="w-8 shrink-0 text-right opacity-45 select-none">{index + 1}</span>
+          {numbered ? <span className="w-8 shrink-0 text-right opacity-45 select-none">{index + 1}</span> : null}
           <span className="min-w-0 flex-1">{line || ' '}</span>
         </span>
       ))}
     </pre>
   )
-}
+})
 
 export function PipelineRunDetailPage() {
   const { pipelineId = '', runId = '' } = useParams()
@@ -168,16 +170,19 @@ export function PipelineRunDetailPage() {
                 通过
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={cancel.isPending}
-              onClick={() => {
-                if (window.confirm(`取消运行 #${run.id}？`)) cancel.mutate()
-              }}
+            <ConfirmDialog
+              title={`取消运行 #${run.id}？`}
+              description="正在执行的任务会被中止。"
+              confirmText="取消运行"
+              cancelText="继续运行"
+              destructive
+              confirmDisabled={cancel.isPending}
+              onConfirm={() => cancel.mutate()}
             >
-              取消
-            </Button>
+              <Button variant="outline" size="sm" disabled={cancel.isPending}>
+                取消
+              </Button>
+            </ConfirmDialog>
           </>
         ) : null
       }
@@ -228,7 +233,7 @@ export function PipelineRunDetailPage() {
             className="h-full rounded-none border-0"
             bodyClassName="bg-(--term-bg) text-(--term-fg)"
           >
-            <TerminalLines text={detailText || (runQuery.isLoading ? '加载中…' : '这条任务还没有日志')} />
+            <TerminalLines text={detailText || (runQuery.isLoading ? '加载中…' : '这条任务还没有日志')} numbered={!detailFollow} />
           </LogPanel>
         </SheetContent>
       </Sheet>

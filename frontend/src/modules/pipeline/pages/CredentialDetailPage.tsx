@@ -5,10 +5,12 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { DetailShell } from '@/components/console/DetailShell'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { pipelineCredentialApi } from '@/modules/pipeline/api/pipeline'
 import { formatDateTime } from '@/modules/pipeline/status'
 import type { CredentialKind } from '@/modules/pipeline/types/pipeline'
@@ -90,16 +92,18 @@ export function CredentialDetailPage() {
       description={item ? KIND_LABEL[item.kind] ?? item.kind : undefined}
       meta={item ? formatDateTime(item.updateTime) : query.isLoading ? '加载中…' : query.isError ? '加载失败' : null}
       actions={
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive"
-          onClick={() => {
-            if (window.confirm(`删除凭证「${item?.name || credentialId}」？`)) remove.mutate()
-          }}
+        <ConfirmDialog
+          title={`删除凭证「${item?.name || credentialId}」？`}
+          description="删除后无法恢复；引用该凭证的流水线将无法拉取代码。"
+          confirmText="删除"
+          destructive
+          confirmDisabled={remove.isPending}
+          onConfirm={() => remove.mutate()}
         >
-          删除
-        </Button>
+          <Button variant="outline" size="sm" className="text-destructive">
+            删除
+          </Button>
+        </ConfirmDialog>
       }
     >
       {query.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
@@ -112,17 +116,21 @@ export function CredentialDetailPage() {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="cred-kind">类型</Label>
-            <select
-              id="cred-kind"
-              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-              {...form.register('kind')}
+            <Select
+              value={form.watch('kind')}
+              onValueChange={(value) => form.setValue('kind', value as CredentialKind, { shouldValidate: true })}
             >
-              {(Object.keys(KIND_LABEL) as CredentialKind[]).map((kind) => (
-                <option key={kind} value={kind}>
-                  {KIND_LABEL[kind]}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="cred-kind" aria-label="类型" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(KIND_LABEL) as CredentialKind[]).map((kind) => (
+                  <SelectItem key={kind} value={kind}>
+                    {KIND_LABEL[kind]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="cred-user">用户名</Label>

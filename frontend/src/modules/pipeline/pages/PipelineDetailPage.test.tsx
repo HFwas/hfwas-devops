@@ -192,41 +192,30 @@ describe('PipelineDetailPage', () => {
     expect(follows(historyTabs[0]!, container.querySelector('[data-slot="pipeline-detail-meta"]')!)).toBe(true)
   })
 
-  it('filters run history and opens a run from the row', async () => {
-    const view = mount('/pipeline/pipelines/9/history')
+  it('filters run history via the URL and opens a run from the row', async () => {
+    const view = mount('/pipeline/pipelines/9/history?status=FAILED')
     root = view.root
     container = view.container
-    await waitForText(container, '#128')
+    await waitForText(container, '#126')
 
     expect(container.textContent).toContain('触发方式')
-    expect(container.textContent).toContain('手动')
     expect(container.textContent).toContain('定时')
     expect(container.textContent).toContain('1m 05s')
-    expect(container.textContent).toContain('共 48 次运行')
+    expect(container.textContent).toContain('最近 2 次中 1 条')
+    expect(container.textContent).toContain('近 7 天成功率 0%')
     expect(container.querySelector('[aria-label="状态"]')).toBeTruthy()
     expect(container.querySelector('[aria-label="时间"]')).toBeTruthy()
     const historyTab = [...container.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent === '运行历史')
     expect(historyTab?.getAttribute('aria-selected')).toBe('true')
-
-    const status = container.querySelector('[aria-label="状态"]') as HTMLSelectElement
-    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set
-    setter?.call(status, 'FAILED')
-    act(() => {
-      status.dispatchEvent(new Event('change', { bubbles: true }))
-    })
     expect(container.textContent).toContain('#126')
     expect(container.textContent).not.toContain('#128')
 
-    setter?.call(status, 'all')
-    act(() => {
-      status.dispatchEvent(new Event('change', { bubbles: true }))
-    })
-    const detail = [...container.querySelectorAll('a')].find((node) => node.textContent === '查看详情' && node.getAttribute('href')?.endsWith('/runs/128'))
-    expect(detail?.getAttribute('href')).toBe('/pipeline/pipelines/9/runs/128')
+    const detail = [...container.querySelectorAll('a')].find((node) => node.textContent === '查看详情')
+    expect(detail?.getAttribute('href')).toBe('/pipeline/pipelines/9/runs/126')
     act(() => {
       detail?.click()
     })
-    await waitForText(document.body, '运行详情页 /pipeline/pipelines/9/runs/128')
+    await waitForText(document.body, '运行详情页 /pipeline/pipelines/9/runs/126')
 
     act(() => {
       root?.unmount()
@@ -235,7 +224,7 @@ describe('PipelineDetailPage', () => {
     const again = mount('/pipeline/pipelines/9/history')
     root = again.root
     container = again.container
-    await waitForText(container, '#126')
+    await waitForText(container, '#128')
     const duration = [...container.querySelectorAll('td')].find((cell) => cell.textContent === '1m 05s')
     act(() => {
       duration?.click()

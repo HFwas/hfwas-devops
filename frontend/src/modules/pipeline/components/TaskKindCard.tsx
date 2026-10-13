@@ -1,53 +1,13 @@
 import { Link } from 'react-router'
-import {
-  Bell,
-  Boxes,
-  Bug,
-  CloudUpload,
-  Container,
-  FlaskConical,
-  GitBranch,
-  Hammer,
-  Network,
-  Package,
-  Paintbrush,
-  Rocket,
-  SearchCode,
-  Shield,
-  ShieldAlert,
-  Terminal,
-  Upload,
-  UserCheck,
-  type LucideIcon,
-} from 'lucide-react'
+import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { jobKindIcon } from '@/modules/pipeline/components/JobKindIcon'
 import { displayVersion, groupTone } from '@/modules/pipeline/taskKindView'
 import type { TaskKindVO } from '@/modules/pipeline/types/pipeline'
 import { cn } from '@/lib/utils'
-
-const ICONS: Record<string, LucideIcon> = {
-  CLONE: GitBranch,
-  BUILD: Hammer,
-  IMAGE: Container,
-  LINT_SEMGREP: Shield,
-  LINT_SONAR: SearchCode,
-  FORMAT: Paintbrush,
-  DEPENDENCY_ANALYSIS: Network,
-  SCAN: ShieldAlert,
-  PACKAGE: Package,
-  PUBLISH: Upload,
-  UPLOAD: CloudUpload,
-  DEPLOY: Rocket,
-  TEST: FlaskConical,
-  CUSTOM: Terminal,
-  APPROVAL: UserCheck,
-  NOTIFY: Bell,
-  DEPENDENCY_TRACK: Bug,
-  KUBECTL: Terminal,
-}
 
 export function TaskKindCard({
   item,
@@ -60,7 +20,7 @@ export function TaskKindCard({
   togglePending: boolean
   onToggle: () => void
 }) {
-  const Icon = ICONS[item.kindValue] ?? Boxes
+  const Icon = jobKindIcon(item.kindValue)
   const summary = item.description?.trim() || item.hint?.trim() || '没有说明'
   return (
     <Card
@@ -97,9 +57,18 @@ export function TaskKindCard({
           <Button variant="ghost" size="sm" asChild>
             <Link to={`/pipeline/task-kinds/${encodeURIComponent(item.kindValue)}?tab=参数`}>参数</Link>
           </Button>
-          <Button variant="ghost" size="sm" disabled={togglePending} onClick={onToggle}>
-            {item.enabled ? '停用' : '启用'}
-          </Button>
+          <ConfirmDialog
+            title={`${item.enabled ? '停用' : '启用'}任务「${item.label}」？`}
+            description={item.enabled ? '停用后该类型不会出现在流水线的添加列表里。' : '启用后该类型可被流水线选用。'}
+            confirmText={item.enabled ? '停用' : '启用'}
+            destructive={item.enabled}
+            confirmDisabled={togglePending}
+            onConfirm={onToggle}
+          >
+            <Button variant="ghost" size="sm" disabled={togglePending}>
+              {item.enabled ? '停用' : '启用'}
+            </Button>
+          </ConfirmDialog>
         </div>
       ) : null}
     </Card>

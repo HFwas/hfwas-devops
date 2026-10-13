@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -18,10 +19,11 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { pipelineCredentialApi } from '@/modules/pipeline/api/pipeline'
 import { formatDateTime } from '@/modules/pipeline/status'
 import type { CredentialKind, PipelineCredential } from '@/modules/pipeline/types/pipeline'
-import { asId } from '@/modules/pm/utils/id'
+import { asId } from '@/lib/utils'
 
 const KIND_LABEL: Record<string, string> = {
   PASSWORD: '用户名密码',
@@ -122,16 +124,18 @@ export function CredentialListPage() {
             header: '',
             className: 'text-right',
             cell: (row) => (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive"
-                onClick={() => {
-                  if (window.confirm(`删除凭证「${row.name}」？`)) remove.mutate(row.id)
-                }}
+              <ConfirmDialog
+                title={`删除凭证「${row.name}」？`}
+                description="删除后无法恢复；引用该凭证的流水线将无法拉取代码。"
+                confirmText="删除"
+                destructive
+                confirmDisabled={remove.isPending}
+                onConfirm={() => remove.mutate(row.id)}
               >
-                删除
-              </Button>
+                <Button variant="ghost" size="sm" className="text-destructive">
+                  删除
+                </Button>
+              </ConfirmDialog>
             ),
           },
         ]}
@@ -153,17 +157,21 @@ export function CredentialListPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="cred-kind">类型</Label>
-              <select
-                id="cred-kind"
-                className="h-8 rounded-md border border-input bg-background px-2 text-sm"
-                {...form.register('kind')}
+              <Select
+                value={form.watch('kind')}
+                onValueChange={(value) => form.setValue('kind', value as CredentialKind, { shouldValidate: true })}
               >
-                {(Object.keys(KIND_LABEL) as CredentialKind[]).map((kind) => (
-                  <option key={kind} value={kind}>
-                    {KIND_LABEL[kind]}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="cred-kind" aria-label="类型" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(KIND_LABEL) as CredentialKind[]).map((kind) => (
+                    <SelectItem key={kind} value={kind}>
+                      {KIND_LABEL[kind]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="cred-user">用户名</Label>

@@ -4,14 +4,40 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { pipelineJobParamApi } from '@/modules/pipeline/api/pipeline'
 import { normalizeVisibility, paramTypeLabel, visibilityLabel } from '@/modules/pipeline/taskKindView'
 import type { JobParamType, TaskKindParam, TaskKindParamVisibility } from '@/modules/pipeline/types/pipeline'
 
-const controlClass =
-  'flex h-8 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring'
-const textAreaClass =
-  'min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring'
+function ControlSelect({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Array<{ value: string; label: string }>
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger id={id} aria-label={label} className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
 
 interface ParamDraft {
   paramKey: string
@@ -168,16 +194,17 @@ export function TaskKindParamEditor({
               />
             </Field>
             <Field label="类型" id={`param-type-${index}`}>
-              <select
+              <ControlSelect
                 id={`param-type-${index}`}
-                className={controlClass}
+                label="类型"
                 value={draft.paramType}
-                onChange={(event) => update(index, { paramType: event.target.value as JobParamType })}
-              >
-                <option value="input">静态值</option>
-                <option value="select">枚举</option>
-                <option value="api_select">远程接口</option>
-              </select>
+                onChange={(value) => update(index, { paramType: value as JobParamType })}
+                options={[
+                  { value: 'input', label: '静态值' },
+                  { value: 'select', label: '枚举' },
+                  { value: 'api_select', label: '远程接口' },
+                ]}
+              />
             </Field>
             <Field label="默认值" id={`param-default-${index}`}>
               <Input
@@ -188,15 +215,16 @@ export function TaskKindParamEditor({
               />
             </Field>
             <Field label="可见性" id={`param-visibility-${index}`}>
-              <select
+              <ControlSelect
                 id={`param-visibility-${index}`}
-                className={controlClass}
+                label="可见性"
                 value={draft.visibility}
-                onChange={(event) => update(index, { visibility: event.target.value as TaskKindParamVisibility })}
-              >
-                <option value="user">对用户开放</option>
-                <option value="hidden">仅管理员</option>
-              </select>
+                onChange={(value) => update(index, { visibility: value as TaskKindParamVisibility })}
+                options={[
+                  { value: 'user', label: '对用户开放' },
+                  { value: 'hidden', label: '仅管理员' },
+                ]}
+              />
             </Field>
             <Field label="占位提示" id={`param-placeholder-${index}`}>
               <Input
@@ -217,9 +245,9 @@ export function TaskKindParamEditor({
           </label>
           {draft.paramType === 'select' ? (
             <Field label="枚举选项（每行一个）" id={`param-options-${index}`}>
-              <textarea
+              <Textarea
                 id={`param-options-${index}`}
-                className={textAreaClass}
+                className="min-h-20"
                 value={draft.optionsText}
                 onChange={(event) => update(index, { optionsText: event.target.value })}
               />
@@ -229,15 +257,16 @@ export function TaskKindParamEditor({
             <div className="grid gap-3">
               <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
                 <Field label="方法" id={`param-method-${index}`}>
-                  <select
+                  <ControlSelect
                     id={`param-method-${index}`}
-                    className={controlClass}
+                    label="方法"
                     value={draft.apiMethod}
-                    onChange={(event) => update(index, { apiMethod: event.target.value })}
-                  >
-                    <option value="GET">GET</option>
-                    <option value="POST">POST</option>
-                  </select>
+                    onChange={(value) => update(index, { apiMethod: value })}
+                    options={[
+                      { value: 'GET', label: 'GET' },
+                      { value: 'POST', label: 'POST' },
+                    ]}
+                  />
                 </Field>
                 <Field label="接口地址" id={`param-url-${index}`}>
                   <Input
@@ -258,9 +287,9 @@ export function TaskKindParamEditor({
                 />
               </Field>
               <Field label="请求头 JSON" id={`param-headers-${index}`}>
-                <textarea
+                <Textarea
                   id={`param-headers-${index}`}
-                  className={`${textAreaClass} font-mono text-xs`}
+                  className="min-h-20 font-mono text-xs"
                   placeholder='{"Authorization":"Bearer token"}'
                   value={draft.apiHeadersText}
                   onChange={(event) => update(index, { apiHeadersText: event.target.value })}
