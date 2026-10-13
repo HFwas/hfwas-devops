@@ -22,8 +22,9 @@ public class RegistryController {
     @PostMapping("/page")
     public BaseResult<IPage<RegistryVO>> page(@RequestBody Map<String, Object> params) {
         int pageNo = params.get("pageNo") != null ? Integer.parseInt(params.get("pageNo").toString()) : 1;
-        int pageSize = params.get("pageSize") != null ? Integer.parseInt(params.get("pageSize").toString()) : 20;
-        return BaseResult.ok(registryService.page(pageNo, pageSize));
+        int pageSize = params.get("pageSize") != null ? Integer.parseInt(params.get("pageSize").toString()) : 10;
+        String keyword = params.get("keyword") != null ? params.get("keyword").toString() : null;
+        return BaseResult.ok(registryService.page(pageNo, pageSize, keyword));
     }
 
     @GetMapping("/{id}")

@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
+import { Pagination } from '@/components/console/Pagination'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,6 +26,7 @@ import { typeLabel } from '@/modules/pm/types'
 import type { PmWorkItem, StatusDefinition } from '@/modules/pm/types'
 import { asId } from '@/modules/pm/utils/id'
 import { resolveRouteProjectId } from '@/modules/pm/utils/projectRoute'
+import { DEFAULT_PAGE_SIZE, pageCountOf } from '@/shared/types/pagination'
 
 const createSchema = z.object({
   title: z.string().trim().min(1, '请填写标题'),
@@ -43,6 +45,7 @@ export function WorkItemListPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)
   const form = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
@@ -52,6 +55,10 @@ export function WorkItemListPage() {
   useEffect(() => {
     if (!open) form.reset({ title: '' })
   }, [form, open])
+
+  useEffect(() => {
+    setPage(1)
+  }, [keyword, typeCode, projectId])
 
   const projectQuery = useQuery({
     queryKey: ['pm-project', projectId],
@@ -69,13 +76,13 @@ export function WorkItemListPage() {
     enabled: !!projectId && !!typeCode,
   })
   const itemsQuery = useQuery({
-    queryKey: ['pm-work-items', projectId, typeCode, keyword],
+    queryKey: ['pm-work-items', projectId, typeCode, keyword, page],
     queryFn: () =>
       pmWorkItemApi.page({
         projectId: projectId!,
         typeCode,
-        pageNo: 1,
-        pageSize: 50,
+        pageNo: page,
+        pageSize: DEFAULT_PAGE_SIZE,
         logic: 'AND',
         conditions: keyword.trim()
           ? [{ field: 'title', operator: 'LIKE', value: keyword.trim() }]
@@ -104,6 +111,7 @@ export function WorkItemListPage() {
   const types = (typesQuery.data ?? []).filter((item) => item.enabled !== 0)
   const rows = itemsQuery.data?.records ?? []
   const total = itemsQuery.data?.total ?? rows.length
+  const pageCount = pageCountOf(itemsQuery.data, DEFAULT_PAGE_SIZE)
   const projectName = projectQuery.data?.name
 
   return (
@@ -189,6 +197,7 @@ export function WorkItemListPage() {
         error={itemsQuery.isError ? '事项列表加载失败' : undefined}
         empty="这个类型下还没有事项"
       />
+      <Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

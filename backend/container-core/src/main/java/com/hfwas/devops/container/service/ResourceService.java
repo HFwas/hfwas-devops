@@ -56,12 +56,32 @@ public class ResourceService {
 
     // ==================== Namespace ====================
 
-    public List<NamespaceVO> listNamespaces(Long clusterId, Long tenantId) {
+    /** 内存分页：k8s 实时列表不支持服务端分页，统一在内存里切片。 */
+    private <T> IPage<T> paginate(List<T> all, int pageNo, int pageSize) {
+        int safePage = Math.max(1, pageNo);
+        int safeSize = Math.max(1, pageSize);
+        int total = all.size();
+        int from = (safePage - 1) * safeSize;
+        int to = Math.min(from + safeSize, total);
+        List<T> records = from < total ? all.subList(from, to) : List.of();
+        Page<T> page = new Page<>(safePage, safeSize, total);
+        page.setRecords(records);
+        return page;
+    }
+
+    public IPage<NamespaceVO> listNamespaces(Long clusterId, String keyword, int pageNo, int pageSize, Long tenantId) {
         ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
-        return client.namespaces().list().getItems().stream()
+        List<NamespaceVO> all = client.namespaces().list().getItems().stream()
                 .map(this::toNamespaceVO)
                 .collect(Collectors.toList());
+        if (keyword != null && !keyword.isBlank()) {
+            String lower = keyword.trim().toLowerCase();
+            all = all.stream()
+                    .filter(ns -> ns.getName() != null && ns.getName().toLowerCase().contains(lower))
+                    .collect(Collectors.toList());
+        }
+        return paginate(all, pageNo, pageSize);
     }
 
     // ==================== Pod ====================
@@ -1575,27 +1595,39 @@ public class ResourceService {
 
     // ==================== Node ====================
 
-    public List<NodeSummaryVO> listNodes(Long clusterId, String keyword, Long tenantId) {
+    public IPage<NodeSummaryVO> listNodes(Long clusterId, String keyword, int pageNo, int pageSize, Long tenantId) {
         ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
         List<Node> allNodes = client.nodes().list().getItems();
 
         if (keyword != null && !keyword.isBlank()) {
-            String lower = keyword.toLowerCase();
+            String lower = keyword.trim().toLowerCase();
             allNodes = allNodes.stream()
                     .filter(n -> n.getMetadata().getName().toLowerCase().contains(lower))
                     .collect(Collectors.toList());
         }
+        // 名称排序，保证分页顺序稳定
+        allNodes.sort((a, b) -> a.getMetadata().getName().compareTo(b.getMetadata().getName()));
 
         // Get pod counts per node for summary
         Map<String, Long> nodePodCounts = client.pods().inAnyNamespace().list().getItems().stream()
                 .filter(p -> p.getSpec() != null && p.getSpec().getNodeName() != null)
                 .collect(Collectors.groupingBy(p -> p.getSpec().getNodeName(), Collectors.counting()));
 
-        return allNodes.stream()
-                .map(n -> toNodeSummary(n, nodePodCounts.getOrDefault(n.getMetadata().getName(), 0L).intValue()))
-                .collect(Collectors.toList());
+        int total = allNodes.size();
+        int safePage = Math.max(1, pageNo);
+        int safeSize = Math.max(1, pageSize);
+        int from = (safePage - 1) * safeSize;
+        int to = Math.min(from + safeSize, total);
+        List<NodeSummaryVO> records = from < total
+                ? allNodes.subList(from, to).stream()
+                        .map(n -> toNodeSummary(n, nodePodCounts.getOrDefault(n.getMetadata().getName(), 0L).intValue()))
+                        .collect(Collectors.toList())
+                : List.of();
+        Page<NodeSummaryVO> page = new Page<>(safePage, safeSize, total);
+        page.setRecords(records);
+        return page;
     }
 
     public NodeDetailVO getNode(Long clusterId, String name, Long tenantId) {
@@ -1783,11 +1815,11 @@ public class ResourceService {
 
     // ==================== StorageClass ====================
 
-    public List<StorageClassSummaryVO> listStorageClasses(Long clusterId, Long tenantId) {
+    public IPage<StorageClassSummaryVO> listStorageClasses(Long clusterId, String keyword, int pageNo, int pageSize, Long tenantId) {
         ClusterEntity cluster = getConnectedCluster(clusterId, tenantId);
         KubernetesClient client = clientFactory.getClient(cluster);
 
-        return client.resources(StorageClass.class).list().getItems().stream()
+        List<StorageClassSummaryVO> all = client.resources(StorageClass.class).list().getItems().stream()
                 .map(this::toStorageClassSummary)
                 .sorted((a, b) -> {
                     if (a.getCreationTimestamp() == null) return 1;
@@ -1795,6 +1827,15 @@ public class ResourceService {
                     return b.getCreationTimestamp().compareTo(a.getCreationTimestamp());
                 })
                 .collect(Collectors.toList());
+
+        if (keyword != null && !keyword.isBlank()) {
+            String lower = keyword.trim().toLowerCase();
+            all = all.stream()
+                    .filter(sc -> (sc.getName() != null && sc.getName().toLowerCase().contains(lower))
+                            || (sc.getProvisioner() != null && sc.getProvisioner().toLowerCase().contains(lower)))
+                    .collect(Collectors.toList());
+        }
+        return paginate(all, pageNo, pageSize);
     }
 
     private StorageClassSummaryVO toStorageClassSummary(StorageClass sc) {

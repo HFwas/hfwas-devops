@@ -1,8 +1,10 @@
 package com.hfwas.devops.pipeline.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.pipeline.dto.CredentialSaveDTO;
 import com.hfwas.devops.pipeline.dto.CredentialVO;
+import com.hfwas.devops.pipeline.dto.PipelinePageQuery;
 import com.hfwas.devops.pipeline.service.PipelineCredentialService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +34,11 @@ public class PipelineCredentialController {
     @GetMapping("/{id}")
     public BaseResult<CredentialVO> get(@PathVariable("id") Long id) {
         return BaseResult.ok(credentialService.get(id));
+    }
+
+    @PostMapping("/page")
+    public BaseResult<IPage<CredentialVO>> page(@RequestBody PipelinePageQuery query) {
+        return BaseResult.ok(credentialService.page(query));
     }
 
     @PostMapping

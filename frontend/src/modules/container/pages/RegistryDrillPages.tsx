@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { AsyncSelect } from '@/components/console/AsyncSelect'
 import { DataTable } from '@/components/console/DataTable'
 import { DetailShell } from '@/components/console/DetailShell'
 import { PageHeader } from '@/components/console/PageHeader'
@@ -157,11 +158,6 @@ export function RepoDetailPage() {
     queryFn: () => imageApi.listArtifacts(registryId, project, repo),
     enabled: !!registryId && !!project && !!repo,
   })
-  const clusters = useQuery({
-    queryKey: ['container-clusters'],
-    queryFn: () => clusterApi.page({ pageNo: 1, pageSize: 100 }),
-    enabled: open,
-  })
   const form = useForm<DeployValues>({
     resolver: zodResolver(deploySchema),
     defaultValues: { clusterId: '', namespace: 'default', name: '', replicas: '1', containerPort: '' },
@@ -283,19 +279,27 @@ export function RepoDetailPage() {
           </DialogHeader>
           <form className="flex flex-col gap-3" onSubmit={form.handleSubmit((values) => deploy.mutate(values))}>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="deploy-cluster">集群</Label>
-              <select
-                id="deploy-cluster"
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                {...form.register('clusterId')}
-              >
-                <option value="">选择集群</option>
-                {(clusters.data?.records ?? []).map((cluster) => (
-                  <option key={cluster.id} value={cluster.id}>
-                    {cluster.alias || cluster.name}
-                  </option>
-                ))}
-              </select>
+              <Label>集群</Label>
+              <AsyncSelect
+                label="集群"
+                className="w-full"
+                value={form.watch('clusterId')}
+                onChange={(next) => form.setValue('clusterId', next, { shouldValidate: true })}
+                clearLabel="选择集群"
+                searchPlaceholder="搜索集群"
+                emptyText="没有集群"
+                fetchPage={async ({ page, pageSize, keyword }) => {
+                  const result = await clusterApi.page({ pageNo: page, pageSize, keyword: keyword || undefined })
+                  return {
+                    records: (result.records ?? []).map((cluster) => ({
+                      value: String(cluster.id),
+                      label: cluster.alias || cluster.name,
+                    })),
+                    total: result.total,
+                    pages: result.pages,
+                  }
+                }}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="deploy-ns">命名空间</Label>

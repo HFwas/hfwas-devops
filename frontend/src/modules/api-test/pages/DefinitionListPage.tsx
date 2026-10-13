@@ -1,16 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
+import { Pagination } from '@/components/console/Pagination'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Input } from '@/components/ui/input'
 import { apiDefinitionApi } from '@/modules/api-test/define/api/definition'
 import { apiStatusLabel } from '@/modules/api-test/define/statusLabel'
 import type { ApiDefinitionVO } from '@/modules/api-test/define/types/definition'
-import { pmProjectApi } from '@/modules/pm/api'
-import { asId } from '@/modules/pm/utils/id'
-import { useAuthStore } from '@/stores/auth'
+import { ProjectSelect } from '@/modules/api-test/pages/ProjectSelect'
+import { DEFAULT_PAGE_SIZE, pageCountOf } from '@/shared/types/pagination'
 
 function formatTime(value?: string | null): string {
   if (!value) return '—'
@@ -20,25 +20,24 @@ function formatTime(value?: string | null): string {
 export function DefinitionListPage() {
   const [keyword, setKeyword] = useState('')
   const [projectId, setProjectId] = useState('')
-  const tenantVersion = useAuthStore((s) => s.tenantVersion)
-  const activeTenantId = useAuthStore((s) => s.activeTenantId)
-  const projectsQuery = useQuery({
-    queryKey: ['pm-projects', 'api-test-filter', activeTenantId, tenantVersion],
-    queryFn: () => pmProjectApi.page({ pageNo: 1, pageSize: 100 }),
-  })
+  const [page, setPage] = useState(1)
   const query = useQuery({
-    queryKey: ['api-definitions', projectId, keyword],
+    queryKey: ['api-definitions', projectId, keyword, page],
     queryFn: () =>
       apiDefinitionApi.page({
         ...(projectId ? { projectId } : {}),
         keyword: keyword.trim() || undefined,
-        pageNo: 1,
-        pageSize: 50,
+        pageNo: page,
+        pageSize: DEFAULT_PAGE_SIZE,
       }),
   })
   const rows = query.data?.records ?? []
   const total = query.data?.total ?? rows.length
-  const projects = projectsQuery.data?.records ?? []
+  const pageCount = pageCountOf(query.data, DEFAULT_PAGE_SIZE)
+
+  useEffect(() => {
+    setPage(1)
+  }, [keyword, projectId])
 
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">
@@ -47,19 +46,7 @@ export function DefinitionListPage() {
         description={query.isSuccess ? `共 ${total} 个接口定义` : '查看接口定义、状态与路径'}
         actions={
           <>
-            <select
-              className="h-8 max-w-56 rounded-md border border-input bg-background px-2 text-sm"
-              value={projectId}
-              aria-label="按项目筛选"
-              onChange={(event) => setProjectId(event.target.value)}
-            >
-              <option value="">全部项目</option>
-              {projects.map((project) => (
-                <option key={asId(project.id)} value={asId(project.id)}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+            <ProjectSelect value={projectId} onChange={setProjectId} clearLabel="全部项目" />
             <Input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
@@ -114,6 +101,7 @@ export function DefinitionListPage() {
         error={query.isError ? '接口列表加载失败' : undefined}
         empty="还没有接口定义"
       />
+      <Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />
     </div>
   )
 }

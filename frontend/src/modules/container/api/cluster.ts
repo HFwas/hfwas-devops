@@ -3,7 +3,7 @@ import type { PageResult } from '@/shared/types/common'
 import type { ClusterComponentVO, ClusterSaveDTO, ClusterStatsVO, ClusterUpdateDTO, ClusterVO } from '../types/cluster'
 
 export const clusterApi = {
-  page: (data: { pageNo?: number; pageSize?: number }) =>
+  page: (data: { pageNo?: number; pageSize?: number; keyword?: string }) =>
     post<PageResult<ClusterVO>>('/container/clusters/page', data),
   get: (id: string) => get<ClusterVO>(`/container/clusters/${id}`),
   create: (data: ClusterSaveDTO) => post<number>('/container/clusters', data),

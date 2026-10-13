@@ -289,6 +289,22 @@ export function createHelmMockStore(): HelmMockStore {
     async listRepositories() {
       return [repo]
     },
+    async listRepositoriesPage(params) {
+      const keyword = params?.keyword?.trim().toLowerCase()
+      const all = [repo].filter(
+        (item) => !keyword || item.name.toLowerCase().includes(keyword) || item.url.toLowerCase().includes(keyword),
+      )
+      const size = Math.max(1, params?.pageSize ?? 10)
+      const current = Math.max(1, params?.page ?? 1)
+      const from = (current - 1) * size
+      return {
+        records: all.slice(from, from + size),
+        total: all.length,
+        size,
+        current,
+        pages: Math.max(1, Math.ceil(all.length / size)),
+      }
+    },
     async listCharts(query) {
       const keyword = query?.name?.trim().toLowerCase()
       return toSummary(artifacts).filter((item) => {

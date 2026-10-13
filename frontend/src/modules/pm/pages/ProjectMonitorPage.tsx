@@ -1,20 +1,25 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
+import { Pagination } from '@/components/console/Pagination'
 import { pmProjectApi } from '@/modules/pm/api'
 import type { PmProject } from '@/modules/pm/types'
 import { asId } from '@/modules/pm/utils/id'
+import { DEFAULT_PAGE_SIZE, pageCountOf } from '@/shared/types/pagination'
 import { useAuthStore } from '@/stores/auth'
 
 export function ProjectMonitorPage() {
   const tenantVersion = useAuthStore((s) => s.tenantVersion)
   const activeTenantId = useAuthStore((s) => s.activeTenantId)
+  const [page, setPage] = useState(1)
   const query = useQuery({
-    queryKey: ['pm-projects', 'monitor', activeTenantId, tenantVersion],
-    queryFn: () => pmProjectApi.page({ pageNo: 1, pageSize: 100 }),
+    queryKey: ['pm-projects', 'monitor', activeTenantId, tenantVersion, page],
+    queryFn: () => pmProjectApi.page({ pageNo: page, pageSize: DEFAULT_PAGE_SIZE }),
   })
   const rows = query.data?.records ?? []
+  const pageCount = pageCountOf(query.data, DEFAULT_PAGE_SIZE)
 
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">
@@ -42,6 +47,7 @@ export function ProjectMonitorPage() {
         error={query.isError ? '项目列表加载失败' : undefined}
         empty="还没有项目"
       />
+      <Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />
     </div>
   )
 }

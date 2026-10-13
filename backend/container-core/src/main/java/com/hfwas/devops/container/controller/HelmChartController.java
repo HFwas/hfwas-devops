@@ -1,5 +1,6 @@
 package com.hfwas.devops.container.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.container.dto.HelmChartArtifactVO;
 import com.hfwas.devops.container.dto.HelmChartDetailVO;
@@ -86,5 +87,13 @@ public class HelmChartController {
     @GetMapping("/repositories")
     public BaseResult<List<HelmChartRepositoryVO>> listRepositories() {
         return BaseResult.ok(helmChartService.listRepositories());
+    }
+
+    @GetMapping("/repositories/page")
+    public BaseResult<IPage<HelmChartRepositoryVO>> pageRepositories(
+            @RequestParam(value = "pageNo", defaultValue = "1") int pageNo,
+            @RequestParam(value = "pageSize", defaultValue = "10") int pageSize,
+            @RequestParam(value = "keyword", required = false) String keyword) {
+        return BaseResult.ok(helmChartService.pageRepositories(pageNo, pageSize, keyword));
     }
 }

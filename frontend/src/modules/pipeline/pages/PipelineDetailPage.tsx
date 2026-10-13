@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, ChevronLeft, ChevronRight, Clock, Hand, Pencil, Webhook } from 'lucide-react'
+import { ArrowLeft, Clock, Hand, Pencil, Webhook } from 'lucide-react'
 import { Link, useMatch, useNavigate, useParams, useSearchParams } from 'react-router'
 import { DataTable } from '@/components/console/DataTable'
 import { DetailShell } from '@/components/console/DetailShell'
 import { OverviewMetricCards } from '@/components/console/ResourceOverview'
+import { Pagination } from '@/components/console/Pagination'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,11 +24,12 @@ import {
 } from '@/modules/pipeline/runHistory'
 import { formatCompactDuration, formatCommit, formatDateTime, formatGitRef, formatRelativeTime, runStatusLabel } from '@/modules/pipeline/status'
 import type { PipelineRun } from '@/modules/pipeline/types/pipeline'
+import { DEFAULT_PAGE_SIZE } from '@/shared/types/pagination'
 
 const TERMINAL = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED'])
 /** 运行历史一次拉取的上限；超过则只能看到最近这些。 */
 const HISTORY_FETCH_LIMIT = 200
-const PAGE_SIZE = 10
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 const STATUS_OPTIONS: Array<{ value: RunStatusFilter; label: string }> = [
   { value: 'all', label: '全部' },
@@ -339,31 +341,11 @@ function RunHistory({
           </>
         }
       />
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span className="tabular-nums">第 {safePage} / {pageCount} 页</span>
-        {pageCount > 1 ? (
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="上一页"
-              disabled={safePage <= 1}
-              onClick={() => patchParams({ page: safePage - 1 > 1 ? String(safePage - 1) : null })}
-            >
-              <ChevronLeft />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="下一页"
-              disabled={safePage >= pageCount}
-              onClick={() => patchParams({ page: String(safePage + 1) })}
-            >
-              <ChevronRight />
-            </Button>
-          </div>
-        ) : null}
-      </div>
+      <Pagination
+        page={safePage}
+        pageCount={pageCount}
+        onPageChange={(next) => patchParams({ page: next > 1 ? String(next) : null })}
+      />
     </div>
   )
 }

@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
+import { Pagination } from '@/components/console/Pagination'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,6 +22,7 @@ import { Label } from '@/components/ui/label'
 import { clusterApi } from '@/modules/container/api/cluster'
 import { StatusBadge } from '@/modules/container/components/StatusBadge'
 import { useContainerCluster } from '@/modules/container/clusterStore'
+import { DEFAULT_PAGE_SIZE, pageCountOf } from '@/shared/types/pagination'
 
 const schema = z.object({
   name: z.string().trim().min(1, '请填写名称'),
@@ -35,9 +37,10 @@ export function ClusterListPage() {
   const queryClient = useQueryClient()
   const setCurrentId = useContainerCluster((s) => s.setCurrentId)
   const [open, setOpen] = useState(false)
+  const [page, setPage] = useState(1)
   const query = useQuery({
-    queryKey: ['container-clusters'],
-    queryFn: () => clusterApi.page({ pageNo: 1, pageSize: 100 }),
+    queryKey: ['container-clusters', page],
+    queryFn: () => clusterApi.page({ pageNo: page, pageSize: DEFAULT_PAGE_SIZE }),
   })
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -83,6 +86,7 @@ export function ClusterListPage() {
   })
 
   const records = query.data?.records ?? []
+  const pageCount = pageCountOf(query.data, DEFAULT_PAGE_SIZE)
 
   return (
     <div className="flex flex-col gap-4">
@@ -151,6 +155,7 @@ export function ClusterListPage() {
         error={query.isError ? '集群列表加载失败' : undefined}
         empty="还没有集群"
       />
+      <Pagination page={Math.min(page, pageCount)} pageCount={pageCount} onPageChange={setPage} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

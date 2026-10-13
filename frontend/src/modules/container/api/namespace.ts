@@ -1,7 +1,8 @@
 import { get } from '@/shared/api/request'
+import type { PageResult } from '@/shared/types/common'
 import type { NamespaceInfo } from '../types/resource'
 
 export const namespaceApi = {
-  list: (clusterId: string) =>
-    get<NamespaceInfo[]>(`/container/clusters/${clusterId}/namespaces`),
+  page: (clusterId: string, params: { pageNo?: number; pageSize?: number; keyword?: string }) =>
+    get<PageResult<NamespaceInfo>>(`/container/clusters/${clusterId}/namespaces`, params),
 }

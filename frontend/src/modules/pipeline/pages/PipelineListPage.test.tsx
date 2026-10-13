@@ -133,6 +133,6 @@ describe('PipelineListPage', () => {
       if (vi.mocked(pipelineApi.page).mock.calls.some((call) => call[0]?.keyword === 'dev')) break
       await flush()
     }
-    expect(pipelineApi.page).toHaveBeenCalledWith(expect.objectContaining({ pageNo: 1, pageSize: 20, keyword: 'dev' }))
+    expect(pipelineApi.page).toHaveBeenCalledWith(expect.objectContaining({ pageNo: 1, pageSize: 10, keyword: 'dev' }))
   })
 })

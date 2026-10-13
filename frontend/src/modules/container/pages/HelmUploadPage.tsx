@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
+import { AsyncSelect } from '@/components/console/AsyncSelect'
 import { PageHeader } from '@/components/console/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -15,13 +16,12 @@ const MAX_BYTES = 50 * 1024 * 1024
 
 export function HelmUploadPage() {
   const queryClient = useQueryClient()
-  const repos = useQuery({ queryKey: ['helm-repositories'], queryFn: () => helmApi.listRepositories() })
   const [repositoryId, setRepositoryId] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState('')
   const [artifact, setArtifact] = useState<HelmChartArtifact | null>(null)
 
-  const selectedRepo = repositoryId || repos.data?.[0]?.id || ''
+  const selectedRepo = repositoryId
 
   const upload = useMutation({
     mutationFn: async () => {
@@ -63,20 +63,24 @@ export function HelmUploadPage() {
         }}
       >
         <div className="grid gap-2">
-          <Label htmlFor="helm-upload-repo">仓库</Label>
-          <select
-            id="helm-upload-repo"
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          <Label>仓库</Label>
+          <AsyncSelect
+            label="仓库"
+            className="w-full"
             value={selectedRepo}
-            onChange={(event) => setRepositoryId(event.target.value)}
-          >
-            {(repos.data ?? []).map((repo) => (
-              <option key={repo.id} value={repo.id}>
-                {repo.name}（{repo.url}）
-              </option>
-            ))}
-          </select>
-          {repos.isError ? <p className="text-sm text-destructive">仓库列表加载失败</p> : null}
+            onChange={setRepositoryId}
+            placeholder="选择仓库"
+            searchPlaceholder="搜索仓库"
+            emptyText="没有仓库"
+            fetchPage={async ({ page, pageSize, keyword }) => {
+              const result = await helmApi.listRepositoriesPage({ page, pageSize, keyword: keyword || undefined })
+              return {
+                records: (result.records ?? []).map((repo) => ({ value: String(repo.id), label: repo.name, hint: repo.url })),
+                total: result.total,
+                pages: result.pages,
+              }
+            }}
+          />
         </div>
         <div className="grid gap-2">
           <Label htmlFor="helm-upload-file">Chart 包</Label>

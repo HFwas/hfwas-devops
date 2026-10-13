@@ -29,9 +29,10 @@ public class ClusterController {
     @PostMapping("/page")
     public BaseResult<IPage<ClusterVO>> page(@RequestBody Map<String, Object> params) {
         int pageNo = params.get("pageNo") != null ? Integer.parseInt(params.get("pageNo").toString()) : 1;
-        int pageSize = params.get("pageSize") != null ? Integer.parseInt(params.get("pageSize").toString()) : 20;
+        int pageSize = params.get("pageSize") != null ? Integer.parseInt(params.get("pageSize").toString()) : 10;
+        String keyword = params.get("keyword") != null ? params.get("keyword").toString() : null;
         Long tenantId = SecurityHelper.currentTenantId();
-        IPage<ClusterEntity> page = clusterService.page(pageNo, pageSize, tenantId);
+        IPage<ClusterEntity> page = clusterService.page(pageNo, pageSize, tenantId, keyword);
         IPage<ClusterVO> voPage = page.convert(this::toVO);
         return BaseResult.ok(voPage);
     }

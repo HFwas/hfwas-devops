@@ -1,11 +1,14 @@
 package com.hfwas.devops.pipeline.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.pipeline.crypto.CredentialCipher;
 import com.hfwas.devops.pipeline.dto.CredentialSaveDTO;
 import com.hfwas.devops.pipeline.dto.CredentialVO;
+import com.hfwas.devops.pipeline.dto.PipelinePageQuery;
 import com.hfwas.devops.pipeline.entity.PipelineCredentialEntity;
 import com.hfwas.devops.pipeline.entity.PipelineEntity;
 import com.hfwas.devops.pipeline.mapper.PipelineCredentialMapper;
@@ -49,6 +52,19 @@ public class PipelineCredentialService {
 
     public CredentialVO get(Long id) {
         return toVo(requireOwned(id));
+    }
+
+    /** 分页 + 名称检索。 */
+    public IPage<CredentialVO> page(PipelinePageQuery query) {
+        Long tenantId = requireTenant();
+        Page<PipelineCredentialEntity> page = new Page<>(query.resolvePageNo(), query.resolvePageSize());
+        LambdaQueryWrapper<PipelineCredentialEntity> wrapper = new LambdaQueryWrapper<PipelineCredentialEntity>()
+                .eq(PipelineCredentialEntity::getTenantId, tenantId)
+                .orderByDesc(PipelineCredentialEntity::getUpdateTime);
+        if (StringUtils.hasText(query.getKeyword())) {
+            wrapper.like(PipelineCredentialEntity::getName, query.getKeyword().trim());
+        }
+        return mapper.selectPage(page, wrapper).convert(this::toVo);
     }
 
     @Transactional

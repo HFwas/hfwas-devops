@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, FolderGit2, GitBranch, Pencil, Plus, Trash2 } from 'lucide-react'
+import { FolderGit2, GitBranch, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
+import { Pagination } from '@/components/console/Pagination'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { resolveStatusTone, STATUS_DOT_CLASS } from '@/components/console/status'
 import { Button } from '@/components/ui/button'
@@ -15,9 +16,10 @@ import { StartRunButton } from '@/modules/pipeline/components/StartRunButton'
 import { repoShortName } from '@/modules/pipeline/graph/pipelineGraph'
 import { formatGitRef, formatRelativeTime, runStatusLabel } from '@/modules/pipeline/status'
 import type { PipelineSummary } from '@/modules/pipeline/types/pipeline'
+import { DEFAULT_PAGE_SIZE, pageCountOf } from '@/shared/types/pagination'
 import { cn } from '@/lib/utils'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 type ListStatusFilter = 'all' | 'RUNNING' | 'SUCCEEDED' | 'FAILED'
 
@@ -73,7 +75,7 @@ export function PipelineListPage() {
   // 后端 /page 只支持 keyword，不支持按状态筛选；状态快捷筛选仅作用于当前页。
   const rows = statusFilter === 'all' ? pageRows : pageRows.filter((row) => row.lastRunStatus === statusFilter)
   const total = Number(query.data?.total ?? pageRows.length)
-  const pageCount = Math.max(1, Number(query.data?.pages ?? Math.ceil(total / PAGE_SIZE)) || 1)
+  const pageCount = pageCountOf(query.data, PAGE_SIZE)
   const safePage = Math.min(page, pageCount)
   const narrowed = Boolean(q) || statusFilter !== 'all'
 
@@ -242,34 +244,17 @@ export function PipelineListPage() {
         error={query.isError ? '流水线列表加载失败' : undefined}
         empty={narrowed ? '没有匹配的流水线' : '还没有流水线'}
       />
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span className="tabular-nums">
-          第 {safePage} / {pageCount} 页
-          {statusFilter !== 'all' ? ` · 当前页 ${rows.length} / ${pageRows.length} 条符合状态` : null}
-        </span>
-        {pageCount > 1 ? (
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="上一页"
-              disabled={safePage <= 1}
-              onClick={() => goToPage(safePage - 1)}
-            >
-              <ChevronLeft />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="下一页"
-              disabled={safePage >= pageCount}
-              onClick={() => goToPage(safePage + 1)}
-            >
-              <ChevronRight />
-            </Button>
-          </div>
-        ) : null}
-      </div>
+      <Pagination
+        page={safePage}
+        pageCount={pageCount}
+        onPageChange={goToPage}
+        summary={
+          <span className="tabular-nums">
+            第 {safePage} / {pageCount} 页
+            {statusFilter !== 'all' ? ` · 当前页 ${rows.length} / ${pageRows.length} 条符合状态` : null}
+          </span>
+        }
+      />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 # 共享界面模式
 
-> 日期：2026-10-12
-> 版本：v0.9
+> 日期：2026-10-13
+> 版本：v0.11
 > 关联：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.8、[frontend-style-unification-plan.md](./frontend-style-unification-plan.md) v0.10
 
 ### 变更记录
@@ -17,6 +17,8 @@
 | v0.7 | 2026-10-11 | LogPanel 增加 terminal 变体，描边状态色与圆点共用同一套语义色 |
 | v0.8 | 2026-10-12 | 对齐规范 v0.7：字体默认仍是系统 sans；数字列与指标值应加 tabular-nums，指标卡标签目标是 text-xs，组件尚未改 |
 | v0.9 | 2026-10-12 | Phase 6：指标卡与字段名改为 text-xs，数值与 DataTable 补 tabular-nums；新增 UsageBar。画布、行内编辑和趋势图仍延期 |
+| v0.10 | 2026-10-13 | 新增 `Pagination` 分页组件与 `pageCountOf` 工具；容器、PM、用户、接口测试、流水线的列表页统一改用它做服务端分页 |
+| v0.11 | 2026-10-13 | 新增 `AsyncSelect`（可检索、下拉到底加载下一页）；实体下拉（项目、命名空间、集群、调试环境、Helm 仓库、流水线凭证）统一改用它；节点/StorageClass/命名空间列表与集群/Registry/凭证/Helm 仓库接口补服务端分页与检索；分页默认每页 10 条 |
 
 ---
 
@@ -34,8 +36,13 @@
 | `ResourceOverview` | `ResourceOverview.tsx` | 概览左主栏 + 右侧栏；指标卡也可直接放在这里 |
 | `LogPanel` / `TerminalChrome` | `LogPanel.tsx` | 约 40vh、可拖到最小 120px、顶栏至少 `min-h-10` 且工具栏 `flex-wrap`、连接呼吸灯、等宽区。可选 `follow`：内容变长时贴底；上滚后暂停，滚回底部或点「跟随最新」再跟上。`variant="terminal"` 用深色会话底，抽屉里可关底边拖拽 |
 | `UsageBar` | `UsageBar.tsx` | Requests / Limits 细条，高 `h-2`。低于等于 60% 时 Requests 为 `bg-primary`、Limits 为 `bg-orange-500`；再高转黄、红 |
+| `Pagination` | `Pagination.tsx` | 统一分页：左侧说明（缺省「第 x / y 页」）+ 右侧上一页 / 页码 / 下一页；页码多时省略号收拢，只有一页时不显示翻页。受控组件，页码状态由调用方（URL 或 state）持有 |
+| `ConfirmDialog` | `ConfirmDialog.tsx` | 统一二次确认，替代 `window.confirm`。基于 `AlertDialog`，跟随主题 token，可禁用确认按钮等待异步 |
+| `AsyncSelect` | `AsyncSelect.tsx` | 实体下拉换皮：Popover + 检索（250ms 防抖）+ 下拉到底自动加载下一页。受控 `value/onChange`，数据由 `fetchPage({page,pageSize,keyword})` 提供；可选 `clearLabel`（置顶清空项）、`selectedLabel`（选中值不在已加载页时的回显兜底） |
 
 新的列表、详情、状态、日志页用这些组件。不要再写一套私有表格密度或状态色。
+
+列表页统一用 `Pagination`：只负责展示与回调，服务端分页时用 `pageCountOf(pageResult, pageSize)`（`shared/types/pagination.ts`）从后端返回的 `pages` / `total` 推导总页数；筛选条件变化时应把页码重置回第 1 页。
 
 字体默认是系统无衬线，标识用 `font-mono text-xs`，见规范 v0.8。`DataTable` 单元格已经带 `tabular-nums`，计数、容量、副本数、百分比不用在每个页面再写。`OverviewMetricCards` 的标签是 `text-xs text-muted-foreground`，数值带 `tabular-nums`（强调态 `font-bold`，其余 `font-semibold`）。`InfoGrid` / `InfoPairs` 的字段名同样是 `text-xs`。这些字号在共享组件里改，不要在每个详情页各写一套。
 

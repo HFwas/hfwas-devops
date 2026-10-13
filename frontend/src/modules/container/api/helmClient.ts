@@ -1,3 +1,4 @@
+import type { PageResult } from '@/shared/types/common'
 import type {
   HelmChartArtifact,
   HelmChartDetail,
@@ -13,6 +14,7 @@ import type {
 
 export interface HelmClient {
   listRepositories: () => Promise<HelmRepository[]>
+  listRepositoriesPage: (params: { page?: number; pageSize?: number; keyword?: string }) => Promise<PageResult<HelmRepository>>
   listCharts: (query?: { repositoryId?: string; name?: string }) => Promise<HelmChartSummary[]>
   getChart: (repositoryId: string, name: string, version?: string) => Promise<HelmChartDetail>
   getValues: (repositoryId: string, name: string, version: string) => Promise<HelmValuesResponse>

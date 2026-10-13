@@ -1,6 +1,8 @@
 package com.hfwas.devops.container.service.helm;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.container.dto.HelmChartArtifactVO;
 import com.hfwas.devops.container.dto.HelmChartDetailVO;
@@ -269,6 +271,20 @@ public class HelmChartService {
                         .eq(HelmChartRepositoryEntity::getTenantId, tenantId)
                         .orderByAsc(HelmChartRepositoryEntity::getName));
         return rows.stream().map(this::toRepositoryVO).toList();
+    }
+
+    /** 分页 + 名称/地址检索。 */
+    public IPage<HelmChartRepositoryVO> pageRepositories(int pageNo, int pageSize, String keyword) {
+        Long tenantId = tenantId();
+        Page<HelmChartRepositoryEntity> page = new Page<>(Math.max(1, pageNo), Math.max(1, pageSize));
+        LambdaQueryWrapper<HelmChartRepositoryEntity> wrapper = new LambdaQueryWrapper<HelmChartRepositoryEntity>()
+                .eq(HelmChartRepositoryEntity::getTenantId, tenantId)
+                .orderByAsc(HelmChartRepositoryEntity::getName);
+        if (keyword != null && !keyword.isBlank()) {
+            String kw = keyword.trim();
+            wrapper.and(w -> w.like(HelmChartRepositoryEntity::getName, kw).or().like(HelmChartRepositoryEntity::getUrl, kw));
+        }
+        return repositoryMapper.selectPage(page, wrapper).convert(this::toRepositoryVO);
     }
 
     private void assertAbsent(Long repositoryId, String chartName, String version) {
