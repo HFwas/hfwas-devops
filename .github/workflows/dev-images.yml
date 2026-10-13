@@ -65,6 +65,10 @@ jobs:
           file: ${{ matrix.file }}
           platforms: linux/amd64,linux/arm64
           push: true
+          # 阿里云 ACR 不接受 buildx 默认附带的 OCI 证明（provenance/sbom）清单，
+          # 会报 "unknown manifest class for application/vnd.oci.empty.v1+json"。关掉即可。
+          provenance: false
+          sbom: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
