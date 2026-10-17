@@ -37,7 +37,7 @@ RUN --mount=type=cache,id=hfwas-m2,target=/root/.m2/repository \
 # =============================================================================
 # Stage 2: Export fat JAR to host (compose backend-build)
 # =============================================================================
-FROM busybox:1.37 AS export
+FROM busybox:1.38 AS export
 COPY --from=builder /build/server.jar /out/server.jar
 CMD ["cp", "/out/server.jar", "/host/server.jar"]
 
