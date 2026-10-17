@@ -4,7 +4,7 @@
 # --platform=$BUILDPLATFORM：多架构构建时在宿主架构上构建（产物是架构无关的静态文件），
 # 避免 arm64 平台用 QEMU 跑 Node 构建。
 # =============================================================================
-FROM --platform=$BUILDPLATFORM node:20-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:25-alpine AS builder
 
 WORKDIR /build
 
