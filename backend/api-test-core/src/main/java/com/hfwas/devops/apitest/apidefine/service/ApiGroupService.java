@@ -3,7 +3,7 @@ package com.hfwas.devops.apitest.apidefine.service;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.hfwas.devops.apitest.apidefine.convert.ApiGroupConvert;
 import com.hfwas.devops.apitest.apidefine.dto.ApiGroupCreateDTO;
 import com.hfwas.devops.apitest.apidefine.dto.ApiGroupUpdateDTO;

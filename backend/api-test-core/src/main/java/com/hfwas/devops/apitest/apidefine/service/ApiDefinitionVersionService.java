@@ -1,7 +1,7 @@
 package com.hfwas.devops.apitest.apidefine.service;
 
 import cn.hutool.core.bean.BeanUtil;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.hfwas.devops.apitest.apidefine.entity.ApiDefinitionEntity;
 import com.hfwas.devops.apitest.apidefine.entity.ApiDefinitionVersionEntity;
 import com.hfwas.devops.apitest.apidefine.mapper.ApiDefinitionVersionMapper;

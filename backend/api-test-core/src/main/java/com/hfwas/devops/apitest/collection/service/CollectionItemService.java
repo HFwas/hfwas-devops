@@ -1,7 +1,7 @@
 package com.hfwas.devops.apitest.collection.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.hfwas.devops.apitest.apidefine.entity.ApiDefinitionEntity;
 import com.hfwas.devops.apitest.apidefine.mapper.ApiDefinitionMapper;
 import com.hfwas.devops.apitest.collection.dto.CollectionItemAddDTO;
