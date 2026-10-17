@@ -2,7 +2,7 @@
 # Build stage
 # 用 golang:1.22（Debian）而非 golang:1.22-alpine：本机拉不动 Docker Hub 的 alpine variant，
 # 构建产物是 CGO_ENABLED=0 的静态二进制，builder 用什么 libc 不影响运行镜像。
-FROM golang:1.22 AS builder
+FROM golang:1.27 AS builder
 
 WORKDIR /workspace
 

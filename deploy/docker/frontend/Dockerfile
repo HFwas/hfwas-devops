@@ -4,7 +4,7 @@
 # --platform=$BUILDPLATFORM：多架构构建时在宿主架构上构建（产物是架构无关的静态文件），
 # 避免 arm64 平台用 QEMU 跑 Node 构建。
 # =============================================================================
-FROM --platform=$BUILDPLATFORM node:20-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:25-alpine AS builder
 
 WORKDIR /build
 
@@ -18,14 +18,14 @@ RUN npm run build
 # =============================================================================
 # Stage 2: Export dist to host (compose frontend-build)
 # =============================================================================
-FROM busybox:1.37 AS export
+FROM busybox:1.38 AS export
 COPY --from=builder /build/dist /dist
 CMD ["sh", "-c", "rm -rf /host/assets /host/index.html; cp -a /dist/. /host/"]
 
 # =============================================================================
 # Stage 3: Nginx runtime
 # =============================================================================
-FROM nginx:1.27-alpine
+FROM nginx:1.29-alpine
 
 # Copy built assets
 COPY --from=builder /build/dist /usr/share/nginx/html

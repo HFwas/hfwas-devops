@@ -3,7 +3,7 @@
 # =============================================================================
 # 本机拉不动 Docker Hub，base 镜像一律用本地已有的 tag。
 # =============================================================================
-FROM node:20-alpine AS builder
+FROM node:25-alpine AS builder
 
 WORKDIR /build
 
@@ -16,7 +16,7 @@ RUN npm run build
 # =============================================================================
 # Runtime：nginx 托管 dist，并把 /api 反代到后端 Service
 # =============================================================================
-FROM nginx:1.27-alpine
+FROM nginx:1.29-alpine
 
 COPY --from=builder /build/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
