@@ -2,18 +2,16 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { DetailShell } from '@/components/console/DetailShell'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { pmStatusApi, pmWorkItemApi } from '@/modules/pm/api'
 import { priorityLabel, workflowStatusTone } from '@/modules/pm/statusTone'
+import { formatDateTime } from '@/modules/pm/utils/format'
 import { asId } from '@/modules/pm/utils/id'
 import { resolveRouteProjectId } from '@/modules/pm/utils/projectRoute'
-
-function formatTime(value?: string | null): string {
-  if (!value) return '—'
-  return value.replace('T', ' ').slice(0, 19)
-}
 
 function Field({ label, value }: { label: string; value?: string | number | null }) {
   return (
@@ -126,16 +124,18 @@ export function WorkItemDetailPage() {
         ) : null
       }
       actions={
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive"
-          onClick={() => {
-            if (window.confirm(`删除事项「${item?.title || itemId}」？`)) remove.mutate()
-          }}
+        <ConfirmDialog
+          title={`删除事项「${item?.title || itemId}」？`}
+          description="删除后不可恢复。"
+          confirmText="删除"
+          destructive
+          confirmDisabled={remove.isPending}
+          onConfirm={() => remove.mutate()}
         >
-          删除
-        </Button>
+          <Button variant="outline" size="sm" className="text-destructive">
+            删除
+          </Button>
+        </ConfirmDialog>
       }
       tabs={[
         { value: '概览', label: '概览' },
@@ -153,7 +153,7 @@ export function WorkItemDetailPage() {
             <Field label="类型" value={item.typeCode} />
             <Field label="状态" value={definition?.statusName || item.status} />
             <Field label="优先级" value={priorityLabel(item.priority)} />
-            <Field label="更新时间" value={formatTime(item.updateTime)} />
+            <Field label="更新时间" value={formatDateTime(item.updateTime)} />
           </div>
           <section className="flex flex-col gap-2">
             <h2 className="text-sm font-medium">描述</h2>
@@ -183,12 +183,12 @@ export function WorkItemDetailPage() {
               if (comment.trim()) saveComment.mutate()
             }}
           >
-            <textarea
+            <Textarea
               value={comment}
               onChange={(event) => setComment(event.target.value)}
               placeholder="写一条评论"
               aria-label="评论内容"
-              className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-h-24"
             />
             <div>
               <Button type="submit" size="sm" disabled={!comment.trim() || saveComment.isPending}>
@@ -203,7 +203,7 @@ export function WorkItemDetailPage() {
               <li key={asId(entry.id)} className="rounded-lg border px-3 py-2">
                 <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted-foreground">
                   <span>{entry.authorName || '未知'}</span>
-                  <span>{formatTime(entry.createTime)}</span>
+                  <span>{formatDateTime(entry.createTime)}</span>
                 </div>
                 <p className="mt-1 whitespace-pre-wrap text-sm">{entry.content}</p>
               </li>
@@ -232,7 +232,7 @@ export function WorkItemDetailPage() {
                         : entry.eventType}
                   </span>
                 </span>
-                <span className="text-xs text-muted-foreground">{formatTime(entry.createTime)}</span>
+                <span className="text-xs text-muted-foreground">{formatDateTime(entry.createTime)}</span>
               </li>
             ))}
             {activitiesQuery.isSuccess && (activitiesQuery.data ?? []).length === 0 && (

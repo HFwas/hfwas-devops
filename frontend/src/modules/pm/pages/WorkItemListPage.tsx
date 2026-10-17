@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { DataTable } from '@/components/console/DataTable'
@@ -24,6 +24,7 @@ import { pmProjectApi, pmProjectIssueTypeApi, pmStatusApi, pmWorkItemApi } from 
 import { priorityLabel, workflowStatusTone } from '@/modules/pm/statusTone'
 import { typeLabel } from '@/modules/pm/types'
 import type { PmWorkItem, StatusDefinition } from '@/modules/pm/types'
+import { formatDateTime } from '@/modules/pm/utils/format'
 import { asId } from '@/modules/pm/utils/id'
 import { resolveRouteProjectId } from '@/modules/pm/utils/projectRoute'
 import { DEFAULT_PAGE_SIZE, pageCountOf } from '@/shared/types/pagination'
@@ -34,15 +35,9 @@ const createSchema = z.object({
 
 type CreateForm = z.infer<typeof createSchema>
 
-function formatTime(value?: string | null): string {
-  if (!value) return '—'
-  return value.replace('T', ' ').slice(0, 19)
-}
-
 export function WorkItemListPage() {
   const { projectId: projectParam = '', typeCode = 'task' } = useParams()
   const projectId = resolveRouteProjectId(projectParam)
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [keyword, setKeyword] = useState('')
   const [page, setPage] = useState(1)
@@ -164,13 +159,12 @@ export function WorkItemListPage() {
             id: 'title',
             header: '标题',
             cell: (item) => (
-              <button
-                type="button"
+              <Link
                 className="font-medium text-primary hover:underline"
-                onClick={() => void navigate(`/pm/projects/${projectId}/items/${typeCode}/${asId(item.id)}`)}
+                to={`/pm/projects/${projectId}/items/${typeCode}/${asId(item.id)}`}
               >
                 {item.title}
-              </button>
+              </Link>
             ),
           },
           {
@@ -188,7 +182,7 @@ export function WorkItemListPage() {
           {
             id: 'updated',
             header: '更新时间',
-            cell: (item) => formatTime(item.updateTime),
+            cell: (item) => formatDateTime(item.updateTime),
           },
         ]}
         data={rows}

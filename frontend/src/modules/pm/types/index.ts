@@ -502,14 +502,12 @@ export const OPERATORS: { label: string; value: QueryOperator }[] = [
 ]
 
 /** 内置类型展示兜底（API 优先） */
-export const TYPE_META: Record<string, { label: string; color: string }> = {
-  requirement: { label: '需求', color: '#2080f0' },
-  task: { label: '任务', color: '#18a058' },
-  bug: { label: '缺陷', color: '#d03050' },
-  test_case: { label: '测试用例', color: '#f0a020' },
+export const TYPE_META: Record<string, { label: string }> = {
+  requirement: { label: '需求' },
+  task: { label: '任务' },
+  bug: { label: '缺陷' },
+  test_case: { label: '测试用例' },
 }
-
-export const TYPE_COLOR_FALLBACK = '#64748b'
 
 /** @deprecated 请使用项目/全局类型 API；仅作无数据时的兜底 */
 export const WORK_ITEM_TYPE_CODES = Object.keys(TYPE_META)
@@ -519,13 +517,6 @@ export function typeLabel(code: string | undefined | null, types?: PmWorkItemTyp
   const hit = types?.find((t) => t.code === code)
   if (hit?.name) return hit.name
   return TYPE_META[code]?.label ?? code
-}
-
-export function typeColor(code: string | undefined | null, types?: PmWorkItemType[] | null): string {
-  if (!code) return TYPE_COLOR_FALLBACK
-  const hit = types?.find((t) => t.code === code)
-  if (hit?.color) return hit.color
-  return TYPE_META[code]?.color ?? TYPE_COLOR_FALLBACK
 }
 
 export const FIELD_TYPE_LABELS: Record<string, string> = {
@@ -572,14 +563,6 @@ export const STATUS_OPTIONS = [
   { label: '已完成', value: 'done' },
   { label: '已关闭', value: 'closed' },
 ]
-
-export const STATUS_COLOR_PALETTE = ['#2080f0', '#18a058', '#f0a020', '#d03050', '#7c3aed', '#0891b2', '#64748b']
-
-export function statusTagColor(status: StatusDefinition, index = 0): string {
-  if (status.isInitial === 1) return '#2080f0'
-  if (status.isFinal === 1) return '#64748b'
-  return STATUS_COLOR_PALETTE[index % STATUS_COLOR_PALETTE.length]
-}
 
 export const PRIORITY_OPTIONS = [
   { label: '低', value: 'low' },
