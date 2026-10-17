@@ -13,7 +13,7 @@
     "vue-router": "^4.3.0",
     "pinia": "^2.1.0",
     "radix-vue": "^1.0.0",
-    "tailwind-merge": "^2.0.0",
+    "tailwind-merge": "^3.7.0",
     "@vueuse/core": "^10.0.0",
     "lucide-vue-next": "^0.300.0"
   },
