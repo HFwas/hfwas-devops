@@ -1,0 +1,59 @@
+name: pr-go
+
+# Go 模块 PR 构建与测试校验（Dependabot gomod 更新 PR 也走这里）。
+on:
+  pull_request:
+    branches: ["dev", "master"]
+    paths:
+      - "cn-app-operator/**"
+      - "delivery-platform/backend/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-go-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cn-app-operator:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cn-app-operator
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          # 与 deploy/docker/cn-app-operator/Dockerfile 保持一致
+          go-version: "1.22"
+          cache-dependency-path: cn-app-operator/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./...
+
+  delivery-platform-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: delivery-platform/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go 1.22
+        uses: actions/setup-go@v5
+        with:
+          # 与 deploy/docker/delivery-platform-backend/Dockerfile 保持一致
+          go-version: "1.22"
+          cache-dependency-path: delivery-platform/backend/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./...

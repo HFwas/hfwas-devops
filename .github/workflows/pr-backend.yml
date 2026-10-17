@@ -1,0 +1,52 @@
+name: pr-backend
+
+# PR 构建校验（Dependabot 版本更新 PR 也走这里）。
+# 不并入 maven.yml：那里的 maven-dependency-submission-action 需要写权限，
+# Dependabot 触发的 workflow 只有只读 token，会直接失败。
+on:
+  pull_request:
+    branches: ["dev", "master"]
+    paths:
+      - "pom.xml"
+      - "backend/**"
+      - "keycloak/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      # 与 maven.yml 保持一致：只验证编译，不跑测试
+      - name: Build backend modules
+        run: mvn -B -pl backend -am package -Dmaven.test.skip=true
+
+  keycloak-listener:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      # 独立 pom，不在 root reactor 内，需要单独构建
+      - name: Build keycloak http-event-listener
+        run: mvn -B -f keycloak/http-event-listener/pom.xml -DskipTests package

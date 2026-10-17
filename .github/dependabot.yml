@@ -1,0 +1,347 @@
+# Dependabot 依赖更新配置
+# 说明：
+# - 默认目标分支为仓库默认分支（dev），这里显式写出，避免以后改默认分支时行为漂移。
+# - 分组（groups）用于把同类依赖合成一个 PR，避免 100+ 告警一次性刷出几十个 PR。
+# - major 版本默认不合并（未在 groups 中覆盖），并显式忽略会破坏版本对齐的三个 BOM。
+# - Helm chart（deploy/charts）不受 Dependabot 支持，需要人工或 Renovate 维护。
+version: 2
+
+updates:
+  # ===========================================================================
+  # Java / Maven：root pom + backend 全部子模块 + module 内硬编码版本
+  # ===========================================================================
+  - package-ecosystem: "maven"
+    directory: "/"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "java"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      spring:
+        patterns:
+          - "org.springframework*"
+          - "org.springframework.boot*"
+          - "org.springframework.cloud*"
+          - "org.springframework.security*"
+        update-types:
+          - "minor"
+          - "patch"
+      kubernetes:
+        patterns:
+          - "io.fabric8*"
+          - "io.kubernetes*"
+        update-types:
+          - "minor"
+          - "patch"
+      maven-plugins:
+        patterns:
+          - "org.apache.maven.plugins*"
+          - "org.codehaus.mojo*"
+        update-types:
+          - "minor"
+          - "patch"
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # 这三个 BOM 的大版本会破坏 Spring Boot / Cloud / fabric8 之间的版本对齐
+      - dependency-name: "org.springframework.boot:spring-boot-dependencies"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "org.springframework.cloud:spring-cloud-dependencies"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "io.fabric8:kubernetes-client-bom"
+        update-types:
+          - "version-update:semver-major"
+
+  # ===========================================================================
+  # Java / Maven：Keycloak 扩展（独立 pom，不在 root reactor 内）
+  # ===========================================================================
+  - package-ecosystem: "maven"
+    directory: "/keycloak/http-event-listener"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "java"
+      - "keycloak"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ===========================================================================
+  # Node / npm：主前端
+  # ===========================================================================
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    versioning-strategy: "increase-if-necessary"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "frontend"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      radix:
+        patterns:
+          - "radix-ui"
+          - "@radix-ui/*"
+      vite-toolchain:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+          - "vitest"
+          - "typescript"
+          - "tailwindcss"
+          - "@tailwindcss/*"
+        update-types:
+          - "minor"
+          - "patch"
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Node 运行时版本由 deploy/docker/frontend/Dockerfile 固定，类型包跟随它
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
+
+  # ===========================================================================
+  # Node / npm：交付平台前端
+  # ===========================================================================
+  - package-ecosystem: "npm"
+    directory: "/delivery-platform/frontend"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    versioning-strategy: "increase-if-necessary"
+    labels:
+      - "dependencies"
+      - "delivery-platform"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ===========================================================================
+  # Go：cn-app-operator
+  # ===========================================================================
+  - package-ecosystem: "gomod"
+    directory: "/cn-app-operator"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "go"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      kubernetes:
+        patterns:
+          - "k8s.io/*"
+          - "sigs.k8s.io/*"
+          - "github.com/kubernetes/*"
+        update-types:
+          - "minor"
+          - "patch"
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ===========================================================================
+  # Go：交付平台后端
+  # ===========================================================================
+  - package-ecosystem: "gomod"
+    directory: "/delivery-platform/backend"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "go"
+      - "delivery-platform"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ===========================================================================
+  # Docker：根目录 docker-compose.yml 里的 image 标签
+  # ===========================================================================
+  - package-ecosystem: "docker"
+    directory: "/"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # ===========================================================================
+  # Docker：deploy/docker 下各 Dockerfile 的 FROM 基础镜像
+  # ===========================================================================
+  - package-ecosystem: "docker"
+    directory: "/deploy/docker/backend"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/deploy/docker/frontend"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/deploy/docker/cn-app-operator"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/deploy/docker/delivery-platform-backend"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/deploy/docker/delivery-platform-frontend"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: "docker"
+    directory: "/deploy/docker/keycloak-http-listener"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # ===========================================================================
+  # GitHub Actions：.github/workflows 里 uses: 的 action 版本
+  # ===========================================================================
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"
