@@ -44,7 +44,7 @@ CMD ["cp", "/out/server.jar", "/host/server.jar"]
 # =============================================================================
 # Stage 3: Runtime image
 # =============================================================================
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 RUN addgroup -S devops -g 1000 && \
     adduser -S devops -u 1000 -G devops -h /app -s /sbin/nologin
