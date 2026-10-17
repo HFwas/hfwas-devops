@@ -15,7 +15,7 @@
     "radix-vue": "^1.0.0",
     "tailwind-merge": "^3.7.0",
     "@vueuse/core": "^10.0.0",
-    "lucide-vue-next": "^0.300.0"
+    "lucide-vue-next": "^1.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.10",
