@@ -6,7 +6,7 @@
 # 运行镜像就能落在 alpine 上。
 # 本机拉不动 Docker Hub，base 镜像一律用本地已有的 tag。
 # =============================================================================
-FROM golang:1.22 AS builder
+FROM golang:1.27 AS builder
 
 WORKDIR /build
 
