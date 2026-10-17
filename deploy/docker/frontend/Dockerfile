@@ -18,7 +18,7 @@ RUN npm run build
 # =============================================================================
 # Stage 2: Export dist to host (compose frontend-build)
 # =============================================================================
-FROM busybox:1.37 AS export
+FROM busybox:1.38 AS export
 COPY --from=builder /build/dist /dist
 CMD ["sh", "-c", "rm -rf /host/assets /host/index.html; cp -a /dist/. /host/"]
 
