@@ -52,7 +52,8 @@
         <jenkins-rest.version>1.0.2</jenkins-rest.version>
         <cpe-parser.version>3.0.1</cpe-parser.version>
         <httpclient5.version>5.6.5</httpclient5.version>
-        <logback-classic.version>1.6.5</logback-classic.version>
+        <!-- classic 与 core 必须同版本，否则 PatternLayout 会抛 AbstractMethodError -->
+        <logback.version>1.6.5</logback.version>
         <knife4j.version>4.5.0</knife4j.version>
         <spring-security.version>7.1.1</spring-security.version>
         <netty-handler.version>4.2.19.Final</netty-handler.version>
@@ -189,7 +190,12 @@
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-classic</artifactId>
-                <version>${logback-classic.version}</version>
+                <version>${logback.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>${logback.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.baomidou</groupId>
