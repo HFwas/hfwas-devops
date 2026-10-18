@@ -42,12 +42,30 @@ const clone: TaskKindVO = {
   commandTemplate: '',
   params: [
     {
+      paramKey: 'REPO_URL',
+      paramLabel: '仓库地址',
+      paramType: 'input',
+      defaultValue: '',
+      required: true,
+      sortOrder: 0,
+      visibility: 'user',
+    },
+    {
       paramKey: 'GIT_REF',
       paramLabel: '分支',
       paramType: 'input',
       defaultValue: 'main',
       required: false,
       sortOrder: 0,
+      visibility: 'user',
+    },
+    {
+      paramKey: 'CREDENTIAL_ID',
+      paramLabel: '凭证',
+      paramType: 'input',
+      defaultValue: '',
+      required: false,
+      sortOrder: 2,
       visibility: 'user',
     },
   ],
@@ -151,7 +169,6 @@ describe('pipeline create and run', () => {
     container = view.container
     await waitForText(container, '新建流水线')
     setInput(container.querySelector('[aria-label="名称"]') as HTMLInputElement, '夜间构建')
-    setInput(container.querySelector('[aria-label="仓库"]') as HTMLInputElement, 'https://github.com/acme/app.git')
     const addStage = container.querySelector('[aria-label="添加阶段"]') as HTMLElement
     act(() => {
       addStage.click()
@@ -167,6 +184,7 @@ describe('pipeline create and run', () => {
       addClone.click()
     })
     await flush()
+    setInput(container.querySelector('[aria-label="仓库地址"]') as HTMLInputElement, 'https://github.com/acme/app.git')
     const save = [...container.querySelectorAll('button')].find((node) => node.textContent === '保存')
     act(() => {
       save?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -174,15 +192,13 @@ describe('pipeline create and run', () => {
     for (let attempt = 0; attempt < 15 && vi.mocked(pipelineApi.create).mock.calls.length === 0; attempt += 1) {
       await flush()
     }
-    expect(pipelineApi.create).toHaveBeenCalledWith(expect.objectContaining({
-      name: '夜间构建',
-      repoUrl: 'https://github.com/acme/app.git',
-      stages: [
-        expect.objectContaining({
-          jobs: [expect.objectContaining({ kind: 'CLONE', paramBindings: { GIT_REF: { mode: 'fixed', value: 'main' } } })],
-        }),
-      ],
-    }))
+    expect(pipelineApi.create).toHaveBeenCalledWith(expect.objectContaining({ name: '夜间构建' }))
+    const payload = vi.mocked(pipelineApi.create).mock.calls[0][0]
+    expect(payload).not.toHaveProperty('repoUrl')
+    expect(payload.stages[0].jobs[0].paramBindings).toMatchObject({
+      REPO_URL: { mode: 'fixed', value: 'https://github.com/acme/app.git' },
+      GIT_REF: { mode: 'fixed', value: 'main' },
+    })
   })
 
   it('asks for runtime params and opens the run detail', async () => {

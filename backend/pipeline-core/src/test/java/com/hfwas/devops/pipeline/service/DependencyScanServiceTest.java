@@ -63,6 +63,7 @@ class DependencyScanServiceTest {
         DependencyScanSubmitDTO dto = new DependencyScanSubmitDTO();
         dto.setRepoUrl("https://github.com/org/my-app.git");
         dto.setGitRef("main");
+        dto.setCredentialId(9L);
 
         DependencyScanVO result = scanService.submitSingle(dto);
 
@@ -75,7 +76,10 @@ class DependencyScanServiceTest {
         verify(definitionService).save(pipelineCaptor.capture());
         var pipelineDto = pipelineCaptor.getValue();
         assertEquals("[依赖扫描] my-app", pipelineDto.getName());
-        assertEquals("https://github.com/org/my-app.git", pipelineDto.getRepoUrl());
+        var cloneBindings = pipelineDto.getStages().get(0).getJobs().getFirst().getParamBindings();
+        assertEquals("https://github.com/org/my-app.git", cloneBindings.get("REPO_URL").getValue());
+        assertEquals("main", cloneBindings.get("GIT_REF").getValue());
+        assertEquals("9", cloneBindings.get("CREDENTIAL_ID").getValue());
         assertEquals(3, pipelineDto.getStages().size());
         assertEquals("代码克隆", pipelineDto.getStages().get(0).getName());
         assertEquals("安装依赖", pipelineDto.getStages().get(1).getName());

@@ -14,10 +14,11 @@ function DialogTrigger(props: React.ComponentProps<typeof DialogPrimitive.Trigge
 function DialogContent({ className, children, ...props }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" />
+      <DialogPrimitive.Overlay data-slot="dialog-overlay" className="fixed inset-0 z-50 bg-black/40" />
       <DialogPrimitive.Content
+        data-slot="dialog-content"
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-background p-6 shadow-lg',
+          'fixed top-1/2 left-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-6 shadow-lg',
           className,
         )}
         {...props}
@@ -33,7 +34,7 @@ function DialogContent({ className, children, ...props }: React.ComponentProps<t
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div className={cn('flex flex-col gap-1.5', className)} {...props} />
+  return <div data-slot="dialog-header" className={cn('flex flex-col gap-1.5 border-b pb-3', className)} {...props} />
 }
 
 function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
@@ -41,7 +42,7 @@ function DialogTitle({ className, ...props }: React.ComponentProps<typeof Dialog
 }
 
 function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div className={cn('mt-4 flex justify-end gap-2', className)} {...props} />
+  return <div data-slot="dialog-footer" className={cn('mt-2 flex justify-end gap-2 border-t pt-3', className)} {...props} />
 }
 
 export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter }

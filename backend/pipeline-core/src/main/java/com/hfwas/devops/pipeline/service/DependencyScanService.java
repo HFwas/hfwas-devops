@@ -4,6 +4,7 @@ import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.pipeline.dto.DependencyScanSubmitDTO;
 import com.hfwas.devops.pipeline.dto.DependencyScanVO;
+import com.hfwas.devops.pipeline.dto.JobParamBindingDTO;
 import com.hfwas.devops.pipeline.dto.PipelineJobDTO;
 import com.hfwas.devops.pipeline.dto.PipelineRunVO;
 import com.hfwas.devops.pipeline.dto.PipelineSaveDTO;
@@ -57,9 +58,6 @@ public class DependencyScanService {
         // 2. 创建流水线（CLONE + BUILD + DEPENDENCY_ANALYSIS）
         PipelineSaveDTO pipelineDto = new PipelineSaveDTO();
         pipelineDto.setName(pipelineName);
-        pipelineDto.setRepoUrl(dto.getRepoUrl());
-        pipelineDto.setGitRef(dto.getGitRef() != null ? dto.getGitRef() : "main");
-        pipelineDto.setCredentialId(dto.getCredentialId());
 
         String modulePath = normalizeModulePath(dto.getModulePath());
         String stack = dto.getStack();
@@ -75,6 +73,13 @@ public class DependencyScanService {
         cloneJob.setKind("CLONE");
         cloneJob.setCommand("git clone");
         cloneJob.setSortOrder(1);
+        java.util.Map<String, JobParamBindingDTO> cloneBindings = new java.util.LinkedHashMap<>();
+        cloneBindings.put("REPO_URL", fixed(dto.getRepoUrl()));
+        cloneBindings.put("GIT_REF", fixed(dto.getGitRef() != null ? dto.getGitRef() : "main"));
+        if (dto.getCredentialId() != null) {
+            cloneBindings.put("CREDENTIAL_ID", fixed(String.valueOf(dto.getCredentialId())));
+        }
+        cloneJob.setParamBindings(cloneBindings);
         cloneStage.setJobs(List.of(cloneJob));
         stages.add(cloneStage);
 
@@ -238,6 +243,13 @@ public class DependencyScanService {
             normalized = normalized.substring(0, normalized.length() - 1);
         }
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private static JobParamBindingDTO fixed(String value) {
+        JobParamBindingDTO binding = new JobParamBindingDTO();
+        binding.setMode("fixed");
+        binding.setValue(value == null ? "" : value);
+        return binding;
     }
 
     private static String extractRepoName(String repoUrl) {

@@ -236,4 +236,5 @@ public class SqliteSchemaInitializer implements ApplicationRunner {
             log.warn("migrate pipeline_job bindings failed: {}", e.getMessage());
         }
     }
+
 }

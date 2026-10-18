@@ -43,6 +43,7 @@ const runs: PipelineRun[] = [
     status: 'RUNNING',
     trigger: 'MANUAL',
     gitRef: 'refs/heads/main',
+    commitSha: '9f2c1ab000000000000000000000000000000000',
     triggeredByName: 'ada',
     stack: '',
     runtimeVersion: '',
@@ -131,6 +132,17 @@ describe('PipelineDetailPage', () => {
     container = null
   })
 
+  it('shows a dash for commit when no run exists', async () => {
+    vi.mocked(pipelineApi.pageRuns).mockResolvedValue({ records: [], total: 0, current: 1, size: 100, pages: 0 })
+    const view = mount('/pipeline/pipelines/9')
+    root = view.root
+    container = view.container
+    await waitForText(container, '订单服务 CI')
+    const meta = container.querySelector('[data-slot="pipeline-detail-meta"]')
+    expect(meta?.textContent).toContain('Commit')
+    expect(meta?.textContent).toContain('—')
+  })
+
   it('puts tabs above the repo meta strip and opens the definition canvas', async () => {
     const view = mount('/pipeline/pipelines/9')
     root = view.root
@@ -167,6 +179,9 @@ describe('PipelineDetailPage', () => {
     expect(meta?.textContent).toContain('HFwas/order-service')
     expect(meta?.textContent).toContain('分支')
     expect(meta?.textContent).toContain('main')
+    expect(meta?.textContent).toContain('Commit')
+    expect(meta?.textContent).toContain('9f2c1ab0')
+    expect(meta?.textContent).not.toContain('9f2c1ab000000000000000000000000000000000')
     expect(meta?.textContent).toContain('构建 · 测试 · 部署')
     expect(meta?.textContent).toContain('凭证')
     expect(meta?.textContent).toContain('git-token')

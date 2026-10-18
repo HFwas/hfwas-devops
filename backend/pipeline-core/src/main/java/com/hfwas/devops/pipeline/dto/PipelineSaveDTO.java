@@ -8,8 +8,6 @@ import java.util.List;
 public class PipelineSaveDTO {
     private Long id;
     private String name;
-    private String repoUrl;
-    private String gitRef;
-    private Long credentialId;
+    /** 仓库、分支、凭证由 CLONE 任务的参数绑定提供（REPO_URL / GIT_REF / CREDENTIAL_ID）。 */
     private List<PipelineStageDTO> stages;
 }

@@ -6,7 +6,6 @@ import {
   createEditorJob,
   defaultCommandForKind,
   findEditorJob,
-  hasClone,
   insertStageAt,
   nextClientKey,
   toEditorStages,
@@ -44,25 +43,47 @@ const STAGE_TITLES: Record<string, string> = {
 
 export interface PipelineDraft {
   name: string
-  repoUrl: string
-  gitRef: string
-  credentialId: string
   stages: EditorStage[]
 }
 
+/** 仓库配置存放在 CLONE 任务的参数绑定里。 */
+export const CLONE_REPO_KEY = 'REPO_URL'
+export const CLONE_REF_KEY = 'GIT_REF'
+export const CLONE_CREDENTIAL_KEY = 'CREDENTIAL_ID'
+export const CLONE_CONFIG_KEYS = new Set([CLONE_REPO_KEY, CLONE_REF_KEY, CLONE_CREDENTIAL_KEY])
+
 export function emptyDraft(): PipelineDraft {
-  return { name: '', repoUrl: '', gitRef: 'main', credentialId: '', stages: [] }
+  return { name: '', stages: [] }
 }
 
 export function draftFromPipeline(pipeline: PipelineSummary): PipelineDraft {
-  const ref = (pipeline.gitRef ?? '').replace(/^refs\/heads\//, '').replace(/^refs\/tags\//, '').trim()
   return {
     name: pipeline.name ?? '',
-    repoUrl: pipeline.repoUrl ?? '',
-    gitRef: ref || 'main',
-    credentialId: pipeline.credentialId == null || pipeline.credentialId === '' ? '' : String(pipeline.credentialId),
     stages: toEditorStages(pipeline.stages),
   }
+}
+
+export function cloneJob(stages: EditorStage[]): EditorJob | null {
+  for (const stage of stages) {
+    const job = stage.jobs.find((item) => item.kind === 'CLONE')
+    if (job) return job
+  }
+  return null
+}
+
+/** 读取 CLONE 参数绑定的固定值；运行时绑定视为未配置。 */
+export function cloneConfigValue(stages: EditorStage[], key: string): string {
+  const binding = cloneJob(stages)?.paramBindings?.[key]
+  if (!binding || binding.mode !== 'fixed') return key === CLONE_REF_KEY ? 'main' : ''
+  return binding.value ?? ''
+}
+
+export function draftRepoUrl(draft: PipelineDraft): string {
+  return cloneConfigValue(draft.stages, CLONE_REPO_KEY)
+}
+
+export function draftGitRef(draft: PipelineDraft): string {
+  return cloneConfigValue(draft.stages, CLONE_REF_KEY).trim() || 'main'
 }
 
 export function isUserVisibleParam(param: {
@@ -154,10 +175,17 @@ function nameStageOfJob(stages: EditorStage[], jobKey: string, name: string): Ed
   )
 }
 
+const AUTO_STAGE_NAME = /^阶段 \d+$/
+
+export function isAutoStageName(name: string | null | undefined): boolean {
+  const trimmed = (name ?? '').trim()
+  return trimmed === '未命名' || AUTO_STAGE_NAME.test(trimmed)
+}
+
 export function appendEmptyStage(stages: EditorStage[]): EditorStage[] {
   return reindex([
     ...stages,
-    { clientKey: nextClientKey('stage'), name: '未命名', sortOrder: stages.length, jobs: [] },
+    { clientKey: nextClientKey('stage'), name: `阶段 ${stages.length + 1}`, sortOrder: stages.length, jobs: [] },
   ])
 }
 
@@ -177,7 +205,7 @@ export function addPaletteJob(
   if (!stage) return { stages, error: '阶段不存在' }
   if (stage.jobs.length === 0) {
     if (globalError) return { stages, error: globalError }
-    const name = stage.name === '未命名' ? stageName : stage.name
+    const name = isAutoStageName(stage.name) ? stageName : stage.name
     return {
       stages: stages.map((item) =>
         item.clientKey === stageKey ? { ...item, name, jobs: [{ ...job, sortOrder: 0 }] } : item,
@@ -360,8 +388,8 @@ export function validateDraft(draft: PipelineDraft, kinds: TaskKindVO[] = []): s
   if (draft.stages.length === 0) return '流水线至少需要一个阶段'
   const jobs = draft.stages.flatMap((stage) => stage.jobs)
   if (jobs.filter((job) => job.kind === 'CLONE').length > 1) return '流水线至多一个克隆任务'
-  if (hasClone(draft.stages)) {
-    const repoError = validateRepoUrl(draft.repoUrl)
+  if (cloneJob(draft.stages)) {
+    const repoError = validateRepoUrl(draftRepoUrl(draft))
     if (repoError) return repoError
   }
   for (const stage of draft.stages) {
@@ -391,27 +419,9 @@ export function validateDraft(draft: PipelineDraft, kinds: TaskKindVO[] = []): s
   return null
 }
 
-function withFixedGitRef(stages: EditorStage[], gitRef: string): EditorStage[] {
-  return stages.map((stage) => ({
-    ...stage,
-    jobs: stage.jobs.map((job) => {
-      const binding = job.paramBindings?.GIT_REF
-      if (!binding || binding.mode !== 'fixed') return job
-      return {
-        ...job,
-        paramBindings: { ...job.paramBindings, GIT_REF: { mode: 'fixed', value: gitRef } },
-      }
-    }),
-  }))
-}
-
 export function toSavePayload(draft: PipelineDraft): PipelineSavePayload {
-  const gitRef = draft.gitRef.trim() || 'main'
   return {
     name: draft.name.trim(),
-    repoUrl: draft.repoUrl.trim(),
-    gitRef,
-    credentialId: draft.credentialId ? draft.credentialId : null,
-    stages: toSaveStages(withFixedGitRef(draft.stages, gitRef)),
+    stages: toSaveStages(draft.stages),
   }
 }

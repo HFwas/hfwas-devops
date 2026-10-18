@@ -161,7 +161,9 @@ INSERT OR IGNORE INTO pipeline_task_kind_param (
     id, kind_value, param_key, param_label, param_type, default_value, required, sort_order, placeholder, options_json
 ) VALUES
 -- CLONE
+(6,  'CLONE', 'REPO_URL',           '仓库地址',        'input', '',                                     1, 0,  'https://github.com/org/repo.git', '[]'),
 (1,  'CLONE', 'GIT_REF',            '代码分支',        'input', 'main',                                 1, 0,  'main / develop / commit SHA', '[]'),
+(7,  'CLONE', 'CREDENTIAL_ID',      '凭证',            'input', '',                               0, 2,  '', '[]'),
 (2,  'CLONE', 'GIT_USERNAME',       'Git 用户名',      'input', '',                                     0, 1,  '', '[]'),
 (3,  'CLONE', 'GIT_PASSWORD',       'Git 密码',        'input', '',                                     0, 2,  '', '[]'),
 (4,  'CLONE', 'GIT_EMBEDDED_AUTH',  'Git Token',       'input', '',                                     0, 3,  '', '[]'),

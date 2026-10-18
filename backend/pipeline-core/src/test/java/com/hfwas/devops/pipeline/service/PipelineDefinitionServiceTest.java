@@ -332,9 +332,47 @@ class PipelineDefinitionServiceTest {
         BizException ex1 = assertThrows(BizException.class, () -> service.save(missing));
         assertThat(ex1.getMessage()).isNotBlank();
 
-        PipelineSaveDTO invalid = dto("demo", "not-a-url", stage("s", job("clone", "CLONE", "")));
+        PipelineSaveDTO invalid = dto("demo", "ftp://git.example.com/a/b.git", stage("s", job("clone", "CLONE", "")));
         BizException ex2 = assertThrows(BizException.class, () -> service.save(invalid));
-        assertThat(ex2.getMessage()).isNotBlank();
+        assertThat(ex2.getMessage()).contains("http 或 https");
+    }
+
+    @Test
+    @DisplayName("仓库/分支/凭证从 CLONE 任务参数派生")
+    void derivesCloneConfigFromJobBindings() {
+        PipelineSaveDTO dto = dto("demo", "https://git.example.com/a/b.git",
+                stage("clone", job("clone", "CLONE", "")));
+        PipelineJobDTO clone = dto.getStages().getFirst().getJobs().getFirst();
+        clone.getParamBindings().put("GIT_REF", binding("dev"));
+        clone.getParamBindings().put("CREDENTIAL_ID", binding("7"));
+        when(pipelineMapper.insert(any(PipelineEntity.class))).thenAnswer(inv -> {
+            inv.<PipelineEntity>getArgument(0).setId(1L);
+            return 1;
+        });
+        when(stageMapper.insert(any(PipelineStageEntity.class))).thenAnswer(inv -> {
+            inv.<PipelineStageEntity>getArgument(0).setId(11L);
+            return 1;
+        });
+
+        assertThat(service.save(dto)).isEqualTo(1L);
+
+        ArgumentCaptor<PipelineEntity> captor = ArgumentCaptor.forClass(PipelineEntity.class);
+        verify(pipelineMapper).insert(captor.capture());
+        assertThat(captor.getValue().getRepoUrl()).isEqualTo("https://git.example.com/a/b.git");
+        assertThat(captor.getValue().getGitRef()).isEqualTo("dev");
+        assertThat(captor.getValue().getCredentialId()).isEqualTo(7L);
+    }
+
+    @Test
+    @DisplayName("凭证 ID 非数字返回 400")
+    void rejectsInvalidCredentialId() {
+        PipelineSaveDTO dto = dto("demo", "https://git.example.com/a/b.git",
+                stage("clone", job("clone", "CLONE", "")));
+        dto.getStages().getFirst().getJobs().getFirst().getParamBindings()
+                .put("CREDENTIAL_ID", binding("abc"));
+
+        BizException ex = assertThrows(BizException.class, () -> service.save(dto));
+        assertThat(ex.getMessage()).contains("凭证 ID 非法");
     }
 
     @Test
@@ -354,6 +392,8 @@ class PipelineDefinitionServiceTest {
         ArgumentCaptor<PipelineEntity> captor = ArgumentCaptor.forClass(PipelineEntity.class);
         verify(pipelineMapper).insert(captor.capture());
         assertThat(captor.getValue().getRepoUrl()).isEmpty();
+        assertThat(captor.getValue().getGitRef()).isEqualTo("main");
+        assertThat(captor.getValue().getCredentialId()).isNull();
     }
 
     @Test
@@ -476,9 +516,28 @@ class PipelineDefinitionServiceTest {
     private static PipelineSaveDTO dto(String name, String repoUrl, PipelineStageDTO... stages) {
         PipelineSaveDTO dto = new PipelineSaveDTO();
         dto.setName(name);
-        dto.setRepoUrl(repoUrl);
+        for (PipelineStageDTO stage : stages) {
+            for (PipelineJobDTO job : stage.getJobs()) {
+                if (!"CLONE".equals(job.getKind())) {
+                    continue;
+                }
+                Map<String, JobParamBindingDTO> bindings = new java.util.LinkedHashMap<>();
+                if (repoUrl != null) {
+                    bindings.put("REPO_URL", binding(repoUrl));
+                }
+                bindings.put("GIT_REF", binding("main"));
+                job.setParamBindings(bindings);
+            }
+        }
         dto.setStages(List.of(stages));
         return dto;
+    }
+
+    private static JobParamBindingDTO binding(String value) {
+        JobParamBindingDTO binding = new JobParamBindingDTO();
+        binding.setMode("fixed");
+        binding.setValue(value);
+        return binding;
     }
 
     private static PipelineStageDTO stage(String name, PipelineJobDTO... jobs) {

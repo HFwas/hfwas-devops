@@ -95,6 +95,7 @@ export function PipelineDetailPage() {
 
   const pipeline = pipelineQuery.data
   const records = runsQuery.data?.records ?? []
+  const latestRun = records[0]
   const credentialName = pipeline?.credentialId
     ? (credentialsQuery.data ?? []).find((item) => String(item.id) === String(pipeline.credentialId))?.name || '当前凭证'
     : '未配置'
@@ -142,6 +143,7 @@ export function PipelineDetailPage() {
           items={[
             { label: '仓库', value: <MonoValue>{repoShortName(pipeline?.repoUrl)}</MonoValue> },
             { label: '分支', value: <MonoValue>{formatGitRef(pipeline?.gitRef)}</MonoValue> },
+            { label: 'Commit', value: <MonoValue>{latestRun?.commitSha ? formatCommit(latestRun.commitSha) : '—'}</MonoValue> },
             { label: '阶段', value: <MonoValue>{stageNames.length > 0 ? stageNames.join(' · ') : '尚未配置'}</MonoValue> },
             {
               label: '最近运行',

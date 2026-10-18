@@ -32,10 +32,12 @@ const cloneKind: TaskKindVO = {
   defaultImage: '',
   commandTemplate: '',
   params: [
+    { paramKey: 'REPO_URL', paramLabel: '仓库地址', paramType: 'input', defaultValue: '', required: true, sortOrder: 0 },
     { paramKey: 'GIT_REF', paramLabel: '代码分支', paramType: 'input', defaultValue: 'main', required: true, sortOrder: 0 },
     { paramKey: 'GIT_PASSWORD', paramLabel: 'Git 密码', paramType: 'input', defaultValue: '', required: false, sortOrder: 1 },
-    { paramKey: 'SECRET_TOKEN', paramLabel: '隐藏', paramType: 'input', defaultValue: 'x', required: false, sortOrder: 2, hidden: true },
-    { paramKey: 'ADMIN_ONLY', paramLabel: '仅管理员', paramType: 'input', defaultValue: '', required: false, sortOrder: 3, visibility: 'hidden' },
+    { paramKey: 'CREDENTIAL_ID', paramLabel: '凭证', paramType: 'input', defaultValue: '', required: false, sortOrder: 2 },
+    { paramKey: 'SECRET_TOKEN', paramLabel: '隐藏', paramType: 'input', defaultValue: 'x', required: false, sortOrder: 3, hidden: true },
+    { paramKey: 'ADMIN_ONLY', paramLabel: '仅管理员', paramType: 'input', defaultValue: '', required: false, sortOrder: 4, visibility: 'hidden' },
   ],
 }
 
@@ -55,7 +57,11 @@ const buildKind: TaskKindVO = {
 
 describe('pipelineDraft', () => {
   it('hides credential and flagged params from the inspector', () => {
-    expect(visibleParams(cloneKind.params).map((item) => item.paramKey)).toEqual(['GIT_REF'])
+    expect(visibleParams(cloneKind.params).map((item) => item.paramKey)).toEqual([
+      'REPO_URL',
+      'GIT_REF',
+      'CREDENTIAL_ID',
+    ])
   })
 
   it('validates the save payload and keeps hidden bindings already on the job', () => {
@@ -70,26 +76,63 @@ describe('pipelineDraft', () => {
     expect(added.error).toBeNull()
     draft.stages = added.stages
     expect(validateDraft(draft, [cloneKind])).toBe('仓库地址不能为空')
-    draft.repoUrl = 'https://github.com/HFwas/hfwas-devops.git'
-    draft.gitRef = 'dev'
+
+    draft.stages = draft.stages.map((stage) => ({
+      ...stage,
+      jobs: stage.jobs.map((job) => ({
+        ...job,
+        paramBindings: {
+          ...job.paramBindings,
+          REPO_URL: { mode: 'fixed', value: 'https://github.com/HFwas/hfwas-devops.git' },
+        },
+      })),
+    }))
     expect(validateDraft(draft, [cloneKind])).toBeNull()
 
     const payload = toSavePayload(draft)
-    expect(payload.credentialId).toBeNull()
-    expect(payload.gitRef).toBe('dev')
+    expect(payload).not.toHaveProperty('repoUrl')
+    expect(payload).not.toHaveProperty('gitRef')
+    expect(payload).not.toHaveProperty('credentialId')
     expect(payload.stages[0]).not.toHaveProperty('clientKey')
     expect(payload.stages[0].name).toBe('拉取')
     expect(payload.stages[0].jobs[0].paramBindings).toMatchObject({
+      REPO_URL: { mode: 'fixed', value: 'https://github.com/HFwas/hfwas-devops.git' },
       GIT_REF: { mode: 'fixed', value: 'dev' },
       GIT_PASSWORD: { mode: 'fixed', value: 'kept' },
     })
     expect(payload.stages[0].jobs[0].paramBindings).not.toHaveProperty('SECRET_TOKEN')
   })
 
+  it('validates clone repo url from job bindings', () => {
+    const clone = createJobFromKind(cloneKind, 'main')
+    const draft = { ...emptyDraft(), name: '后端发布', stages: addPaletteJob([], null, clone).stages }
+    draft.stages[0].jobs[0].paramBindings = {
+      ...draft.stages[0].jobs[0].paramBindings,
+      REPO_URL: { mode: 'fixed', value: 'ftp://example.com/a/b.git' },
+    }
+    expect(validateDraft(draft, [cloneKind])).toBe('仓库地址需要 http 或 https 协议: ftp://example.com/a/b.git')
+  })
+
+  it('names a new stage 阶段 N and renames it after the first job', () => {
+    const stages = appendEmptyStage([])
+    expect(stages[0].name).toBe('阶段 1')
+
+    const clone = createJobFromKind(cloneKind, 'main')
+    const added = addPaletteJob(stages, stages[0].clientKey, clone)
+    expect(added.stages[0].name).toBe('拉取')
+  })
+
+  it('keeps a user edited stage name when adding the first job', () => {
+    const stages = appendEmptyStage([]).map((stage) => ({ ...stage, name: '我的阶段' }))
+    const clone = createJobFromKind(cloneKind, 'main')
+    const added = addPaletteJob(stages, stages[0].clientKey, clone)
+    expect(added.stages[0].name).toBe('我的阶段')
+  })
+
   it('requires a command and visible fixed params', () => {
     const job = createJobFromKind(buildKind, 'main')
     job.command = '   '
-    const draft = { ...emptyDraft(), name: '构建', repoUrl: '', stages: addPaletteJob([], null, job).stages }
+    const draft = { ...emptyDraft(), name: '构建', stages: addPaletteJob([], null, job).stages }
     expect(validateDraft(draft, [buildKind])).toBe('任务「Maven 构建」需要命令')
     draft.stages = draft.stages.map((stage) => ({
       ...stage,

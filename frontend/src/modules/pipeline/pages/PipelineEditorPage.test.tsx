@@ -12,6 +12,7 @@ vi.mock('@/modules/pipeline/api/pipeline', () => ({
     create: vi.fn(),
     update: vi.fn(),
     start: vi.fn(),
+    getRun: vi.fn(),
     getDefaultParams: vi.fn(),
     toolchains: vi.fn(),
     page: vi.fn(),
@@ -37,9 +38,11 @@ const cloneKind: TaskKindVO = {
   defaultImage: '',
   commandTemplate: 'git clone',
   params: [
+    { paramKey: 'REPO_URL', paramLabel: '仓库地址', paramType: 'input', defaultValue: '', required: true, sortOrder: 0 },
     { paramKey: 'GIT_REF', paramLabel: '代码分支', paramType: 'input', defaultValue: 'main', required: true, sortOrder: 0 },
     { paramKey: 'GIT_PASSWORD', paramLabel: 'Git 密码', paramType: 'input', defaultValue: '', required: false, sortOrder: 1 },
-    { paramKey: 'SECRET_TOKEN', paramLabel: '隐藏令牌', paramType: 'input', defaultValue: 'x', required: true, sortOrder: 2, hidden: true },
+    { paramKey: 'CREDENTIAL_ID', paramLabel: '凭证', paramType: 'input', defaultValue: '', required: false, sortOrder: 2 },
+    { paramKey: 'SECRET_TOKEN', paramLabel: '隐藏令牌', paramType: 'input', defaultValue: 'x', required: true, sortOrder: 3, hidden: true },
   ],
 }
 
@@ -147,7 +150,18 @@ describe('PipelineEditorPage', () => {
           id: 1,
           name: '拉取',
           sortOrder: 0,
-          jobs: [{ id: 2, name: '代码克隆', kind: 'CLONE', command: 'git clone', sortOrder: 0, paramBindings: { GIT_REF: { mode: 'fixed', value: 'dev' } } }],
+          jobs: [{
+            id: 2,
+            name: '代码克隆',
+            kind: 'CLONE',
+            command: 'git clone',
+            sortOrder: 0,
+            paramBindings: {
+              REPO_URL: { mode: 'fixed', value: 'https://github.com/HFwas/hfwas-devops.git' },
+              GIT_REF: { mode: 'fixed', value: 'dev' },
+              CREDENTIAL_ID: { mode: 'fixed', value: '9' },
+            },
+          }],
         },
       ],
     })
@@ -194,13 +208,13 @@ describe('PipelineEditorPage', () => {
     expect(panel()?.getAttribute('data-mode')).toBe('config')
     expect(panel()?.querySelector('[data-slot="pipeline-inspector"]')).toBeTruthy()
     expect(lanes!.compareDocumentPosition(panel()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(view.textContent).toContain('基本信息')
+    expect(view.textContent).not.toContain('基本信息')
     expect(view.textContent).toContain('任务配置')
     expect(view.textContent).toContain('取消')
     expect(view.textContent).toContain('保存并运行')
-    expect(view.querySelector('[aria-label="仓库"]')).toBeTruthy()
-    expect(view.querySelector('[aria-label="分支"]')).toBeTruthy()
-    expect(view.querySelector('[aria-label="凭证"]')).toBeTruthy()
+    expect(view.querySelector('[aria-label="名称"]')).toBeTruthy()
+    expect(view.querySelector('[aria-label="仓库"]')).toBeNull()
+    expect(view.querySelector('[aria-label="分支"]')).toBeNull()
 
     click(view, '添加阶段')
     await flush()
@@ -213,7 +227,7 @@ describe('PipelineEditorPage', () => {
     expect(panel()?.querySelector('[data-slot="pipeline-task-list"]')).toBeTruthy()
     expect(panel()?.querySelector('[data-slot="pipeline-inspector"]')).toBeNull()
     expect(panel()?.querySelector('input, textarea')).toBeNull()
-    expect(view.textContent).toContain('添加任务到「阶段 1 · 未命名」')
+    expect(view.textContent).toContain('添加任务到「阶段 1 · 阶段 1」')
     expect(view.textContent).toContain('代码 (1)')
     expect(view.textContent).toContain('构建 (1)')
     expect(view.textContent).not.toContain('隐藏通知')
@@ -233,9 +247,14 @@ describe('PipelineEditorPage', () => {
     expect(stage?.textContent).toContain('CLONE')
     expect(panel()?.getAttribute('data-mode')).toBe('config')
     expect((view.querySelector('[aria-label="任务名称"]') as HTMLInputElement | null)?.value).toBe('代码克隆')
+    expect((view.querySelector('[aria-label="任务名称"]') as HTMLInputElement | null)?.disabled).toBe(true)
+    expect((view.querySelector('[aria-label="任务类型"]') as HTMLInputElement | null)?.disabled).toBe(true)
+    expect(view.querySelector('[aria-label="仓库地址"]')).toBeTruthy()
+    expect(view.querySelector('[aria-label="代码分支"]')).toBeTruthy()
+    expect(view.querySelector('[aria-label="凭证"]')).toBeTruthy()
     expect(view.textContent).not.toContain('GIT_PASSWORD')
     expect(view.textContent).not.toContain('SECRET_TOKEN')
-    expect(view.textContent).toContain('GIT_REF')
+    expect(view.textContent).not.toContain('GIT_REF')
 
     click(view, '在阶段 1 添加任务')
     await waitFor(view, '添加任务到「阶段 1 · 拉取」')
@@ -289,8 +308,10 @@ describe('PipelineEditorPage', () => {
     expect(view.querySelectorAll('[data-slot="pipeline-stage"]')).toHaveLength(1)
 
     setInput(view, '名称', '后端发布')
-    setInput(view, '仓库', 'https://github.com/HFwas/hfwas-devops.git')
-    setInput(view, '分支', 'dev')
+    click(view, '选择代码克隆')
+    await flush()
+    setInput(view, '仓库地址', 'https://github.com/HFwas/hfwas-devops.git')
+    setInput(view, '代码分支', 'dev')
     const save = [...view.querySelectorAll('button')].find((button) => button.textContent?.trim() === '保存')
     await act(async () => {
       save?.click()
@@ -298,19 +319,176 @@ describe('PipelineEditorPage', () => {
     for (let attempt = 0; attempt < 20 && vi.mocked(pipelineApi.create).mock.calls.length === 0; attempt += 1) {
       await flush()
     }
-    expect(pipelineApi.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: '后端发布',
-        repoUrl: 'https://github.com/HFwas/hfwas-devops.git',
-        gitRef: 'dev',
-        credentialId: null,
-      }),
-    )
+    expect(pipelineApi.create).toHaveBeenCalledWith(expect.objectContaining({ name: '后端发布' }))
     const payload = vi.mocked(pipelineApi.create).mock.calls[0][0]
+    expect(payload).not.toHaveProperty('repoUrl')
+    expect(payload).not.toHaveProperty('gitRef')
+    expect(payload).not.toHaveProperty('credentialId')
     expect(payload.stages).toHaveLength(1)
     expect(payload.stages[0].jobs.map((job) => job.kind)).toEqual(['BUILD', 'CLONE'])
+    const clone = payload.stages[0].jobs.find((job) => job.kind === 'CLONE')
+    expect(clone?.paramBindings).toMatchObject({
+      REPO_URL: { mode: 'fixed', value: 'https://github.com/HFwas/hfwas-devops.git' },
+      GIT_REF: { mode: 'fixed', value: 'dev' },
+    })
     expect(JSON.stringify(payload)).not.toContain('GIT_PASSWORD')
     expect(JSON.stringify(payload)).not.toContain('SECRET_TOKEN')
+  })
+
+  async function renderEdit() {
+    const view = mount(
+      withQuery(
+        <MemoryRouter initialEntries={['/pipeline/pipelines/42/edit']}>
+          <Routes>
+            <Route path="/pipeline/pipelines/:pipelineId/edit" element={<PipelineEditorPage />} />
+          </Routes>
+        </MemoryRouter>,
+      ),
+    )
+    root = view.root
+    container = view.container
+    await waitFor(view.container, '代码克隆')
+    return view.container
+  }
+
+  it('has no zoom control', async () => {
+    const view = await renderNew()
+    expect(view.querySelector('[aria-label="缩放"]')).toBeNull()
+    expect(view.textContent).not.toContain('75%')
+    expect(view.querySelector('[style*="transform: scale"]')).toBeNull()
+  })
+
+  it('locks task identity on new and edit pages', async () => {
+    const view = await renderNew()
+    click(view, '添加阶段')
+    await flush()
+    click(view, '在阶段 1 添加任务')
+    await waitFor(view, '代码克隆')
+    click(view, '添加代码克隆')
+    await flush()
+    expect((view.querySelector('[aria-label="任务名称"]') as HTMLInputElement | null)?.disabled).toBe(true)
+    expect((view.querySelector('[aria-label="任务类型"]') as HTMLInputElement | null)?.disabled).toBe(true)
+    expect(view.textContent).toContain('任务名称与类型由任务市场决定')
+
+    act(() => root?.unmount())
+    container?.remove()
+    root = null
+    container = null
+
+    const editView = await renderEdit()
+    expect((editView.querySelector('[aria-label="任务名称"]') as HTMLInputElement | null)?.disabled).toBe(true)
+    expect((editView.querySelector('[aria-label="任务类型"]') as HTMLInputElement | null)?.disabled).toBe(true)
+  })
+
+  it('shows advanced settings for build but not for clone', async () => {
+    const view = await renderNew()
+    click(view, '添加阶段')
+    await flush()
+    click(view, '在阶段 1 添加任务')
+    await waitFor(view, '代码克隆')
+    click(view, '添加代码克隆')
+    await flush()
+    expect(view.textContent).not.toContain('技术栈')
+    expect(view.textContent).not.toContain('工具版本')
+
+    click(view, '在阶段 1 添加任务')
+    await waitFor(view, '添加任务到「阶段 1')
+    click(view, '构建 (1)')
+    await flush()
+    click(view, '添加Maven 构建')
+    await flush()
+    expect(view.textContent).toContain('高级设置')
+    clickButtonText(view, '高级设置')
+    await flush()
+    expect(view.textContent).toContain('技术栈')
+  })
+
+  it('shows last clone summary in edit mode', async () => {
+    vi.mocked(pipelineApi.get).mockResolvedValue({
+      id: '42',
+      name: '后端发布',
+      repoUrl: 'https://github.com/HFwas/hfwas-devops.git',
+      gitRef: 'dev',
+      lastRunId: 5,
+      stages: [
+        {
+          id: 1,
+          name: '拉取',
+          sortOrder: 0,
+          jobs: [{
+            id: 2,
+            name: '代码克隆',
+            kind: 'CLONE',
+            command: 'git clone',
+            sortOrder: 0,
+            paramBindings: {
+              REPO_URL: { mode: 'fixed', value: 'https://github.com/HFwas/hfwas-devops.git' },
+              GIT_REF: { mode: 'fixed', value: 'dev' },
+            },
+          }],
+        },
+      ],
+    })
+    vi.mocked(pipelineApi.getRun).mockResolvedValue({
+      id: 5,
+      pipelineId: 42,
+      pipelineName: '后端发布',
+      status: 'SUCCEEDED',
+      trigger: 'MANUAL',
+      gitRef: 'refs/heads/dev',
+      commitSha: '9f2c1ab000000000000000000000000000000000',
+      stack: '',
+      runtimeVersion: '',
+      image: '',
+      jobs: [],
+    })
+    const view = await renderEdit()
+    await waitFor(view, '最近克隆')
+    expect(view.textContent).toContain('HFwas/hfwas-devops')
+    expect(view.textContent).toContain('dev')
+    expect(view.textContent).toContain('9f2c1ab0')
+    expect(view.textContent).not.toContain('9f2c1ab000000000000000000000000000000000')
+  })
+
+  it('omits last clone summary without commit', async () => {
+    vi.mocked(pipelineApi.get).mockResolvedValue({
+      id: '42',
+      name: '后端发布',
+      repoUrl: 'https://github.com/HFwas/hfwas-devops.git',
+      gitRef: 'dev',
+      stages: [{ id: 1, name: '拉取', sortOrder: 0, jobs: [{ id: 2, name: '代码克隆', kind: 'CLONE', command: 'git clone', sortOrder: 0 }] }],
+      lastRunId: 5,
+    })
+    vi.mocked(pipelineApi.getRun).mockResolvedValue({
+      id: 5,
+      pipelineId: 42,
+      pipelineName: '后端发布',
+      status: 'QUEUED',
+      trigger: 'MANUAL',
+      stack: '',
+      runtimeVersion: '',
+      image: '',
+      jobs: [],
+    })
+    const view = await renderEdit()
+    expect(view.textContent).not.toContain('最近克隆')
+  })
+
+  it('blocks save when clone repo url is empty', async () => {
+    const view = await renderNew()
+    setInput(view, '名称', '后端发布')
+    click(view, '添加阶段')
+    await flush()
+    click(view, '在阶段 1 添加任务')
+    await waitFor(view, '代码克隆')
+    click(view, '添加代码克隆')
+    await flush()
+    vi.mocked(pipelineApi.create).mockClear()
+
+    clickButtonText(view, '保存')
+    await flush()
+    expect(view.querySelector('[data-slot="pipeline-error"]')?.textContent).toContain('仓库地址')
+    expect(pipelineApi.create).not.toHaveBeenCalled()
   })
 
   it('asks before deleting a job and keeps it when cancelled', async () => {

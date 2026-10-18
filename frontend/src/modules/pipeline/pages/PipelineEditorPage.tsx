@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertCircle,
@@ -10,7 +10,6 @@ import {
   GripVertical,
   Plus,
   Trash2,
-  Workflow,
   X,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router'
@@ -27,14 +26,19 @@ import { JobKindIcon } from '@/modules/pipeline/components/JobKindIcon'
 import { StartRunButton } from '@/modules/pipeline/components/StartRunButton'
 import { pipelineApi, pipelineCredentialApi, pipelineTaskKindApi } from '@/modules/pipeline/api/pipeline'
 import { jobKindMeta } from '@/modules/pipeline/graph/jobCatalog'
-import { JOB_KIND_OPTIONS, canAddKindToStage, canChangeJobKind, jobKindLabel, stageOfJob } from '@/modules/pipeline/graph/pipelineGraph'
+import { canAddKindToStage, jobKindLabel, repoShortName, stageOfJob } from '@/modules/pipeline/graph/pipelineGraph'
 import {
   addPaletteJob,
   appendEmptyStage,
-  changeJobKind,
+  cloneConfigValue,
   commandForKind,
+  CLONE_CONFIG_KEYS,
+  CLONE_CREDENTIAL_KEY,
+  CLONE_REF_KEY,
+  CLONE_REPO_KEY,
   createJobFromKind,
   draftFromPipeline,
+  draftGitRef,
   emptyDraft,
   jobAt,
   kindNeedsCommand,
@@ -52,7 +56,7 @@ import {
   visibleParams,
   type PipelineDraft,
 } from '@/modules/pipeline/pipelineDraft'
-import { jobRunDuration, runStatusLabel } from '@/modules/pipeline/status'
+import { formatCommit, formatGitRef, jobRunDuration, runStatusLabel } from '@/modules/pipeline/status'
 import { coerceToolchain, stackLabel, toolsFor, uniqueStacks, runtimesFor } from '@/modules/pipeline/graph/toolchainCascade'
 import type { EditorJob, EditorStage, EntityId, JobKind, JobParamBinding, PipelineRunJob, TaskKindVO } from '@/modules/pipeline/types/pipeline'
 import { cn } from '@/lib/utils'
@@ -104,26 +108,6 @@ function ChoiceSelect({
   )
 }
 
-/** 画布缩放：用 transform 缩放内容，并按缩放后尺寸撑开外层，保证滚动区正确。 */
-function ScalableTrack({ scale, children }: { scale: number; children: ReactNode }) {
-  const innerRef = useRef<HTMLDivElement>(null)
-  const [size, setSize] = useState({ w: 0, h: 0 })
-  useLayoutEffect(() => {
-    const el = innerRef.current
-    if (!el) return
-    const w = el.offsetWidth
-    const h = el.offsetHeight
-    setSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }))
-  })
-  return (
-    <div style={{ width: size.w ? size.w * scale : undefined, height: size.h ? size.h * scale : undefined }}>
-      <div ref={innerRef} className="flex w-max items-start gap-2 origin-top-left" style={{ transform: `scale(${scale})` }}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
 export function PipelineEditorPage() {
   const { pipelineId } = useParams()
   const navigate = useNavigate()
@@ -136,7 +120,6 @@ export function PipelineEditorPage() {
   const [selectedJobKey, setSelectedJobKey] = useState<string | null>(null)
   const [targetStageKey, setTargetStageKey] = useState<string | null>(null)
   const [panelMode, setPanelMode] = useState<'config' | 'add'>('config')
-  const [zoom, setZoom] = useState('100')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -277,7 +260,7 @@ export function PipelineEditorPage() {
 
   function onAddKind(kind: TaskKindVO) {
     const stageKey = resolveStageKey()
-    const job = createJobFromKind(kind, draft.gitRef.trim() || 'main')
+    const job = createJobFromKind(kind, draftGitRef(draft))
     const result = addPaletteJob(draft.stages, stageKey, job)
     if (result.error) {
       toast.error(result.error)
@@ -313,6 +296,16 @@ export function PipelineEditorPage() {
   const destination = destinationIndex >= 0 ? draft.stages[destinationIndex] : null
   const nameInvalid = !!error && error.includes('名称')
   const repoInvalid = !!error && error.includes('仓库')
+  const lastRun = runQuery.data
+  const cloneRepo = cloneConfigValue(draft.stages, CLONE_REPO_KEY) || pipelineQuery.data?.repoUrl || ''
+  const recentClone = lastRun?.commitSha ? (
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+      <span className="shrink-0">最近克隆</span>
+      <span className="truncate font-mono">
+        {repoShortName(cloneRepo)} · {formatGitRef(lastRun.gitRef)} · {formatCommit(lastRun.commitSha)}
+      </span>
+    </span>
+  ) : null
 
   if (pipelineId && pipelineQuery.isLoading) return <p className="text-sm text-muted-foreground">加载中…</p>
   if (pipelineId && pipelineQuery.isError) return <p className="text-sm text-destructive">流水线加载失败</p>
@@ -321,7 +314,18 @@ export function PipelineEditorPage() {
   return (
     <div className="flex h-[calc(100svh-var(--header-height)-2rem)] min-h-[640px] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
-        <div className="text-sm font-medium">{pipelineId ? '编辑流水线' : '新建流水线'}</div>
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="shrink-0 text-sm font-medium">{pipelineId ? '编辑流水线' : '新建流水线'}</div>
+          <Input
+            aria-label="名称"
+            aria-invalid={nameInvalid || undefined}
+            value={draft.name}
+            placeholder="后端发布"
+            className="h-8 w-[220px] shrink-0 font-console text-sm"
+            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+          />
+          {recentClone}
+        </div>
         <div className="flex items-center gap-2">
           {dirty ? (
             <ConfirmDialog
@@ -359,65 +363,6 @@ export function PipelineEditorPage() {
         </div>
       </div>
 
-      <div
-        data-slot="pipeline-basic-info"
-        className="grid gap-3 border-b px-4 py-3 lg:grid-cols-[auto_minmax(0,0.9fr)_minmax(0,1.5fr)_minmax(0,0.7fr)_minmax(0,0.8fr)] lg:items-end"
-      >
-        <div className="flex items-center gap-2 pb-2 text-sm font-medium">
-          <Workflow className="size-4 text-primary" />
-          基本信息
-        </div>
-        <Field label="名称">
-          <Input
-            aria-label="名称"
-            aria-invalid={nameInvalid || undefined}
-            value={draft.name}
-            placeholder="后端发布"
-            className="h-8 font-console text-sm"
-            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-          />
-        </Field>
-        <Field label="仓库">
-          <Input
-            aria-label="仓库"
-            aria-invalid={repoInvalid || undefined}
-            value={draft.repoUrl}
-            placeholder="https://github.com/org/repo.git"
-            className="h-8 font-mono text-xs"
-            onChange={(event) => setDraft({ ...draft, repoUrl: event.target.value })}
-          />
-        </Field>
-        <Field label="分支">
-          <Input
-            aria-label="分支"
-            value={draft.gitRef}
-            placeholder="main"
-            className="h-8 font-mono text-xs"
-            onChange={(event) => setDraft({ ...draft, gitRef: event.target.value })}
-          />
-        </Field>
-        <Field label="凭证">
-          <AsyncSelect
-            label="凭证"
-            className="w-full"
-            value={draft.credentialId}
-            onChange={(value) => setDraft({ ...draft, credentialId: value })}
-            clearLabel="不使用凭证"
-            selectedLabel="当前凭证"
-            searchPlaceholder="搜索凭证"
-            emptyText="没有凭证"
-            fetchPage={async ({ page, pageSize, keyword }) => {
-              const result = await pipelineCredentialApi.page({ pageNo: page, pageSize, keyword: keyword || undefined })
-              return {
-                records: (result.records ?? []).map((item) => ({ value: String(item.id), label: item.name })),
-                total: result.total,
-                pages: result.pages,
-              }
-            }}
-          />
-        </Field>
-      </div>
-
       {error ? (
         <div
           role="alert"
@@ -434,8 +379,6 @@ export function PipelineEditorPage() {
           stages={draft.stages}
           selectedJobKey={selectedJobKey}
           targetStageKey={panelMode === 'add' ? targetStageKey : null}
-          zoom={zoom}
-          onZoom={setZoom}
           runJobs={runJobs}
           onSelectJob={onSelectJob}
           onTargetStage={onOpenAddList}
@@ -493,18 +436,13 @@ export function PipelineEditorPage() {
               job={selected}
               stages={draft.stages}
               kinds={kinds}
-              gitRef={draft.gitRef}
+              gitRef={draftGitRef(draft)}
+              repoInvalid={repoInvalid}
               toolchains={toolchainsQuery.data ?? []}
               onClose={() => setSelectedJobKey(null)}
               onChange={(patch) => {
                 if (!selected) return
                 setDraft({ ...draft, stages: updateJob(draft.stages, selected.clientKey, patch) })
-              }}
-              onKind={(kind) => {
-                if (!selected) return
-                const result = changeJobKind(draft.stages, selected.clientKey, kind, kinds, draft.gitRef.trim() || 'main')
-                if (result.error) toast.error(result.error)
-                else setDraft({ ...draft, stages: result.stages })
               }}
             />
           )}
@@ -611,8 +549,6 @@ function Lanes({
   stages,
   selectedJobKey,
   targetStageKey,
-  zoom,
-  onZoom,
   runJobs,
   onSelectJob,
   onTargetStage,
@@ -628,8 +564,6 @@ function Lanes({
   stages: EditorStage[]
   selectedJobKey: string | null
   targetStageKey: string | null
-  zoom: string
-  onZoom: (value: string) => void
   runJobs: Map<string, PipelineRunJob>
   onSelectJob: (jobKey: string) => void
   onTargetStage: (stageKey: string) => void
@@ -644,7 +578,6 @@ function Lanes({
 }) {
   const [dragging, setDragging] = useState<DragState>(null)
   const [overKey, setOverKey] = useState<string | null>(null)
-  const scale = Number(zoom) / 100
 
   function endDrag() {
     setDragging(null)
@@ -670,22 +603,7 @@ function Lanes({
 
   return (
     <section data-slot="pipeline-lanes" className="flex min-h-0 min-w-0 flex-col bg-muted/20">
-      <div className="flex items-center justify-end gap-2 border-b px-3 py-1.5">
-        <ChoiceSelect
-          label="缩放"
-          value={zoom}
-          onChange={onZoom}
-          className="h-7 w-24 text-xs"
-          options={[
-            { value: '75', label: '75%' },
-            { value: '100', label: '100%' },
-            { value: '125', label: '125%' },
-            { value: '150', label: '150%' },
-          ]}
-        />
-      </div>
-      <div className="min-h-0 flex-1 overflow-auto p-4">
-        <ScalableTrack scale={scale}>
+      <div className="flex min-h-0 flex-1 items-start gap-2 overflow-auto p-4">
           {stages.length === 0 && (
             <p className="self-center px-2 text-sm text-muted-foreground">添加阶段，再在阶段中添加任务。</p>
           )}
@@ -837,7 +755,6 @@ function Lanes({
             <Plus className="size-4" />
             添加阶段
           </button>
-        </ScalableTrack>
       </div>
     </section>
   )
@@ -848,23 +765,32 @@ function Inspector({
   stages,
   kinds,
   gitRef,
+  repoInvalid,
   toolchains,
   onClose,
   onChange,
-  onKind,
 }: {
   job: EditorJob | null
   stages: EditorStage[]
   kinds: TaskKindVO[]
   gitRef: string
+  repoInvalid: boolean
   toolchains: Array<{ stack: string; runtimeVersion: string; toolVersion?: string | null; buildCommand: string; testCommand: string; image: string }>
   onClose: () => void
   onChange: (patch: Partial<EditorJob>) => void
-  onKind: (kind: string) => void
 }) {
   const kindMeta = job ? kinds.find((item) => item.kindValue === job.kind) : undefined
-  const params = visibleParams(kindMeta?.params)
-  const choices = job ? kindChoices(stages, job, kinds) : []
+  const params = visibleParams(kindMeta?.params).filter((param) =>
+    job?.kind === 'CLONE' ? !CLONE_CONFIG_KEYS.has(param.paramKey) : true,
+  )
+  const bindingValue = (key: string, fallback = '') => {
+    const binding = job?.paramBindings?.[key]
+    return binding?.mode === 'fixed' && binding.value ? binding.value : fallback
+  }
+  const setBinding = (key: string, value: string) => {
+    if (!job) return
+    onChange({ paramBindings: { ...job.paramBindings, [key]: { mode: 'fixed', value } } })
+  }
   const stacks = uniqueStacks(toolchains)
   const runtimes = job?.stack ? runtimesFor(toolchains, job.stack) : []
   const tools = job?.stack && job.runtimeVersion ? toolsFor(toolchains, job.stack, job.runtimeVersion) : []
@@ -884,11 +810,57 @@ function Inspector({
       {job && (
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto px-3 py-3">
           <Field label="任务名称">
-            <Input aria-label="任务名称" className="h-8" value={job.name} onChange={(event) => onChange({ name: event.target.value })} />
+            <Input aria-label="任务名称" className="h-8" value={job.name} disabled />
           </Field>
           <Field label="任务类型">
-            <ChoiceSelect label="任务类型" value={job.kind} onChange={onKind} options={choices} />
+            <Input aria-label="任务类型" className="h-8" value={kindMeta?.label ?? jobKindLabel(job.kind)} disabled />
           </Field>
+          <p className="text-xs text-muted-foreground">任务名称与类型由任务市场决定，不在此修改。</p>
+          {job.kind === 'CLONE' ? (
+            <section className="flex flex-col gap-2">
+              <h3 className="text-sm font-medium">仓库配置</h3>
+              <Field label="仓库地址">
+                <Input
+                  aria-label="仓库地址"
+                  aria-invalid={repoInvalid || undefined}
+                  className="h-8 font-mono text-xs"
+                  value={bindingValue(CLONE_REPO_KEY)}
+                  placeholder="https://github.com/org/repo.git"
+                  onChange={(event) => setBinding(CLONE_REPO_KEY, event.target.value)}
+                />
+              </Field>
+              <Field label="代码分支">
+                <Input
+                  aria-label="代码分支"
+                  className="h-8 font-mono text-xs"
+                  value={bindingValue(CLONE_REF_KEY, 'main')}
+                  placeholder="main"
+                  onChange={(event) => setBinding(CLONE_REF_KEY, event.target.value)}
+                />
+              </Field>
+              <Field label="凭证">
+                <AsyncSelect
+                  label="凭证"
+                  className="w-full"
+                  value={bindingValue(CLONE_CREDENTIAL_KEY)}
+                  onChange={(value) => setBinding(CLONE_CREDENTIAL_KEY, value)}
+                  clearLabel="不使用凭证"
+                  selectedLabel="当前凭证"
+                  searchPlaceholder="搜索凭证"
+                  emptyText="没有凭证"
+                  fetchPage={async ({ page, pageSize, keyword }) => {
+                    const result = await pipelineCredentialApi.page({ pageNo: page, pageSize, keyword: keyword || undefined })
+                    return {
+                      records: (result.records ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+                      total: result.total,
+                      pages: result.pages,
+                    }
+                  }}
+                />
+              </Field>
+              <p className="text-xs text-muted-foreground">凭证与下方 Git 用户名 / 密码二选一。</p>
+            </section>
+          ) : null}
           {needsCommand ? (
             <label className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground">命令</span>
@@ -979,6 +951,7 @@ function Inspector({
               )
             })}
           </section>
+          {job.kind !== 'CLONE' ? (
           <Collapsible>
             <CollapsibleTrigger className="flex w-full items-center justify-between py-1 text-sm font-medium [&[data-state=open]>svg]:rotate-180">
               高级设置
@@ -1046,6 +1019,7 @@ function Inspector({
               </p>
             </CollapsibleContent>
           </Collapsible>
+          ) : null}
         </div>
       )}
     </div>
@@ -1058,16 +1032,6 @@ function toolchainPatch(stack: string, runtime: string, tool: string): Partial<E
     runtimeVersion: runtime || null,
     toolVersion: tool || null,
   }
-}
-
-function kindChoices(stages: EditorStage[], job: EditorJob, kinds: TaskKindVO[]) {
-  const labels = new Map<string, string>()
-  for (const item of JOB_KIND_OPTIONS) labels.set(item.value, item.label)
-  for (const item of kinds) labels.set(item.kindValue, item.label)
-  if (!labels.has(job.kind)) labels.set(job.kind, jobKindLabel(job.kind))
-  return [...labels.entries()]
-    .filter(([value]) => value === job.kind || !canChangeJobKind(stages, job.clientKey, value as JobKind))
-    .map(([value, label]) => ({ value, label }))
 }
 
 function IconButton({

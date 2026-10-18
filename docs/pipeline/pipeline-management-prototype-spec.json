@@ -1,8 +1,8 @@
 {
   "meta": {
     "name": "hfwas-devops · 流水线管理",
-    "version": "v0.1",
-    "date": "2026-10-17",
+    "version": "v0.8",
+    "date": "2026-10-18",
     "viewport": { "width": 1440, "height": 900, "minWidth": 1024 },
     "source": [
       "frontend/src/modules/pipeline",
@@ -45,16 +45,23 @@
     "sidebar": {
       "variant": "inset",
       "collapsible": "icon",
+      "navGroups": [
+        { "key": "pipeline-work", "label": null, "items": ["pipelines"] },
+        { "key": "pipeline-config", "label": "配置", "items": ["task-kinds", "credentials"] }
+      ],
       "navItems": [
-        { "key": "pipelines", "label": "流水线", "path": "/pipeline/pipelines", "icon": "GitBranch" },
-        { "key": "task-kinds", "label": "任务市场", "path": "/pipeline/task-kinds", "icon": "Package" },
-        { "key": "credentials", "label": "凭证", "path": "/pipeline/credentials", "icon": "KeyRound" }
+        { "key": "pipelines", "label": "流水线", "path": "/pipeline/pipelines", "icon": "GitBranch", "group": "pipeline-work" },
+        { "key": "task-kinds", "label": "任务市场", "path": "/pipeline/task-kinds", "icon": "Package", "group": "pipeline-config" },
+        { "key": "credentials", "label": "凭证", "path": "/pipeline/credentials", "icon": "KeyRound", "group": "pipeline-config" }
       ]
     },
     "header": {
       "height": 56,
       "sticky": true,
-      "elements": ["SidebarTrigger", "Breadcrumb", "GlobalSearch", "TenantSwitcher", "ThemeToggle", "AvatarMenu"]
+      "elements": ["SidebarTrigger", "Breadcrumb", "GlobalSearch", "TenantSwitcher", "ThemeToggle", "AvatarMenu"],
+      "globalSearch": {
+        "pipeline": { "placeholder": "搜索流水线名称", "label": "搜索流水线", "submit": "/pipeline/pipelines?q={keyword}" }
+      }
     },
     "breadcrumbs": [
       { "path": "/pipeline/pipelines", "items": ["流水线"] },
@@ -98,7 +105,7 @@
             { "id": "repo", "header": "仓库 / 分支", "width": "24%", "fields": ["repoUrl", "gitRef"] },
             { "id": "stages", "header": "阶段预览", "width": "16%", "fields": ["stages[]", "lastRunStatus"] },
             { "id": "lastRun", "header": "最近运行", "width": "auto", "fields": ["lastRunStatus", "lastRunTime", "lastRunId"] },
-            { "id": "actions", "header": "操作", "width": 220, "actions": ["run", "edit", "history", "delete"] }
+            { "id": "actions", "header": "操作", "width": 120, "actions": ["run", "more"], "moreMenu": ["edit", "delete"] }
           ]
         },
         { "id": "pagination", "component": "Pagination", "pageSize": 10 }
@@ -114,11 +121,11 @@
         { "id": "L01", "element": "search", "trigger": "input", "condition": "300ms 防抖", "effect": "写 URL ?q 并重置页码", "api": "POST /pipeline/pipelines/page" },
         { "id": "L02", "element": "segmented", "trigger": "click", "effect": "仅过滤当前页 lastRunStatus" },
         { "id": "L03", "element": "createButton", "trigger": "click", "target": "P03_PipelineEditor_New_Desktop" },
-        { "id": "L04", "element": "nameLink", "trigger": "click", "target": "P02_PipelineDetail_Desktop" },
+        { "id": "L04", "element": "row|nameLink", "trigger": "click", "target": "P02_PipelineDetail_Desktop", "note": "整行可点；点击 a/button/input 不触发行点击" },
+        { "id": "L04b", "element": "moreButton", "trigger": "click", "effect": "展开行内菜单：编辑 / 历史 / 删除" },
         { "id": "L05", "element": "lastRunLink", "trigger": "click", "target": "P05_RunDetail_Desktop" },
         { "id": "L06", "element": "runButton", "trigger": "click", "effect": "进入运行参数流程", "target": "O01_RunParams_Dialog|P05_RunDetail_Desktop" },
         { "id": "L07", "element": "editButton", "trigger": "click", "target": "P03B_PipelineEditor_Edit_Desktop" },
-        { "id": "L08", "element": "historyButton", "trigger": "click", "target": "P04_PipelineHistory_Desktop" },
         { "id": "L09", "element": "deleteButton", "trigger": "click", "target": "O03_ConfirmDeletePipeline" },
         { "id": "L10", "element": "pagination", "trigger": "click", "effect": "写 URL ?page" }
       ]
@@ -145,7 +152,7 @@
         {
           "id": "metrics",
           "component": "MetricCards",
-          "items": ["仓库", "分支", "阶段", "最近运行", "凭证"]
+          "items": ["仓库", "分支", "Commit", "阶段", "最近运行", "凭证"]
         },
         { "id": "body", "component": "DefinitionCanvas", "readonly": true, "flow": ["开始", "阶段", "结束"] }
       ],
@@ -174,35 +181,36 @@
           "id": "topBar",
           "elements": [
             { "type": "heading", "text": "新建流水线" },
+            { "type": "input", "label": "名称", "ariaLabel": "名称", "inlineAfterHeading": true, "required": true },
+            { "type": "caption", "text": "最近克隆 repo · branch · commit", "binding": "lastRunClone", "visibleWhen": "lastRun.commitSha" },
             { "type": "button", "label": "取消", "variant": "outline", "action": "E01" },
             { "type": "button", "label": "保存", "variant": "outline", "action": "E03" },
             { "type": "button", "label": "保存并运行", "variant": "primary", "action": "E04" }
-          ]
-        },
-        {
-          "id": "basicInfo",
-          "component": "FormGrid",
-          "fields": [
-            { "key": "name", "label": "名称", "required": true, "control": "input" },
-            { "key": "repoUrl", "label": "仓库", "requiredWhenClone": true, "control": "input", "validation": "http/https + host + path" },
-            { "key": "gitRef", "label": "分支", "required": false, "control": "input", "default": "main" },
-            { "key": "credentialId", "label": "凭证", "required": false, "control": "asyncSelect", "clearable": true }
           ]
         },
         { "id": "errorBanner", "component": "ErrorText", "variant": "banner", "conditional": true },
         {
           "id": "lanes",
           "component": "LanesCanvas",
-          "elements": ["zoomSelect", "StageCard", "JobCard", "addJobButton", "addStageCard"],
+          "elements": ["stageArrow", "StageCard", "JobCard", "addJobButton", "addStageCard"],
           "stageWidth": 240,
-          "zoomOptions": [75, 100, 125, 150]
+          "scale": "fixed-100"
         },
         {
           "id": "sidePanel",
           "width": 352,
           "modes": [
             { "id": "add", "component": "TaskAddList", "groups": ["代码", "构建", "质量控制", "制品", "部署", "测试", "命令", "流程"] },
-            { "id": "config", "component": "Inspector", "fields": ["任务名称", "任务类型", "命令", "参数绑定", "技术栈", "运行时", "工具版本"] }
+            {
+              "id": "config",
+              "component": "Inspector",
+              "fields": ["任务名称", "任务类型", "命令", "参数绑定", "技术栈", "运行时", "工具版本"],
+              "cloneConfig": [
+                { "key": "REPO_URL", "label": "仓库地址", "required": true, "control": "input", "validation": "http/https + host + path" },
+                { "key": "GIT_REF", "label": "代码分支", "required": false, "control": "input", "default": "main" },
+                { "key": "CREDENTIAL_ID", "label": "凭证", "required": false, "control": "asyncSelect", "clearable": true }
+              ]
+            }
           ]
         }
       ],
@@ -212,6 +220,10 @@
         { "id": "saving", "behavior": "按钮禁用" },
         { "id": "invalid", "behavior": "错误条 + 字段红框" },
         { "id": "addMode", "behavior": "右侧显示任务市场" },
+        { "id": "recentClone", "behavior": "最近运行包含 commitSha 时，标题旁显示仓库 · 分支 · 短 SHA" },
+        { "id": "cloneConfig", "behavior": "选中 CLONE 任务时检查器显示仓库地址 / 代码分支 / 凭证" },
+        { "id": "identityLocked", "behavior": "新建页与编辑页任务名称/类型均只读；类型由添加任务选定，名称自动生成" },
+        { "id": "cloneAdvancedHidden", "behavior": "CLONE 任务不显示高级设置（技术栈/运行时/工具版本）" },
         { "id": "configMode", "behavior": "右侧显示任务检查器" },
         { "id": "selected", "behavior": "任务卡 primary 边框 + ring" },
         { "id": "dragging", "behavior": "拖拽元素 50% 透明，目标阶段高亮" }
@@ -221,7 +233,7 @@
         { "id": "E02", "element": "cancel", "trigger": "click", "condition": "有改动", "target": "O05_ConfirmDiscardChanges" },
         { "id": "E03", "element": "save", "trigger": "click|cmd+s", "effect": "校验 → 创建", "api": "POST /pipeline/pipelines" },
         { "id": "E04", "element": "saveAndRun", "trigger": "click", "effect": "保存 → 运行参数流程", "target": "O01_RunParams_Dialog|P05_RunDetail_Desktop" },
-        { "id": "E05", "element": "addStage", "trigger": "click", "effect": "追加空阶段" },
+        { "id": "E05", "element": "addStage", "trigger": "click", "effect": "追加空阶段，名称预填「阶段 N」" },
         { "id": "E06", "element": "stageName", "trigger": "input", "effect": "更新草稿" },
         { "id": "E07", "element": "moveStage", "trigger": "click", "effect": "左移 / 右移" },
         { "id": "E08", "element": "removeStage", "trigger": "click", "effect": "移除阶段" },
@@ -231,7 +243,6 @@
         { "id": "E12", "element": "moveJob", "trigger": "click", "effect": "上移 / 下移" },
         { "id": "E13", "element": "removeJob", "trigger": "click", "target": "O06_ConfirmDeleteJob" },
         { "id": "E14", "element": "drag", "trigger": "drop", "effect": "阶段 / 任务排序" },
-        { "id": "E15", "element": "zoom", "trigger": "select", "effect": "缩放画布" },
         { "id": "E16", "element": "closeInspector", "trigger": "click", "effect": "取消选中" },
         { "id": "E17", "element": "window", "trigger": "beforeunload", "condition": "有改动", "effect": "浏览器离开确认" }
       ]
@@ -329,7 +340,7 @@
           "id": "fields",
           "component": "FieldRow",
           "items": [
-            { "label": "触发", "binding": "trigger" },
+            { "label": "触发", "binding": "trigger", "format": "triggerLabel" },
             { "label": "触发人", "binding": "triggeredByName" },
             { "label": "开始", "binding": "startedAt" },
             { "label": "耗时", "binding": ["startedAt", "finishedAt"] }
@@ -351,7 +362,7 @@
         { "id": "error", "behavior": "运行详情加载失败" }
       ],
       "actions": [
-        { "id": "R01", "element": "back", "trigger": "click", "target": "P04_PipelineHistory_Desktop" },
+        { "id": "R01", "element": "back", "trigger": "click", "effect": "来源感知：有应用内历史时 history.back()，否则跳 P04_PipelineHistory_Desktop" },
         { "id": "R02", "element": "approve", "trigger": "click", "api": "POST /pipeline/pipelines/{id}/runs/{runId}/approve" },
         { "id": "R03", "element": "cancel", "trigger": "click", "target": "O04_ConfirmCancelRun" },
         { "id": "R04", "element": "overallLog", "trigger": "click", "target": "O02_LogDrawer_Right", "focus": "overall" },
@@ -359,9 +370,64 @@
         { "id": "R06", "element": "jobLog", "trigger": "click", "target": "O02_LogDrawer_Right", "focus": "job" },
         { "id": "R07", "element": "page", "trigger": "interval", "condition": "非终态", "effect": "每 3s 刷新" }
       ]
+    },
+    {
+      "id": "pipeline-credentials",
+      "frame": "P06_PipelineCredentials_Desktop",
+      "name": "凭证",
+      "route": "/pipeline/credentials",
+      "entry": ["sidebar:credentials"],
+      "regions": [
+        {
+          "id": "pageHeader",
+          "component": "PageHeader",
+          "elements": [
+            { "type": "heading", "text": "凭证" },
+            { "type": "caption", "text": "共 N 条凭证", "binding": "total" },
+            { "type": "searchInput", "placeholder": "搜索名称", "width": 224 },
+            { "type": "button", "label": "新建凭证", "variant": "primary", "action": "C01" }
+          ]
+        },
+        {
+          "id": "table",
+          "component": "DataTable",
+          "columns": [
+            { "id": "name", "header": "名称", "width": "30%" },
+            { "id": "kind", "header": "类型", "width": "20%" },
+            { "id": "username", "header": "用户名", "width": "auto" },
+            { "id": "updated", "header": "更新时间", "width": 180 },
+            { "id": "actions", "header": "", "width": 100, "actions": ["delete"] }
+          ]
+        },
+        { "id": "pagination", "component": "Pagination", "pageSize": 10 }
+      ],
+      "states": [
+        { "id": "ready", "behavior": "正常数据" },
+        { "id": "empty", "behavior": "还没有凭证" },
+        { "id": "formInvalid", "behavior": "名称为空：字段级错误「请填写名称」，聚焦名称输入框，不发请求" }
+      ],
+      "actions": [
+        { "id": "C01", "element": "createButton", "trigger": "click", "target": "O07_CreateCredential_Dialog" },
+        { "id": "C02", "element": "nameLink", "trigger": "click", "target": "P07_CredentialDetail_Desktop" }
+      ]
     }
   ],
   "overlays": [
+    {
+      "id": "credential-new",
+      "frame": "O07_CreateCredential_Dialog",
+      "name": "新建凭证",
+      "trigger": ["C01"],
+      "content": {
+        "title": "新建凭证",
+        "fields": ["name*", "kind", "username", "secret"],
+        "footer": ["取消", "保存"]
+      },
+      "validation": { "name": "必填；错误就地显示并聚焦首个错误字段" },
+      "confirm": { "api": "POST /pipeline/credentials", "effect": "Toast 凭证已保存 + 刷新列表" },
+      "cancel": "关闭",
+      "close": ["X", "scrim", "Esc"]
+    },
     {
       "id": "run-params",
       "frame": "O01_RunParams_Dialog",
@@ -486,7 +552,6 @@
     { "from": "pipeline-list", "via": "L04", "to": "pipeline-detail" },
     { "from": "pipeline-list", "via": "L05", "to": "run-detail" },
     { "from": "pipeline-list", "via": "L07", "to": "pipeline-editor-edit" },
-    { "from": "pipeline-list", "via": "L08", "to": "pipeline-history" },
     { "from": "pipeline-detail", "via": "D01", "to": "pipeline-list" },
     { "from": "pipeline-detail", "via": "D02", "to": "pipeline-editor-edit" },
     { "from": "pipeline-detail", "via": "D05", "to": "pipeline-history" },

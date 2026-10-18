@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ResultCode;
+import com.hfwas.devops.pipeline.dto.JobParamBindingDTO;
 import com.hfwas.devops.pipeline.dto.PipelineJobDTO;
 import com.hfwas.devops.pipeline.dto.PipelinePageQuery;
 import com.hfwas.devops.pipeline.dto.PipelineSaveDTO;
@@ -30,7 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -84,19 +84,14 @@ public class PipelineDefinitionService {
         }
         PipelineGraphSpec graph = toGraph(dto);
         PipelineGraphValidator.validate(graph);
-        boolean hasClone = graph.stages().stream()
-                .flatMap(stage -> stage.jobs() == null ? java.util.stream.Stream.empty() : stage.jobs().stream())
-                .anyMatch(job -> job.kind() == PipelineJobKind.CLONE);
-        if (hasClone) {
-            GitRemote.parse(dto.getRepoUrl());
-        }
+        CloneConfig cloneConfig = cloneConfig(dto);
 
         PipelineEntity row = dto.getId() == null ? new PipelineEntity() : requireOwned(dto.getId());
         row.setTenantId(tenantId);
         row.setName(dto.getName().trim());
-        row.setRepoUrl(StringUtils.hasText(dto.getRepoUrl()) ? dto.getRepoUrl().trim() : "");
-        row.setGitRef(StringUtils.hasText(dto.getGitRef()) ? dto.getGitRef().trim() : "main");
-        row.setCredentialId(dto.getCredentialId());
+        row.setRepoUrl(cloneConfig.repoUrl());
+        row.setGitRef(cloneConfig.gitRef());
+        row.setCredentialId(cloneConfig.credentialId());
         row.setUpdateBy(currentUserAccessor.currentUserId());
         if (row.getId() == null) {
             row.setCreateBy(currentUserAccessor.currentUserId());
@@ -110,6 +105,60 @@ public class PipelineDefinitionService {
         }
         persistStages(row.getId(), dto);
         return row.getId();
+    }
+
+    private record CloneConfig(String repoUrl, String gitRef, Long credentialId) {
+    }
+
+    /** 仓库配置的唯一来源是 CLONE 任务的参数绑定；流水线表只保存派生结果。 */
+    private CloneConfig cloneConfig(PipelineSaveDTO dto) {
+        PipelineJobDTO clone = null;
+        if (dto.getStages() != null) {
+            for (PipelineStageDTO stage : dto.getStages()) {
+                if (stage.getJobs() == null) {
+                    continue;
+                }
+                for (PipelineJobDTO job : stage.getJobs()) {
+                    if ("CLONE".equalsIgnoreCase(job.getKind())) {
+                        clone = job;
+                        break;
+                    }
+                }
+                if (clone != null) {
+                    break;
+                }
+            }
+        }
+        if (clone == null) {
+            return new CloneConfig("", "main", null);
+        }
+        String repoUrl = bindingValue(clone, "REPO_URL");
+        GitRemote.parse(repoUrl);
+        String gitRef = bindingValue(clone, "GIT_REF");
+        String credential = bindingValue(clone, "CREDENTIAL_ID");
+        Long credentialId = null;
+        if (StringUtils.hasText(credential)) {
+            try {
+                credentialId = Long.valueOf(credential.trim());
+            } catch (NumberFormatException e) {
+                throw BizException.of(ResultCode.BAD_REQUEST, "凭证 ID 非法: " + credential);
+            }
+        }
+        return new CloneConfig(
+                repoUrl.trim(),
+                StringUtils.hasText(gitRef) ? gitRef.trim() : "main",
+                credentialId);
+    }
+
+    private static String bindingValue(PipelineJobDTO job, String key) {
+        if (job.getParamBindings() == null) {
+            return "";
+        }
+        JobParamBindingDTO binding = job.getParamBindings().get(key);
+        if (binding == null || StringUtils.hasText(binding.getMode()) && !"fixed".equalsIgnoreCase(binding.getMode())) {
+            return "";
+        }
+        return binding.getValue() == null ? "" : binding.getValue();
     }
 
     @Transactional

@@ -73,6 +73,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
 .product-text span{font-size:10px;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .product .chev{width:14px;height:14px;color:var(--muted-foreground)}
 .nav{display:flex;flex-direction:column;gap:2px}
+.nav-label{margin:10px 10px 2px;font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--muted-foreground)}
 .nav-item{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:7px;font-size:13px;color:var(--muted-foreground);text-decoration:none;cursor:pointer;border:none;background:none;font-family:inherit;text-align:left}
 .nav-item .ico{width:17px;height:17px}
 .nav-item:hover{background:var(--sidebar-accent)}
@@ -128,11 +129,15 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
 .input{height:32px;border:1px solid var(--input);border-radius:6px;background:var(--background);padding:0 10px;font:inherit;font-size:13px;color:inherit;outline:none;min-width:0;width:100%}
 .input:focus{border-color:var(--ring);box-shadow:0 0 0 2px color-mix(in oklch,var(--ring) 18%,transparent)}
 .input.mono{font-family:var(--font-mono);font-size:12px}
+.input:disabled{opacity:.7;background:var(--muted);cursor:not-allowed}
+.lock-hint{margin:0;font-size:11px;color:var(--muted-foreground)}
 .input.invalid{border-color:var(--destructive)}
 select.input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted-foreground) 50%),linear-gradient(135deg,var(--muted-foreground) 50%,transparent 50%);background-position:calc(100% - 14px) 13px,calc(100% - 9px) 13px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:28px}
 .field{display:flex;flex-direction:column;gap:5px;min-width:0}
 .field>label{font-size:11px;color:var(--muted-foreground)}
 .field>label b{color:var(--destructive);font-weight:500}
+.field-error{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--destructive)}
+.input.invalid{border-color:var(--destructive)}
 textarea.input{height:auto;padding:8px 10px;resize:none;line-height:20px;font-family:var(--font-mono);font-size:12px}
 
 /* ---------- status ---------- */
@@ -160,6 +165,7 @@ thead th{height:40px;background:var(--muted);font-size:12px;font-weight:500;colo
 tbody td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:top;font-size:13px}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover{background:color-mix(in oklch,var(--muted) 45%,transparent)}
+tbody tr[data-row-go]{cursor:pointer}
 .cell-title{font-family:var(--font-console);font-size:13px;font-weight:600;color:var(--primary);cursor:pointer;text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cell-title:hover{text-decoration:underline}
 .cell-sub{font-size:11px;color:var(--muted-foreground);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -168,7 +174,12 @@ tbody tr:hover{background:color-mix(in oklch,var(--muted) 45%,transparent)}
 .cell-mono .ico{width:13px;height:13px;color:var(--muted-foreground)}
 .chips{display:flex;flex-wrap:wrap;gap:4px}
 .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);background:var(--card);border-radius:6px;padding:1px 6px;font-size:11px;font-family:var(--font-console);white-space:nowrap;max-width:112px;overflow:hidden;text-overflow:ellipsis}
-.row-actions{display:flex;flex-wrap:wrap;gap:0}
+.row-actions{display:flex;flex-wrap:wrap;align-items:center;gap:0}
+.row-menu-wrap{position:relative;display:inline-flex}
+.row-menu{position:absolute;right:0;top:26px;z-index:30;min-width:128px;padding:4px;border:1px solid var(--border);border-radius:8px;background:var(--card);box-shadow:0 12px 30px rgba(0,0,0,.16);display:flex;flex-direction:column;gap:1px}
+.row-menu button{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;border:none;border-radius:5px;background:none;color:inherit;font:inherit;font-size:12px;text-align:left;cursor:pointer}
+.row-menu button:hover{background:var(--muted)}
+.row-menu button.danger{color:var(--destructive)}
 .pager{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--muted-foreground)}
 .pager-btns{display:flex;align-items:center;gap:4px}
 .pager-btns button{width:28px;height:28px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--foreground);font:inherit;font-size:12px;cursor:pointer}
@@ -215,18 +226,15 @@ tbody tr:hover{background:color-mix(in oklch,var(--muted) 45%,transparent)}
 .editor{height:812px;border:1px solid var(--border);border-radius:8px;background:var(--card);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .editor-top{height:48px;flex:0 0 48px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 16px}
 .editor-title{font-size:13px;font-weight:600}
-.basic{display:grid;grid-template-columns:auto minmax(0,.9fr) minmax(0,1.5fr) minmax(0,.7fr) minmax(0,.8fr);gap:12px;align-items:end;padding:12px 16px;border-bottom:1px solid var(--border)}
-.basic-label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding-bottom:8px;white-space:nowrap}
-.basic-label .ico{color:var(--primary)}
+.editor-name{width:210px;height:28px;font-family:var(--font-console);font-size:13px}
+.recent-clone{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted-foreground);white-space:nowrap}
+.recent-clone .mono{font-size:11px}
 .error-banner{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid color-mix(in oklch,var(--destructive) 30%,transparent);background:color-mix(in oklch,var(--destructive) 10%,transparent);color:var(--destructive);font-size:13px}
 .workspace{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 352px}
-.lanes{min-width:0;display:flex;flex-direction:column;background:oklch(0.975 0.002 286)}
-.lanes-toolbar{height:36px;flex:0 0 36px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;padding:0 12px}
-.lanes-scroll{flex:1;overflow:auto;padding:16px;display:flex;align-items:flex-start;gap:8px}
-.lanes-scroll.zoom-75{zoom:.75}
-.lanes-scroll.zoom-125{zoom:1.25}
-.lanes-scroll.zoom-150{zoom:1.5}
+.lanes{min-width:0;display:flex;flex-direction:column;background:oklch(0.975 0.002 286)}.lanes-scroll{flex:1;overflow:auto;padding:16px;display:flex;align-items:flex-start;gap:8px}
 .editor-stage{width:240px;flex:0 0 240px;border:1px solid var(--border);border-radius:8px;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.04);margin-top:8px}
+.stage-arrow{display:flex;align-items:center;padding-top:64px;color:var(--muted-foreground)}
+.stage-arrow .ico{width:16px;height:16px}
 .editor-stage.target{outline:2px solid color-mix(in oklch,var(--primary) 28%,transparent);border-color:var(--primary)}
 .stage-head.stage-head-editor{display:flex;align-items:center;gap:3px;padding:5px 6px}
 .stage-head.stage-head-editor .idx{font-size:11px;color:var(--muted-foreground);white-space:nowrap}
@@ -287,13 +295,13 @@ tbody tr:hover{background:color-mix(in oklch,var(--muted) 45%,transparent)}
 .run-job .status{gap:5px;font-size:12px}
 
 /* ---------- overlay ---------- */
-.scrim{position:absolute;inset:0;background:rgba(8,12,20,.48);z-index:40}
-.dialog{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;background:var(--card);color:var(--card-foreground);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.28);z-index:41;padding:24px}
+.scrim{position:absolute;inset:0;background:rgba(8,12,20,.4);z-index:40}
+.dialog{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;background:var(--card);color:var(--card-foreground);border:1px solid var(--border);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.24);z-index:41;padding:20px 24px}
 .dialog.confirm{width:460px}
-.dialog h3{margin:0;font-size:18px;line-height:26px}
-.dialog .desc{margin:8px 0 0;font-size:13px;color:var(--muted-foreground);line-height:20px}
-.dialog-body{margin-top:16px;display:flex;flex-direction:column;gap:12px}
-.dialog-foot{margin-top:22px;display:flex;justify-content:flex-end;gap:8px}
+.dialog h3{margin:0;padding-bottom:12px;border-bottom:1px solid var(--border);font-size:17px;line-height:24px}
+.dialog .desc{margin:10px 0 0;font-size:13px;color:var(--muted-foreground);line-height:20px}
+.dialog-body{margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.dialog-foot{margin-top:18px;padding-top:14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
 .sheet{position:absolute;top:0;right:0;bottom:0;width:720px;background:var(--term-bg);color:var(--term-fg);z-index:41;display:flex;flex-direction:column;box-shadow:-24px 0 60px rgba(0,0,0,.35)}
 .sheet-head{height:40px;flex:0 0 40px;border-bottom:1px solid oklch(1 0 0 / .16);display:flex;align-items:center;gap:10px;padding:0 12px 0 16px;font-size:13px;font-weight:600}
 .sheet-head .status{font-size:11px;color:var(--term-fg);opacity:.75}
@@ -319,10 +327,13 @@ tbody tr:hover{background:color-mix(in oklch,var(--muted) 45%,transparent)}
 .proto-tools button{border:1px solid #374151;background:#1f2937;color:#e5e7eb;border-radius:6px;padding:4px 7px;font:inherit;cursor:pointer}
 .proto-tools button:hover{background:#374151}
 body.capture .proto-tools{display:none}
+.proto-badge{position:fixed;left:16px;bottom:16px;z-index:100;background:#111827;color:#e5e7eb;border-radius:999px;padding:4px 10px;font-size:10px;opacity:.85}
+body.capture .proto-badge{display:none}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<div class="proto-badge">原型 v0.2 · 非生产环境</div>
 <script>
 /* ============================================================
    图标（Lucide 风格，MIT）
@@ -352,6 +363,7 @@ const ICON = {
   clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
   grip:'<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>',
   menu:'<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>',
+  more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>',
   folderGit:'<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><circle cx="12" cy="13" r="2"/><path d="M14 13h3"/><path d="M7 13h3"/>',
   image:'<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
@@ -415,6 +427,12 @@ const RUNS = [
   {id:121,commit:'3f1e7d9',trigger:'MANUAL',branch:'main',status:'QUEUED',started:'2026-10-16 14:40:12',duration:'—'}
 ];
 
+const CREDENTIALS = [
+  {name:'GitHub Token',kind:'令牌',user:'—',updated:'2026-10-18 10:12'},
+  {name:'Harbor 机器人账号',kind:'用户名密码',user:'robot$hfwas',updated:'2026-10-17 16:40'},
+  {name:'k3s 集群访问',kind:'Kubeconfig',user:'—',updated:'2026-10-15 09:08'}
+];
+
 const STATUS = {
   '':{label:'未运行',tone:'neutral',icon:'circle'},
   QUEUED:{label:'排队中',tone:'warning',icon:'clock'},
@@ -444,10 +462,10 @@ const ui = {
   capture: qp.get('capture')==='1',
   overlay: qp.get('overlay')||'',
   state: qp.get('state')||'',
-  zoom: qp.get('zoom') || '100',
   selectedJob: 'j1',
   addMode: qp.get('panel')==='add',
   logFocus: qp.get('focus')||'overall',
+  menuRow: qp.get('overlay')==='row-menu' ? String(PIPELINES[0].id) : '',
   toast: ''
 };
 if (ui.capture) document.body.classList.add('capture');
@@ -456,12 +474,14 @@ if (ui.capture) document.body.classList.add('capture');
    通用片段
    ============================================================ */
 function sidebar(){
+  const onCredentials = (location.hash||'').indexOf('#/credentials')===0;
   return '<aside class="sidebar">'
     +'<div class="product"><div class="product-icon">'+icon('branch')+'</div><div class="product-text"><strong>流水线</strong><span>持续集成与持续交付</span></div>'+icon('chevronD','chev')+'</div>'
     +'<nav class="nav">'
-    +'<a class="nav-item active" data-go="#/list">'+icon('branch')+'<span>流水线</span></a>'
+    +'<a class="nav-item '+(onCredentials?'':'active')+'" data-go="#/list">'+icon('branch')+'<span>流水线</span></a>'
+    +'<div class="nav-label">配置</div>'
     +'<a class="nav-item" data-toast="任务市场页面不在本次原型范围">'+icon('package')+'<span>任务市场</span></a>'
-    +'<a class="nav-item" data-toast="凭证页面不在本次原型范围">'+icon('key')+'<span>凭证</span></a>'
+    +'<a class="nav-item '+(onCredentials?'active':'')+'" data-go="#/credentials">'+icon('key')+'<span>凭证</span></a>'
     +'</nav>'
     +'<div class="sidebar-foot"><span class="tenant-dot"></span>默认租户</div>'
     +'</aside>';
@@ -475,7 +495,7 @@ function header(crumbs){
     +'<span class="vsep"></span>'
     +'<div class="crumb">'+crumbHtml+'</div>'
     +'<div class="grow"></div>'
-    +'<div class="search top-search">'+icon('search')+'<input class="input" placeholder="搜索项目、Pod、流水线"></div>'
+    +'<div class="search top-search">'+icon('search')+'<input class="input" placeholder="搜索流水线名称"></div>'
     +'<button class="btn outline sm">默认租户</button>'
     +'<button class="icon-btn" data-action="theme" aria-label="切换主题">'+icon('moon')+'</button>'
     +'<div class="avatar">H</div>'
@@ -505,16 +525,21 @@ function definitionFlow(p){
    ============================================================ */
 function listRows(){
   return PIPELINES.map(function(p){
-    return '<tr data-row data-status="'+p.last.status+'" data-text="'+p.name+' '+p.repo+' '+p.branch+'">'
+    const menuOpen = ui.menuRow === String(p.id);
+    return '<tr data-row data-status="'+p.last.status+'" data-text="'+p.name+' '+p.repo+' '+p.branch+'" data-row-go="#/detail/'+p.id+'">'
       +'<td><a class="cell-title" data-go="#/detail/'+p.id+'">'+p.name+'</a><div class="cell-sub">'+p.stages.flatMap(function(s){return s.jobs.map(function(j){return j.name;});}).join('、')+'</div></td>'
       +'<td><div class="cell-mono">'+icon('folderGit')+'<span>'+p.repo+'</span></div><div class="cell-mono" style="margin-top:4px">'+icon('branch')+'<span>'+p.branch+'</span></div></td>'
       +'<td><div class="chips">'+p.stages.slice(0,4).map(function(s){return '<span class="chip">'+dotEl(p.last.status)+s.name+'</span>';}).join('')+'</div></td>'
       +'<td>'+statusEl(p.last.status)+'<div class="cell-sub" style="font-family:var(--font-mono)">'+p.last.time+'</div></td>'
       +'<td><div class="row-actions">'
         +'<button class="btn ghost xs" data-overlay="run-params">'+icon('play')+'运行</button>'
-        +'<button class="btn ghost xs" data-go="#/editor/'+p.id+'">'+icon('pencil')+'编辑</button>'
-        +'<button class="btn ghost xs" data-go="#/history/'+p.id+'">'+icon('history')+'历史</button>'
-        +'<button class="btn ghost xs" data-overlay="delete">'+icon('trash')+'删除</button>'
+        +'<div class="row-menu-wrap">'
+          +'<button class="btn ghost xs" data-action="row-menu" data-row="'+p.id+'" aria-label="更多操作">'+icon('more')+'</button>'
+          + (menuOpen ? '<div class="row-menu" role="menu">'
+              +'<button role="menuitem" data-go="#/editor/'+p.id+'">'+icon('pencil')+'编辑</button>'
+              +'<button role="menuitem" class="danger" data-overlay="delete">'+icon('trash')+'删除</button>'
+            +'</div>' : '')
+        +'</div>'
       +'</div></td></tr>';
   }).join('');
 }
@@ -522,10 +547,10 @@ function renderList(){
   const empty = ui.state==='empty';
   const loading = ui.state==='loading';
   const body = loading
-    ? '<div class="table-wrap"><table><colgroup><col style="width:28%"><col style="width:24%"><col style="width:16%"><col><col style="width:220px"></colgroup><thead><tr><th>流水线名称</th><th>仓库 / 分支</th><th>阶段预览</th><th>最近运行</th><th>操作</th></tr></thead><tbody>'
+    ? '<div class="table-wrap"><table><colgroup><col style="width:28%"><col style="width:24%"><col style="width:16%"><col><col style="width:120px"></colgroup><thead><tr><th>流水线名称</th><th>仓库 / 分支</th><th>阶段预览</th><th>最近运行</th><th>操作</th></tr></thead><tbody>'
       + Array.from({length:4}).map(function(){return '<tr><td colspan="5"><div style="height:18px;border-radius:4px;background:var(--muted)"></div></td></tr>';}).join('')
       + '</tbody></table></div>'
-    : '<div class="table-wrap"><table><colgroup><col style="width:28%"><col style="width:24%"><col style="width:16%"><col><col style="width:220px"></colgroup><thead><tr><th>流水线名称</th><th>仓库 / 分支</th><th>阶段预览</th><th>最近运行</th><th>操作</th></tr></thead><tbody>'
+    : '<div class="table-wrap"><table><colgroup><col style="width:28%"><col style="width:24%"><col style="width:16%"><col><col style="width:120px"></colgroup><thead><tr><th>流水线名称</th><th>仓库 / 分支</th><th>阶段预览</th><th>最近运行</th><th>操作</th></tr></thead><tbody>'
       + (empty ? '<tr><td colspan="5" class="empty-cell">还没有流水线</td></tr>' : listRows())
       + '</tbody></table></div>';
   const content = '<div class="page-head"><div><h1>流水线</h1><div class="caption">'+(empty?'共 0 条流水线':'共 '+PIPELINES.length+' 条流水线')+'</div></div>'
@@ -538,6 +563,25 @@ function renderList(){
 }
 
 /* ============================================================
+   页面：凭证
+   ============================================================ */
+function renderCredentials(){
+  const rows = CREDENTIALS.map(function(c){
+    return '<tr><td><a class="cell-title" data-go="#/credentials">'+c.name+'</a></td>'
+      +'<td>'+c.kind+'</td>'
+      +'<td>'+(c.user||'—')+'</td>'
+      +'<td><span class="mono">'+c.updated+'</span></td>'
+      +'<td><div class="row-actions"><button class="btn ghost xs" data-toast="删除凭证需要二次确认（原型未展开）">'+icon('trash')+'删除</button></div></td></tr>';
+  }).join('');
+  const content = '<div class="page-head"><div><h1>凭证</h1><div class="caption">共 '+CREDENTIALS.length+' 条凭证</div></div>'
+    +'<div class="actions"><div class="search">'+icon('search')+'<input class="input" style="width:224px" placeholder="搜索名称"></div>'
+    +'<button class="btn primary" data-overlay="credential-new">'+icon('plus')+'新建凭证</button></div></div>'
+    +'<div class="table-wrap"><table><colgroup><col style="width:30%"><col style="width:20%"><col><col style="width:180px"><col style="width:100px"></colgroup>'
+    +'<thead><tr><th>名称</th><th>类型</th><th>用户名</th><th>更新时间</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  return shell(content,{crumbs:['流水线','凭证']});
+}
+
+/* ============================================================
    页面：详情
    ============================================================ */
 function pipelineOf(id){ return PIPELINES.find(function(p){return String(p.id)===String(id);}) || PIPELINES[0]; }
@@ -546,6 +590,7 @@ function renderDetail(id){
   const metrics = [
     ['仓库', '<span class="v mono">'+p.repo+'</span>'],
     ['分支', '<span class="v mono">'+p.branch+'</span>'],
+    ['Commit', '<span class="v mono">9f2c1ab</span>'],
     ['阶段', '<span class="v" style="font-family:var(--font-console)">'+p.stages.map(function(s){return s.name;}).join(' · ')+'</span>'],
     ['最近运行', '<span class="v" style="display:flex;align-items:center;gap:6px">'+statusEl(p.last.status)+'<span class="muted" style="font-family:var(--font-mono);font-size:11px;font-weight:400">'+p.last.time+'</span></span>'],
     ['凭证', '<span class="v">'+p.credential+'</span>']
@@ -579,13 +624,11 @@ function renderEditor(id){
   const title = isNew ? '新建流水线' : '编辑流水线';
   const invalid = ui.state==='invalid';
 
-  const zoom = ui.zoom;
-  const lanes = '<section class="lanes"><div class="lanes-toolbar"><select class="input" style="width:96px;height:28px;font-size:12px">'
-    + ['75','100','125','150'].map(function(z){ return '<option '+(z===zoom?'selected':'')+'>'+z+'%</option>'; }).join('')
-    +'</select></div>'
-    +'<div class="lanes-scroll '+(zoom!=='100'?'zoom-'+zoom:'')+'">'
+  const lanes = '<section class="lanes">'
+    +'<div class="lanes-scroll">'
     + stages.map(function(s, si){
-        return '<div class="editor-stage '+(ui.addMode && si===1?'target':'')+'">'
+        return (si > 0 ? '<span class="stage-arrow">'+icon('chevronR')+'</span>' : '')
+          + '<div class="editor-stage '+(ui.addMode && si===1?'target':'')+'">'
           +'<div class="stage-head stage-head-editor">'+icon('grip','grip')+'<span class="idx">阶段 '+(si+1)+' ·</span><input class="stage-name-input" value="'+s.name+'">'
           +'<button class="icon-btn xs" aria-label="左移阶段">'+icon('arrowLeft')+'</button>'
           +'<button class="icon-btn xs" aria-label="右移阶段">'+icon('chevronR')+'</button>'
@@ -600,7 +643,8 @@ function renderEditor(id){
           +'<button class="add-job" data-action="add-task">'+icon('plus')+'添加任务</button>'
           +'</div></div>';
       }).join('')
-    + '<button class="add-stage" data-toast="已添加一个新阶段">'+icon('plus')+'添加阶段</button>'
+    + (stages.length > 0 ? '<span class="stage-arrow">'+icon('chevronR')+'</span>' : '')
+    + '<button class="add-stage" data-toast="已添加「阶段 '+(stages.length+1)+'」">'+icon('plus')+'添加阶段</button>'
     +'</div></section>';
 
   const selected = (function(){
@@ -609,35 +653,48 @@ function renderEditor(id){
     return flat.find(function(x){return x.key===ui.selectedJob;}) || flat[0] || {job:{name:'克隆代码',kind:'CLONE'},stage:'代码检查'};
   })();
 
+  const repoUrl = p ? 'https://github.com/'+p.repo+'.git' : 'https://github.com/hfwas/devops-frontend.git';
+  const branch = p ? p.branch : 'main';
+  const credential = p ? p.credential : 'GitHub Token';
+  const isClone = selected.job.kind==='CLONE';
+  const identityFields = '<div class="field"><label>任务名称</label><input class="input" value="'+selected.job.name+'" disabled></div>'
+    +'<div class="field"><label>任务类型</label><input class="input" value="'+kindLabel(selected.job.kind)+'" disabled></div>'
+    +'<p class="lock-hint">任务名称与类型由任务市场决定，不在此修改。</p>';
+  const cloneConfig = '<div class="section-title">仓库配置</div>'
+    +'<div class="field"><label>仓库地址 <b>*</b></label><input class="input mono" value="'+repoUrl+'"></div>'
+    +'<div class="field"><label>代码分支</label><input class="input mono" value="'+branch+'"></div>'
+    +'<div class="field"><label>凭证</label><select class="input"><option>'+credential+'</option><option>不使用凭证</option></select></div>'
+    +'<p style="margin:0;font-size:11px;color:var(--muted-foreground)">凭证与下方 Git 用户名 / 密码二选一。</p>';
+  const paramRows = isClone
+    ? '<div class="param-row"><span class="param-key">GIT_USERNAME</span><select class="input" style="height:28px;font-size:11px"><option>写死</option><option>变量</option></select><input class="input" style="height:28px;font-size:11px" placeholder="可选"></div>'
+      +'<div class="param-row"><span class="param-key">GIT_PASSWORD</span><select class="input" style="height:28px;font-size:11px"><option>写死</option><option>变量</option></select><input class="input" style="height:28px;font-size:11px" placeholder="可选"></div>'
+    : '<div class="param-row"><span class="param-key">SONAR_TOKEN *</span><select class="input" style="height:28px;font-size:11px"><option>变量</option><option>写死</option></select><span class="muted" style="font-size:11px">运行时填写</span></div>'
+      +'<div class="param-row"><span class="param-key">SONAR_HOST_URL</span><select class="input" style="height:28px;font-size:11px"><option>写死</option><option>变量</option></select><input class="input" style="height:28px;font-size:11px" value="https://sonar.example.com"></div>';
+
   const inspector = '<aside class="inspector"><div class="inspector-head"><span>'+(ui.addMode?'添加任务':'任务配置')+'</span><button class="icon-btn xs" data-action="'+(ui.addMode?'close-add':'clear-job')+'">'+icon('x')+'</button></div>'
     + (ui.addMode ? renderTaskGroups() : '<div class="inspector-body">'
-      +'<div class="field"><label>任务名称 <b>*</b></label><input class="input" value="'+selected.job.name+'"></div>'
-      +'<div class="field"><label>任务类型</label><select class="input"><option>'+kindLabel(selected.job.kind)+'</option><option>构建</option><option>测试</option><option>自定义命令</option></select></div>'
-      + (selected.job.kind==='CLONE'
-          ? '<div style="font-size:11px;color:var(--muted-foreground);border:1px dashed var(--border);border-radius:6px;padding:7px 9px">这个任务类型不需要命令，克隆命令由平台生成。</div>'
+      +identityFields
+      + (isClone
+          ? '<div style="font-size:11px;color:var(--muted-foreground);border:1px dashed var(--border);border-radius:6px;padding:7px 9px">这个任务类型不需要命令，克隆命令由平台生成。</div>'+cloneConfig
           : '<div class="field"><label>命令</label><textarea class="input" rows="5">mvn -B clean package -DskipTests</textarea></div>')
       +'<div class="section-title" title="隐藏参数由平台或凭证注入">参数绑定</div>'
-      +'<div class="param-row"><span class="param-key">GIT_REF *</span><select class="input" style="height:28px;font-size:11px"><option>写死</option><option>变量</option></select><span class="muted" style="font-size:11px">使用分支</span></div>'
-      +'<div class="param-row"><span class="param-key">SONAR_TOKEN *</span><select class="input" style="height:28px;font-size:11px"><option>变量</option><option>写死</option></select><span class="muted" style="font-size:11px">运行时填写</span></div>'
-      +'<div class="param-row"><span class="param-key">SONAR_HOST_URL</span><select class="input" style="height:28px;font-size:11px"><option>写死</option><option>变量</option></select><input class="input" style="height:28px;font-size:11px" value="https://sonar.example.com"></div>'
-      +'<div class="advanced"><span>高级设置</span>'+icon('chevronD')+'</div>'
-      +'<div class="field"><label>技术栈</label><select class="input"><option>JAVA_MAVEN</option><option>NODE</option><option>GO</option><option>PYTHON</option></select></div>'
-      +'<div class="field"><label>运行时</label><select class="input"><option>21</option><option>17</option></select></div>'
-      +'<div class="field"><label>工具版本</label><select class="input"><option>3.9.9</option><option>3.9.6</option></select></div>'
+      +paramRows
+      + (isClone ? '' : '<div class="advanced"><span>高级设置</span>'+icon('chevronD')+'</div>'
+        +'<div class="field"><label>技术栈</label><select class="input"><option>JAVA_MAVEN</option><option>NODE</option><option>GO</option><option>PYTHON</option></select></div>'
+        +'<div class="field"><label>运行时</label><select class="input"><option>21</option><option>17</option></select></div>'
+        +'<div class="field"><label>工具版本</label><select class="input"><option>3.9.9</option><option>3.9.6</option></select></div>')
       +'</div>')
     +'</aside>';
 
+  const recentClone = p ? '<span class="recent-clone">最近克隆 <span class="mono">'+p.repo+' · '+p.branch+' · 9f2c1ab</span></span>' : '';
   const content = '<div class="editor">'
-    +'<div class="editor-top"><span class="editor-title">'+title+'</span><div class="grow"></div>'
+    +'<div class="editor-top"><span class="editor-title">'+title+'</span>'
+      +'<input class="input editor-name '+(invalid?'invalid':'')+'" aria-label="名称" value="'+(p?p.name:'前端发布流水线')+'">'
+      +recentClone
+      +'<div class="grow"></div>'
       +'<button class="btn outline sm" data-overlay="discard">取消</button>'
       +'<button class="btn outline sm" data-toast="已保存">保存</button>'
       +'<button class="btn primary sm" data-overlay="run-params">'+icon('play')+'保存并运行</button></div>'
-    +'<div class="basic"><div class="basic-label">'+icon('workflow')+'基本信息</div>'
-      +'<div class="field"><label>名称 <b>*</b></label><input class="input '+(invalid?'invalid':'')+'" value="'+(p?p.name:'前端发布流水线')+'"></div>'
-      +'<div class="field"><label>仓库 <b>*</b></label><input class="input mono" value="'+(p?'https://github.com/'+p.repo+'.git':'https://github.com/hfwas/devops-frontend.git')+'"></div>'
-      +'<div class="field"><label>分支</label><input class="input mono" value="'+(p?p.branch:'main')+'"></div>'
-      +'<div class="field"><label>凭证</label><select class="input"><option>'+(p?p.credential:'GitHub Token')+'</option><option>不使用凭证</option></select></div>'
-    +'</div>'
     + (invalid?'<div class="error-banner">'+icon('alert')+'名称不能为空</div>':'')
     +'<div class="workspace">'+lanes+inspector+'</div>'
     +'</div>';
@@ -760,7 +817,7 @@ function renderRun(id, runId){
           +'</div>';
       }).join('')
     +'<div class="arrow"><span class="line"></span>'+icon('chevronR')+'</div><div class="run-cap end-'+toneOf(status)+'">'+icon('power')+'结束</div></div>';
-  const content = '<div class="detail-head"><button class="btn ghost sm" data-go="#/history/'+p.id+'">'+icon('arrowLeft')+'返回</button>'
+  const content = '<div class="detail-head"><button class="btn ghost sm" data-action="run-back" data-pipeline="'+p.id+'">'+icon('arrowLeft')+'返回</button>'
     +'<div class="detail-title"><h1>'+p.name+' #'+run.id+'</h1><div class="detail-desc">'+desc+'</div><div class="detail-desc">'+statusEl(status)+'</div></div>'
     +'<div class="grow"></div>'+actions+'</div>'
     +'<div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr))">'
@@ -823,6 +880,17 @@ function overlay(){
   }
   if (ui.overlay==='discard') {
     return scrim + '<div class="dialog confirm"><h3>放弃未保存的修改？</h3><p class="desc">未保存的改动会丢失。</p><div class="dialog-foot"><button class="btn outline sm" data-close>取消</button><button class="btn danger sm" data-go="#/list">放弃</button></div></div>';
+  }
+  if (ui.overlay==='credential-new') {
+    const invalid = ui.state==='invalid';
+    return scrim + '<div class="dialog"><h3>新建凭证</h3><p class="desc">仓库拉取与集群访问使用的凭据。</p><div class="dialog-body">'
+      +'<div class="field"><label>名称 <b>*</b></label><input id="cred-name" class="input'+(invalid?' invalid':'')+'" placeholder="例如：GitHub Token"'+(invalid?' aria-invalid="true" aria-describedby="cred-name-error"':'')+'>'
+      +(invalid?'<div class="field-error" id="cred-name-error" role="alert">'+icon('alert')+'请填写名称</div>':'')
+      +'</div>'
+      +'<div class="field"><label>类型</label><select class="input"><option>用户名密码</option><option>令牌</option><option>Kubeconfig</option></select></div>'
+      +'<div class="field"><label>用户名</label><input class="input"></div>'
+      +'<div class="field"><label>密钥</label><input class="input" type="password" value="prototype-secret"></div>'
+      +'</div><div class="dialog-foot"><button class="btn outline sm" data-close>取消</button><button class="btn primary sm" data-action="credential-save">保存</button></div></div>';
   }
   return '';
 }
@@ -903,6 +971,7 @@ function render(){
   else if (screen==='editor') html = renderEditor(parts[1]);
   else if (screen==='history') html = renderHistory(parts[1]);
   else if (screen==='run') html = renderRun(parts[1], parts[2]);
+  else if (screen==='credentials') html = renderCredentials();
   else if (screen==='flow') html = renderFlow();
   else html = renderList();
   document.getElementById('app').innerHTML = html;
@@ -953,6 +1022,7 @@ document.addEventListener('click', function(e){
   if (closeBtn) { ui.overlay=''; render(); return; }
   if (go) {
     ui.overlay='';
+    ui.menuRow='';
     location.hash = go.dataset.go;
     render();
     if (toastBtn) showToast(toastBtn.dataset.toast);
@@ -960,6 +1030,7 @@ document.addEventListener('click', function(e){
   }
   if (overlayBtn) {
     ui.overlay = overlayBtn.dataset.overlay;
+    ui.menuRow='';
     if (overlayBtn.dataset.focus) ui.logFocus = overlayBtn.dataset.focus;
     render();
     return;
@@ -971,9 +1042,26 @@ document.addEventListener('click', function(e){
     if (a==='start-run') { ui.overlay=''; location.hash='#/run/1/128'; render(); return; }
     if (a==='add-task') { ui.addMode = true; render(); return; }
     if (a==='close-add') { ui.addMode = false; render(); return; }
+    if (a==='row-menu') { ui.menuRow = ui.menuRow === action.dataset.row ? '' : action.dataset.row; render(); return; }
+    if (a==='run-back') {
+      if (window.history.length > 1) window.history.back();
+      else { location.hash = '#/history/'+action.dataset.pipeline; render(); }
+      return;
+    }
+    if (a==='credential-save') {
+      const input = document.getElementById('cred-name');
+      if (!input || !input.value.trim()) { ui.state='invalid'; render(); return; }
+      ui.overlay=''; ui.state=''; render(); showToast('凭证已保存'); return;
+    }
     return;
   }
   if (job) { ui.selectedJob = job.dataset.job; ui.addMode=false; render(); return; }
+  const rowGo = target.closest('[data-row-go]');
+  if (rowGo && !target.closest('a, button, .row-menu')) {
+    location.hash = rowGo.dataset.rowGo;
+    render();
+    return;
+  }
 });
 window.addEventListener('hashchange', render);
 function showToast(text){

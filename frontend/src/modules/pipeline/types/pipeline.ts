@@ -67,9 +67,7 @@ export interface PipelineSummary {
 export interface PipelineSavePayload {
   id?: EntityId
   name: string
-  repoUrl: string
-  gitRef?: string
-  credentialId?: EntityId | null
+  /** 仓库配置保存在 CLONE 任务的 paramBindings 中。 */
   stages: PipelineStage[]
 }
 
