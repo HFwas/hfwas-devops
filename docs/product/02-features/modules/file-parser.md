@@ -1,7 +1,7 @@
 # 文件解析（File Parser）功能规格
 
-> 日期：2026-10-17
-> 版本：v0.1
+> 日期：2026-10-18
+> 版本：v0.2
 > 状态：骨架
 > 数据来源：`backend/file-parser/`、`docs/file-parser/`、`frontend/src/modules/file-parser/`
 
@@ -10,6 +10,7 @@
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：上传解析、OCR、压缩与格式支持 |
+| v0.2 | 2026-10-18 | 补充清洗策略与 max-text-length 实际行为 |
 
 ---
 
@@ -63,6 +64,8 @@
 | 压缩参数 | 质量、最大尺寸、最小压缩比由 `FileParseRequest.options` 传入 |
 | 内存策略 | 大文件采用流式/分块处理，见 `docs/file-parser/file-parser-memory-optimization.md` |
 | 无持久化 | 当前无解析历史表 |
+| 清洗策略 | `basic` 清理空白行、纯图片文件名行、`@xxx` 协同标记（电子表格保留 `@` 数据）；`docx` 额外做深度清洗 |
+| 长度限制 | `max-text-length` 在提取后校验，超限返回「文档内容过长，超过最大提取限制」 |
 
 ## 6. 异常与边界
 

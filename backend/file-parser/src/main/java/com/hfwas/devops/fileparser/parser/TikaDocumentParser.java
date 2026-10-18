@@ -77,6 +77,11 @@ public class TikaDocumentParser implements DocumentParser {
     private static final Pattern MANY_NEWLINES = Pattern.compile("\\n{3,}");
     /** 内部协同批注 @xxx */
     private static final Pattern AT_MENTION = Pattern.compile("@\\S+[ \\t]*\\S*");
+
+    /** Tika 抽出的纯图片文件名行（非 Markdown 图片语法 ![alt](image.png)） */
+    private static final Pattern IMAGE_FILE_LINE = Pattern.compile(
+            "^[ \\t]*[\\w.-]+\\.(png|jpe?g|gif|bmp|webp|svg|tiff?)[ \\t]*$",
+            Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
     /** 研发备注 to研发/开发/产品 */
     private static final Pattern TO_DEV = Pattern.compile("^[ 　]*to(研发|开发|产品)[：:].*$", Pattern.MULTILINE);
     /** 待研发/开发/产品确认 */
@@ -166,6 +171,18 @@ public class TikaDocumentParser implements DocumentParser {
             }
 
             String text = Files.readString(extractFile, StandardCharsets.UTF_8);
+            if (maxTextLength > 0 && text.length() > maxTextLength) {
+                log.warn("Tika output exceeded max text length for {}: {} > {}", fileName, text.length(), maxTextLength);
+                return FileParseResultVO.builder()
+                        .success(false)
+                        .fileName(fileName)
+                        .fileSize(file.length())
+                        .errorMessage("文档内容过长，超过最大提取限制（"
+                                + (maxTextLength / 1024 / 1024) + "MB），可增大 "
+                                + "file-parser.tika.max-text-length 配置后重试")
+                        .parseTimeMs(System.currentTimeMillis() - start)
+                        .build();
+            }
             String mimeType = metadata.get(HttpHeaders.CONTENT_TYPE);
             text = cleanupText(text, mimeType);
 
@@ -218,8 +235,8 @@ public class TikaDocumentParser implements DocumentParser {
      * 支持三种策略：
      * <ul>
      *   <li>{@code none} — 不进行清洗，保留 Tika 原始 Markdown 输出</li>
-     *   <li>{@code basic} — 统一换行符、清理多余空白行、删除 {@code @xxx} 协同标记。
-     *       保留 Markdown 语法（标题、表格、列表、URL 等）。</li>
+     *   <li>{@code basic} — 统一换行符、清理多余空白行、删除纯图片文件名行与
+     *       {@code @xxx} 协同标记（电子表格除外）。保留 Markdown 语法（标题、表格、列表、URL 等）。</li>
      *   <li>{@code docx} — DOCX 文档深度清洗：在 basic 基础上，额外去除
      *       研发内部备注、占位文本、页码残留等，适用于正式交付场景</li>
      * </ul>
@@ -237,7 +254,7 @@ public class TikaDocumentParser implements DocumentParser {
      * <ul>
      *   <li>不再删除 {@code ---}（Markdown 水平线）</li>
      *   <li>不再删除 {@code http://} URL（Markdown 有效语法）</li>
-     *   <li>不再删除 {@code image1.png} 行（Markdown 图片语法为 {@code ![alt](image.png)}）</li>
+     *   <li>删除纯 {@code image1.png} 文件名行，但保留 Markdown 图片语法 {@code ![alt](image.png)}</li>
      * </ul>
      *
      * @param raw      原始 Markdown 文本
@@ -267,8 +284,13 @@ public class TikaDocumentParser implements DocumentParser {
         // 5. 压缩连续 3+ 空行
         text = MANY_NEWLINES.matcher(text).replaceAll("\n\n");
 
-        // 6. @xxx 内部协同批注（中文文档常见，Markdown 中 @ 无特殊含义）
-        text = AT_MENTION.matcher(text).replaceAll("");
+        // 6. 纯图片文件名行（Tika 旧版/非 Markdown 输出的残留）
+        text = IMAGE_FILE_LINE.matcher(text).replaceAll("");
+
+        // 7. @xxx 内部协同批注（电子表格中的 @ 可能是数据，保留）
+        if (!isSpreadsheetMime(normalizeMime(mimeType))) {
+            text = AT_MENTION.matcher(text).replaceAll("");
+        }
 
         if (!"docx".equals(strategy) || !isWordMime(normalizeMime(mimeType))) {
             return text.trim();
@@ -276,27 +298,31 @@ public class TikaDocumentParser implements DocumentParser {
 
         // ========== DOCX 深度清洗（协同稿，仅 Word） ==========
 
-        // 7. 研发备注
+        // 8. 研发备注
         text = TO_DEV.matcher(text).replaceAll("");
         text = PENDING_DEV.matcher(text).replaceAll("\n");
         text = PENDING_PAREN.matcher(text).replaceAll("");
         text = PENDING_END.matcher(text).replaceAll("");
 
-        // 8. 占位文本
+        // 9. 占位文本
         text = PLACEHOLDER.matcher(text).replaceAll("");
         text = PLACEHOLDER_PENDING.matcher(text).replaceAll("");
 
-        // 9. 页码残留（单行数字，注意 Markdown 列表中数字会误伤，仅用于非列表上下文）
+        // 10. 页码残留（单行数字，注意 Markdown 列表中数字会误伤，仅用于非列表上下文）
         text = PAGE_NUMBER.matcher(text).replaceAll("");
 
-        // 10. 孤立逗号
+        // 11. 孤立逗号
         text = LONELY_COMMA.matcher(text).replaceAll("\n");
 
-        // 11. 再次压缩连续空行 + 去首尾空白
+        // 12. 再次压缩连续空行 + 去首尾空白
         text = MANY_NEWLINES.matcher(text).replaceAll("\n\n");
         text = text.trim();
 
         return text;
+    }
+
+    private static boolean isSpreadsheetMime(String m) {
+        return m.contains("spreadsheet") || m.contains("excel") || m.contains("csv");
     }
 
     private static boolean isWordMime(String m) {
@@ -331,8 +357,7 @@ public class TikaDocumentParser implements DocumentParser {
             return;
         }
 
-        boolean isSpreadsheet = mimeType != null
-                && (mimeType.contains("spreadsheet") || mimeType.contains("excel") || mimeType.contains("csv"));
+        boolean isSpreadsheet = mimeType != null && isSpreadsheetMime(mimeType);
 
         String[] lines = text.split("\n");
         int dataRows = 0;

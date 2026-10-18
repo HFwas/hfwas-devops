@@ -103,7 +103,7 @@ public class FileParserConfig {
         /**
          * Tika 提取文本最大长度（字符数），默认 100MB。
          * 防止超大文档解析出超长字符串挤占堆内存。
-         * BodyContentHandler 使用此值限制写入，超出时抛出异常。
+         * 解析完成后校验提取文本长度，超出时返回友好错误。
          * 可通过环境变量 {@code FILE_PARSER_TIKA_MAX_TEXT_LENGTH} 或配置文件
          * {@code file-parser.tika.max-text-length} 自定义。
          */
@@ -113,7 +113,8 @@ public class FileParserConfig {
          * 文本清洗策略，默认 basic。
          * <ul>
          *   <li>{@code none}: 不进行任何清洗，保留 Tika 原始输出</li>
-         *   <li>{@code basic}: 仅 Word/PPT — 去除 Tika 抽出的多余空白行、嵌入图文件名</li>
+         *   <li>{@code basic}: 去除多余空白行、纯图片文件名行、{@code @xxx} 协同标记
+         *       （电子表格保留 {@code @} 数据）</li>
          *   <li>{@code docx}: DOCX 文档深度清洗 — 在 basic 基础上，额外去除
          *       内部协同批注（{@code @xxx}）、设计分割线、图片文件名清单、
          *       研发内部备注、占位文本等，适用于正式交付场景</li>

@@ -702,6 +702,30 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         }
 
         @Test
+        @DisplayName("多标签过滤应取交集")
+        void filterByMultipleTagsShouldRequireAll() {
+            ApiDefinitionQueryDTO query = new ApiDefinitionQueryDTO();
+            query.setProjectId(testProjectId());
+            query.setTags(List.of("用户", "创建"));
+
+            IPage<ApiDefinitionVO> result = apiDefinitionService.pageQuery(query);
+            assertEquals(1, result.getTotal());
+            assertEquals("创建用户", result.getRecords().getFirst().getName());
+        }
+
+        @Test
+        @DisplayName("不存在的标签应返回空")
+        void filterByUnknownTagShouldReturnEmpty() {
+            ApiDefinitionQueryDTO query = new ApiDefinitionQueryDTO();
+            query.setProjectId(testProjectId());
+            query.setTags(List.of("不存在"));
+
+            IPage<ApiDefinitionVO> result = apiDefinitionService.pageQuery(query);
+            assertEquals(0, result.getTotal());
+            assertTrue(result.getRecords().isEmpty());
+        }
+
+        @Test
         @DisplayName("分页查询应返回结果按更新时间降序排列")
         void pageQueryShouldBeOrderedByUpdateTimeDesc() {
             ApiDefinitionQueryDTO query = new ApiDefinitionQueryDTO();

@@ -1,7 +1,7 @@
 # API 测试平台功能规格
 
-> 日期：2026-10-17
-> 版本：v0.1
+> 日期：2026-10-18
+> 版本：v0.2
 > 状态：骨架
 > 数据来源：`backend/api-test-core/`、`frontend/src/modules/api-test/`、`docs/backend/api_spec.md`、`docs/backend/db_design.md`
 
@@ -10,6 +10,7 @@
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：接口定义、调试、环境、集合批量运行 |
+| v0.2 | 2026-10-18 | 补充标签过滤规则：按 JSON 数组元素精确匹配 |
 
 ---
 
@@ -88,6 +89,7 @@ API 测试平台提供类 Postman 的接口定义、调试与集合运行能力�
 | Secret 变量 | `api_environment_variable.is_secret` 标记，返回时是否脱敏待确认 |
 | 集合项 | 引用 `api_definition`，支持 `enabled` 与排序 |
 | 断言 | `source` + `compare_type` + `expression` + `expected_value` |
+| 标签过滤 | `tags` 为 JSON 数组，按数组元素精确匹配；多标签为交集（SQLite `json_each`） |
 
 ## 6. 异常与边界
 
