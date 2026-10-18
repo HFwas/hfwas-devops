@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DataTable } from '@/components/console/DataTable'
 import { DetailShell } from '@/components/console/DetailShell'
 import { LogPanel } from '@/components/console/LogPanel'
-import { ResourceOverview } from '@/components/console/ResourceOverview'
+import { OverviewMetricCards, ResourceOverview } from '@/components/console/ResourceOverview'
 import { StatusIcon } from '@/components/console/StatusIcon'
 
 function mount(node: ReactNode) {
@@ -149,6 +149,22 @@ describe('shared console patterns', () => {
     const emphasis = cards?.children[1]?.children[1]
     expect(emphasis?.className).toContain('font-bold')
     expect(emphasis?.className).toContain('tabular-nums')
+  })
+
+  it('lets a page choose five metric columns instead of the default six', () => {
+    const view = mount(
+      <OverviewMetricCards
+        columns={5}
+        items={['仓库', '分支', 'Commit', '最近运行', '凭证'].map((label) => ({ label, value: '—' }))}
+      />,
+    )
+    root = view.root
+    container = view.container
+    const grid = container.querySelector('[data-slot="overview-metric-cards"]')
+    expect(grid?.getAttribute('data-columns')).toBe('5')
+    expect(grid?.className).toContain('xl:grid-cols-5')
+    expect(grid?.className).not.toContain('xl:grid-cols-6')
+    expect(grid?.children).toHaveLength(5)
   })
 
   it('shows the log chrome connection light without owning a socket', () => {

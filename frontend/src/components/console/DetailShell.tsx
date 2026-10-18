@@ -21,6 +21,7 @@ export function DetailShell({
   value,
   onValueChange,
   metrics,
+  metricColumns,
   children,
   className,
 }: {
@@ -34,6 +35,8 @@ export function DetailShell({
   onValueChange?: (value: string) => void
   /** 概览指标卡，贴在 Tab 下方、正文上方。 */
   metrics?: MetricItem[]
+  /** 指标卡列数，默认 6；按实际卡数传入可避免末行留空。 */
+  metricColumns?: number
   children: ReactNode
   className?: string
 }) {
@@ -76,7 +79,7 @@ export function DetailShell({
           </div>
         ) : null}
       </div>
-      {metrics && metrics.length > 0 ? <OverviewMetricCards items={metrics} /> : null}
+      {metrics && metrics.length > 0 ? <OverviewMetricCards items={metrics} columns={metricColumns} /> : null}
       <div>{children}</div>
     </div>
   )

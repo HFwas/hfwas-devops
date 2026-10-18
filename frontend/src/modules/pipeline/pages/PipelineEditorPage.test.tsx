@@ -255,6 +255,8 @@ describe('PipelineEditorPage', () => {
     expect(view.textContent).not.toContain('GIT_PASSWORD')
     expect(view.textContent).not.toContain('SECRET_TOKEN')
     expect(view.textContent).not.toContain('GIT_REF')
+    expect(view.textContent).not.toContain('Clone 命令由平台生成')
+    expect((view.textContent?.match(/克隆命令由平台生成/g) ?? []).length).toBe(1)
 
     click(view, '在阶段 1 添加任务')
     await waitFor(view, '添加任务到「阶段 1 · 拉取」')

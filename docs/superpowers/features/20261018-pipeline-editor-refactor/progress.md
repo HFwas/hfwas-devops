@@ -553,3 +553,122 @@
 ### 下一步
 
 - **唯一动作**：冻结原型 v0.8 后，编写 `test-cases.md`、`changes.md` 并开始实现。
+
+---
+
+## 第 12 轮 · 2026-10-18 18:30 · 原型契约与差异分类
+
+- **状态**：已完成（文档）
+- **触发**：用户认可原型契约规范，要求为流水线模块补实际契约
+- **目标**：把「原型 ↔ 实现」差异变成可追踪、可关闭的契约，而不是口头结论
+
+### 做了什么
+
+1. 新增 [`docs/pipeline/prototype/prototype-contract.md`](../../../pipeline/prototype/prototype-contract.md) v0.1：A2 对齐、权责边界、数据 profile、共享组件对账、D01–D20 差异分类与验证记录。
+2. 将真实应用截图保存到 [`docs/pipeline/prototype/actual/`](../../../pipeline/prototype/actual/)：列表、详情、历史、编辑、新建、运行详情。
+3. 更新模块原型 README v0.12、本功能 prototype README v0.6，挂上契约与证据入口。
+
+### 变更文件
+
+| 文件 | 动作 | 说明 |
+|------|------|------|
+| `docs/pipeline/prototype/prototype-contract.md` | 新增 | 模块级原型契约 |
+| `docs/pipeline/prototype/actual/*.png` | 新增 | 2026-10-18 真实应用截图证据 |
+| `docs/pipeline/prototype/README.md` | 修改 | v0.12；契约与 actual 索引，画板数修正为 21 |
+| `docs/superpowers/features/20261018-pipeline-editor-refactor/prototype/README.md` | 修改 | v0.6；引用契约与证据 |
+| `docs/superpowers/features/20261018-pipeline-ux-batch1/prototype/README.md` | 修改 | v0.2；引用契约与证据 |
+
+### 验证
+
+| 检查 | 命令 / 方式 | 结果 |
+|------|-------------|------|
+| 本地链接 | Python 相对链接检查 | 4 个改动文档全部通过 |
+| 表格结构 | 契约表格列数检查 | 通过 |
+| 空白字符 | `git diff --check` | 通过 |
+| 测试 | — | 未运行（纯文档，无代码变更） |
+
+### 决策与取舍
+
+- **决策**：契约放在模块级 `docs/pipeline/prototype/`，功能目录只引用。**理由**：原型本身是模块级长期基线，两个功能共享同一份。**未选方案**：在两个功能目录各写一份。
+- **决策**：v0.11 尚未冻结，契约标记为「参考基线」，不冒充冻结评审。**理由**：v0.9–v0.11 在 README 中仍为待评审。
+
+### 偏差与假设
+
+- 实际截图来自本地真实数据（4 条流水线全失败、无 commit、单租户），不能代表完整状态矩阵；已在契约 §5 标记 fixture 缺口。
+- 运行详情实际截图含本地 Tekton / k3s 错误文本，仅作差异证据。
+
+### 未完成 / 风险
+
+- D01–D19 中标记「待定 / 待确认」的项尚未关闭。
+- 未建立 Playwright 视觉回归基线；未覆盖空态、加载、失败、无权限、长文本、多租户、暗色主题。
+
+### 下一步
+
+- **唯一动作**：评审契约中的待确认项，先处理 D05/D06/D07/D13/D17 这批明确的实现漂移。
+
+---
+
+## 第 13 轮 · 2026-10-18 18:35 · 关闭 4 条实现漂移
+
+- **状态**：已完成
+- **触发**：用户确认开始处理明确实现漂移
+- **目标**：按原型契约关闭 D05、D06、D07、D17，并复核 D13
+
+### 做了什么
+
+1. **D05**：`PipelineDetailPage` 给 `DetailShell` 传 `description`，标题下恢复最近运行状态与相对时间；详情与运行历史页签都显示。
+2. **D06**：`OverviewMetricCards` 新增 `columns` 参数，`DetailShell` 新增 `metricColumns` 透传；流水线详情传 5 列。
+3. **D07**：`PipelineDefinitionCanvas` 阶段卡由 `w-56` 改为 `w-[196px]`。
+4. **D17**：`PipelineEditorPage` 的 CLONE 任务不再渲染 `kindMeta.hint`，只保留一条平台提示。
+5. **D13**：复核原型 `.stage-name-input` 同样是透明边框、hover 才显示，确认此前分类有误，不改代码。
+6. 重建前端产物并导出到 `artifacts/frontend`，用真实页面截图复验。
+
+### 变更文件
+
+| 文件 | 动作 | 说明 |
+|------|------|------|
+| `frontend/src/components/console/ResourceOverview.tsx` | 修改 | 指标卡 `columns` 参数 |
+| `frontend/src/components/console/DetailShell.tsx` | 修改 | `metricColumns` 透传 |
+| `frontend/src/modules/pipeline/pages/PipelineDetailPage.tsx` | 修改 | 标题状态行与 5 列指标 |
+| `frontend/src/modules/pipeline/components/PipelineDefinitionCanvas.tsx` | 修改 | 阶段卡 196px |
+| `frontend/src/modules/pipeline/pages/PipelineEditorPage.tsx` | 修改 | CLONE 提示去重 |
+| `frontend/src/components/console/patterns.test.tsx` | 修改 | 5 列指标用例 |
+| `frontend/src/modules/pipeline/pages/PipelineDetailPage.test.tsx` | 修改 | 标题状态行与 5 列断言 |
+| `frontend/src/modules/pipeline/pages/PipelineEditorPage.test.tsx` | 修改 | 克隆提示去重断言 |
+| `docs/pipeline/prototype/prototype-contract.md` | 修改 | v0.2；关闭 D05/D06/D07/D17，D13 复核 |
+| `docs/pipeline/prototype/actual/*.png` | 修改 | 修复后详情、历史、编辑器截图 |
+| `docs/superpowers/features/20261018-pipeline-editor-refactor/changes.md` | 修改 | v0.8；实际改动与第 3 轮校验 |
+| `docs/superpowers/features/20261018-pipeline-editor-refactor/test-cases.md` | 修改 | v0.4；新增用例 |
+
+### 验证
+
+| 检查 | 命令 / 方式 | 结果 |
+|------|-------------|------|
+| 受影响用例 | `npx vitest run patterns.test.tsx PipelineDetailPage.test.tsx PipelineEditorPage.test.tsx` | 27 passed |
+| 全量前端 | `npm test` | 255 passed / 1 skipped |
+| 类型检查 | `npx tsc --noEmit` | 通过 |
+| 构建 | `npm run build` | 通过 |
+| 容器产物 | `docker compose build frontend-build` + `docker compose run --rm frontend-build` | 通过；`index-D48zBzR5.js` |
+| 真实页面 | Playwright 截图 | 详情状态行、5 列指标、196px 阶段卡、单条克隆提示均确认 |
+
+### 决策与取舍
+
+- **决策**：D13 不修改。**理由**：原型 CSS 与实现一致，此前把截图中的边框误判为原型固定边框。**未选方案**：为了“看得见边框”强行改实现，反而偏离原型。
+- **决策**：指标列数用静态类名映射，不做动态拼类。**理由**：Tailwind 只生成静态类名，动态拼接会被裁剪。
+
+### 偏差与假设
+
+- D05 的状态行与「最近运行」指标卡信息重复；这是原型本来的设计，先按原型恢复，后续若精简需升原型。
+- 本轮截图仍是真实单租户、全失败数据，其余状态未覆盖。
+- 补充记录：第 12 轮同时更新了 `AGENTS.md` v0.24、`docs/frontend/ai-collaboration-frontend.md` v0.7、`docs/frontend/prototype-first-standard.md` v0.2，并新增 `docs/frontend/prototype-contract-template.md` v0.1；此前未在该轮变更文件表逐项列出。
+- 工作区原有的 `docs/images/IMG_1999.JPG` 删除发生在本轮开始前，与本轮无关，未处理。
+
+### 未完成 / 风险
+
+- D01、D02、D03、D04、D10、D12、D19 仍待产品确认或处理。
+- D14、D18 仍需回写原型并升版。
+- 视觉回归基线尚未建立。
+
+### 下一步
+
+- **唯一动作**：确认 D02、D03、D10、D12 的产品决策，再处理 D01、D04、D19。

@@ -1,7 +1,7 @@
 # 流水线编辑器重构与全局弹框样式 —— 测试用例
 
 > 日期：2026-10-18
-> 版本：v0.3
+> 版本：v0.4
 > 状态：长期维护；需求变更时先改本文件，再改代码
 > 对应设计：[`design.md`](./design.md) v0.5
 
@@ -12,6 +12,7 @@
 | v0.1 | 2026-10-18 | 初版：覆盖编辑器结构、克隆参数归属、回显、阶段命名、移除缩放、身份只读、弹框样式、迁移与回归 |
 | v0.2 | 2026-10-18 | 实施后对齐自动化位置至真实测试名；凭证选择标为手工用例 |
 | v0.3 | 2026-10-18 | 迁移策略调整：17 只补种子，回填移到 `CloneConfigBackfill`；补 `migrate.py` 路径与幂等用例 |
+| v0.4 | 2026-10-18 | 按原型契约补 D05/D06/D07/D17 用例：标题状态行、5 列指标、196px 阶段卡、克隆提示去重 |
 
 ---
 
@@ -65,6 +66,9 @@
 | TC-ED-12 | 流水线详情有运行记录 | 查看指标卡 | — | 显示 8 位 Commit 短 SHA；无记录显示 `—` | `PipelineDetailPage.test.tsx::puts tabs above the repo meta strip and opens the definition canvas` / `::shows a dash for commit when no run exists` |
 | TC-ED-12b | 编辑页最近运行无 commit | 查看头部 | — | 不显示“最近克隆” | `PipelineEditorPage.test.tsx::omits last clone summary without commit` |
 | TC-ED-12c | 切换到运行历史页签 | 查看页签下方 | — | 不显示指标行，直接进入筛选与表格 | `PipelineDetailPage.test.tsx::puts tabs above the repo meta strip and opens the definition canvas` |
+| TC-ED-12d | 详情 / 运行历史 | 查看标题下方 | — | 显示最近运行状态与相对时间；切到运行历史仍显示 | `PipelineDetailPage.test.tsx::puts tabs above the repo meta strip and opens the definition canvas` |
+| TC-ED-12e | 详情 | 查看指标区 | — | 5 张卡按 5 列网格排布，右侧无空列 | `patterns.test.tsx::lets a page choose five metric columns instead of the default six`；`PipelineDetailPage.test.tsx::puts tabs above the repo meta strip and opens the definition canvas` |
+| TC-ED-12f | 详情 | 查看定义画布 | — | 阶段卡宽度 196px，与原型一致 | 手工：`docs/pipeline/prototype/actual/03-detail.png` 对照 `shots/03-detail.png` |
 
 ## 5. 阶段命名与缩放
 
@@ -84,6 +88,7 @@
 | TC-ED-19 | 编辑页选中任务 | 查看任务名称/类型 | — | 均禁用，并显示提示 | 同上 |
 | TC-ED-20 | CLONE 任务 | 查看高级设置 | — | 不显示技术栈/运行时/工具版本 | `PipelineEditorPage.test.tsx::shows advanced settings for build but not for clone` |
 | TC-ED-21 | BUILD 任务 | 查看高级设置 | — | 仍显示技术栈/运行时/工具版本 | `PipelineEditorPage.test.tsx::shows advanced settings for build but not for clone` |
+| TC-ED-22 | CLONE 任务 | 查看检查器提示 | — | 只显示一条“克隆命令由平台生成”，不渲染 `kindMeta.hint` 造成重复 | `PipelineEditorPage.test.tsx::swaps the right panel between config and a click-to-add task list` |
 
 ## 7. 全局弹框样式
 

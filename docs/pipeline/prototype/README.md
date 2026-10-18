@@ -1,7 +1,7 @@
 # 流水线管理高保真可点击原型
 
 > 日期：2026-10-18
-> 版本：v0.11
+> 版本：v0.12
 
 ### 变更记录
 
@@ -18,6 +18,7 @@
 | v0.9 | 2026-10-18 | 详情/运行历史头部返回按钮改为图标按钮，标题恢复 sans，与 Kite 扁平头对齐 |
 | v0.10 | 2026-10-18 | 详情指标移除“阶段”卡；原型角标同步版本 |
 | v0.11 | 2026-10-18 | 运行历史页签移除指标行，只在详情页签显示 |
+| v0.12 | 2026-10-18 | 仅文档索引：新增 `prototype-contract.md`（A2 对齐、权责边界、共享组件对账、20 条差异分类与真实应用截图证据）；画板数量修正为 21 张；不改变原型画面，画面基线仍为 v0.11 |
 
 ---
 
@@ -26,7 +27,9 @@
 | 文件 | 用途 |
 |------|------|
 | [`index.html`](index.html) | 单文件可点击原型，无外部依赖，直接打开即可操作 |
-| `shots/01-list.png` ～ `shots/17-modal-discard.png` | 17 张高保真画板，2880×1800（1440×900 @2x），可直接拖入 Figma |
+| [`prototype-contract.md`](prototype-contract.md) | 原型契约：A2 对齐、权责边界、差异分类、数据 profile 与验收状态 |
+| [`actual/`](actual/) | 2026-10-18 真实应用截图证据（列表、详情、历史、编辑器、新建、运行详情） |
+| `shots/01-list.png` ～ `shots/21-editor-new.png` | 21 张高保真画板，2880×1800（1440×900 @2x），可直接拖入 Figma |
 | `shots/15-flow-map.svg` | 交互流程矢量图，拖入 Figma 后文字和图形可编辑 |
 | [`../pipeline-management-prototype-spec.json`](../pipeline-management-prototype-spec.json) | 机器可读规格，供 Figma Make / 脚本 / MCP 使用 |
 | [`../pipeline-management-prototype-spec.md`](../pipeline-management-prototype-spec.md) | 字段、组件、状态、交互说明 |
@@ -210,3 +213,7 @@ BASE="file://$PWD/index.html"
 | v0.9 | 2026-10-18 | 待产品 / 前端 / 测试 | **待评审** | 详情头部扁平化；纯样式修复，附前后截图即可 |
 | v0.10 | 2026-10-18 | 待产品 / 前端 / 测试 | **待评审** | 移除详情“阶段”指标 |
 | v0.11 | 2026-10-18 | 待产品 / 前端 / 测试 | **待评审** | 历史页签隐藏指标行 |
+
+当前实现与原型之间的差异、分类与处理见 [`prototype-contract.md`](prototype-contract.md)。v0.9–v0.11 正式冻结前，契约中标记为「待确认」的项不得视为已关闭。
+
+v0.12 仅新增契约与索引，不涉及原型画面，不触发原型评审；画面基线仍为 v0.11。

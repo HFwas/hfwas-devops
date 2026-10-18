@@ -133,11 +133,19 @@ describe('PipelineDetailPage', () => {
   })
 
   it('shows a dash for commit when no run exists', async () => {
+    vi.mocked(pipelineApi.get).mockResolvedValue({
+      ...pipeline,
+      lastRunId: null,
+      lastRunStatus: null,
+      lastRunTime: null,
+    })
     vi.mocked(pipelineApi.pageRuns).mockResolvedValue({ records: [], total: 0, current: 1, size: 100, pages: 0 })
     const view = mount('/pipeline/pipelines/9')
     root = view.root
     container = view.container
     await waitForText(container, '订单服务 CI')
+    const title = container.querySelector('[data-slot="detail-shell"] h1')
+    expect(title?.nextElementSibling?.textContent).toContain('未运行')
     const meta = container.querySelector('[data-slot="overview-metric-cards"]')
     expect(meta?.textContent).toContain('Commit')
     expect(meta?.textContent).toContain('—')
@@ -156,8 +164,10 @@ describe('PipelineDetailPage', () => {
     const meta = shell?.querySelector('[data-slot="overview-metric-cards"]')
     const body = shell?.querySelector('[data-slot="pipeline-detail-body"]')
     expect(title?.textContent).toContain('订单服务 CI')
+    expect(title?.nextElementSibling?.textContent).toContain('运行中')
     expect(tabs).toBeTruthy()
     expect(meta).toBeTruthy()
+    expect(meta?.getAttribute('data-columns')).toBe('5')
     expect(body).toBeTruthy()
     expect(follows(title!, tabs!)).toBe(true)
     expect(follows(tabs!, meta!)).toBe(true)
@@ -206,6 +216,7 @@ describe('PipelineDetailPage', () => {
     const historyTabs = [...container.querySelectorAll('[role="tab"]')]
     expect(historyTabs[1]?.getAttribute('aria-selected')).toBe('true')
     expect(container.querySelector('[data-slot="overview-metric-cards"]')).toBeNull()
+    expect(container.querySelector('[data-slot="detail-shell"] h1')?.nextElementSibling?.textContent).toContain('运行中')
   })
 
   it('filters run history via the URL and opens a run from the row', async () => {

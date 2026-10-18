@@ -38,7 +38,7 @@ export function PipelineDefinitionCanvas({ stages }: { stages?: PipelineStage[] 
           return (
             <div key={String(stage.id ?? `${stage.name}-${index}`)} className="flex items-start">
               <FlowArrow />
-              <div data-slot="definition-stage" className="flex w-56 shrink-0 flex-col rounded-lg border bg-card shadow-sm">
+              <div data-slot="definition-stage" className="flex w-[196px] shrink-0 flex-col rounded-lg border bg-card shadow-sm">
                 <div className="border-b px-3 py-2 text-xs font-medium">
                   <span className="text-muted-foreground">阶段 {index + 1}</span>
                   <span className="mx-1 text-muted-foreground">·</span>

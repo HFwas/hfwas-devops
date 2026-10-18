@@ -1,14 +1,15 @@
 # 第 1 批原型引用
 
 > 日期：2026-10-18
-> 版本：v0.1
-> 原型版本：`docs/pipeline/prototype` v0.2（待评审冻结）
+> 版本：v0.2
+> 原型版本：`docs/pipeline/prototype` v0.2（已冻结；模块当前基线 v0.11 待评审）
 
 ### 变更记录
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-18 | 建立引用：指向流水线模块原型 v0.2 与第 1 批新增画板 |
+| v0.2 | 2026-10-18 | 引用模块原型契约与真实应用截图；注明 v0.2 已冻结、模块基线 v0.11 待评审 |
 
 ---
 
@@ -22,6 +23,8 @@
 | 规格（机器可读） | [`pipeline-management-prototype-spec.json`](../../../../pipeline/pipeline-management-prototype-spec.json) |
 | 规格（人读） | [`pipeline-management-prototype-spec.md`](../../../../pipeline/pipeline-management-prototype-spec.md) |
 | 画板 | [`docs/pipeline/prototype/shots/`](../../../../pipeline/prototype/shots/) |
+| 原型契约 | [`docs/pipeline/prototype/prototype-contract.md`](../../../../pipeline/prototype/prototype-contract.md) |
+| 真实应用截图 | [`docs/pipeline/prototype/actual/`](../../../../pipeline/prototype/actual/) |
 
 ## 2. 第 1 批相关画板
 
@@ -43,3 +46,5 @@
 ## 4. 评审
 
 评审结论记录在 [`docs/pipeline/prototype/README.md` §8](../../../../pipeline/prototype/README.md)。冻结前不得进入页面代码实现。
+
+当前实现差异、分类与处理见 [`prototype-contract.md`](../../../../pipeline/prototype/prototype-contract.md)；本批相关的 D01–D04、D09 仍待确认或处理。

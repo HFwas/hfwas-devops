@@ -1,9 +1,9 @@
 # AI 协作前端规范
 
 > 日期：2026-10-18
-> 版本：v0.6
+> 版本：v0.7
 > 状态：强制。Agent 写前端代码前必须遵守；执行摘要在 `AGENTS.md`「前端」一节。
-> 前置门禁：[prototype-first-standard.md](./prototype-first-standard.md) v0.1。页面类需求先冻结高保真原型，再写代码。
+> 前置门禁：[prototype-first-standard.md](./prototype-first-standard.md) v0.2。页面类需求先冻结高保真原型并填写原型契约，再写代码。
 > 视觉真相：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.8；落地范围：[frontend-style-unification-plan.md](./frontend-style-unification-plan.md) v0.10；组件用法：[shared-ui-patterns.md](./shared-ui-patterns.md)
 
 ### 变更记录
@@ -16,6 +16,7 @@
 | v0.4 | 2026-10-07 | 新列表/详情/状态/日志必须用 `components/console` 共享模式，禁止私有表格皮肤 |
 | v0.5 | 2026-10-12 | 强制指向样式规范 v0.8 与统一 Plan：token、`components/console`、禁止硬编码色和私有表格皮肤；补 tabular-nums 与信息层级 |
 | v0.6 | 2026-10-18 | 增加原型先行门禁：页面类需求须先完成并冻结高保真原型，再进入实现；补「动手前」第 0 步与禁止项 |
+| v0.7 | 2026-10-18 | 动手前增加原型契约：按 `prototype-contract-template.md` 确认对齐等级、允许差异与数据 profile |
 
 ---
 
@@ -112,7 +113,7 @@ components.json
 
 ## 6. Agent 动手前
 
-0. 确认功能目录下已有冻结的高保真原型（`prototype/index.html`、`prototype-spec.json`、`shots/`、评审记录）。没有就先做原型，不要写页面代码。
+0. 确认功能目录下已有冻结的高保真原型（`prototype/index.html`、`prototype-spec.json`、`shots/`、评审记录），并按 [prototype-contract-template.md](./prototype-contract-template.md) 填写 `prototype-contract.md`（对齐等级、允许差异、数据 profile、共享组件对账）。没有就先做原型与契约，不要写页面代码。
 1. 读 `frontend/components.json`，确认别名、图标库和已安装组件。
 2. 缺基础组件时用 `npx shadcn@latest add <name>`，再在业务组件里组合。
 3. 改完跑 `tsc --noEmit`。

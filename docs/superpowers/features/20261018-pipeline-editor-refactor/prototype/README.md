@@ -1,7 +1,7 @@
 # 编辑器重构原型引用
 
 > 日期：2026-10-18
-> 版本：v0.5
+> 版本：v0.6
 > 原型版本：`docs/pipeline/prototype` v0.11（待评审）
 
 ### 变更记录
@@ -13,6 +13,7 @@
 | v0.3 | 2026-10-18 | 同步详情头部扁平化原型 v0.9 |
 | v0.4 | 2026-10-18 | 同步详情移除“阶段”指标 v0.10 |
 | v0.5 | 2026-10-18 | 同步历史页签隐藏指标行 v0.11 |
+| v0.6 | 2026-10-18 | 引用模块原型契约：A2 对齐、差异分类与真实应用截图证据 |
 
 ---
 
@@ -24,6 +25,8 @@
 | 规格（机器可读） | [`pipeline-management-prototype-spec.json`](../../../../pipeline/pipeline-management-prototype-spec.json) |
 | 规格（人读） | [`pipeline-management-prototype-spec.md`](../../../../pipeline/pipeline-management-prototype-spec.md) |
 | 画板 | [`docs/pipeline/prototype/shots/`](../../../../pipeline/prototype/shots/) |
+| 原型契约 | [`docs/pipeline/prototype/prototype-contract.md`](../../../../pipeline/prototype/prototype-contract.md) |
+| 真实应用截图 | [`docs/pipeline/prototype/actual/`](../../../../pipeline/prototype/actual/) |
 
 ## 2. 本次相关画板
 
@@ -38,3 +41,5 @@
 ## 3. 评审
 
 评审结论记录在 [`docs/pipeline/prototype/README.md` §8](../../../../pipeline/prototype/README.md)。冻结前不得进入页面代码实现。
+
+当前实现差异、分类与处理见 [`prototype-contract.md`](../../../../pipeline/prototype/prototype-contract.md)。其中 D14（任务卡运行状态）与 D18（新建空态）需回写原型并升版。

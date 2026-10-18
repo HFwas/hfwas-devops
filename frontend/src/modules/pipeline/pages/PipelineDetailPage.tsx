@@ -117,6 +117,16 @@ export function PipelineDetailPage() {
     },
     { label: '凭证', value: <MonoValue>{credentialName}</MonoValue> },
   ]
+  const lastRunSummary = (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <StatusIcon status={pipeline?.lastRunStatus} label={runStatusLabel(pipeline?.lastRunStatus)} />
+      {pipeline?.lastRunTime ? (
+        <span className="font-mono text-xs text-muted-foreground tabular-nums">
+          {formatRelativeTime(pipeline.lastRunTime)}
+        </span>
+      ) : null}
+    </span>
+  )
 
   return (
     <DetailShell
@@ -128,7 +138,9 @@ export function PipelineDetailPage() {
         </Button>
       }
       title={<span className="tracking-tight">{pipeline?.name || (pipelineQuery.isLoading ? '加载中…' : '流水线')}</span>}
+      description={pipeline ? lastRunSummary : undefined}
       metrics={tab === 'definition' ? metrics : undefined}
+      metricColumns={metrics.length}
       actions={
         <>
           <Button variant="outline" size="sm" asChild>

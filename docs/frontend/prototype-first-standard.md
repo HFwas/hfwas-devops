@@ -1,15 +1,16 @@
 # 前端原型先行规范
 
 > 日期：2026-10-18
-> 版本：v0.1
+> 版本：v0.2
 > 状态：强制。任何新增或改版前端页面，未完成并通过评审的原型不得进入实现阶段。
-> 关联：[ai-collaboration-frontend.md](./ai-collaboration-frontend.md) v0.6、[kite-frontend-style-guide.md](./kite-frontend-style-guide.md)、[shared-ui-patterns.md](./shared-ui-patterns.md)、[visual-regression-checklist.md](./visual-regression-checklist.md)、[产品原型索引](../product/06-prototype/prototype-index.md)
+> 关联：[ai-collaboration-frontend.md](./ai-collaboration-frontend.md) v0.7、[kite-frontend-style-guide.md](./kite-frontend-style-guide.md)、[shared-ui-patterns.md](./shared-ui-patterns.md)、[visual-regression-checklist.md](./visual-regression-checklist.md)、[prototype-contract-template.md](./prototype-contract-template.md)、[产品原型索引](../product/06-prototype/prototype-index.md)
 
 ### 变更记录
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-18 | 初版：调研 v0 / Lovable / Figma Make / OpenUI / html.to.design / Spec Kit / Playwright 视觉回归后，建立「原型规格 → 高保真可点击原型 → 评审冻结 → 实现 → 视觉校验」门禁与交付物标准 |
+| v0.2 | 2026-10-18 | 新增原型 / 前端 / 设计系统权责矩阵与实现参照清单；新增 A0–A3 对齐等级、偏差分类模板、视觉验收数据 profile 与共享组件对账要求；补外部参考与落地检查项 |
 
 ---
 
@@ -35,6 +36,66 @@
 
 原型的目的不是“画得好看”，而是把**信息结构、交互路径、状态矩阵、异常边界**在写代码前固定下来，让 AI 生成和人工实现都有唯一视觉真相。
 
+### 1.1 原型、前端与设计系统的权责边界
+
+每个维度只能有一个最终依据。原型不可能同时承担视觉稿、交互稿、数据契约和业务规格，必须按下面分权：
+
+| 维度 | 冻结原型负责 | 生产前端负责 | 最终依据 |
+|------|--------------|--------------|----------|
+| 页面清单、信息架构、页面层级 | 定义 | 实现 | 冻结原型 |
+| 布局骨架、间距节奏、区块顺序 | 定义 1440×900 基准 | 实现并扩展响应式 | 原型定基准，前端定断点 |
+| 颜色、字体、圆角、阴影、状态色 | 引用同一套 token | 消费同一套 token | 设计系统 token |
+| 组件组合方式 | 指定用哪些共享组件 | 落到真实组件 | 原型 + 前端共同 |
+| 交互路径、页签、弹层、返回路径 | 定义 | 实现 | 冻结原型 |
+| 状态矩阵与状态文案 | 定义有哪些状态 | 实现真实状态 | `design.md` + 原型 |
+| 静态文案、列名、按钮文案、空态文案 | 定义 | 实现 | 冻结原型 |
+| 业务规则、校验、权限 | 只做演示 | 实现 | `design.md` / API 文档 |
+| 数据内容、数据量、真实边界 | 给代表性样例 | 真实数据 | API / 后端 |
+| 可访问性、性能、安全、浏览器兼容 | 不负责 | 负责 | 前端工程 |
+| 1440×900 之外的响应式 | 只给参考视口 | 负责 | 前端工程 |
+| 组件内部 DOM 与实现 | 不负责 | 负责 | 前端 / 组件库 |
+
+一句话：**原型定「长什么样、有哪些状态、怎么走」，前端定「真实数据下怎么正确、稳定、可访问地跑起来」，设计系统定「颜色字体间距」。**
+
+### 1.2 原型不是什么
+
+- **不是生产代码**：不要求可维护、可复用、可访问，也不进入构建产物。
+- **不是数据契约**：样例数据只表达形状和量级，不代表后端真实返回。
+- **不是像素合同**：除非契约里明确声明 A3 像素对齐，否则不要求逐像素一致。
+- **不是组件库**：组件内部实现以 `src/components/ui`、`src/components/console` 为准。
+- **不是业务规格的唯一来源**：业务规则、权限、状态机以 `design.md`、`test-cases.md` 和接口文档为准。
+
+### 1.3 实现阶段参照原型什么
+
+**必须一致：**
+
+- 页面组成顺序：头部、页签、指标、表格 / 画布、分页的位置关系。
+- 导航与返回路径：入口、页签切换、弹层关闭、来源感知返回。
+- 表格列顺序、列含义、列宽比例；表单字段顺序、标签、必填标记。
+- 按钮层级和语义：主按钮、次按钮、危险按钮分别对应什么动作。
+- 状态语义和文案：成功 / 失败 / 排队 / 待审批 / 取消分别怎么显示。
+- 共享组件选型：列表用 `DataTable`，详情用 `DetailShell`，状态用 `StatusIcon`，指标用 `OverviewMetricCards`。
+- token 名称与值：颜色、字体、圆角、间距只能来自全局主题。
+- 1440×900 参考视口下的布局骨架和间距节奏。
+
+**允许不同，但必须记录：**
+
+- 真实数据值、数量、状态分布。
+- 条件渲染导致的显示 / 隐藏（如无 commit 时隐藏「最近克隆」、终态隐藏「取消」、单租户隐藏租户切换）。
+- 加载、空态、失败、无权限的真实实现。
+- 其他视口下的响应式布局。
+- 可访问性增强、性能优化、错误边界。
+- 字体抗锯齿、系统字体回退造成的细微渲染差异。
+- 原型静态写法与生产共享组件默认值造成的非结构性差异。
+
+**禁止照抄：**
+
+- 原型里的 inline CSS、绝对定位、写死 px。
+- 原型的 mock 数据直接变成生产 fixture。
+- 原型右下角的导航面板、状态切换参数。
+- 原型为了演示伪造的成功态。
+- 原型里没有的私有颜色、私有字体、私有表格皮肤。
+
 ## 2. 适用范围
 
 ### 2.1 必须做原型
@@ -49,7 +110,7 @@
 | 场景 | 要求 |
 |------|------|
 | 单文件小修：文案、错别字、图标替换 | 豁免，回复中说明理由 |
-| 纯样式修复：颜色 token 对齐、间距修正 | 豁免，附修改前后截图 |
+| 纯样式修复：颜色 token 对齐、间距修正 | 豁免点击原型，但必须在 `changes.md` 记录修改前后截图、对齐等级与偏差分类；不得借豁免修改信息结构或交互 |
 | 纯后端 / 配置 / 文档改动 | 豁免 |
 | 紧急线上故障修复 | 可先修复，24 小时内补原型或截图记录 |
 | 复用既有页面模式、无新交互的新增列表页 | 可只交画板，不要求可点击原型 |
@@ -319,8 +380,39 @@ BASE="file://$PWD/index.html"
 - 原型目录只允许通过升版修改，修改必须重新评审。
 - `changes.md` 记录实现所依据的原型版本。
 - 实现阶段发现的规格问题，先改原型与 spec，再改代码。
+- **禁止追认式修改**：不得在实现完成后直接改原型去“对齐”代码而不升版、不评审；这类修改视为原型过期，必须补评审记录。
+- 冻结版本与实现采用的契约写入功能目录的 `prototype-contract.md`（模板见 [prototype-contract-template.md](./prototype-contract-template.md)）。
 
 ## 10. 实现阶段对齐
+
+### 10.0 对齐等级（A0–A3）
+
+实现前必须在原型契约中选定对齐等级，未声明时按 **A2** 处理。
+
+| 等级 | 名称 | 要求 | 适用 |
+|------|------|------|------|
+| A0 | 结构对齐 | 页面、状态、路径一致 | 内部工具、快速交付 |
+| A1 | 语义对齐 | 组件、token、信息层级一致 | 大多数业务页面 |
+| A2 | 布局对齐 | 1440×900 下结构、间距、列宽、字号一致；允许字体渲染差异 | **默认** |
+| A3 | 像素对齐 | 固定环境下截图 diff 在阈值内，动态区域 mask | 品牌页、设计系统、重点演示 |
+
+对齐等级写入 `prototype-spec.json`：
+
+```json
+"contract": {
+  "alignmentLevel": "A2",
+  "referenceViewport": { "width": 1440, "height": 900, "scale": 2 },
+  "mustMatch": ["layout", "spacing", "typography", "component", "copy", "state"],
+  "mayDiffer": ["dynamicData", "conditionalVisibility", "responsive", "fontRendering"],
+  "dataProfile": "pipeline-visual-fixtures-v1"
+}
+```
+
+规则：
+
+- 降低对齐等级必须由产品与前端确认，并写进 `changes.md`。
+- A3 的截图基线必须用固定环境生成，跨 OS / 浏览器差异通过 Docker 固定镜像消除。
+- 对齐等级只约束视觉与结构，不降低功能、状态和可访问性要求。
 
 ### 10.1 映射表
 
@@ -337,13 +429,32 @@ BASE="file://$PWD/index.html"
 - 原型里的每个控件必须落到 `src/components/ui` 或 `src/components/console` 的既有组件；找不到时先补共享组件，再写页面。
 - 原型里的状态色必须映射到 `StatusIcon` / `StatusBadge` 的语义状态，不新增颜色。
 
+**共享组件对账必须在写页面前完成。** 逐项列出原型控件与共享组件的默认行为差异，并记录决策：
+
+| 原型控件 | 共享组件 | 默认行为差异 | 决策 |
+|----------|----------|--------------|------|
+| 详情指标 5 列 | `OverviewMetricCards` | 默认 `xl:grid-cols-6`，5 张卡留空一列 | 增加 `columns` 参数，页面传 5 |
+| 单页分页 | `Pagination` | 单页只显示文字 | 保持全局行为，记录为允许差异 |
+| 列表运行按钮 | `StartRunButton` | 使用 default / outline variant | 按原型改 variant，补其他页面回归 |
+
+冲突处理优先级：**复用现有组件 → 给共享组件增加参数 → 页面级覆盖 → 新增共享组件**。禁止在业务页复制私有表格皮肤、私有状态色或第二套弹窗。
+
 ### 10.3 视觉校验
 
-1. 用相同 URL 参数与视口，对实现页面截图。
+视觉校验分两个目标，不要混为一谈：
+
+1. **设计验收（一次性）**：真实应用截图 ↔ 冻结原型画板。确认结构、间距、层级、token、状态文案。差异按 §10.5 分类记录。
+2. **视觉回归（持续）**：真实应用截图 ↔ 自身基线。防止后续改动悄悄漂移。
+
+执行要求：
+
+1. 用相同 URL 参数、视口（默认 1440×900 @2x）和固定环境，对实现页面截图。
 2. 与原型画板并排比较：结构、间距、层级、token、状态文案。
 3. Pixel diff 只作为线索，不作为唯一判据；字体渲染差异可接受，布局错位不可接受。
 4. 使用 Playwright `toHaveScreenshot()` 建立基线：首次生成基线，人工审批后提交；后续变更走 diff → 审批 → 更新基线。
-5. 差异必须记录在 `changes.md` 的「计划外偏差」：原因、影响、是否回写原型。
+5. 基线生成与比较必须在同一环境：优先使用固定版本的 Playwright Docker 镜像，避免 macOS / Linux 字体与抗锯齿差异。
+6. 截图配置固定：`animations: 'disabled'`、`caret: 'hide'`、`scale: 'css'`，对时间、头像、实时数据等动态区域使用 `mask`。
+7. 差异必须记录在 `changes.md` 的「计划外偏差」：原因、影响、是否回写原型；同时写入原型契约的偏差登记。
 
 ### 10.4 独立 agent 校验
 
@@ -352,6 +463,52 @@ BASE="file://$PWD/index.html"
 - 对照冻结原型逐页、逐状态检查实现，列出漏做、多做、行为不符的地方。
 - 按 `test-cases.md` 执行用例。
 - 校验结论写回 `changes.md` 的「校验结果」。未重新校验不得声称完成。
+
+### 10.5 偏差分类与记录模板
+
+任何「原型 ↔ 实现」差异必须先分类，再决定处理方式。禁止用一句“有点不一样”带过。
+
+| 分类 | 含义 | 处理 |
+|------|------|------|
+| `实现漂移` | 实现没有按冻结原型做，或共享组件默认值未对齐 | 改实现；改共享组件需补测试与其他页面回归 |
+| `数据导致` | 真实数据、数量、状态、条件渲染造成 | 不改代码；补 fixture 与真实状态用例 |
+| `原型过期` | 原型已被实现或业务演进淘汰 | 升版原型、重新评审，再同步 spec |
+| `产品决策` | 有意偏离原型 | 记录决策人、理由与生效版本 |
+| `环境差异` | 字体渲染、抗锯齿、浏览器差异 | 不作为失败条件；A3 用固定环境消除 |
+
+记录模板：
+
+```text
+偏差：<一句话描述看到的差异>
+位置：<页面 / 状态 / URL 或画板>
+分类：实现漂移 / 数据导致 / 原型过期 / 产品决策 / 环境差异
+原因：<定位到的具体原因，不写猜测>
+处理：<改代码 / 改组件 / 升原型 / 保持>
+是否回写原型：<是 / 否 / 不适用>
+验证：<截图路径、测试用例编号或命令>
+```
+
+### 10.6 视觉验收数据 profile
+
+视觉对比不能拿生产数据碰运气，必须定义一组确定性的验收数据：
+
+| 状态 | 数据要求 | 截图处理 |
+|------|----------|----------|
+| 默认 | 每条页面至少 1 条完整数据 | 正常截图 |
+| 空态 | 0 条数据 | 正常截图 |
+| 加载 | 延迟接口或骨架屏 | 正常截图 |
+| 失败 | 业务失败与网络失败各 1 条 | 正常截图 |
+| 无权限 | 只读账号或禁用入口 | 正常截图 |
+| 长文本 | 超长名称、分支、错误信息 | 验证换行 / 省略 |
+| 大数据量 | 分页边界、最大位数 | 验证列宽稳定 |
+| 终态 | 成功、失败、取消、待审批 | 验证条件按钮与状态文案 |
+
+要求：
+
+- 每个功能在原型契约中写明 `dataProfile` 名称与 fixture / seed 位置。
+- 动态时间、头像、实时日志、随机数在截图中 mask，或使用固定值。
+- 生产数据不得作为视觉基线；需要真实数据时使用脱敏 fixture。
+- 状态覆盖与 `test-cases.md` 的用例编号一一对应。
 
 ## 11. Figma 交接（可选）
 
@@ -373,6 +530,9 @@ BASE="file://$PWD/index.html"
 - 禁止用伪造的成功态掩盖未定的业务流程；未定项标 `ASSUMPTION`。
 - 禁止在原型中放入真实客户数据、密钥、内网地址。
 - 禁止实现阶段静默偏离冻结原型；偏离必须记录并回写。
+- 禁止实现完成后追认式修改原型去对齐代码而不升版、不评审。
+- 禁止把原型 mock 数据当生产 fixture 或数据契约。
+- 禁止用“纯样式豁免”修改信息结构、交互路径或状态矩阵。
 - 禁止把 v0 / Lovable 等生成的应用直接当交付原型。
 
 ## 13. 落地检查清单
@@ -387,6 +547,11 @@ BASE="file://$PWD/index.html"
 - [ ] 使用共享 token，亮暗主题可用。
 - [ ] 评审通过，冻结记录已写入 README。
 - [ ] `changes.md` 已写明依据的原型版本与映射表。
+- [ ] `prototype-contract.md` 已填写：对齐等级、参考视口、必须一致项、允许差异项、数据 profile。
+- [ ] 共享组件对账完成，默认行为冲突已有决策记录。
+- [ ] 视觉验收 fixture / seed 已定义，动态区域已确定 mask 规则。
+- [ ] 真实应用截图已与冻结原型对比，偏差已按 §10.5 分类并登记。
+- [ ] 视觉回归基线已建立；首次基线已人工审批。
 
 ## 14. 参考
 
@@ -399,5 +564,14 @@ BASE="file://$PWD/index.html"
 | Figma AI 原型工具综述 | https://www.figma.com/resource-library/ai-prototyping-tools/ |
 | html.to.design 文档 | https://html.to.design/docs/file-tab |
 | Playwright 截图断言 | https://playwright.dev/docs/test-snapshots |
+| Playwright 视觉回归 CI 实践（Argos） | https://argos-ci.com/blog/playwright-visual-regression-testing-ci |
+| NN/g 低保真与高保真原型 | https://www.nngroup.com/articles/ux-prototype-hi-lo-fidelity/ |
+| DTCG 设计 token 格式规范 | https://www.designtokens.org/tr/2025.10/format/ |
+| zeroheight 设计 token 管线 | https://zeroheight.com/learn/the-design-token-pipeline-from-design-tool-to-codebase/ |
+| Carbon 组件检查清单 | https://www.carbondesignsystem.com/getting-started/contributing/component-checklist |
+| Figma Code Connect | https://developers.figma.com/docs/code-connect/ |
+| Storybook 视觉测试 | https://storybook.js.org/docs/writing-tests/visual-testing |
+| Chromatic 组件驱动开发 | https://www.chromatic.com/docs/in-development/ |
+| 本仓库原型契约模板 | [prototype-contract-template.md](./prototype-contract-template.md) |
 | 本仓库流水线原型范例 | [docs/pipeline/prototype/README.md](../pipeline/prototype/README.md) |
 | 本仓库 UI 说明范例 | [docs/pipeline/pipeline-management-ui-prototype.md](../pipeline/pipeline-management-ui-prototype.md) |

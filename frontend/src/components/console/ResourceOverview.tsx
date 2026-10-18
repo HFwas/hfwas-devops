@@ -10,10 +10,30 @@ export interface MetricItem {
   emphasis?: boolean
 }
 
+/** 指标卡列数。Tailwind 需要静态类名，不能按变量拼。 */
+const METRIC_COLUMNS: Record<number, string> = {
+  2: 'sm:grid-cols-2',
+  3: 'sm:grid-cols-2 lg:grid-cols-3',
+  4: 'sm:grid-cols-2 lg:grid-cols-4',
+  5: 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5',
+  6: 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6',
+}
+
 /** 概览 Tab 下方的一排状态/指标卡：状态、期望、就绪、最新、可用、创建。 */
-export function OverviewMetricCards({ items }: { items: MetricItem[] }) {
+export function OverviewMetricCards({
+  items,
+  columns = 6,
+}: {
+  items: MetricItem[]
+  /** 默认 6 列；页面按实际卡数传入，避免末行留空。 */
+  columns?: number
+}) {
   return (
-    <div data-slot="overview-metric-cards" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <div
+      data-slot="overview-metric-cards"
+      data-columns={columns}
+      className={cn('grid gap-3', METRIC_COLUMNS[columns] ?? METRIC_COLUMNS[6])}
+    >
       {items.map((item) => (
         <div key={item.label} className="min-w-0 overflow-hidden rounded-lg border bg-card px-4 py-3 shadow-sm">
           <div className="text-xs text-muted-foreground">{item.label}</div>

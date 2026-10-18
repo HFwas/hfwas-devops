@@ -877,7 +877,9 @@ function Inspector({
               这个任务类型不需要命令{job.kind === 'CLONE' ? '，克隆命令由平台生成' : ''}。
             </p>
           )}
-          {kindMeta?.hint ? <p className="text-xs text-muted-foreground">{kindMeta.hint}</p> : null}
+          {kindMeta?.hint && job.kind !== 'CLONE' ? (
+            <p className="text-xs text-muted-foreground">{kindMeta.hint}</p>
+          ) : null}
           <section className="flex flex-col gap-2">
             <h3 className="text-sm font-medium" title="隐藏参数由平台或凭证注入，不在这里编辑">
               参数绑定

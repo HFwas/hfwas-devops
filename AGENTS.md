@@ -1,7 +1,7 @@
 # Agent instructions
 
 > 日期：2026-10-18
-> 版本：v0.23
+> 版本：v0.24
 
 ### 变更记录
 
@@ -30,6 +30,7 @@
 | v0.21 | 2026-10-18 | 新增「前端原型先行」门禁：页面类需求必须先出高保真可点击原型与原型规格，评审冻结后才允许实现；规范见 `docs/frontend/prototype-first-standard.md` |
 | v0.22 | 2026-10-18 | 新增功能目录 `progress.md`：每轮 AI 协作必须追加进度记录，规范见 `docs/superpowers/features/README.md` |
 | v0.23 | 2026-10-18 | 迁移规范修正：external 执行器统一为 `migrate.py`；05 零 UPDATE；UPDATE 仅允许 16-*；下一编号 17；07-09 为历史跳号 |
+| v0.24 | 2026-10-18 | 原型先行补契约：每个功能填写 `prototype-contract.md`；默认 A2 对齐，共享组件先对账，视觉差异按分类登记并做真实应用截图校验 |
 
 ---
 
@@ -58,7 +59,7 @@ HFWAS DevOps：从 0 到 1 的 DevOps 平台。后端 Spring Boot 3 / Java 21。
 | PM 工作流演进 | `docs/evolution/` |
 | 后端架构 / API / 库表 | `docs/backend/` |
 | 接口文档（Markdown + Postman） | 既有模块见「接口变更」一节；新模块 `docs/api/<module>/` |
-| 前端 | `docs/frontend/`；强制规范 `docs/frontend/ai-collaboration-frontend.md`、`docs/frontend/prototype-first-standard.md` |
+| 前端 | `docs/frontend/`；强制规范 `docs/frontend/ai-collaboration-frontend.md`、`docs/frontend/prototype-first-standard.md`、`docs/frontend/prototype-contract-template.md` |
 | 文件解析 / OCR | `docs/file-parser/` |
 | 文档生成 | `docs/docgen/` |
 | 图片处理 | `docs/image/` |
@@ -92,6 +93,7 @@ docs/superpowers/features/YYYYMMDD-<feature>/
 ├── test-cases.md   # 测试用例文档（长期维护）
 ├── changes.md      # 代码变更文档
 ├── progress.md     # AI 协作进度日志（每轮追加）
+├── prototype-contract.md  # 前端页面类功能：原型契约（对齐等级、允许差异、数据 profile）
 └── prototype/      # 前端页面类功能：高保真原型
 ```
 
@@ -107,7 +109,8 @@ docs/superpowers/features/YYYYMMDD-<feature>/
    - 在功能目录下新建 `prototype/`，先写 `prototype-spec.json` / `prototype-spec.md`，再生成单文件可点击 `index.html` 与 1440×900 @2x 画板。
    - 必须覆盖默认、空态、加载、失败、无权限、校验失败等状态，并让每个状态可通过 URL 直达。
    - 原型评审通过并在 `prototype/README.md` 记录冻结版本后，才能进入测试用例与编码。
-   - 没有冻结原型不得开始写页面代码；“先写代码再补原型图”视为未完成。
+   - 按 `docs/frontend/prototype-contract-template.md` 在功能目录填写 `prototype-contract.md`：对齐等级（默认 A2）、必须一致项、允许差异项、数据 profile、共享组件对账。
+   - 没有冻结原型和原型契约不得开始写页面代码；“先写代码再补原型图”视为未完成。
 3. **再写测试用例文档**：`test-cases.md`
    - 每条用例带编号，写清前置条件、步骤、输入、预期结果。
    - 必须覆盖正常路径、边界值、异常 / 失败路径；标明对应的自动化测试位置（`文件::测试名`），无法自动化的写手工验证步骤。
@@ -295,9 +298,10 @@ Docker 容器访问宿主机代理用 `host.docker.internal:7890`，不要把 `1
 1. **交付物**：功能目录下的 `prototype/index.html`（单文件可点击）、`prototype-spec.json`、`prototype-spec.md`、`shots/*.png`（1440×900 @2x）、`README.md`（路由、状态参数、画板清单、评审记录）。
 2. **技术要求**：零外部依赖、hash 路由、`state` / `overlay` / `capture` 查询参数、与生产一致的语义 token、亮暗主题、真实感中文数据。
 3. **状态覆盖**：默认、空态、加载、失败、无权限、表单校验失败、大数据量、长文本、危险操作确认。
-4. **评审冻结**：产品、前端、测试按规范第 9 节评审；冻结版本与提交写入 `prototype/README.md`。冻结后修改必须升版并重新评审。
-5. **实现对齐**：`changes.md` 记录「原型 → 路由 → 实现文件 → 共享组件」映射；视觉差异走截图对比并记录偏差；独立 agent 校验时逐页逐状态对照冻结原型。
-6. **豁免**：单文件小修、纯样式修复、纯后端改动可跳过，但必须在回复与 `changes.md` 中说明理由。
+4. **评审冻结**：产品、前端、测试按规范第 9 节评审；冻结版本与提交写入 `prototype/README.md`。冻结后修改必须升版并重新评审，禁止实现完成后追认式修改原型。
+5. **原型契约**：按 `docs/frontend/prototype-contract-template.md` 填写 `prototype-contract.md`，明确对齐等级（默认 A2）、参考视口、必须一致项、允许差异项、数据 profile 与共享组件对账结果。
+6. **实现对齐**：`changes.md` 记录「原型 → 路由 → 实现文件 → 共享组件」映射；写页面前先完成共享组件对账；必须对真实应用截图与冻结原型逐页逐状态对比，差异按 `prototype-first-standard.md` §10.5 分类登记；独立 agent 校验时逐页逐状态对照冻结原型。
+7. **豁免**：单文件小修、纯样式修复、纯后端改动可跳过，但必须在回复与 `changes.md` 中说明理由；纯样式豁免不得修改信息结构或交互。
 
 ### 新建前端（默认，强制）
 

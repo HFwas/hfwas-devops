@@ -1,10 +1,10 @@
 # 流水线编辑器重构与全局弹框样式 —— 代码变更文档
 
 > 日期：2026-10-18
-> 版本：v0.7
-> 状态：已通过第 2 轮独立复核；含 1 条纯样式后续调整
+> 版本：v0.8
+> 状态：已通过第 2 轮独立复核；含原型契约 D05/D06/D07/D17 对齐修复
 > 对应设计：[`design.md`](./design.md) v0.5
-> 对应用例：[`test-cases.md`](./test-cases.md) v0.3
+> 对应用例：[`test-cases.md`](./test-cases.md) v0.4
 
 ### 变更记录
 
@@ -17,6 +17,7 @@
 | v0.5 | 2026-10-18 | 后续纯样式调整：详情/历史头部扁平化（图标返回、sans 标题、指标走 DetailShell 槽） |
 | v0.6 | 2026-10-18 | 详情指标移除“阶段”卡 |
 | v0.7 | 2026-10-18 | 运行历史页签隐藏指标行 |
+| v0.8 | 2026-10-18 | 按原型契约关闭 D05/D06/D07/D17；D13 复核为与原型一致；补测试与真实页面验证 |
 
 ---
 
@@ -56,7 +57,12 @@
 | `PipelineDetailPage.tsx` | 指标卡新增 Commit（取最近运行 `commitSha`，无则 `—`）；后续扁平化：返回改为图标按钮、标题恢复 sans、指标改用 `DetailShell.metrics` 槽；移除“阶段”指标；指标行仅在详情页签显示 |
 | `dialog.tsx` | `bg-card`、`rounded-xl`、`shadow-lg`、`bg-black/40`；标题/底部分隔线 |
 | `alert-dialog.tsx` | 圆角 `rounded-xl`、`bg-card`、遮罩 `/40`；标题/底部分隔线 |
-| 测试 | `pipelineDraft.test.ts`、`PipelineEditorPage.test.tsx`、`PipelineDetailPage.test.tsx`、`PipelineFlow.test.tsx` 更新；新增 `dialog.test.tsx`、`alert-dialog.test.tsx` |
+| `ResourceOverview.tsx` | `OverviewMetricCards` 新增 `columns` 参数（2–6 的静态类名映射），默认 6；流水线详情传 5，消除末行留空；新增 `data-columns` 供测试断言 |
+| `DetailShell.tsx` | 新增 `metricColumns` 并透传给 `OverviewMetricCards`，默认行为不变 |
+| `PipelineDetailPage.tsx`（续） | 标题下恢复最近运行状态与相对时间；指标卡传 `metricColumns={metrics.length}` |
+| `PipelineDefinitionCanvas.tsx` | 定义画布阶段卡 `w-56` → `w-[196px]`，对齐原型 |
+| `PipelineEditorPage.tsx`（续） | CLONE 任务不再渲染 `kindMeta.hint`，只保留一条“克隆命令由平台生成”提示 |
+| 测试 | `pipelineDraft.test.ts`、`PipelineEditorPage.test.tsx`、`PipelineDetailPage.test.tsx`、`PipelineFlow.test.tsx` 更新；新增 `dialog.test.tsx`、`alert-dialog.test.tsx`；本轮补 5 列指标、标题状态行与克隆提示去重断言 |
 
 ### 2.2 后端与数据库
 
@@ -88,6 +94,9 @@
 | `DialogFooter` 外边距 `mt-4` → `mt-2` | 新增 `border-t pt-3` 后保持视觉间距 | 全站弹框底部略紧凑 |
 | 新增 `prototype/README.md`（v0.2）引用原型 v0.8 | 功能目录按规范保留原型引用 | 文档新增 |
 | 详情/历史头部扁平化：图标返回、sans 标题、指标走 `DetailShell` 槽 | 用户要求参考 Kite；按原型先行规范 §2.2“纯样式修复”豁免，附前后画板 `03-detail.png`、`06-history.png` | 仅视觉，无行为变化 |
+| 按原型契约修复 D05/D06/D07/D17 | 契约登记为实现漂移，按冻结原型对齐 | 详情状态行、5 列指标、196px 阶段卡、克隆提示去重；无行为变化 |
+| D13 阶段名称输入框复核为非偏差 | 原型 `.stage-name-input` 同样为透明边框、hover 才显示；此前分类有误 | 未改代码 |
+| 新增模块原型契约 `docs/pipeline/prototype/prototype-contract.md` | 把原型 ↔ 实现差异变成可追踪、可关闭的记录 | 文档新增 |
 
 ## 4. 豁免说明
 
@@ -139,3 +148,18 @@
 | R6 | TC-DB-04 标注为套件级验证 |
 | R7 | 清理 `SqliteSchemaInitializer` 尾部空行 |
 | R8 | 详情 Commit 测试增加“不显示全长 SHA”断言 |
+
+### 第 3 轮：原型契约对齐（2026-10-18）
+
+依据 [`prototype-contract.md`](../../../pipeline/prototype/prototype-contract.md) 关闭 D05、D06、D07、D17；D13 复核为与原型一致，未改代码。
+
+| 检查 | 结果 |
+|------|------|
+| 受影响用例 | `npx vitest run patterns.test.tsx PipelineDetailPage.test.tsx PipelineEditorPage.test.tsx`：27 passed |
+| 全量前端 | `npm test`：255 passed / 1 skipped |
+| 类型检查 | `npx tsc --noEmit`：通过 |
+| 构建 | `npm run build`：通过 |
+| 容器产物 | `docker compose build frontend-build` + `docker compose run --rm frontend-build`；`http://localhost:8000` 提供 `index-D48zBzR5.js` |
+| 真实页面 | 详情状态行、5 列指标、196px 阶段卡、克隆提示去重均通过截图确认；证据见 `docs/pipeline/prototype/actual/03-detail.png`、`04-editor.png`、`06-history.png` |
+
+剩余：D01、D02、D03、D04、D10、D12、D19 待产品确认或处理；D14、D18 需回写原型并升版。
