@@ -142,4 +142,53 @@ describe('AppShell', () => {
     expect(sidebar()).not.toContain('Pod')
     expect(container.textContent).toContain('接口内容')
   })
+
+  it('pipeline search routes to pipeline list', async () => {
+    const mounted = mount('/pipeline/pipelines')
+    root = mounted.root
+    container = mounted.container
+
+    const search = container.querySelector('[aria-label="搜索流水线"]') as HTMLInputElement
+    expect(search.getAttribute('placeholder')).toBe('搜索流水线名称')
+    await submitSearch(search, '后端')
+
+    expect(mounted.router.state.location.pathname).toBe('/pipeline/pipelines')
+    expect(mounted.router.state.location.search).toBe('?q=%E5%90%8E%E7%AB%AF')
+  })
+
+  it('project search keeps existing behavior', async () => {
+    const mounted = mount('/pm/projects')
+    root = mounted.root
+    container = mounted.container
+
+    const search = container.querySelector('[aria-label="搜索项目"]') as HTMLInputElement
+    await submitSearch(search, '项目')
+
+    expect(mounted.router.state.location.pathname).toBe('/pm/projects')
+    expect(mounted.router.state.location.search).toBe('?keyword=%E9%A1%B9%E7%9B%AE')
+  })
+
+  it('empty search does nothing', async () => {
+    const mounted = mount('/pipeline/pipelines')
+    root = mounted.root
+    container = mounted.container
+
+    const search = container.querySelector('[aria-label="搜索流水线"]') as HTMLInputElement
+    await submitSearch(search, '   ')
+
+    expect(mounted.router.state.location.pathname).toBe('/pipeline/pipelines')
+    expect(mounted.router.state.location.search).toBe('')
+  })
 })
+
+async function submitSearch(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+  act(() => {
+    setter?.call(input, value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await act(async () => {
+    input.closest('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await Promise.resolve()
+  })
+}

@@ -147,6 +147,7 @@ describe('task marketplace pages', () => {
     root = view.root
     container = view.container
     await waitForText(container, '代码克隆')
+    expect(container.textContent).toContain('共 2 个任务类型')
     expect(container.querySelector('[data-kind="CLONE"]')).toBeTruthy()
     expect(container.querySelector('[data-kind="BUILD"]')?.textContent).toContain('1.2.0')
     expect(toggleButtons(container)).toHaveLength(2)
@@ -443,7 +444,9 @@ describe('task marketplace pages', () => {
     ))
     root = view.root
     container = view.container
-    await waitForText(container, '没有匹配的任务')
+    await waitForText(container, '没有匹配的任务类型')
+    expect(container.textContent).toContain('任务类型')
+    expect(container.querySelector('[aria-label="搜索任务类型"]')).toBeTruthy()
   })
 
   it('treats ADMIN role as admin and keeps members read-only', async () => {

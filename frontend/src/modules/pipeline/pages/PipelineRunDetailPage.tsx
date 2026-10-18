@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { DetailShell } from '@/components/console/DetailShell'
@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Button } from '@/components/ui/button'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import { RunSwimlane } from '@/modules/pipeline/components/RunSwimlane'
+import { triggerLabel } from '@/modules/pipeline/runHistory'
 import { aggregateRunLog, groupJobsByStage, isTerminalRunStatus, logBody } from '@/modules/pipeline/runView'
 import { formatCommit, formatDateTime, formatDuration, formatGitRef, runStatusLabel } from '@/modules/pipeline/status'
 import type { PipelineRunJob } from '@/modules/pipeline/types/pipeline'
@@ -60,6 +61,7 @@ const TerminalLines = memo(function TerminalLines({ text, numbered }: { text: st
 
 export function PipelineRunDetailPage() {
   const { pipelineId = '', runId = '' } = useParams()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [focus, setFocus] = useState<LogFocus | null>(null)
   const [now, setNow] = useState(() => Date.now())
@@ -122,6 +124,16 @@ export function PipelineRunDetailPage() {
   const detailKey = focus ? `${focus.type}:${focus.type === 'job' ? focus.id : focus.type === 'stage' ? focus.name : 'all'}` : 'none'
   const live = !!run && !isTerminalRunStatus(run.status)
 
+  function goBack() {
+    // 有应用内历史时回到进入前的位置；直接打开深链接时回运行历史。
+    const index = (window.history.state as { idx?: number } | null)?.idx ?? 0
+    if (index > 0) {
+      navigate(-1)
+      return
+    }
+    navigate(`/pipeline/pipelines/${pipelineId}/history`, { replace: true })
+  }
+
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: ['pipeline-run', pipelineId, runId] })
     await queryClient.invalidateQueries({ queryKey: ['pipeline-runs', pipelineId] })
@@ -147,8 +159,8 @@ export function PipelineRunDetailPage() {
   return (
     <DetailShell
       leading={
-        <Button variant="ghost" size="sm" asChild>
-          <Link to={`/pipeline/pipelines/${pipelineId}/history`}>返回</Link>
+        <Button variant="ghost" size="sm" onClick={goBack}>
+          返回
         </Button>
       }
       title={run ? `${run.pipelineName} #${run.id}` : `运行 #${runId}`}
@@ -192,7 +204,7 @@ export function PipelineRunDetailPage() {
       {run && (
         <div className="flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="触发" value={run.trigger} />
+            <Field label="触发" value={triggerLabel(run.trigger)} />
             <Field label="触发人" value={run.triggeredByName} />
             <Field label="开始" value={formatDateTime(run.startedAt)} />
             <Field label="耗时" value={formatDuration(run.startedAt, run.finishedAt, now)} />

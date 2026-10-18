@@ -159,10 +159,27 @@ export function CredentialListPage() {
           <DialogHeader>
             <DialogTitle>新建凭证</DialogTitle>
           </DialogHeader>
-          <form className="flex flex-col gap-3" onSubmit={form.handleSubmit((values) => create.mutate(values))}>
+          <form
+            noValidate
+            className="flex flex-col gap-3"
+            onSubmit={form.handleSubmit(
+              (values) => create.mutate(values),
+              () => form.setFocus('name'),
+            )}
+          >
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="cred-name">名称</Label>
-              <Input id="cred-name" {...form.register('name')} />
+              <Input
+                id="cred-name"
+                aria-invalid={Boolean(form.formState.errors.name)}
+                aria-describedby={form.formState.errors.name ? 'cred-name-error' : undefined}
+                {...form.register('name')}
+              />
+              {form.formState.errors.name ? (
+                <p id="cred-name-error" role="alert" className="text-xs text-destructive">
+                  {form.formState.errors.name.message}
+                </p>
+              ) : null}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="cred-kind">类型</Label>

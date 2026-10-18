@@ -93,6 +93,20 @@ function renderRun() {
   )
 }
 
+function renderRunAt(entries: string[], initialIndex: number) {
+  return mount(
+    withQuery(
+      <MemoryRouter initialEntries={entries} initialIndex={initialIndex}>
+        <Routes>
+          <Route path="/pipeline/pipelines/:pipelineId" element={<div>流水线列表来源</div>} />
+          <Route path="/pipeline/pipelines/:pipelineId/history" element={<div>运行历史来源</div>} />
+          <Route path="/pipeline/pipelines/:pipelineId/runs/:runId" element={<PipelineRunDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    ),
+  )
+}
+
 describe('PipelineRunDetailPage', () => {
   let root: Root | null = null
   let container: HTMLElement | null = null
@@ -104,6 +118,7 @@ describe('PipelineRunDetailPage', () => {
     container?.remove()
     root = null
     container = null
+    window.history.replaceState(null, '')
   })
 
   it('keeps the canvas clear until a log is opened on the right', async () => {
@@ -224,4 +239,59 @@ describe('PipelineRunDetailPage', () => {
     container = view.container
     await waitForText(container, '加载失败')
   })
+
+  it('TC-UX09-01: renders localized trigger label', async () => {
+    vi.mocked(pipelineApi.getRun).mockResolvedValue({ ...running, trigger: 'MANUAL' })
+    const view = renderRun()
+    root = view.root
+    container = view.container
+    await waitForText(container, '手动')
+    expect(container.textContent).not.toContain('MANUAL')
+  })
+
+  it('TC-UX02-01: back uses history when available', async () => {
+    window.history.replaceState({ idx: 1 }, '')
+    vi.mocked(pipelineApi.getRun).mockResolvedValue(running)
+    const view = renderRunAt(['/pipeline/pipelines/9', '/pipeline/pipelines/9/runs/3'], 1)
+    root = view.root
+    container = view.container
+    await waitForText(container, '返回')
+
+    clickBack(container)
+    await flush()
+    expect(container.textContent).toContain('流水线列表来源')
+  })
+
+  it('TC-UX02-02: back falls back to run history', async () => {
+    window.history.replaceState({ idx: 0 }, '')
+    vi.mocked(pipelineApi.getRun).mockResolvedValue(running)
+    const view = renderRunAt(['/pipeline/pipelines/9/runs/3'], 0)
+    root = view.root
+    container = view.container
+    await waitForText(container, '返回')
+
+    clickBack(container)
+    await flush()
+    expect(container.textContent).toContain('运行历史来源')
+  })
+
+  it('TC-UX02-03: back returns to history source', async () => {
+    window.history.replaceState({ idx: 1 }, '')
+    vi.mocked(pipelineApi.getRun).mockResolvedValue(running)
+    const view = renderRunAt(['/pipeline/pipelines/9/history', '/pipeline/pipelines/9/runs/3'], 1)
+    root = view.root
+    container = view.container
+    await waitForText(container, '返回')
+
+    clickBack(container)
+    await flush()
+    expect(container.textContent).toContain('运行历史来源')
+  })
 })
+
+function clickBack(container: HTMLElement) {
+  const back = [...container.querySelectorAll('button')].find((button) => button.textContent?.trim() === '返回')
+  act(() => {
+    back?.click()
+  })
+}

@@ -48,7 +48,7 @@ export function TaskKindListPage() {
             ? '查看任务类型。修改概览和参数需要管理员（账号 role 为 admin）。'
             : query.isSuccess
               ? rows.length === total
-                ? `共 ${total} 种任务`
+                ? `共 ${total} 个任务类型`
                 : `显示 ${rows.length} / ${total}`
               : '流水线可选用的任务类型'
         }
@@ -56,13 +56,13 @@ export function TaskKindListPage() {
           <Input
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
-            placeholder="搜索名称、标识或分组"
-            aria-label="搜索任务"
+            placeholder="搜索任务类型"
+            aria-label="搜索任务类型"
             className="h-8 w-56"
           />
         }
       />
-      <div role="group" aria-label="任务分组" className="flex gap-1 overflow-x-auto">
+      <div role="group" aria-label="任务类型分组" className="flex gap-1 overflow-x-auto">
         {['全部', ...groups].map((item) => {
           const selected = item === group
           return (
@@ -83,7 +83,7 @@ export function TaskKindListPage() {
       </div>
       {query.isLoading ? <p className="text-sm text-muted-foreground">加载中…</p> : null}
       {query.isError ? <p className="text-sm text-destructive">任务市场加载失败</p> : null}
-      {query.isSuccess && rows.length === 0 ? <p className="text-sm text-muted-foreground">没有匹配的任务</p> : null}
+      {query.isSuccess && rows.length === 0 ? <p className="text-sm text-muted-foreground">没有匹配的任务类型</p> : null}
       {rows.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {rows.map((item) => (

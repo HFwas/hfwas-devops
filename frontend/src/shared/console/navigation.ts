@@ -102,7 +102,7 @@ const MENUS: Record<string, ProductMenuGroup[]> = {
   ],
   pipeline: [
     {
-      key: 'pipeline',
+      key: 'pipeline-work',
       items: [
         {
           key: 'pipelines',
@@ -111,6 +111,12 @@ const MENUS: Record<string, ProductMenuGroup[]> = {
           to: '/pipeline/pipelines',
           matches: [{ prefix: '/pipeline/pipelines' }],
         },
+      ],
+    },
+    {
+      key: 'pipeline-config',
+      label: '配置',
+      items: [
         {
           key: 'task-kinds',
           label: '任务市场',

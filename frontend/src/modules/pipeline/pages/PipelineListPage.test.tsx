@@ -1,7 +1,7 @@
 import { act, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createRoot, type Root } from 'react-dom/client'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import type { PipelineSummary } from '@/modules/pipeline/types/pipeline'
@@ -60,6 +60,29 @@ async function flush() {
   })
 }
 
+function LocationProbe() {
+  const location = useLocation()
+  return <div data-testid="location">{`${location.pathname}${location.search}`}</div>
+}
+
+function renderList() {
+  return mount(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter>
+        <PipelineListPage />
+        <LocationProbe />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+function openRowMenu(name: string) {
+  const trigger = document.querySelector(`[aria-label="更多操作：${name}"]`) as HTMLElement | null
+  act(() => {
+    trigger?.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }))
+  })
+}
+
 describe('PipelineListPage', () => {
   let root: Root | null = null
   let container: HTMLElement | null = null
@@ -90,7 +113,7 @@ describe('PipelineListPage', () => {
     container = null
   })
 
-  it('shows a dense list with mono name, repo, branch, run and edit', async () => {
+  it('shows a dense list with mono name, repo, branch, run and overflow actions', async () => {
     const view = mount(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <MemoryRouter>
@@ -110,12 +133,10 @@ describe('PipelineListPage', () => {
     expect(container.querySelectorAll('[data-slot="stage-dot"]')).toHaveLength(3)
     const create = container.querySelector('a[href="/pipeline/pipelines/new"]')
     expect(create?.textContent).toContain('新建流水线')
-    const edit = container.querySelector('a[href="/pipeline/pipelines/1/edit"]')
-    expect(edit?.textContent).toContain('编辑')
-    expect(container.querySelectorAll('a[href="/pipeline/pipelines/1/edit"]')).toHaveLength(1)
-    const history = container.querySelector('a[href="/pipeline/pipelines/1/history"]')
-    expect(history?.textContent).toContain('历史')
-    expect(container.textContent).toContain('删除')
+    expect(container.querySelector('[aria-label="更多操作：后端发布"]')).toBeTruthy()
+    expect(container.textContent).toContain('运行')
+    expect(container.textContent).not.toContain('编辑')
+    expect(container.textContent).not.toContain('删除')
     const nameLink = container.querySelector('a[href="/pipeline/pipelines/1"]')
     expect(nameLink?.className).toContain('font-console')
     const nameCell = [...container.querySelectorAll('td')].find((cell) => cell.textContent?.includes('后端发布'))
@@ -151,9 +172,15 @@ describe('PipelineListPage', () => {
       await flush()
     }
 
-    const deleteButton = [...container.querySelectorAll('button')].find((node) => node.textContent === '删除')
+    openRowMenu('后端发布')
+    for (let attempt = 0; attempt < 15 && !document.body.textContent?.includes('删除'); attempt += 1) {
+      await flush()
+    }
+    const deleteItem = [...document.querySelectorAll('[role="menuitem"]')].find(
+      (node) => node.textContent?.trim() === '删除',
+    )
     act(() => {
-      deleteButton?.click()
+      ;(deleteItem as HTMLElement | undefined)?.click()
     })
     for (let attempt = 0; attempt < 15 && !document.body.textContent?.includes('删除流水线'); attempt += 1) {
       await flush()
@@ -201,5 +228,80 @@ describe('PipelineListPage', () => {
       await flush()
     }
     expect(container.textContent).toContain('流水线列表加载失败')
+  })
+
+  it('TC-UX08-01: row click opens pipeline detail', async () => {
+    const view = renderList()
+    root = view.root
+    container = view.container
+    for (let attempt = 0; attempt < 20 && !container.textContent?.includes('后端发布'); attempt += 1) {
+      await flush()
+    }
+
+    const row = [...container.querySelectorAll('tbody tr')].find((node) =>
+      node.textContent?.includes('后端发布'),
+    ) as HTMLElement
+    act(() => {
+      row.click()
+    })
+    await flush()
+
+    expect(container.querySelector('[data-testid="location"]')?.textContent).toBe('/pipeline/pipelines/1')
+  })
+
+  it('TC-UX08-02: name link remains keyboard accessible', async () => {
+    const view = renderList()
+    root = view.root
+    container = view.container
+    for (let attempt = 0; attempt < 20 && !container.textContent?.includes('后端发布'); attempt += 1) {
+      await flush()
+    }
+
+    const nameLink = container.querySelector('a[href="/pipeline/pipelines/1"]') as HTMLAnchorElement
+    expect(nameLink.textContent?.trim()).toBe('后端发布')
+
+    act(() => {
+      nameLink.click()
+    })
+    await flush()
+    expect(container.querySelector('[data-testid="location"]')?.textContent).toBe('/pipeline/pipelines/1')
+  })
+
+  it('TC-UX08-03: clicking run starts a run instead of opening the pipeline row', async () => {
+    const view = renderList()
+    root = view.root
+    container = view.container
+    for (let attempt = 0; attempt < 20 && !container.textContent?.includes('后端发布'); attempt += 1) {
+      await flush()
+    }
+
+    const runButton = [...container.querySelectorAll('tbody tr button')].find(
+      (node) => node.textContent?.trim() === '运行',
+    ) as HTMLElement
+    act(() => {
+      runButton.click()
+    })
+    await flush()
+
+    expect(container.querySelector('[data-testid="location"]')?.textContent).toBe('/pipeline/pipelines/1/runs/9')
+  })
+
+  it('TC-UX08-04: row menu exposes edit and delete', async () => {
+    const view = renderList()
+    root = view.root
+    container = view.container
+    for (let attempt = 0; attempt < 20 && !container.textContent?.includes('后端发布'); attempt += 1) {
+      await flush()
+    }
+
+    openRowMenu('后端发布')
+    for (let attempt = 0; attempt < 15 && !document.querySelector('[role="menuitem"]'); attempt += 1) {
+      await flush()
+    }
+
+    expect(document.querySelector('a[href="/pipeline/pipelines/1/edit"]')?.textContent).toContain('编辑')
+    expect(document.querySelector('a[href="/pipeline/pipelines/1/history"]')).toBeNull()
+    const items = [...document.querySelectorAll('[role="menuitem"]')].map((node) => node.textContent?.trim())
+    expect(items).toEqual(['编辑', '删除'])
   })
 })

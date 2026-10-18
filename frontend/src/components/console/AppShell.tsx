@@ -87,6 +87,10 @@ export function AppShell() {
       })
       return
     }
+    if (searchCopy.kind === 'pipeline') {
+      void navigate({ pathname: '/pipeline/pipelines', search: `?q=${encodeURIComponent(value)}` })
+      return
+    }
     void navigate({ pathname: '/pm/projects', search: `?keyword=${encodeURIComponent(value)}` })
   }
 

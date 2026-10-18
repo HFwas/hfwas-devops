@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { FolderGit2, GitBranch, Pencil, Plus, Trash2 } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router'
+import { FolderGit2, GitBranch, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/console/ConfirmDialog'
 import { DataTable } from '@/components/console/DataTable'
@@ -10,6 +10,13 @@ import { Pagination } from '@/components/console/Pagination'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { resolveStatusTone, STATUS_DOT_CLASS } from '@/components/console/status'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { pipelineApi } from '@/modules/pipeline/api/pipeline'
 import { StartRunButton } from '@/modules/pipeline/components/StartRunButton'
@@ -36,12 +43,14 @@ function pageParam(value: string | null): number {
 }
 
 export function PipelineListPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const q = searchParams.get('q')?.trim() ?? ''
   const page = pageParam(searchParams.get('page'))
   const [keyword, setKeyword] = useState(q)
   const [statusFilter, setStatusFilter] = useState<ListStatusFilter>('all')
+  const [removeTarget, setRemoveTarget] = useState<PipelineSummary | null>(null)
 
   const query = useQuery({
     queryKey: ['pipelines', page, q],
@@ -207,33 +216,39 @@ export function PipelineListPage() {
           {
             id: 'actions',
             header: '操作',
-            className: 'align-middle whitespace-normal',
-            headClassName: 'w-[220px]',
+            className: 'align-middle text-right whitespace-normal',
+            headClassName: 'w-[120px]',
             cell: (row) => (
-              <div className="flex flex-wrap items-center gap-0.5">
+              <div className="flex items-center justify-end gap-0.5">
                 <StartRunButton pipelineId={row.id} />
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to={`/pipeline/pipelines/${row.id}/edit`}>
-                    <Pencil />
-                    编辑
-                  </Link>
-                </Button>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to={`/pipeline/pipelines/${row.id}/history`}>历史</Link>
-                </Button>
-                <ConfirmDialog
-                  title={`删除流水线「${row.name}」？`}
-                  description="删除后无法恢复，运行历史会一并移除。"
-                  confirmText="删除"
-                  destructive
-                  confirmDisabled={remove.isPending}
-                  onConfirm={() => remove.mutate(row.id)}
-                >
-                  <Button variant="ghost" size="sm" aria-label={`删除${row.name}`}>
-                    <Trash2 />
-                    删除
-                  </Button>
-                </ConfirmDialog>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-7"
+                      aria-label={`更多操作：${row.name}`}
+                    >
+                      <MoreHorizontal />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-32">
+                    <DropdownMenuItem asChild>
+                      <Link to={`/pipeline/pipelines/${row.id}/edit`}>
+                        <Pencil />
+                        编辑
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onSelect={() => setRemoveTarget(row)}
+                    >
+                      <Trash2 />
+                      删除
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ),
           },
@@ -243,6 +258,7 @@ export function PipelineListPage() {
         loading={query.isFetching}
         error={query.isError ? '流水线列表加载失败' : undefined}
         empty={narrowed ? '没有匹配的流水线' : '还没有流水线'}
+        onRowClick={(row) => navigate(`/pipeline/pipelines/${row.id}`)}
       />
       <Pagination
         page={safePage}
@@ -254,6 +270,21 @@ export function PipelineListPage() {
             {statusFilter !== 'all' ? ` · 当前页 ${rows.length} / ${pageRows.length} 条符合状态` : null}
           </span>
         }
+      />
+      <ConfirmDialog
+        open={removeTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setRemoveTarget(null)
+        }}
+        title={removeTarget ? `删除流水线「${removeTarget.name}」？` : '删除流水线？'}
+        description="删除后无法恢复，运行历史会一并移除。"
+        confirmText="删除"
+        destructive
+        confirmDisabled={remove.isPending}
+        onConfirm={() => {
+          if (removeTarget) remove.mutate(removeTarget.id)
+          setRemoveTarget(null)
+        }}
       />
     </div>
   )

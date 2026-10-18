@@ -29,6 +29,8 @@ describe('pipeline run history filters', () => {
     expect(triggerLabel('MANUAL')).toBe('手动')
     expect(triggerLabel('webhook')).toBe('Webhook')
     expect(triggerLabel('CRON')).toBe('定时')
+    expect(triggerLabel('API')).toBe('API')
+    expect(triggerLabel(undefined)).toBe('—')
     const visible = filterPipelineRuns(runs, { status: 'all', range: '7d', keyword: '', now })
     expect(visible.map((item) => item.id)).toEqual([128, 126])
   })

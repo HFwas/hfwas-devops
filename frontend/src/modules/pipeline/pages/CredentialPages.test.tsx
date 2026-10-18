@@ -93,7 +93,31 @@ describe('Credential pages', () => {
     click(buttonByText(document.body, '保存'))
     await flush()
 
+    await waitForText(document.body, '请填写名称')
+    const nameInput = inputByLabel(document.body, '名称') as HTMLInputElement
+    expect(nameInput.getAttribute('aria-invalid')).toBe('true')
+    expect(nameInput.getAttribute('aria-describedby')).toBe('cred-name-error')
+    expect(document.activeElement).toBe(nameInput)
     expect(pipelineCredentialApi.save).not.toHaveBeenCalled()
+  })
+
+  it('PIPE-147: clears error after name is provided', async () => {
+    vi.mocked(pipelineCredentialApi.save).mockResolvedValue('3')
+    view = mountRoute('/pipeline/credentials', '/pipeline/credentials', <CredentialListPage />)
+    await waitForText(view.container, 'git-prod')
+
+    click(buttonByText(view.container, '新建凭证'))
+    await waitForText(document.body, '新建凭证')
+    click(buttonByText(document.body, '保存'))
+    await waitForText(document.body, '请填写名称')
+
+    setInputValue(inputByLabel(document.body, '名称') as HTMLInputElement, 'git-dev')
+    await flush()
+    expect(document.body.textContent).not.toContain('请填写名称')
+
+    click(buttonByText(document.body, '保存'))
+    await flush()
+    expect(pipelineCredentialApi.save).toHaveBeenCalledWith(expect.objectContaining({ name: 'git-dev' }))
   })
 
   it('PIPE-147: creates credential from dialog', async () => {

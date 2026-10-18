@@ -24,6 +24,8 @@ export function ConfirmDialog({
   destructive = false,
   confirmDisabled = false,
   onConfirm,
+  open,
+  onOpenChange,
   children,
 }: {
   title: ReactNode
@@ -34,11 +36,15 @@ export function ConfirmDialog({
   destructive?: boolean
   confirmDisabled?: boolean
   onConfirm: () => void
-  children: ReactNode
+  /** 受控用法：省略 `children` 时由外部控制开关。 */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** 非受控用法的触发元素。 */
+  children?: ReactNode
 }) {
   return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      {children ? <AlertDialogTrigger asChild>{children}</AlertDialogTrigger> : null}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

@@ -15,6 +15,13 @@ describe('resolveShellScope', () => {
 })
 
 describe('menuForScope', () => {
+  it('pipeline menu groups work objects and config', () => {
+    const groups = menuForScope('pipeline', { isAdmin: true })
+    expect(groups.map((group) => group.label)).toEqual([undefined, '配置'])
+    expect(groups[0]?.items.map((item) => item.label)).toEqual(['流水线'])
+    expect(groups[1]?.items.map((item) => item.label)).toEqual(['任务市场', '凭证'])
+  })
+
   it('shows only the current product menu', () => {
     expect(menuForScope('pm', { isAdmin: true }).flatMap((group) => group.items.map((item) => item.label))).toEqual([
       '项目',
