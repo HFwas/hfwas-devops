@@ -1,7 +1,7 @@
 # Agent instructions
 
 > 日期：2026-10-17
-> 版本：v0.19
+> 版本：v0.20
 
 ### 变更记录
 
@@ -26,6 +26,7 @@
 | v0.17 | 2026-10-17 | 新增「接口变更」约束：新增 / 修改接口必须同步维护 Markdown 与 Postman JSON 文档，覆盖正常与失败响应，随版本发布 |
 | v0.18 | 2026-10-17 | docs 索引新增产品文档体系入口 `docs/product/README.md`（总览 / 功能 / 数据库 / 接口 / 测试 / 原型 / 运维） |
 | v0.19 | 2026-10-18 | 新增「数据库文档」规范：四节结构、10 列数据字典、ER/枚举/JSON/迁移要求 |
+| v0.20 | 2026-10-18 | 提交门禁：CI 与 PR 必须执行测试，禁止 `-Dmaven.test.skip=true` / `-DskipTests` 跳过主流程测试 |
 
 ---
 
@@ -261,6 +262,14 @@ Docker 容器访问宿主机代理用 `host.docker.internal:7890`，不要把 `1
 ## Git 操作
 
 禁止自动 commit 和 push。所有 commit 和 push 须在用户明确指令下执行。
+
+### 提交前必须跑测试
+
+- 后端 CI（`maven.yml`、`pr-backend.yml`）使用 `mvn -B -f backend/pom.xml clean verify`，**禁止**再用 `-Dmaven.test.skip=true` 或 `-DskipTests` 跳过主流程测试。
+- 前端 PR 继续执行 `npm run build` + `npm test`。
+- 本地提交前至少运行受影响模块的测试；全量后端测试用 `mvn -B -f backend/pom.xml test`。
+- 测试失败必须先修复再提交；已知失败用例不得通过跳过测试来规避。
+- 新增/修改测试导致既有失败时，按「解决问题」流程复现、定位、修复、验证。
 
 ## 前端
 

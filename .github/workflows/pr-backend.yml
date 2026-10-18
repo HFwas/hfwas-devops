@@ -31,9 +31,9 @@ jobs:
           distribution: "temurin"
           cache: maven
 
-      # 与 maven.yml 保持一致：只验证编译，不跑测试
-      - name: Build backend modules
-        run: mvn -B -pl backend -am package -Dmaven.test.skip=true
+      # 与 maven.yml 保持一致：编译 + 全量单元/集成测试
+      - name: Build and test backend modules
+        run: mvn -B -f backend/pom.xml clean verify
 
   keycloak-listener:
     runs-on: ubuntu-latest
@@ -49,4 +49,4 @@ jobs:
 
       # 独立 pom，不在 root reactor 内，需要单独构建
       - name: Build keycloak http-event-listener
-        run: mvn -B -f keycloak/http-event-listener/pom.xml -DskipTests package
+        run: mvn -B -f keycloak/http-event-listener/pom.xml package
