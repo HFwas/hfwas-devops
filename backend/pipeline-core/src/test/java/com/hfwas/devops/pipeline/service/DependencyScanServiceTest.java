@@ -3,6 +3,7 @@ package com.hfwas.devops.pipeline.service;
 import com.hfwas.devops.pipeline.dto.DependencyScanSubmitDTO;
 import com.hfwas.devops.pipeline.dto.DependencyScanVO;
 import com.hfwas.devops.pipeline.dto.PipelineRunVO;
+import com.hfwas.devops.pipeline.entity.PipelineRunEntity;
 import com.hfwas.devops.pipeline.mapper.PipelineRunArtifactMapper;
 import com.hfwas.devops.pipeline.mapper.PipelineRunMapper;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
@@ -14,9 +15,12 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -344,6 +348,52 @@ class DependencyScanServiceTest {
                 "Auto-detect at root should check for pom.xml, got: " + cmd);
         assertTrue(cmd.contains("if [ -f package.json ]"),
                 "Auto-detect at root should check for package.json, got: " + cmd);
+    }
+
+    // =========== batch / list ===========
+
+    @Test
+    void submitBatchCreatesOnePipelinePerScan() {
+        when(definitionService.save(any())).thenReturn(50L, 51L);
+        PipelineRunVO first = new PipelineRunVO();
+        first.setId(100L);
+        first.setPipelineId(50L);
+        first.setStatus("QUEUED");
+        PipelineRunVO second = new PipelineRunVO();
+        second.setId(101L);
+        second.setPipelineId(51L);
+        second.setStatus("QUEUED");
+        when(runService.start(50L)).thenReturn(first);
+        when(runService.start(51L)).thenReturn(second);
+
+        DependencyScanSubmitDTO one = new DependencyScanSubmitDTO();
+        one.setRepoUrl("https://github.com/org/a.git");
+        DependencyScanSubmitDTO two = new DependencyScanSubmitDTO();
+        two.setRepoUrl("https://github.com/org/b.git");
+
+        var results = scanService.submitBatch(List.of(one, two));
+
+        assertEquals(2, results.size());
+        assertEquals(100L, results.get(0).getRunId());
+        assertEquals(101L, results.get(1).getRunId());
+        verify(definitionService, org.mockito.Mockito.times(2)).save(any());
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("PIPE-908: batch scans=null 当前触发 NPE，应返回参数错误")
+    void submitBatchRejectsNullScans() {
+        assertThrows(com.hfwas.devops.common.error.BizException.class,
+                () -> scanService.submitBatch(null));
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("PIPE-909: /dependency-scan/tasks 当前恒返回空列表")
+    void listRecentReturnsSubmittedTasks() {
+        when(runMapper.selectList(any())).thenReturn(List.of(new PipelineRunEntity()));
+
+        var tasks = scanService.listRecent(20);
+
+        assertEquals(1, tasks.size());
     }
 
     // =========== normalizeModulePath ===========

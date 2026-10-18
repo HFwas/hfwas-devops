@@ -213,4 +213,10 @@ describe('pipeline create and run', () => {
     expect(pipelineApi.start).toHaveBeenCalledWith('9', { GIT_REF: 'main' })
     await waitForText(document.body, '运行详情')
   })
+
+  // 期望：StartRunButton 对 paramType === 'api_select' 且 options 非空时渲染 Select。
+  // 后端 getDefaultParams 已预取 options，当前前端仍渲染普通 Input（PIPE-910）。
+  it.skip('PIPE-910: renders api_select options as a select', () => {
+    expect(true).toBe(true)
+  })
 })

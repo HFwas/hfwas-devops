@@ -231,4 +231,12 @@ describe('PipelineDetailPage', () => {
     })
     await waitForText(document.body, '运行详情页 /pipeline/pipelines/9/runs/126')
   })
+
+  it('PIPE-149: shows pipeline load failure', async () => {
+    vi.mocked(pipelineApi.get).mockRejectedValue(new Error('boom'))
+    const view = mount('/pipeline/pipelines/9')
+    root = view.root
+    container = view.container
+    await waitForText(container, '流水线加载失败')
+  })
 })

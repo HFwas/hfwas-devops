@@ -21,7 +21,7 @@ vi.mock('@/modules/pipeline/api/pipeline', () => ({
   },
 }))
 
-import { pipelineTaskKindApi } from '@/modules/pipeline/api/pipeline'
+import { pipelineJobParamApi, pipelineTaskKindApi } from '@/modules/pipeline/api/pipeline'
 import { TaskKindDetailPage } from '@/modules/pipeline/pages/TaskKindDetailPage'
 import { TaskKindListPage } from '@/modules/pipeline/pages/TaskKindListPage'
 
@@ -246,6 +246,204 @@ describe('task marketplace pages', () => {
       await flush()
     }
     expect(pipelineTaskKindApi.publish).toHaveBeenCalledWith('CLONE', { note: undefined, version: undefined })
+  })
+
+  it('PIPE-098: toggles a task kind as admin', async () => {
+    vi.mocked(pipelineTaskKindApi.toggle).mockResolvedValue(undefined)
+    const view = mount(withQuery(
+      <MemoryRouter>
+        <TaskKindListPage />
+      </MemoryRouter>,
+    ))
+    root = view.root
+    container = view.container
+    await waitForText(container, '代码克隆')
+
+    const toggle = toggleButtons(container)[0]
+    act(() => {
+      toggle?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await waitForText(document.body, '停用任务「代码克隆」？')
+    const dialog = document.querySelector('[role="alertdialog"]')
+    const confirm = [...(dialog ?? document.body).querySelectorAll('button')].find((node) => node.textContent === '停用')
+    act(() => {
+      confirm?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    for (let attempt = 0; attempt < 15 && vi.mocked(pipelineTaskKindApi.toggle).mock.calls.length === 0; attempt += 1) {
+      await flush()
+    }
+    expect(pipelineTaskKindApi.toggle).toHaveBeenCalledWith('CLONE')
+  })
+
+  it('PIPE-097: activates a historical version', async () => {
+    vi.mocked(pipelineTaskKindApi.versions).mockResolvedValue([
+      { version: '1.0.0', note: 'old', createdAt: '2026-10-01T00:00:00', isCurrent: false },
+    ])
+    vi.mocked(pipelineTaskKindApi.activate).mockResolvedValue(kinds[0])
+    const view = mount(withQuery(
+      <MemoryRouter initialEntries={['/pipeline/task-kinds/CLONE?tab=版本']}>
+        <Routes>
+          <Route path="/pipeline/task-kinds/:kind" element={<TaskKindDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    ))
+    root = view.root
+    container = view.container
+    await waitForText(container, '1.0.0')
+
+    const activateButton = [...container.querySelectorAll('button')].find((node) => node.textContent === '设为当前')
+    act(() => {
+      activateButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await waitForText(document.body, '切换到版本 1.0.0？')
+    const dialog = document.querySelector('[role="alertdialog"]')
+    const confirm = [...(dialog ?? document.body).querySelectorAll('button')].find((node) => node.textContent === '切换')
+    act(() => {
+      confirm?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    for (let attempt = 0; attempt < 15 && vi.mocked(pipelineTaskKindApi.activate).mock.calls.length === 0; attempt += 1) {
+      await flush()
+    }
+    expect(pipelineTaskKindApi.activate).toHaveBeenCalledWith('CLONE', '1.0.0')
+  })
+
+  it('PIPE-091: publishes an explicit semver', async () => {
+    const view = mount(withQuery(
+      <MemoryRouter initialEntries={['/pipeline/task-kinds/CLONE?tab=版本']}>
+        <Routes>
+          <Route path="/pipeline/task-kinds/:kind" element={<TaskKindDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    ))
+    root = view.root
+    container = view.container
+    await waitForText(container, '基于当前配置发布版本')
+
+    const open = [...container.querySelectorAll('button')].find((node) => node.textContent === '基于当前配置发布版本')
+    act(() => {
+      open?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    const versionInput = document.querySelector('#task-kind-version') as HTMLInputElement
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+    act(() => {
+      setter?.call(versionInput, '2.0.0')
+      versionInput.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    const publish = [...document.body.querySelectorAll('button')].find((node) => node.textContent === '发布')
+    act(() => {
+      publish?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    for (let attempt = 0; attempt < 15 && vi.mocked(pipelineTaskKindApi.publish).mock.calls.length === 0; attempt += 1) {
+      await flush()
+    }
+    expect(pipelineTaskKindApi.publish).toHaveBeenCalledWith('CLONE', { version: '2.0.0', note: undefined })
+  })
+
+  it('PIPE-093: rejects a non-semver version before calling API', async () => {
+    const view = mount(withQuery(
+      <MemoryRouter initialEntries={['/pipeline/task-kinds/CLONE?tab=版本']}>
+        <Routes>
+          <Route path="/pipeline/task-kinds/:kind" element={<TaskKindDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    ))
+    root = view.root
+    container = view.container
+    await waitForText(container, '基于当前配置发布版本')
+
+    const open = [...container.querySelectorAll('button')].find((node) => node.textContent === '基于当前配置发布版本')
+    act(() => {
+      open?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    const versionInput = document.querySelector('#task-kind-version') as HTMLInputElement
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+    act(() => {
+      setter?.call(versionInput, 'v2')
+      versionInput.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    const publish = [...document.body.querySelectorAll('button')].find((node) => node.textContent === '发布')
+    act(() => {
+      publish?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    await flush()
+
+    expect(pipelineTaskKindApi.publish).not.toHaveBeenCalled()
+  })
+
+  it('PIPE-089: previews api_select options', async () => {
+    vi.mocked(pipelineTaskKindApi.get).mockResolvedValue({
+      ...kinds[0],
+      params: [
+        {
+          paramKey: 'REGION',
+          paramLabel: '地域',
+          paramType: 'api_select',
+          defaultValue: '',
+          required: false,
+          sortOrder: 0,
+          visibility: 'user',
+          apiUrl: 'http://api/options',
+          apiMethod: 'GET',
+          apiResponsePath: '$.data[].name',
+        },
+      ],
+    })
+    vi.mocked(pipelineJobParamApi.previewApi).mockResolvedValue({
+      success: true,
+      options: ['a', 'b'],
+    })
+    const view = mount(withQuery(
+      <MemoryRouter initialEntries={['/pipeline/task-kinds/CLONE?tab=参数']}>
+        <Routes>
+          <Route path="/pipeline/task-kinds/:kind" element={<TaskKindDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    ))
+    root = view.root
+    container = view.container
+    await waitForText(container, '地域')
+
+    const previewButton = [...container.querySelectorAll('button')].find((node) => node.textContent === '预览选项')
+    act(() => {
+      previewButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+    for (let attempt = 0; attempt < 15 && vi.mocked(pipelineJobParamApi.previewApi).mock.calls.length === 0; attempt += 1) {
+      await flush()
+    }
+    expect(pipelineJobParamApi.previewApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiUrl: 'http://api/options',
+        apiMethod: 'GET',
+        apiHeaders: undefined,
+        apiResponsePath: '$.data[].name',
+      }),
+      expect.anything(),
+    )
+    await waitForText(container, '选项：a、b')
+  })
+
+  it('PIPE-149: shows task market load failure', async () => {
+    vi.mocked(pipelineTaskKindApi.list).mockRejectedValue(new Error('boom'))
+    const view = mount(withQuery(
+      <MemoryRouter>
+        <TaskKindListPage />
+      </MemoryRouter>,
+    ))
+    root = view.root
+    container = view.container
+    await waitForText(container, '任务市场加载失败')
+  })
+
+  it('PIPE-149: shows empty task market state', async () => {
+    vi.mocked(pipelineTaskKindApi.list).mockResolvedValue([])
+    const view = mount(withQuery(
+      <MemoryRouter>
+        <TaskKindListPage />
+      </MemoryRouter>,
+    ))
+    root = view.root
+    container = view.container
+    await waitForText(container, '没有匹配的任务')
   })
 
   it('treats ADMIN role as admin and keeps members read-only', async () => {

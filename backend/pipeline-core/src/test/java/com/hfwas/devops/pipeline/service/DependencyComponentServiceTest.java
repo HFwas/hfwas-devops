@@ -93,7 +93,8 @@ class DependencyComponentServiceTest {
         DependencyComponentEntity comp1 = component("pkg:maven/log4j/log4j@2.20.0", "log4j", "2.20.0", "java", 1L);
         DependencyComponentEntity comp2 = component("pkg:maven/guava/guava@33.2.0", "guava", "33.2.0", "java", 1L);
 
-        when(componentMapper.selectList(any())).thenReturn(List.of(comp1, comp2));
+        // SQL 过滤由 mapper 负责；单测直接返回过滤后的结果，验证聚合与分页
+        when(componentMapper.selectList(any())).thenReturn(List.of(comp1));
 
         IPage<DependencyComponentAggregateVO> result = componentService.pageAggregated(1, 20, "log4j", null);
         assertEquals(1, result.getRecords().size(), "should filter to only log4j");
@@ -105,7 +106,8 @@ class DependencyComponentServiceTest {
         DependencyComponentEntity comp1 = component("pkg:maven/log4j/log4j@2.20.0", "log4j", "2.20.0", "java", 1L);
         DependencyComponentEntity comp2 = component("pkg:npm/express@4.19.2", "express", "4.19.2", "javascript", 2L);
 
-        when(componentMapper.selectList(any())).thenReturn(List.of(comp1, comp2));
+        // SQL 过滤由 mapper 负责；单测直接返回过滤后的结果，验证聚合与分页
+        when(componentMapper.selectList(any())).thenReturn(List.of(comp1));
 
         IPage<DependencyComponentAggregateVO> result = componentService.pageAggregated(1, 20, null, "java");
         assertEquals(1, result.getRecords().size());

@@ -107,6 +107,16 @@ function setInput(root: ParentNode, label: string, value: string) {
   input?.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
+function clickButtonText(root: ParentNode, text: string) {
+  const target = [...root.querySelectorAll('button')].find((node) => node.textContent === text) as
+    | HTMLButtonElement
+    | undefined
+  expect(target, text).toBeTruthy()
+  act(() => {
+    target?.click()
+  })
+}
+
 function click(root: ParentNode, label: string) {
   const target = root.querySelector(`[aria-label="${label}"]`) as HTMLElement | null
   expect(target, label).toBeTruthy()
@@ -338,5 +348,43 @@ describe('PipelineEditorPage', () => {
     await flush()
     expect(view.querySelector('[aria-label="选择代码克隆"]')).toBeNull()
     expect(panel()?.getAttribute('data-mode')).toBe('config')
+  })
+
+  it('PIPE-137: blocks saving without a name', async () => {
+    const view = await renderNew()
+    vi.mocked(pipelineApi.create).mockClear()
+
+    clickButtonText(view, '保存')
+    await waitFor(view, '名称')
+
+    expect(view.querySelector('[data-slot="pipeline-error"]')?.textContent).toContain('名称')
+    expect(pipelineApi.create).not.toHaveBeenCalled()
+  })
+
+  it('PIPE-142: asks before discarding unsaved changes', async () => {
+    const view = await renderNew()
+    click(view, '添加阶段')
+    await flush()
+
+    clickButtonText(view, '取消')
+    await flush()
+    const dialog = document.body.querySelector('[data-slot="alert-dialog-content"]')
+    expect(dialog?.textContent).toContain('放弃未保存的修改？')
+  })
+
+  it('PIPE-149: shows pipeline load failure', async () => {
+    vi.mocked(pipelineApi.get).mockRejectedValue(new Error('boom'))
+    const view = mount(
+      withQuery(
+        <MemoryRouter initialEntries={['/pipeline/pipelines/42/edit']}>
+          <Routes>
+            <Route path="/pipeline/pipelines/:pipelineId/edit" element={<PipelineEditorPage />} />
+          </Routes>
+        </MemoryRouter>,
+      ),
+    )
+    root = view.root
+    container = view.container
+    await waitFor(view.container, '流水线加载失败')
   })
 })

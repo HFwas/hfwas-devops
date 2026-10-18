@@ -135,4 +135,71 @@ describe('PipelineListPage', () => {
     }
     expect(pipelineApi.page).toHaveBeenCalledWith(expect.objectContaining({ pageNo: 1, pageSize: 10, keyword: 'dev' }))
   })
+
+  it('PIPE-019: deletes a pipeline after confirmation', async () => {
+    vi.mocked(pipelineApi.delete).mockResolvedValue(undefined)
+    const view = mount(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <PipelineListPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    root = view.root
+    container = view.container
+    for (let attempt = 0; attempt < 20 && !container.textContent?.includes('后端发布'); attempt += 1) {
+      await flush()
+    }
+
+    const deleteButton = [...container.querySelectorAll('button')].find((node) => node.textContent === '删除')
+    act(() => {
+      deleteButton?.click()
+    })
+    for (let attempt = 0; attempt < 15 && !document.body.textContent?.includes('删除流水线'); attempt += 1) {
+      await flush()
+    }
+    const dialog = document.querySelector('[role="alertdialog"]')
+    const confirm = [...(dialog ?? document.body).querySelectorAll('button')].find((node) => node.textContent === '删除')
+    act(() => {
+      confirm?.click()
+    })
+    for (let attempt = 0; attempt < 15 && vi.mocked(pipelineApi.delete).mock.calls.length === 0; attempt += 1) {
+      await flush()
+    }
+    expect(pipelineApi.delete).toHaveBeenCalledWith(1)
+  })
+
+  it('PIPE-149: shows empty pipeline list', async () => {
+    vi.mocked(pipelineApi.page).mockResolvedValue({ records: [], total: 0, current: 1, size: 10, pages: 0 })
+    const view = mount(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <PipelineListPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    root = view.root
+    container = view.container
+    for (let attempt = 0; attempt < 20 && !container.textContent?.includes('还没有流水线'); attempt += 1) {
+      await flush()
+    }
+    expect(container.textContent).toContain('还没有流水线')
+  })
+
+  it('PIPE-149: shows pipeline list load failure', async () => {
+    vi.mocked(pipelineApi.page).mockRejectedValue(new Error('boom'))
+    const view = mount(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <PipelineListPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    root = view.root
+    container = view.container
+    for (let attempt = 0; attempt < 20 && !container.textContent?.includes('流水线列表加载失败'); attempt += 1) {
+      await flush()
+    }
+    expect(container.textContent).toContain('流水线列表加载失败')
+  })
 })

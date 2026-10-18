@@ -169,4 +169,59 @@ describe('PipelineRunDetailPage', () => {
     expect(container.textContent).toContain('取消')
     expect(container.querySelector('[data-slot="run-stage"]')?.getAttribute('data-status')).toBe('WAITING_APPROVAL')
   })
+
+  it('PIPE-145: approves a waiting run', async () => {
+    vi.mocked(pipelineApi.getRun).mockResolvedValue({
+      ...running,
+      status: 'WAITING_APPROVAL',
+      jobs: [{ ...running.jobs[0], status: 'WAITING_APPROVAL', logText: '' }],
+    })
+    vi.mocked(pipelineApi.approve).mockResolvedValue({ ...running, status: 'QUEUED' })
+    const view = renderRun()
+    root = view.root
+    container = view.container
+    await waitForText(container, '待审批')
+
+    const approveButton = [...container.querySelectorAll('button')].find((button) => button.textContent === '通过')
+    act(() => {
+      approveButton?.click()
+    })
+    await flush()
+
+    expect(pipelineApi.approve).toHaveBeenCalledWith('9', '3')
+    expect(container.textContent).not.toContain('驳回')
+  })
+
+  it('PIPE-146: cancels a running run after confirmation', async () => {
+    vi.mocked(pipelineApi.getRun).mockResolvedValue(running)
+    vi.mocked(pipelineApi.cancel).mockResolvedValue({ ...running, status: 'CANCELLED' })
+    const view = renderRun()
+    root = view.root
+    container = view.container
+    await waitForText(container, '取消')
+
+    const cancelButton = [...container.querySelectorAll('button')].find((button) => button.textContent === '取消')
+    act(() => {
+      cancelButton?.click()
+    })
+    await waitForText(document.body, '取消运行 #3？')
+    const dialog = document.querySelector('[role="alertdialog"]')
+    const confirm = [...(dialog ?? document.body).querySelectorAll('button')].find(
+      (button) => button.textContent === '取消运行',
+    )
+    act(() => {
+      confirm?.click()
+    })
+    await flush()
+
+    expect(pipelineApi.cancel).toHaveBeenCalledWith('9', '3')
+  })
+
+  it('PIPE-149: shows run load failure', async () => {
+    vi.mocked(pipelineApi.getRun).mockRejectedValue(new Error('boom'))
+    const view = renderRun()
+    root = view.root
+    container = view.container
+    await waitForText(container, '加载失败')
+  })
 })

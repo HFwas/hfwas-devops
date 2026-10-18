@@ -2,6 +2,7 @@ package com.hfwas.devops.pipeline.service;
 
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.pipeline.config.TaskResourceLimitProperties;
+import com.hfwas.devops.pipeline.dto.TaskKindParamSaveDTO;
 import com.hfwas.devops.pipeline.dto.TaskKindPublishDTO;
 import com.hfwas.devops.pipeline.dto.TaskKindUpdateDTO;
 import com.hfwas.devops.pipeline.dto.TaskKindVO;
@@ -120,6 +121,215 @@ class PipelineTaskKindServiceTest {
         verify(paramMapper).insert(paramCaptor.capture());
         assertEquals("PROFILE", paramCaptor.getValue().getParamKey());
         assertEquals("hidden", paramCaptor.getValue().getVisibility());
+    }
+
+    @Test
+    void updateRejectsMissingKind() {
+        when(mapper.selectByKind("NOPE")).thenReturn(null);
+        TaskKindUpdateDTO dto = new TaskKindUpdateDTO();
+        dto.setLabel("x");
+
+        BizException ex = assertThrows(BizException.class, () -> service.update("NOPE", dto));
+
+        assertEquals("Task 类型不存在: NOPE", ex.getMessage());
+    }
+
+    @Test
+    void updateRejectsBlankTaskGroup() {
+        when(mapper.selectByKind("BUILD")).thenReturn(kind("BUILD", "1.0.0"));
+        TaskKindUpdateDTO dto = new TaskKindUpdateDTO();
+        dto.setLabel("构建");
+        dto.setTaskGroup("  ");
+
+        BizException ex = assertThrows(BizException.class, () -> service.update("BUILD", dto));
+
+        assertEquals("分组不能为空", ex.getMessage());
+        verify(mapper, never()).updateById(any(PipelineTaskKindEntity.class));
+    }
+
+    @Test
+    void updateKeepsToolImageWhenDtoFieldIsNull() {
+        PipelineTaskKindEntity entity = kind("BUILD", "1.0.0");
+        entity.setToolImage("maven:3.9");
+        when(mapper.selectByKind("BUILD")).thenReturn(entity);
+        TaskKindUpdateDTO dto = new TaskKindUpdateDTO();
+        dto.setLabel("构建");
+        dto.setToolImage(null);
+
+        service.update("BUILD", dto);
+
+        assertEquals("maven:3.9", entity.getToolImage());
+    }
+
+    @Test
+    void updateRejectsCpuOverPlatformLimit() {
+        PipelineTaskKindEntity entity = kind("BUILD", "1.0.0");
+        when(mapper.selectByKind("BUILD")).thenReturn(entity);
+        when(resourceLimits.getMaxCpu()).thenReturn(8.0);
+        TaskKindUpdateDTO dto = new TaskKindUpdateDTO();
+        dto.setLabel("构建");
+        dto.setCpuLimit("16");
+
+        BizException ex = assertThrows(BizException.class, () -> service.update("BUILD", dto));
+
+        assertTrue(ex.getMessage().contains("超过平台最大限制"));
+    }
+
+    @Test
+    void updateRejectsMemoryOverPlatformLimit() {
+        when(mapper.selectByKind("BUILD")).thenReturn(kind("BUILD", "1.0.0"));
+        when(resourceLimits.getMaxMemory()).thenReturn("32Gi");
+        TaskKindUpdateDTO dto = new TaskKindUpdateDTO();
+        dto.setLabel("构建");
+        dto.setMemoryLimit("64Gi");
+
+        BizException ex = assertThrows(BizException.class, () -> service.update("BUILD", dto));
+
+        assertTrue(ex.getMessage().contains("超过平台最大限制"));
+    }
+
+    @Test
+    void updateReplacesParamsAndRejectsDuplicateKey() {
+        when(mapper.selectByKind("BUILD")).thenReturn(kind("BUILD", "1.0.0"));
+        TaskKindUpdateDTO dto = new TaskKindUpdateDTO();
+        dto.setLabel("构建");
+        dto.setParams(List.of(param("PROFILE", "dev"), param("PROFILE", "prod")));
+
+        BizException ex = assertThrows(BizException.class, () -> service.update("BUILD", dto));
+
+        assertEquals("参数键重复: PROFILE", ex.getMessage());
+        verify(paramMapper).softDeleteByKindValue("BUILD");
+    }
+
+    @Test
+    void updateRejectsInvalidParamKey() {
+        when(mapper.selectByKind("BUILD")).thenReturn(kind("BUILD", "1.0.0"));
+        TaskKindUpdateDTO dto = new TaskKindUpdateDTO();
+        dto.setLabel("构建");
+        dto.setParams(List.of(param("1-bad", "x")));
+
+        BizException ex = assertThrows(BizException.class, () -> service.update("BUILD", dto));
+
+        assertTrue(ex.getMessage().contains("参数键只允许字母、数字和下划线"));
+    }
+
+    @Test
+    void updateRejectsUnsupportedParamType() {
+        when(mapper.selectByKind("BUILD")).thenReturn(kind("BUILD", "1.0.0"));
+        TaskKindUpdateDTO dto = new TaskKindUpdateDTO();
+        dto.setLabel("构建");
+        TaskKindParamSaveDTO param = param("PROFILE", "dev");
+        param.setParamType("radio");
+        dto.setParams(List.of(param));
+
+        BizException ex = assertThrows(BizException.class, () -> service.update("BUILD", dto));
+
+        assertTrue(ex.getMessage().contains("参数类型只支持"));
+    }
+
+    @Test
+    void updateAppliesParamDefaultsAndVisibility() {
+        when(mapper.selectByKind("BUILD")).thenReturn(kind("BUILD", "1.0.0"));
+        TaskKindUpdateDTO dto = new TaskKindUpdateDTO();
+        dto.setLabel("构建");
+        TaskKindParamSaveDTO param = param("PROFILE", "dev");
+        param.setParamLabel(null);
+        param.setParamType(null);
+        param.setVisibility("hidden");
+        dto.setParams(List.of(param));
+
+        service.update("BUILD", dto);
+
+        ArgumentCaptor<PipelineTaskKindParamEntity> captor = ArgumentCaptor.forClass(PipelineTaskKindParamEntity.class);
+        verify(paramMapper).insert(captor.capture());
+        assertEquals("PROFILE", captor.getValue().getParamLabel());
+        assertEquals("input", captor.getValue().getParamType());
+        assertEquals("GET", captor.getValue().getApiMethod());
+        assertEquals("hidden", captor.getValue().getVisibility());
+    }
+
+    @Test
+    void toggleFlipsEnabledAndRejectsMissing() {
+        PipelineTaskKindEntity entity = kind("BUILD", "1.0.0");
+        when(mapper.selectByKind("BUILD")).thenReturn(entity);
+
+        service.toggle("BUILD");
+        assertEquals(0, entity.getEnabled());
+
+        when(mapper.selectByKind("NOPE")).thenReturn(null);
+        BizException ex = assertThrows(BizException.class, () -> service.toggle("NOPE"));
+        assertEquals("Task 类型不存在: NOPE", ex.getMessage());
+    }
+
+    @Test
+    void listVersionsMarksCurrent() {
+        when(mapper.selectByKind("BUILD")).thenReturn(kind("BUILD", "1.0.1"));
+        PipelineTaskKindVersionEntity current = new PipelineTaskKindVersionEntity();
+        current.setVersion("1.0.1");
+        PipelineTaskKindVersionEntity older = new PipelineTaskKindVersionEntity();
+        older.setVersion("1.0.0");
+        when(versionMapper.selectByKind("BUILD")).thenReturn(List.of(current, older));
+
+        var versions = service.listVersions("BUILD");
+
+        assertEquals(true, versions.getFirst().getIsCurrent());
+        assertEquals(false, versions.get(1).getIsCurrent());
+    }
+
+    @Test
+    void activateRejectsBlankAndMissingVersion() {
+        when(mapper.selectByKind("BUILD")).thenReturn(kind("BUILD", "1.0.0"));
+
+        BizException blank = assertThrows(BizException.class, () -> service.activate("BUILD", " "));
+        assertEquals("版本号不能为空", blank.getMessage());
+
+        when(versionMapper.selectByKindAndVersion("BUILD", "9.9.9")).thenReturn(null);
+        BizException missing = assertThrows(BizException.class, () -> service.activate("BUILD", "9.9.9"));
+        assertEquals("版本不存在: 9.9.9", missing.getMessage());
+    }
+
+    @Test
+    void publishRejectsOverlongNote() {
+        when(mapper.selectByKind("BUILD")).thenReturn(kind("BUILD", "1.0.0"));
+        TaskKindPublishDTO dto = new TaskKindPublishDTO();
+        dto.setNote("x".repeat(501));
+
+        BizException ex = assertThrows(BizException.class, () -> service.publish("BUILD", dto));
+
+        assertEquals("版本备注不能超过 500 字", ex.getMessage());
+    }
+
+    @Test
+    void getReturnsParamsAndEnabledFlag() {
+        when(mapper.selectByKind("BUILD")).thenReturn(kind("BUILD", "1.0.0"));
+        when(paramMapper.selectByKindValue("BUILD")).thenReturn(List.of());
+
+        TaskKindVO vo = service.getByKind("BUILD");
+
+        assertEquals("BUILD", vo.getKindValue());
+        assertEquals(true, vo.getEnabled());
+        assertTrue(vo.getParams().isEmpty());
+    }
+
+    @Test
+    void listAllIncludesDisabledKinds() {
+        PipelineTaskKindEntity disabled = kind("OLD", "1.0.0");
+        disabled.setEnabled(0);
+        when(mapper.selectList(null)).thenReturn(List.of(disabled));
+
+        List<TaskKindVO> rows = service.listAll();
+
+        assertEquals(1, rows.size());
+        assertEquals(false, rows.getFirst().getEnabled());
+    }
+
+    private static TaskKindParamSaveDTO param(String key, String defaultValue) {
+        TaskKindParamSaveDTO dto = new TaskKindParamSaveDTO();
+        dto.setParamKey(key);
+        dto.setParamLabel(key);
+        dto.setParamType("input");
+        dto.setDefaultValue(defaultValue);
+        return dto;
     }
 
     private static PipelineTaskKindEntity kind(String kind, String version) {
