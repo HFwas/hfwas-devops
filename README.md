@@ -1,7 +1,7 @@
 # HFWAS DevOps
 
-> 日期：2026-10-07
-> 版本：v0.6
+> 日期：2026-10-17
+> 版本：v0.7
 
 ### 变更记录
 
@@ -13,10 +13,11 @@
 | v0.4 | 2026-09-15 | 补齐容器平台、流水线/CI、API 测试平台、图片处理四大新增子系统；更新项目结构与 API 索引 |
 | v0.5 | 2026-10-01 | 各服务 Dockerfile 集中到 `deploy/docker/<服务名>/` |
 | v0.6 | 2026-10-07 | 文档索引补充 Helm 包上传推仓与安装/升级实施计划 |
+| v0.7 | 2026-10-17 | 新增 `docs/product/` 产品文档体系索引；修正前端技术栈（React 19）、认证说明与失效文档链接 |
 
 ---
 
-可扩展的 DevOps 平台，当前包含 **项目管理（PM）**、**用户/租户中心**、**流水线/CI**、**容器平台**、**API 测试平台**、**文档生成（Docgen）**、**文件解析（File Parser）** 与 **图片处理** 八大子系统。后端为单体 Spring Boot 服务，前端为 Vue 3 SPA，本地开发使用 SQLite，零外部依赖即可启动。
+可扩展的 DevOps 平台，当前包含 **项目管理（PM）**、**用户/租户中心**、**流水线/CI**、**容器平台**、**API 测试平台**、**文档生成（Docgen）**、**文件解析（File Parser）** 与 **图片处理** 八大子系统。后端为单体 Spring Boot 服务，前端为 React 19 SPA，本地开发使用 SQLite，零外部依赖即可启动。产品级文档（总览、功能、数据库、接口、测试、原型、运维）见 [docs/product/README.md](docs/product/README.md)。
 
 ---
 
@@ -30,7 +31,7 @@
 | 统一事项（Work Item） | 需求、任务、缺陷等共用模型，Jira 式 `itemKey`（如 `DEMO-1`） |
 | 动态字段 | 字段定义、类型绑定、布局配置；支持多种字段类型 SPI |
 | 组合查询 | 可视化 QueryBuilder，多条件 AND/OR |
-| 状态工作流 | 状态矩阵、流转校验、Post-function、Condition、Vue Flow 可视化设计器 |
+| 状态工作流 | 状态矩阵、流转校验、Post-function、Condition、可视化工作流设计器 |
 | 看板 | 按类型分列展示，拖拽流转 |
 | 事项关联与活动 | 链接、评论、变更活动日志 |
 | 导入导出 | Excel 模板下载、预览与批量导入 |
@@ -53,7 +54,7 @@
 
 | 能力 | 说明 |
 |------|------|
-| 流水线编排 | 可视化 DAG 编排（Vue Flow），多阶段并行/串行任务 |
+| 流水线编排 | 可视化 DAG 编排，多阶段并行/串行任务 |
 | 任务市场 | 预置任务类型：GIT_CLONE、MAVEN_BUILD、DEPENDENCY_ANALYSIS、DEPENDENCY_TRACK、KUBECTL、IMAGE_BUILD、DOCKER_PUSH、HELM_UPGRADE 等 |
 | 任务脚本模板化 | 所有 Tekton 任务脚本由数据库管理，支持 CodeMirror 编辑器在线编辑与校验 |
 | 运行时参数 | 支持 input / select / api_select 三种参数来源，运行弹框选择 |
@@ -124,7 +125,7 @@
 | 层级 | 技术 |
 |------|------|
 | 后端 | Java 21、Spring Boot 3.4、Spring Security、MyBatis-Plus |
-| 前端 | Vue 3、TypeScript、Vite 6、Naive UI、Pinia、Vue Flow |
+| 前端 | React 19、TypeScript、Vite 6、React Router 8、Tailwind CSS v4、shadcn/ui、TanStack Query、Zustand |
 | 脚本 | Python 3（python-docx、openpyxl、python-pptx、matplotlib、fpdf） |
 | 数据库 | SQLite（Compose / Helm 由 `schema-migrate` 容器执行 SQL；宿主机 `start-backend.sh` 仍进程内建表） |
 | 构建 | Maven 3.8+、npm |
@@ -175,7 +176,7 @@ hfwas-devops/
 │   │   ├── Chart.yaml
 │   │   ├── values.yaml
 │   │   └── templates/               # ConfigMap、Deployment、HPA、Service、Secret、PVC、Logback
-│   ├── frontend/                    # Helm Chart（前端 Vue 3 + Nginx 部署）
+│   ├── frontend/                    # Helm Chart（前端 React 19 + Nginx 部署）
 │   │   ├── Chart.yaml
 │   │   ├── values.yaml
 │   │   └── templates/               # ConfigMap、Deployment、HPA、Ingress、Service
@@ -284,7 +285,7 @@ BACKEND_PORT=8089 FRONTEND_PORT=5173 ./scripts/start-dev.sh
 
 ### 认证
 
-除 `/health/check`、`/user/auth/login` 外，接口需携带：
+登录由 Keycloak 完成（后端无 `/user/auth/login` 接口）。除 `/health/check` 等白名单外，接口需携带：
 
 | Header | 说明 |
 |--------|------|
@@ -304,7 +305,7 @@ BACKEND_PORT=8089 FRONTEND_PORT=5173 ./scripts/start-dev.sh
 }
 ```
 
-- `code === 0` 表示成功；非零为业务错误码（见 [docs/error-code-design.md](docs/error-code-design.md)）
+- `code === 0` 表示成功；非零为业务错误码（见 [docs/backend/error-code-design.md](docs/backend/error-code-design.md)）
 - `requestId` 请求追踪 ID，由 `RequestIdResponseAdvice` 自动注入每个响应，出错时用于检索完整链路日志
 - Long 类型 ID 序列化为字符串，避免 JavaScript 精度丢失
 
@@ -630,11 +631,18 @@ helm uninstall dependency-track
 
 | 文档 | 说明 |
 |------|------|
+| **产品文档** | |
+| [docs/product/README.md](docs/product/README.md) | 产品文档总索引（总览 / 功能 / 数据库 / 接口 / 测试 / 原型 / 运维） |
+| [docs/product/01-overview/product-overview.md](docs/product/01-overview/product-overview.md) | 产品定位、子系统与核心链路 |
+| [docs/product/02-features/feature-catalog.md](docs/product/02-features/feature-catalog.md) | 功能清单与状态 |
+| [docs/product/03-database/data-dictionary.md](docs/product/03-database/data-dictionary.md) | 全库数据字典 |
+| [docs/product/04-api/api-overview.md](docs/product/04-api/api-overview.md) | 接口总览与通用约定 |
+| [docs/product/05-testing/test-spec.md](docs/product/05-testing/test-spec.md) | 测试规范与用例 |
 | **项目管理** | |
-| [docs/pm-design.md](docs/pm-design.md) | PM 架构与领域设计 |
-| [docs/pm-api.md](docs/pm-api.md) | PM REST API 完整说明 |
-| [docs/pm-evolution-roadmap.md](docs/pm-evolution-roadmap.md) | PM 分步演进路线图 |
-| [docs/pm-jira-comparison.md](docs/pm-jira-comparison.md) | 与 Jira 能力对比 |
+| [docs/pm/pm-design.md](docs/pm/pm-design.md) | PM 架构与领域设计 |
+| [docs/pm/pm-api.md](docs/pm/pm-api.md) | PM REST API 完整说明 |
+| [docs/pm/pm-evolution-roadmap.md](docs/pm/pm-evolution-roadmap.md) | PM 分步演进路线图 |
+| [docs/pm/pm-jira-comparison.md](docs/pm/pm-jira-comparison.md) | 与 Jira 能力对比 |
 | [docs/evolution/](docs/evolution/) | 各演进步骤详细设计 |
 | **流水线/CI** | |
 | [docs/pipeline/pipeline-core-api.md](docs/pipeline/pipeline-core-api.md) | 流水线 API 说明 |
@@ -658,7 +666,7 @@ helm uninstall dependency-track
 | [docs/devops/app-helm-deploy.md](docs/devops/app-helm-deploy.md) | 应用镜像构建与 Helm 升级 |
 | **后端架构** | |
 | [docs/backend/](docs/backend/) | 后端架构与 API |
-| [docs/error-code-design.md](docs/error-code-design.md) | 全局错误码规范 |
+| [docs/backend/error-code-design.md](docs/backend/error-code-design.md) | 全局错误码规范 |
 | **前端** | |
 | [docs/frontend/](docs/frontend/) | 前端文档 |
 | **其他** | |

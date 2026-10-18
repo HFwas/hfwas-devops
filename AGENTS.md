@@ -1,7 +1,7 @@
 # Agent instructions
 
 > 日期：2026-10-17
-> 版本：v0.16
+> 版本：v0.19
 
 ### 变更记录
 
@@ -23,6 +23,9 @@
 | v0.14 | 2026-10-17 | 新增「新增功能」约束：先写功能设计、测试用例、代码变更三份文档再实施；实施后由独立 agent 比对文档差异并验证测试 |
 | v0.15 | 2026-10-17 | 修正：每个功能三份文档统一放在 `docs/superpowers/features/YYYY-MM-DD-<feature>/` 独立目录下，不再分散到不同顶层目录 |
 | v0.16 | 2026-10-17 | 修正：功能文档目录前缀日期格式改为 `YYYYMMDD` |
+| v0.17 | 2026-10-17 | 新增「接口变更」约束：新增 / 修改接口必须同步维护 Markdown 与 Postman JSON 文档，覆盖正常与失败响应，随版本发布 |
+| v0.18 | 2026-10-17 | docs 索引新增产品文档体系入口 `docs/product/README.md`（总览 / 功能 / 数据库 / 接口 / 测试 / 原型 / 运维） |
+| v0.19 | 2026-10-18 | 新增「数据库文档」规范：四节结构、10 列数据字典、ER/枚举/JSON/迁移要求 |
 
 ---
 
@@ -41,6 +44,8 @@ HFWAS DevOps：从 0 到 1 的 DevOps 平台。后端 Spring Boot 3 / Java 21。
 
 | 主题 | 目录 |
 |------|------|
+| 产品总览 / 功能 / 数据库 / 接口 / 测试 / 原型 / 运维 | `docs/product/README.md` |
+| 数据库文档规范 | `docs/product/03-database/database-documentation-standard.md` |
 | Kong / 代理 / 本机安装 | `docs/devops/` |
 | 应用镜像 / Helm 升级 | `docs/devops/app-helm-deploy.md` |
 | 流水线 / Tekton / CI | `docs/pipeline/` |
@@ -48,6 +53,7 @@ HFWAS DevOps：从 0 到 1 的 DevOps 平台。后端 Spring Boot 3 / Java 21。
 | PM 设计与 API | `docs/pm/` |
 | PM 工作流演进 | `docs/evolution/` |
 | 后端架构 / API / 库表 | `docs/backend/` |
+| 接口文档（Markdown + Postman） | 既有模块见「接口变更」一节；新模块 `docs/api/<module>/` |
 | 前端 | `docs/frontend/`；强制规范 `docs/frontend/ai-collaboration-frontend.md` |
 | 文件解析 / OCR | `docs/file-parser/` |
 | 文档生成 | `docs/docgen/` |
@@ -106,6 +112,44 @@ docs/superpowers/features/YYYYMMDD-<feature>/
    - 有差异或有用例不通过 → 修复后重新校验；**未重新校验不得声称功能完成**。
 
 三份文档同样遵守下面「文档」一节的版本号与变更记录要求。
+
+## 接口变更：必须同步维护接口文档
+
+新增或修改任何 HTTP 接口（路径、方法、鉴权、请求参数、header、请求体、返回结构、错误码、行为语义）时，**同一分支内**必须同步更新接口文档。代码改完、文档没改，视为未完成。
+
+### 文档形态与位置
+
+每个模块维护两份内容等价的文档，放在**同一目录、同一文件名**（仅扩展名不同）：
+
+| 形态 | 文件名 | 用途 |
+| ---- | ------ | ---- |
+| Markdown | `<module>-api.md` | 人读，随版本发布 |
+| Postman Collection | `<module>-api.postman_collection.json` | Postman 直接 Import，调试与回归 |
+
+- 已有模块沿用现有位置与文件名，不要另起一套：`docs/backend/api_spec.md`、`docs/pipeline/pipeline-core-api.md`、`docs/pm/pm-api.md`。
+- 新模块统一放在 `docs/api/<module>/` 下，文件名 `<module>-api.md` 与 `<module>-api.postman_collection.json`。
+- Postman 文件必须是 v2.1 collection 格式，可按模块合并，按功能用 folder 分组。
+
+### 每个接口必须覆盖
+
+1. **请求定义**：方法、路径、鉴权方式、路径参数、查询参数、请求 header（如 `Authorization`、`Content-Type`、`X-Request-Id`）、请求体字段（类型、是否必填、约束、示例）。
+2. **正常响应**：HTTP 状态码 + 完整响应体示例（`BaseResult<T>` 的 `code` / `msg` / `data` / `requestId`）。
+3. **失败响应**：至少覆盖
+   - 参数校验失败（HTTP 4xx，含具体字段错误信息）；
+   - 业务失败（HTTP 200 且 `code != 0`，或实际约定的错误状态码）；
+   - 鉴权 / 权限失败（401 / 403）。
+   每种失败都要给出请求输入与完整响应体示例，并写明错误码含义（对齐 `docs/backend/error-code-design.md`）。
+4. **变更记录**：Markdown 文档按下面「文档」一节维护版本号与变更记录，写清本次新增 / 修改了哪些字段、错误码或行为。
+
+### Postman 要求
+
+- 每个接口至少保存 **1 个正常响应 example** 和 **1 个失败响应 example**（Postman 的 saved examples），便于后续回归与发布演示。
+- 修改接口时同步更新 collection 内的 url、params、headers、body 与 examples，不要只改代码留着旧 collection。
+- 集合变量（`baseUrl`、token 等）用 `{{variable}}`，不要写死环境地址或密钥。
+
+### 发布
+
+接口文档（Markdown + Postman JSON）随版本一起交付，是发布产物的组成部分。发版前确认：本次版本涉及的接口在文档中均有正常与失败响应示例；缺少示例的接口视为文档不完整。
 
 ## 绿野项目：不做存量兼容
 
@@ -267,3 +311,14 @@ Docker 容器访问宿主机代理用 `host.docker.internal:7890`，不要把 `1
    - 确保两种模式建表结果一致。
 
 5. **当前仅有 SQLite。** 引入新数据库（如 MySQL、PostgreSQL）时再建立对应子目录，命名规范后续补充。
+
+## 数据库文档
+
+所有数据库文档（`docs/product/03-database/` 及模块数据库设计文档）必须遵循 `docs/product/03-database/database-documentation-standard.md`：
+
+1. 每个模块固定四节：**ER 图 → 表清单 → 数据字典 → 迁移与 DDL**。
+2. 每张表先写表级元数据（用途、写入方、租户隔离、逻辑删除、量级、保留策略、敏感数据），再写 **10 列字段字典**：序号、字段名、中文名、主/外键、索引、类型、长度/精度、空否、默认值、说明。
+3. 字段说明不得为空；枚举、JSON 结构、敏感字段必须单独成节。
+4. ER 图优先使用 Mermaid `erDiagram`；可选 DBML。
+5. 新增/修改表、字段、索引、枚举时，必须在同一变更内更新对应数据库文档与 `docs/product/03-database/data-dictionary.md`，否则视为未完成。
+6. DDL 以 schema SQL 为准，文档列出文件、迁移编号与 embedded/external 差异，不复制大段建表语句。

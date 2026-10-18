@@ -1,0 +1,4837 @@
+{
+  "info": {
+    "name": "pipeline-core API",
+    "description": "HFWAS DevOps 流水线接口集合；变量 baseUrl/token/tenantId 等。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8089"
+    },
+    {
+      "key": "token",
+      "value": "<keycloak-jwt>"
+    },
+    {
+      "key": "tenantId",
+      "value": "1"
+    },
+    {
+      "key": "pipelineId",
+      "value": "1"
+    },
+    {
+      "key": "runId",
+      "value": "100"
+    },
+    {
+      "key": "credentialId",
+      "value": "1"
+    },
+    {
+      "key": "kind",
+      "value": "BUILD"
+    },
+    {
+      "key": "artifactId",
+      "value": "5"
+    }
+  ],
+  "item": [
+    {
+      "name": "Pipelines",
+      "item": [
+        {
+          "name": "分页查询流水线",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/pipelines/page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "pipelines",
+                "page"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pageNo\": 1,\n  \"pageSize\": 10,\n  \"keyword\": \"demo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "分页查询流水线 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/page",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "page"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pageNo\": 1,\n  \"pageSize\": 10,\n  \"keyword\": \"demo\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"records\": [\n      {\n        \"id\": 1,\n        \"name\": \"demo\",\n        \"repoUrl\": \"https://github.com/org/app.git\",\n        \"gitRef\": \"main\",\n        \"stages\": []\n      }\n    ],\n    \"total\": 1,\n    \"size\": 10,\n    \"current\": 1\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "分页查询流水线 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/page",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "page"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pageNo\": 1,\n  \"pageSize\": 10,\n  \"keyword\": \"demo\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "创建流水线",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/pipelines",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "pipelines"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"demo\",\n  \"repoUrl\": \"https://github.com/org/app.git\",\n  \"gitRef\": \"main\",\n  \"stages\": [\n    {\n      \"name\": \"build\",\n      \"jobs\": [\n        {\n          \"name\": \"build\",\n          \"kind\": \"BUILD\",\n          \"command\": \"mvn package\"\n        }\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "创建流水线 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"demo\",\n  \"repoUrl\": \"https://github.com/org/app.git\",\n  \"gitRef\": \"main\",\n  \"stages\": [\n    {\n      \"name\": \"build\",\n      \"jobs\": [\n        {\n          \"name\": \"build\",\n          \"kind\": \"BUILD\",\n          \"command\": \"mvn package\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": 1,\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "创建流水线 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"demo\",\n  \"repoUrl\": \"https://github.com/org/app.git\",\n  \"gitRef\": \"main\",\n  \"stages\": [\n    {\n      \"name\": \"build\",\n      \"jobs\": [\n        {\n          \"name\": \"build\",\n          \"kind\": \"BUILD\",\n          \"command\": \"mvn package\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "流水线详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "pipelines",
+                "{{pipelineId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "流水线详情 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"id\": 1,\n    \"name\": \"demo\",\n    \"stages\": []\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "流水线详情 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10003,\n  \"msg\": \"流水线不存在\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "更新流水线",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "pipelines",
+                "{{pipelineId}}"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"demo-v2\",\n  \"stages\": [\n    {\n      \"name\": \"build\",\n      \"jobs\": [\n        {\n          \"name\": \"build\",\n          \"kind\": \"BUILD\",\n          \"command\": \"mvn package\"\n        }\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "更新流水线 - 正常",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"demo-v2\",\n  \"stages\": [\n    {\n      \"name\": \"build\",\n      \"jobs\": [\n        {\n          \"name\": \"build\",\n          \"kind\": \"BUILD\",\n          \"command\": \"mvn package\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": 1,\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "更新流水线 - 失败",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"demo-v2\",\n  \"stages\": [\n    {\n      \"name\": \"build\",\n      \"jobs\": [\n        {\n          \"name\": \"build\",\n          \"kind\": \"BUILD\",\n          \"command\": \"mvn package\"\n        }\n      ]\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "删除流水线",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "pipelines",
+                "{{pipelineId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "删除流水线 - 正常",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {},\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "删除流水线 - 失败",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10003,\n  \"msg\": \"流水线不存在\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "运行分页",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs?pageNo=1&pageSize=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "pipelines",
+                "{{pipelineId}}",
+                "runs?pageNo=1&pageSize=10"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "运行分页 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs?pageNo=1&pageSize=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs?pageNo=1&pageSize=10"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"records\": [],\n    \"total\": 0,\n    \"size\": 10,\n    \"current\": 1\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "运行分页 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs?pageNo=1&pageSize=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs?pageNo=1&pageSize=10"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "触发运行",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "pipelines",
+                "{{pipelineId}}",
+                "runs"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"params\": {\n    \"GIT_REF\": \"main\",\n    \"PROFILE\": \"dev\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "触发运行 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"params\": {\n    \"GIT_REF\": \"main\",\n    \"PROFILE\": \"dev\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"id\": 100,\n    \"pipelineId\": 1,\n    \"status\": \"QUEUED\",\n    \"trigger\": \"MANUAL\"\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "触发运行 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"params\": {\n    \"GIT_REF\": \"main\",\n    \"PROFILE\": \"dev\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "默认运行参数",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/default-params",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "pipelines",
+                "{{pipelineId}}",
+                "runs",
+                "default-params"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "默认运行参数 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/default-params",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs",
+                    "default-params"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": [\n    {\n      \"paramKey\": \"PROFILE\",\n      \"paramLabel\": \"环境\",\n      \"paramType\": \"select\",\n      \"defaultValue\": \"dev\",\n      \"required\": true,\n      \"options\": [\n        \"dev\",\n        \"prod\"\n      ]\n    }\n  ],\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "默认运行参数 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/default-params",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs",
+                    "default-params"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "运行详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/{{runId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "pipelines",
+                "{{pipelineId}}",
+                "runs",
+                "{{runId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "运行详情 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/{{runId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs",
+                    "{{runId}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"id\": 100,\n    \"pipelineId\": 1,\n    \"status\": \"SUCCEEDED\",\n    \"jobs\": []\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "运行详情 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/{{runId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs",
+                    "{{runId}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10003,\n  \"msg\": \"运行记录不存在\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "取消运行",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/{{runId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "pipelines",
+                "{{pipelineId}}",
+                "runs",
+                "{{runId}}",
+                "cancel"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "取消运行 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/{{runId}}/cancel",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs",
+                    "{{runId}}",
+                    "cancel"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"id\": 100,\n    \"status\": \"CANCELLED\"\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "取消运行 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/{{runId}}/cancel",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs",
+                    "{{runId}}",
+                    "cancel"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "审批通过",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/{{runId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "pipelines",
+                "{{pipelineId}}",
+                "runs",
+                "{{runId}}",
+                "approve"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "审批通过 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/{{runId}}/approve",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs",
+                    "{{runId}}",
+                    "approve"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"id\": 100,\n    \"status\": \"QUEUED\"\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "审批通过 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/{{runId}}/approve",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs",
+                    "{{runId}}",
+                    "approve"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"当前运行不在待审批\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Credentials",
+      "item": [
+        {
+          "name": "凭证列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/credentials",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "credentials"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "凭证列表 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/credentials",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "credentials"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": [\n    {\n      \"id\": 1,\n      \"name\": \"git-prod\",\n      \"kind\": \"PASSWORD\",\n      \"username\": \"ada\"\n    }\n  ],\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "凭证列表 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/credentials",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "credentials"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "凭证详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/credentials/{{credentialId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "credentials",
+                "{{credentialId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "凭证详情 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/credentials/{{credentialId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "credentials",
+                    "{{credentialId}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"id\": 1,\n    \"name\": \"git-prod\",\n    \"kind\": \"PASSWORD\",\n    \"username\": \"ada\"\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "凭证详情 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/credentials/{{credentialId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "credentials",
+                    "{{credentialId}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10003,\n  \"msg\": \"凭证不存在\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "凭证分页",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/credentials/page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "credentials",
+                "page"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pageNo\": 1,\n  \"pageSize\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "凭证分页 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/credentials/page",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "credentials",
+                    "page"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pageNo\": 1,\n  \"pageSize\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"records\": [],\n    \"total\": 0,\n    \"size\": 10,\n    \"current\": 1\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "凭证分页 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/credentials/page",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "credentials",
+                    "page"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pageNo\": 1,\n  \"pageSize\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "保存凭证",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/credentials",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "credentials"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"git-prod\",\n  \"kind\": \"PASSWORD\",\n  \"username\": \"ada\",\n  \"secret\": \"******\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "保存凭证 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/credentials",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "credentials"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"git-prod\",\n  \"kind\": \"PASSWORD\",\n  \"username\": \"ada\",\n  \"secret\": \"******\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": 1,\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "保存凭证 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/credentials",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "credentials"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"git-prod\",\n  \"kind\": \"PASSWORD\",\n  \"username\": \"ada\",\n  \"secret\": \"******\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "删除凭证",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/credentials/{{credentialId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "credentials",
+                "{{credentialId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "删除凭证 - 正常",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/credentials/{{credentialId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "credentials",
+                    "{{credentialId}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {},\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "删除凭证 - 失败",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/credentials/{{credentialId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "credentials",
+                    "{{credentialId}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"凭证仍被流水线引用，无法删除\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Task Kinds",
+      "item": [
+        {
+          "name": "任务类型列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/task-kinds",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "task-kinds"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "任务类型列表 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": [\n    {\n      \"kindValue\": \"BUILD\",\n      \"label\": \"构建\",\n      \"enabled\": true,\n      \"params\": []\n    }\n  ],\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "任务类型列表 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "任务类型详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "task-kinds",
+                "{{kind}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "任务类型详情 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"kindValue\": \"BUILD\",\n    \"label\": \"构建\",\n    \"params\": []\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "任务类型详情 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10003,\n  \"msg\": \"Task 类型不存在: BUILD\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "更新任务类型",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "task-kinds",
+                "{{kind}}"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"构建\",\n  \"taskGroup\": \"构建\",\n  \"params\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "更新任务类型 - 正常",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"label\": \"构建\",\n  \"taskGroup\": \"构建\",\n  \"params\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {},\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "更新任务类型 - 失败",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"label\": \"构建\",\n  \"taskGroup\": \"构建\",\n  \"params\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "启停任务类型",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/toggle",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "task-kinds",
+                "{{kind}}",
+                "toggle"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "启停任务类型 - 正常",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/toggle",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}",
+                    "toggle"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {},\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "启停任务类型 - 失败",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/toggle",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}",
+                    "toggle"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "版本列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/versions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "task-kinds",
+                "{{kind}}",
+                "versions"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "版本列表 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/versions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}",
+                    "versions"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": [\n    {\n      \"version\": \"1.0.0\",\n      \"isCurrent\": true\n    }\n  ],\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "版本列表 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/versions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}",
+                    "versions"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "发布版本",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/versions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "task-kinds",
+                "{{kind}}",
+                "versions"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"version\": \"1.0.1\",\n  \"note\": \"release\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "发布版本 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/versions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}",
+                    "versions"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"version\": \"1.0.1\",\n  \"note\": \"release\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"version\": \"1.0.1\",\n    \"isCurrent\": true\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "发布版本 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/versions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}",
+                    "versions"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"version\": \"1.0.1\",\n  \"note\": \"release\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10004,\n  \"msg\": \"版本已存在: 1.0.1\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "激活版本",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/versions/1.0.0/activate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "task-kinds",
+                "{{kind}}",
+                "versions",
+                "1.0.0",
+                "activate"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "激活版本 - 正常",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/versions/1.0.0/activate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}",
+                    "versions",
+                    "1.0.0",
+                    "activate"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"kindValue\": \"BUILD\",\n    \"version\": \"1.0.0\"\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "激活版本 - 失败",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/versions/1.0.0/activate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}",
+                    "versions",
+                    "1.0.0",
+                    "activate"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10003,\n  \"msg\": \"版本不存在: 1.0.0\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "校验脚本",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "task-kinds",
+                "{{kind}}",
+                "validate"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"script\": \"echo hello\\n\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "校验脚本 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/validate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}",
+                    "validate"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"script\": \"echo hello\\n\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"valid\": true,\n    \"errors\": []\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "校验脚本 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/task-kinds/{{kind}}/validate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "task-kinds",
+                    "{{kind}}",
+                    "validate"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"script\": \"echo hello\\n\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Job Params",
+      "item": [
+        {
+          "name": "参数列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/job-params?pipelineId={{pipelineId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "job-params?pipelineId={{pipelineId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "参数列表 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/job-params?pipelineId={{pipelineId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "job-params?pipelineId={{pipelineId}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": [\n    {\n      \"paramKey\": \"PROFILE\",\n      \"paramType\": \"select\"\n    }\n  ],\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "参数列表 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/job-params?pipelineId={{pipelineId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "job-params?pipelineId={{pipelineId}}"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "参数详情",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/job-params/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "job-params",
+                "1"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "参数详情 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/job-params/1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "job-params",
+                    "1"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"id\": 1,\n    \"paramKey\": \"PROFILE\",\n    \"paramType\": \"select\"\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "参数详情 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/job-params/1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "job-params",
+                    "1"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10003,\n  \"msg\": \"参数定义不存在\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "创建参数",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/job-params",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "job-params"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pipelineId\": 1,\n  \"jobId\": 10,\n  \"paramKey\": \"PROFILE\",\n  \"paramLabel\": \"环境\",\n  \"paramType\": \"select\",\n  \"valueMode\": \"runtime\",\n  \"required\": true,\n  \"options\": [\n    \"dev\",\n    \"prod\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "创建参数 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/job-params",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "job-params"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pipelineId\": 1,\n  \"jobId\": 10,\n  \"paramKey\": \"PROFILE\",\n  \"paramLabel\": \"环境\",\n  \"paramType\": \"select\",\n  \"valueMode\": \"runtime\",\n  \"required\": true,\n  \"options\": [\n    \"dev\",\n    \"prod\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": 1,\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "创建参数 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/job-params",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "job-params"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pipelineId\": 1,\n  \"jobId\": 10,\n  \"paramKey\": \"PROFILE\",\n  \"paramLabel\": \"环境\",\n  \"paramType\": \"select\",\n  \"valueMode\": \"runtime\",\n  \"required\": true,\n  \"options\": [\n    \"dev\",\n    \"prod\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "更新参数",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/job-params/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "job-params",
+                "1"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pipelineId\": 1,\n  \"jobId\": 10,\n  \"paramKey\": \"PROFILE\",\n  \"paramLabel\": \"环境\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "更新参数 - 正常",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/job-params/1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "job-params",
+                    "1"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pipelineId\": 1,\n  \"jobId\": 10,\n  \"paramKey\": \"PROFILE\",\n  \"paramLabel\": \"环境\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {},\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "更新参数 - 失败",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/job-params/1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "job-params",
+                    "1"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pipelineId\": 1,\n  \"jobId\": 10,\n  \"paramKey\": \"PROFILE\",\n  \"paramLabel\": \"环境\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10003,\n  \"msg\": \"参数定义不存在\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "删除参数",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/job-params/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "job-params",
+                "1"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "删除参数 - 正常",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/job-params/1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "job-params",
+                    "1"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {},\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "删除参数 - 失败",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/job-params/1",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "job-params",
+                    "1"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10003,\n  \"msg\": \"参数定义不存在\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "预览远程选项",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/job-params/preview-api",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "job-params",
+                "preview-api"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiUrl\": \"https://api.example.com/regions\",\n  \"apiMethod\": \"GET\",\n  \"apiResponsePath\": \"$.data[].name\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "预览远程选项 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/job-params/preview-api",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "job-params",
+                    "preview-api"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"apiUrl\": \"https://api.example.com/regions\",\n  \"apiMethod\": \"GET\",\n  \"apiResponsePath\": \"$.data[].name\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"success\": true,\n    \"options\": [\n      \"cn-hangzhou\"\n    ]\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "预览远程选项 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/job-params/preview-api",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "job-params",
+                    "preview-api"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"apiUrl\": \"https://api.example.com/regions\",\n  \"apiMethod\": \"GET\",\n  \"apiResponsePath\": \"$.data[].name\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Artifacts",
+      "item": [
+        {
+          "name": "产物列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/runs/{{runId}}/artifacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "runs",
+                "{{runId}}",
+                "artifacts"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "产物列表 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/runs/{{runId}}/artifacts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "runs",
+                    "{{runId}}",
+                    "artifacts"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": [\n    {\n      \"id\": 5,\n      \"fileName\": \"bom.json\",\n      \"artifactType\": \"sbom\"\n    }\n  ],\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "产物列表 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/runs/{{runId}}/artifacts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "runs",
+                    "{{runId}}",
+                    "artifacts"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "上传产物",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/runs/{{runId}}/artifacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "runs",
+                "{{runId}}",
+                "artifacts"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "jobId",
+                  "value": "10",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "sbom",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "bom.json"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "上传产物 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/runs/{{runId}}/artifacts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "runs",
+                    "{{runId}}",
+                    "artifacts"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"id\": 5,\n    \"fileName\": \"bom.json\",\n    \"artifactType\": \"sbom\"\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "上传产物 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/runs/{{runId}}/artifacts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "runs",
+                    "{{runId}}",
+                    "artifacts"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "下载产物",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/runs/{{runId}}/artifacts/{{artifactId}}/download",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "runs",
+                "{{runId}}",
+                "artifacts",
+                "{{artifactId}}",
+                "download"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "下载产物 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/runs/{{runId}}/artifacts/{{artifactId}}/download",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "runs",
+                    "{{runId}}",
+                    "artifacts",
+                    "{{artifactId}}",
+                    "download"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {},\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "下载产物 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/runs/{{runId}}/artifacts/{{artifactId}}/download",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "runs",
+                    "{{runId}}",
+                    "artifacts",
+                    "{{artifactId}}",
+                    "download"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10003,\n  \"msg\": \"产物文件不存在\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "最新SBOM",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/runs/{{runId}}/artifacts/sbom",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "runs",
+                "{{runId}}",
+                "artifacts",
+                "sbom"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "最新SBOM - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/runs/{{runId}}/artifacts/sbom",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "runs",
+                    "{{runId}}",
+                    "artifacts",
+                    "sbom"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"id\": 5,\n    \"fileName\": \"bom.json\",\n    \"artifactType\": \"sbom\"\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "最新SBOM - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/runs/{{runId}}/artifacts/sbom",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "runs",
+                    "{{runId}}",
+                    "artifacts",
+                    "sbom"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Dependency",
+      "item": [
+        {
+          "name": "提交扫描",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dependency-scan/submit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependency-scan",
+                "submit"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"repoUrl\": \"https://github.com/org/app.git\",\n  \"gitRef\": \"main\",\n  \"stack\": \"JAVA_MAVEN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "提交扫描 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dependency-scan/submit",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dependency-scan",
+                    "submit"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"repoUrl\": \"https://github.com/org/app.git\",\n  \"gitRef\": \"main\",\n  \"stack\": \"JAVA_MAVEN\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"pipelineId\": 42,\n    \"runId\": 100,\n    \"status\": \"QUEUED\"\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "提交扫描 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dependency-scan/submit",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dependency-scan",
+                    "submit"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"repoUrl\": \"https://github.com/org/app.git\",\n  \"gitRef\": \"main\",\n  \"stack\": \"JAVA_MAVEN\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "批量提交扫描",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dependency-scan/batch-submit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependency-scan",
+                "batch-submit"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scans\": [\n    {\n      \"repoUrl\": \"https://github.com/org/a.git\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "批量提交扫描 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dependency-scan/batch-submit",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dependency-scan",
+                    "batch-submit"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"scans\": [\n    {\n      \"repoUrl\": \"https://github.com/org/a.git\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": [\n    {\n      \"pipelineId\": 42,\n      \"runId\": 100\n    }\n  ],\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "批量提交扫描 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dependency-scan/batch-submit",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dependency-scan",
+                    "batch-submit"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"scans\": [\n    {\n      \"repoUrl\": \"https://github.com/org/a.git\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "扫描任务列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dependency-scan/tasks?limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependency-scan",
+                "tasks?limit=20"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "扫描任务列表 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dependency-scan/tasks?limit=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dependency-scan",
+                    "tasks?limit=20"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": [],\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "扫描任务列表 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dependency-scan/tasks?limit=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dependency-scan",
+                    "tasks?limit=20"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "组件分页",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dependency/components/page?pageNo=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependency",
+                "components",
+                "page?pageNo=1&pageSize=20"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "组件分页 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dependency/components/page?pageNo=1&pageSize=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dependency",
+                    "components",
+                    "page?pageNo=1&pageSize=20"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"records\": [],\n    \"total\": 0,\n    \"size\": 20,\n    \"current\": 1\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "组件分页 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dependency/components/page?pageNo=1&pageSize=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dependency",
+                    "components",
+                    "page?pageNo=1&pageSize=20"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "组件聚合",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dependency/components/aggregated?pageNo=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dependency",
+                "components",
+                "aggregated?pageNo=1&pageSize=20"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "组件聚合 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dependency/components/aggregated?pageNo=1&pageSize=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dependency",
+                    "components",
+                    "aggregated?pageNo=1&pageSize=20"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"records\": [],\n    \"total\": 0,\n    \"size\": 20,\n    \"current\": 1\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "组件聚合 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/dependency/components/aggregated?pageNo=1&pageSize=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "dependency",
+                    "components",
+                    "aggregated?pageNo=1&pageSize=20"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Toolchains / PodExec / Argo",
+      "item": [
+        {
+          "name": "工具链列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/toolchains",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "toolchains"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "工具链列表 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/toolchains",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "toolchains"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": [\n    {\n      \"stack\": \"JAVA_MAVEN\",\n      \"runtimeVersion\": \"21\",\n      \"toolVersion\": \"3.9\",\n      \"image\": \"maven:3.9-eclipse-temurin-21\"\n    }\n  ],\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "工具链列表 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/toolchains",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "toolchains"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Pod 容器列表",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/{{runId}}/jobs/1/containers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pipeline",
+                "pipelines",
+                "{{pipelineId}}",
+                "runs",
+                "{{runId}}",
+                "jobs",
+                "1",
+                "containers"
+              ]
+            },
+            "description": ""
+          },
+          "response": [
+            {
+              "name": "Pod 容器列表 - 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/{{runId}}/jobs/1/containers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs",
+                    "{{runId}}",
+                    "jobs",
+                    "1",
+                    "containers"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"namespace\": \"hfwas-pipeline\",\n    \"podName\": \"demo-pod\",\n    \"podExists\": \"true\",\n    \"containers\": []\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "Pod 容器列表 - 失败",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/pipeline/pipelines/{{pipelineId}}/runs/{{runId}}/jobs/1/containers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "pipeline",
+                    "pipelines",
+                    "{{pipelineId}}",
+                    "runs",
+                    "{{runId}}",
+                    "jobs",
+                    "1",
+                    "containers"
+                  ]
+                },
+                "description": ""
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10003,\n  \"msg\": \"流水线不存在\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Argo 工作流分页",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/argo/workflows/page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "argo",
+                "workflows",
+                "page"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pageNo\": 1,\n  \"pageSize\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Argo 工作流分页 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/argo/workflows/page",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "argo",
+                    "workflows",
+                    "page"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pageNo\": 1,\n  \"pageSize\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"records\": [],\n    \"total\": 0,\n    \"size\": 10,\n    \"current\": 1\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "Argo 工作流分页 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/argo/workflows/page",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "argo",
+                    "workflows",
+                    "page"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pageNo\": 1,\n  \"pageSize\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Argo 模板分页",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/argo/templates/page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "argo",
+                "templates",
+                "page"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pageNo\": 1,\n  \"pageSize\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Argo 模板分页 - 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/argo/templates/page",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "argo",
+                    "templates",
+                    "page"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pageNo\": 1,\n  \"pageSize\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 0,\n  \"msg\": \"成功\",\n  \"data\": {\n    \"records\": [],\n    \"total\": 0,\n    \"size\": 10,\n    \"current\": 1\n  },\n  \"requestId\": \"req-xxx\"\n}"
+            },
+            {
+              "name": "Argo 模板分页 - 失败",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Tenant-Id",
+                    "value": "{{tenantId}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/argo/templates/page",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "argo",
+                    "templates",
+                    "page"
+                  ]
+                },
+                "description": "",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pageNo\": 1,\n  \"pageSize\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"code\": 10002,\n  \"msg\": \"请求参数错误\",\n  \"data\": null,\n  \"requestId\": \"req-xxx\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
