@@ -1,8 +1,8 @@
 # 流水线编辑器重构与全局弹框样式 —— 代码变更文档
 
 > 日期：2026-10-18
-> 版本：v0.4
-> 状态：已通过第 2 轮独立复核
+> 版本：v0.7
+> 状态：已通过第 2 轮独立复核；含 1 条纯样式后续调整
 > 对应设计：[`design.md`](./design.md) v0.5
 > 对应用例：[`test-cases.md`](./test-cases.md) v0.3
 
@@ -14,6 +14,9 @@
 | v0.2 | 2026-10-18 | 补全实际改动、偏差与手工用例；前后端、迁移、测试全部落地 |
 | v0.3 | 2026-10-18 | 按首轮独立校验修正：17 迁移零 UPDATE，回填移到 `CloneConfigBackfill`；补测试与文档偏差 |
 | v0.4 | 2026-10-18 | 第 2 轮独立复核通过；修正剩余 8 条非阻断文档项 |
+| v0.5 | 2026-10-18 | 后续纯样式调整：详情/历史头部扁平化（图标返回、sans 标题、指标走 DetailShell 槽） |
+| v0.6 | 2026-10-18 | 详情指标移除“阶段”卡 |
+| v0.7 | 2026-10-18 | 运行历史页签隐藏指标行 |
 
 ---
 
@@ -50,7 +53,7 @@
 | `pipelineDraft.ts` | `PipelineDraft` 移除 `repoUrl/gitRef/credentialId`；新增 `cloneJob / cloneConfigValue / draftRepoUrl / draftGitRef`；阶段新增预填 `阶段 N`，空阶段首任务按类型改名；校验从 `REPO_URL` 绑定读取；`toSavePayload` 只提交 `name + stages`；删除顶层 GIT_REF 同步 |
 | `types/pipeline.ts` | `PipelineSavePayload` 移除三个字段 |
 | `PipelineEditorPage.tsx` | 标题旁内联名称；删除基本信息行；克隆检查器内配置仓库地址/代码分支/凭证；任务名称/类型禁用；克隆隐藏高级设置；移除缩放状态、工具栏、`ScalableTrack`；编辑页显示“最近克隆” |
-| `PipelineDetailPage.tsx` | 指标卡新增 Commit（取最近运行 `commitSha`，无则 `—`） |
+| `PipelineDetailPage.tsx` | 指标卡新增 Commit（取最近运行 `commitSha`，无则 `—`）；后续扁平化：返回改为图标按钮、标题恢复 sans、指标改用 `DetailShell.metrics` 槽；移除“阶段”指标；指标行仅在详情页签显示 |
 | `dialog.tsx` | `bg-card`、`rounded-xl`、`shadow-lg`、`bg-black/40`；标题/底部分隔线 |
 | `alert-dialog.tsx` | 圆角 `rounded-xl`、`bg-card`、遮罩 `/40`；标题/底部分隔线 |
 | 测试 | `pipelineDraft.test.ts`、`PipelineEditorPage.test.tsx`、`PipelineDetailPage.test.tsx`、`PipelineFlow.test.tsx` 更新；新增 `dialog.test.tsx`、`alert-dialog.test.tsx` |
@@ -84,6 +87,7 @@
 | 编辑页最近克隆仓库优先取 CLONE `REPO_URL`，缺失时回退 `pipeline.repoUrl` | 兼容回填尚未执行的本地库，展示不空白 | 无 |
 | `DialogFooter` 外边距 `mt-4` → `mt-2` | 新增 `border-t pt-3` 后保持视觉间距 | 全站弹框底部略紧凑 |
 | 新增 `prototype/README.md`（v0.2）引用原型 v0.8 | 功能目录按规范保留原型引用 | 文档新增 |
+| 详情/历史头部扁平化：图标返回、sans 标题、指标走 `DetailShell` 槽 | 用户要求参考 Kite；按原型先行规范 §2.2“纯样式修复”豁免，附前后画板 `03-detail.png`、`06-history.png` | 仅视觉，无行为变化 |
 
 ## 4. 豁免说明
 

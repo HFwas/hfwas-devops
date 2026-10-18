@@ -316,6 +316,150 @@
 
 ---
 
+## 第 9 轮 · 2026-10-18 17:55 · 详情头部与指标扁平化
+
+- **状态**：已完成（纯样式）
+- **触发**：用户提供详情页截图，要求参考 Kite 优化布局；选择“头部与指标扁平化”
+- **目标**：降低头部视觉重量，指标回到 `DetailShell` 槽位
+- **读取**：`PipelineDetailPage.tsx`、`DetailShell.tsx`、Kite 规范 §6.3
+
+### 做了什么
+
+1. 详情/运行历史返回按钮改为图标按钮（`aria-label="返回流水线列表"`），标题去掉 `font-console`，恢复 sans。
+2. 指标卡从 children 内的手写 `OverviewMetricCards` 改为 `DetailShell.metrics` 槽，去掉重复外边距与嵌套。
+3. 原型升到 v0.9：返回图标化、指标 6 列；重新生成 `03-detail.png`、`06-history.png`。
+4. 补充 `PipelineDetailPage` 测试对 `aria-label` 的断言。
+
+### 变更文件
+
+| 文件 | 动作 | 说明 |
+|------|------|------|
+| `frontend/src/modules/pipeline/pages/PipelineDetailPage.tsx` | 修改 | 头部与指标槽位 |
+| `frontend/src/modules/pipeline/pages/PipelineDetailPage.test.tsx` | 修改 | 断言返回图标 |
+| `docs/pipeline/prototype/**` | 修改 | v0.9 |
+| `changes.md` | 修改 | v0.5；纯样式豁免记录 |
+
+### 验证
+
+| 检查 | 命令 | 结果 |
+|------|------|------|
+| 详情测试 | `npx vitest run PipelineDetailPage.test.tsx` | 4 passed |
+| 前端全量 | `npm test` | 254 passed / 1 skipped |
+| 类型/构建 | `npx tsc --noEmit`、`npm run build` | 通过 |
+
+### 决策与取舍
+
+- **决策**：保留返回能力但改为图标按钮。**理由**：Kite 头部不放大段文字返回，但上下文感知返回仍有价值。
+- **决策**：仅做头部与指标扁平化，不改两栏结构或画布高度。**理由**：用户只选择了该范围。
+
+### 偏差与假设
+
+- 按 `prototype-first-standard.md` §2.2“纯样式修复”豁免可点击原型评审，以 `03-detail.png` / `06-history.png` 作为前后对照。
+
+### 未完成 / 风险
+
+- 未部署到运行中的前端容器。
+
+### 下一步
+
+- **唯一动作**：确认样式后提交本次调整并重建前端容器。
+
+---
+
+## 第 10 轮 · 2026-10-18 18:00 · 详情移除“阶段”指标
+
+- **状态**：已完成（纯样式）
+- **触发**：用户截图指出详情页“阶段”指标多余
+- **目标**：详情指标只保留仓库、分支、Commit、最近运行、凭证
+
+### 做了什么
+
+1. `PipelineDetailPage` 删除“阶段”指标及 `stageNames` 计算。
+2. 测试改为断言指标区不含“阶段”。
+3. 原型升到 v0.10：移除阶段卡、指标 5 列、角标版本同步。
+
+### 变更文件
+
+| 文件 | 动作 | 说明 |
+|------|------|------|
+| `frontend/src/modules/pipeline/pages/PipelineDetailPage.tsx` | 修改 | 移除阶段指标 |
+| `frontend/src/modules/pipeline/pages/PipelineDetailPage.test.tsx` | 修改 | 断言不含阶段 |
+| `docs/pipeline/prototype/**`、spec | 修改 | v0.10 |
+| `design.md` / `changes.md` | 修改 | v0.6；指标 5 张 |
+
+### 验证
+
+| 检查 | 命令 | 结果 |
+|------|------|------|
+| 详情测试 | `npx vitest run PipelineDetailPage.test.tsx` | 4 passed |
+| 前端全量 | `npm test` | 254 passed / 1 skipped |
+| 类型/构建 | `npx tsc --noEmit`、`npm run build` | 通过 |
+
+### 决策与取舍
+
+- **决策**：只移除指标卡，阶段信息仍由画布表达。**理由**：指标区重复画布已有信息。
+
+### 偏差与假设
+
+- 纯样式/信息层级调整，按原型规范豁免，画板 `03-detail.png` 为对照。
+
+### 未完成 / 风险
+
+- 未部署到运行中的前端容器；本次调整未提交。
+
+### 下一步
+
+- **唯一动作**：确认后提交并重建前端容器。
+
+---
+
+## 第 11 轮 · 2026-10-18 18:05 · 运行历史页签隐藏指标行
+
+- **状态**：已完成（纯样式）
+- **触发**：用户要求运行历史 tab 移除仓库/分支/阶段等指标行
+- **目标**：指标只在“详情”页签显示
+
+### 做了什么
+
+1. `PipelineDetailPage` 的 `metrics` 仅在 `tab === 'definition'` 时传给 `DetailShell`。
+2. 测试改为切换运行历史后断言指标区不存在。
+3. 原型升到 v0.11：`renderHistory` 移除指标块，重新生成 `06-history.png`。
+
+### 变更文件
+
+| 文件 | 动作 | 说明 |
+|------|------|------|
+| `PipelineDetailPage.tsx` | 修改 | 指标按页签条件渲染 |
+| `PipelineDetailPage.test.tsx` | 修改 | 历史页签无指标断言 |
+| `docs/pipeline/prototype/**`、spec | 修改 | v0.11 |
+| `design.md` / `test-cases.md` / `changes.md` | 修改 | 记录页签条件 |
+
+### 验证
+
+| 检查 | 命令 | 结果 |
+|------|------|------|
+| 详情测试 | `npx vitest run PipelineDetailPage.test.tsx` | 4 passed |
+| 前端全量 | `npm test` | 254 passed / 1 skipped |
+| 类型/构建 | `npx tsc --noEmit`、`npm run build` | 通过 |
+
+### 决策与取舍
+
+- **决策**：保留详情页签的 5 张指标，仅历史页签隐藏。**理由**：用户只要求历史 tab 移除。
+
+### 偏差与假设
+
+- 纯样式/信息层级调整，豁免原型评审，以 `06-history.png` 对照。
+
+### 未完成 / 风险
+
+- 未提交、未部署。
+
+### 下一步
+
+- **唯一动作**：确认后与头部扁平化一起提交并重建前端容器。
+
+---
+
 ## 第 4 轮 · 2026-10-18 17:20 · 补齐编辑器阶段间箭头
 
 - **状态**：待评审

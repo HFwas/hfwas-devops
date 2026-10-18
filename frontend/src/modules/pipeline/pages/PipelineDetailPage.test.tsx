@@ -138,7 +138,7 @@ describe('PipelineDetailPage', () => {
     root = view.root
     container = view.container
     await waitForText(container, '订单服务 CI')
-    const meta = container.querySelector('[data-slot="pipeline-detail-meta"]')
+    const meta = container.querySelector('[data-slot="overview-metric-cards"]')
     expect(meta?.textContent).toContain('Commit')
     expect(meta?.textContent).toContain('—')
   })
@@ -153,7 +153,7 @@ describe('PipelineDetailPage', () => {
     const shell = container.querySelector('[data-slot="detail-shell"]')
     const title = shell?.querySelector('h1')
     const tabs = shell?.querySelector('[role="tablist"]')
-    const meta = shell?.querySelector('[data-slot="pipeline-detail-meta"]')
+    const meta = shell?.querySelector('[data-slot="overview-metric-cards"]')
     const body = shell?.querySelector('[data-slot="pipeline-detail-body"]')
     expect(title?.textContent).toContain('订单服务 CI')
     expect(tabs).toBeTruthy()
@@ -165,6 +165,7 @@ describe('PipelineDetailPage', () => {
 
     const back = container.querySelector('[data-slot="pipeline-detail-back"]')
     expect(back?.getAttribute('href')).toBe('/pipeline/pipelines')
+    expect(back?.getAttribute('aria-label')).toBe('返回流水线列表')
     expect(follows(back!, tabs!)).toBe(true)
     const edit = container.querySelector('a[href="/pipeline/pipelines/9/edit"]')
     expect(edit?.textContent).toContain('编辑')
@@ -182,7 +183,7 @@ describe('PipelineDetailPage', () => {
     expect(meta?.textContent).toContain('Commit')
     expect(meta?.textContent).toContain('9f2c1ab0')
     expect(meta?.textContent).not.toContain('9f2c1ab000000000000000000000000000000000')
-    expect(meta?.textContent).toContain('构建 · 测试 · 部署')
+    expect(meta?.textContent).not.toContain('阶段')
     expect(meta?.textContent).toContain('凭证')
     expect(meta?.textContent).toContain('git-token')
 
@@ -204,7 +205,7 @@ describe('PipelineDetailPage', () => {
     expect(container.querySelector('[data-slot="pipeline-definition-canvas"]')).toBeNull()
     const historyTabs = [...container.querySelectorAll('[role="tab"]')]
     expect(historyTabs[1]?.getAttribute('aria-selected')).toBe('true')
-    expect(follows(historyTabs[0]!, container.querySelector('[data-slot="pipeline-detail-meta"]')!)).toBe(true)
+    expect(container.querySelector('[data-slot="overview-metric-cards"]')).toBeNull()
   })
 
   it('filters run history via the URL and opens a run from the row', async () => {

@@ -4,7 +4,6 @@ import { ArrowLeft, Clock, Hand, Pencil, Webhook } from 'lucide-react'
 import { Link, useMatch, useNavigate, useParams, useSearchParams } from 'react-router'
 import { DataTable } from '@/components/console/DataTable'
 import { DetailShell } from '@/components/console/DetailShell'
-import { OverviewMetricCards } from '@/components/console/ResourceOverview'
 import { Pagination } from '@/components/console/Pagination'
 import { StatusIcon } from '@/components/console/StatusIcon'
 import { Button } from '@/components/ui/button'
@@ -99,25 +98,37 @@ export function PipelineDetailPage() {
   const credentialName = pipeline?.credentialId
     ? (credentialsQuery.data ?? []).find((item) => String(item.id) === String(pipeline.credentialId))?.name || '当前凭证'
     : '未配置'
-  const stageNames = (pipeline?.stages ?? [])
-    .slice()
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    .map((stage) => stage.name)
-    .filter(Boolean)
+  const metrics = [
+    { label: '仓库', value: <MonoValue>{repoShortName(pipeline?.repoUrl)}</MonoValue> },
+    { label: '分支', value: <MonoValue>{formatGitRef(pipeline?.gitRef)}</MonoValue> },
+    { label: 'Commit', value: <MonoValue>{latestRun?.commitSha ? formatCommit(latestRun.commitSha) : '—'}</MonoValue> },
+    {
+      label: '最近运行',
+      value: (
+        <span className="flex min-w-0 flex-col gap-1">
+          <StatusIcon status={pipeline?.lastRunStatus} label={runStatusLabel(pipeline?.lastRunStatus)} />
+          {pipeline?.lastRunTime ? (
+            <span className="truncate font-mono text-xs text-muted-foreground tabular-nums">
+              {formatRelativeTime(pipeline.lastRunTime)}
+            </span>
+          ) : null}
+        </span>
+      ),
+    },
+    { label: '凭证', value: <MonoValue>{credentialName}</MonoValue> },
+  ]
 
   return (
     <DetailShell
       leading={
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/pipeline/pipelines" data-slot="pipeline-detail-back">
+        <Button variant="ghost" size="icon" asChild className="mt-0.5">
+          <Link to="/pipeline/pipelines" data-slot="pipeline-detail-back" aria-label="返回流水线列表" title="返回流水线列表">
             <ArrowLeft />
-            返回
           </Link>
         </Button>
       }
-      title={
-        <span className="font-console tracking-tight">{pipeline?.name || (pipelineQuery.isLoading ? '加载中…' : '流水线')}</span>
-      }
+      title={<span className="tracking-tight">{pipeline?.name || (pipelineQuery.isLoading ? '加载中…' : '流水线')}</span>}
+      metrics={tab === 'definition' ? metrics : undefined}
       actions={
         <>
           <Button variant="outline" size="sm" asChild>
@@ -138,30 +149,6 @@ export function PipelineDetailPage() {
         navigate(value === 'history' ? `/pipeline/pipelines/${pipelineId}/history` : `/pipeline/pipelines/${pipelineId}`)
       }}
     >
-      <div data-slot="pipeline-detail-meta" className="mb-4">
-        <OverviewMetricCards
-          items={[
-            { label: '仓库', value: <MonoValue>{repoShortName(pipeline?.repoUrl)}</MonoValue> },
-            { label: '分支', value: <MonoValue>{formatGitRef(pipeline?.gitRef)}</MonoValue> },
-            { label: 'Commit', value: <MonoValue>{latestRun?.commitSha ? formatCommit(latestRun.commitSha) : '—'}</MonoValue> },
-            { label: '阶段', value: <MonoValue>{stageNames.length > 0 ? stageNames.join(' · ') : '尚未配置'}</MonoValue> },
-            {
-              label: '最近运行',
-              value: (
-                <span className="flex min-w-0 flex-col gap-1">
-                  <StatusIcon status={pipeline?.lastRunStatus} label={runStatusLabel(pipeline?.lastRunStatus)} />
-                  {pipeline?.lastRunTime ? (
-                    <span className="truncate font-mono text-xs text-muted-foreground tabular-nums">
-                      {formatRelativeTime(pipeline.lastRunTime)}
-                    </span>
-                  ) : null}
-                </span>
-              ),
-            },
-            { label: '凭证', value: <MonoValue>{credentialName}</MonoValue> },
-          ]}
-        />
-      </div>
       <div data-slot="pipeline-detail-body">
         {pipelineQuery.isError ? <p className="text-sm text-destructive">流水线加载失败</p> : null}
         {tab === 'definition' ? (

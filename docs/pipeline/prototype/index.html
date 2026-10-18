@@ -333,7 +333,7 @@ body.capture .proto-badge{display:none}
 </head>
 <body>
 <div id="app"></div>
-<div class="proto-badge">原型 v0.2 · 非生产环境</div>
+<div class="proto-badge">原型 v0.11 · 非生产环境</div>
 <script>
 /* ============================================================
    图标（Lucide 风格，MIT）
@@ -591,11 +591,10 @@ function renderDetail(id){
     ['仓库', '<span class="v mono">'+p.repo+'</span>'],
     ['分支', '<span class="v mono">'+p.branch+'</span>'],
     ['Commit', '<span class="v mono">9f2c1ab</span>'],
-    ['阶段', '<span class="v" style="font-family:var(--font-console)">'+p.stages.map(function(s){return s.name;}).join(' · ')+'</span>'],
     ['最近运行', '<span class="v" style="display:flex;align-items:center;gap:6px">'+statusEl(p.last.status)+'<span class="muted" style="font-family:var(--font-mono);font-size:11px;font-weight:400">'+p.last.time+'</span></span>'],
     ['凭证', '<span class="v">'+p.credential+'</span>']
   ].map(function(m){return '<div class="metric"><div class="k">'+m[0]+'</div>'+m[1]+'</div>';}).join('');
-  const content = '<div class="detail-head"><button class="btn ghost sm" data-go="#/list">'+icon('arrowLeft')+'返回</button>'
+  const content = '<div class="detail-head"><button class="icon-btn" data-go="#/list" aria-label="返回流水线列表" title="返回流水线列表">'+icon('arrowLeft')+'</button>'
     +'<div class="detail-title"><h1>'+p.name+'</h1><div class="detail-desc">'+statusEl(p.last.status)+'<span>'+p.last.time+'</span></div></div>'
     +'<div class="grow"></div>'
     +'<button class="btn outline sm" data-go="#/editor/'+p.id+'">'+icon('pencil')+'编辑</button>'
@@ -731,17 +730,10 @@ function renderHistory(id){
       +'<td class="mono" style="font-size:12px">'+r.duration+'</td>'
       +'<td><button class="btn outline xs" data-go="#/run/'+p.id+'/'+r.id+'">查看详情</button></td></tr>';
   }).join('');
-  const content = '<div class="detail-head"><button class="btn ghost sm" data-go="#/list">'+icon('arrowLeft')+'返回</button>'
+  const content = '<div class="detail-head"><button class="icon-btn" data-go="#/list" aria-label="返回流水线列表" title="返回流水线列表">'+icon('arrowLeft')+'</button>'
     +'<div class="detail-title"><h1>'+p.name+'</h1><div class="detail-desc">'+statusEl(p.last.status)+'<span>'+p.last.time+'</span></div></div>'
     +'<div class="grow"></div><button class="btn outline sm" data-go="#/editor/'+p.id+'">'+icon('pencil')+'编辑</button><button class="btn primary sm" data-overlay="run-params">'+icon('play')+'运行</button></div>'
     +'<div class="tabs"><button class="tab" data-go="#/detail/'+p.id+'">详情</button><button class="tab active" data-go="#/history/'+p.id+'">运行历史</button></div>'
-    +'<div class="metrics">'
-      +'<div class="metric"><div class="k">仓库</div><div class="v mono">'+p.repo+'</div></div>'
-      +'<div class="metric"><div class="k">分支</div><div class="v mono">'+p.branch+'</div></div>'
-      +'<div class="metric"><div class="k">阶段</div><div class="v">'+p.stages.map(function(s){return s.name;}).join(' · ')+'</div></div>'
-      +'<div class="metric"><div class="k">最近运行</div><div class="v" style="display:flex;align-items:center;gap:6px">'+statusEl(p.last.status)+'<span class="muted" style="font-family:var(--font-mono);font-size:11px;font-weight:400">'+p.last.time+'</span></div></div>'
-      +'<div class="metric"><div class="k">凭证</div><div class="v">'+p.credential+'</div></div>'
-    +'</div>'
     +'<div class="table-wrap"><div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap">'
       +'<select class="input" id="run-status" style="width:132px;height:30px;font-size:12px"><option>全部</option><option>运行中</option><option>成功</option><option>失败</option><option>排队中</option><option>待审批</option><option>已取消</option></select>'
       +'<select class="input" style="width:132px;height:30px;font-size:12px"><option>近 7 天</option><option>近 24 小时</option><option>近 30 天</option><option>全部时间</option></select>'

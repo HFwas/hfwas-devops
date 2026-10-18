@@ -64,6 +64,7 @@
 | TC-ED-11 | 编辑页最近运行有 `commitSha` | 查看头部 | — | 显示“最近克隆 repo · branch · 9f2c1ab0”（8 位短 SHA） | `PipelineEditorPage.test.tsx::shows last clone summary in edit mode` |
 | TC-ED-12 | 流水线详情有运行记录 | 查看指标卡 | — | 显示 8 位 Commit 短 SHA；无记录显示 `—` | `PipelineDetailPage.test.tsx::puts tabs above the repo meta strip and opens the definition canvas` / `::shows a dash for commit when no run exists` |
 | TC-ED-12b | 编辑页最近运行无 commit | 查看头部 | — | 不显示“最近克隆” | `PipelineEditorPage.test.tsx::omits last clone summary without commit` |
+| TC-ED-12c | 切换到运行历史页签 | 查看页签下方 | — | 不显示指标行，直接进入筛选与表格 | `PipelineDetailPage.test.tsx::puts tabs above the repo meta strip and opens the definition canvas` |
 
 ## 5. 阶段命名与缩放
 
