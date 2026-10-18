@@ -49,7 +49,7 @@ public class DeployFromImageService {
      */
     @Transactional
     public DeployResultVO deploy(Long registryId, DeployFromImageRequest request) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
 
         // 1. Validate cluster visibility
         ClusterEntity cluster = clusterService.getById(request.getClusterId(), tenantId);

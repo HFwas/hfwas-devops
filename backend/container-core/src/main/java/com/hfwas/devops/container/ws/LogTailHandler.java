@@ -70,15 +70,15 @@ public class LogTailHandler extends AbstractWebSocketHandler {
                 return;
             }
 
-            // Tenant check
-            String userId = (String) session.getAttributes().get("userId");
-            if (userId == null) {
-                sendErrorAndClose(session, "未认证");
+            // Tenant check (handshake attributes are populated by ContainerWsAuthInterceptor)
+            Long tenantId = session.getAttributes().get("tenantId") instanceof Long id ? id : null;
+            if (tenantId == null) {
+                sendErrorAndClose(session, "未认证或租户上下文缺失");
                 return;
             }
 
             // Get client
-            var entity = clusterService.getByIdInternal(clusterId);
+            var entity = clusterService.getById(clusterId, tenantId);
             KubernetesClient client = clientFactory.getConnectedClient(entity);
 
             // Start log tail

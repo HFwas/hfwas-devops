@@ -65,6 +65,7 @@ class HelmChartServiceTest {
         try (InputStream in = getClass().getResourceAsStream("/helm/sample-0.1.0.tgz")) {
             fixture = in.readAllBytes();
         }
+        authenticate(1L, HelmChartService.PLATFORM_TENANT_ID);
     }
 
     @AfterEach

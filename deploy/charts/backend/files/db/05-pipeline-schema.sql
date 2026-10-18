@@ -157,38 +157,36 @@ CREATE TABLE IF NOT EXISTS pipeline_task_kind_param (
 CREATE INDEX IF NOT EXISTS idx_task_kind_param ON pipeline_task_kind_param (kind_value, deleted);
 
 INSERT OR IGNORE INTO pipeline_task_kind_param (
-    id, kind_value, param_key, param_label, param_type, default_value, required, sort_order, placeholder
+    id, kind_value, param_key, param_label, param_type, default_value, required, sort_order, placeholder, options_json
 ) VALUES
 -- CLONE
-(1,  'CLONE', 'GIT_REF',            '代码分支',        'input', 'main',                                 1, 0,  'main / develop / commit SHA'),
-(2,  'CLONE', 'GIT_USERNAME',       'Git 用户名',      'input', '',                                     0, 1,  ''),
-(3,  'CLONE', 'GIT_PASSWORD',       'Git 密码',        'input', '',                                     0, 2,  ''),
-(4,  'CLONE', 'GIT_EMBEDDED_AUTH',  'Git Token',       'input', '',                                     0, 3,  ''),
-(5,  'CLONE', 'GIT_HTTP_PROXY',     'Git HTTP 代理',   'input', '',                                     0, 4,  ''),
+(1,  'CLONE', 'GIT_REF',            '代码分支',        'input', 'main',                                 1, 0,  'main / develop / commit SHA', '[]'),
+(2,  'CLONE', 'GIT_USERNAME',       'Git 用户名',      'input', '',                                     0, 1,  '', '[]'),
+(3,  'CLONE', 'GIT_PASSWORD',       'Git 密码',        'input', '',                                     0, 2,  '', '[]'),
+(4,  'CLONE', 'GIT_EMBEDDED_AUTH',  'Git Token',       'input', '',                                     0, 3,  '', '[]'),
+(5,  'CLONE', 'GIT_HTTP_PROXY',     'Git HTTP 代理',   'input', '',                                     0, 4,  '', '[]'),
 -- IMAGE
-(10, 'IMAGE', 'DEST',               '镜像推送目标',     'input', 'registry.example.com/app:tag',          1, 0,  '如 registry.example.com/app:tag'),
-(11, 'IMAGE', 'IMAGE_PLATFORMS',    '构建平台',         'input', 'linux/amd64,linux/arm64',              0, 1,  '逗号分隔，如 linux/amd64,linux/arm64'),
-(12, 'IMAGE', 'DOCKERFILE',         'Dockerfile 路径',  'input', 'Dockerfile',                          0, 2,  ''),
-(13, 'IMAGE', 'COSIGN_PRIVATE_KEY', 'Cosign 私钥',     'input', '',                                     0, 3,  ''),
+(10, 'IMAGE', 'DEST',               '镜像推送目标',     'input', 'registry.example.com/app:tag',          1, 0,  '如 registry.example.com/app:tag', '[]'),
+(11, 'IMAGE', 'IMAGE_PLATFORMS',    '构建平台',         'input', 'linux/amd64,linux/arm64',              0, 1,  '逗号分隔，如 linux/amd64,linux/arm64', '[]'),
+(12, 'IMAGE', 'DOCKERFILE',         'Dockerfile 路径',  'input', 'Dockerfile',                          0, 2,  '', '[]'),
+(13, 'IMAGE', 'COSIGN_PRIVATE_KEY', 'Cosign 私钥',     'input', '',                                     0, 3,  '', '[]'),
 -- LINT_SONAR
-(20, 'LINT_SONAR', 'SONAR_HOST_URL',    'Sonar 服务地址','input', 'https://sonar.example.com',           1, 0,  ''),
-(21, 'LINT_SONAR', 'SONAR_TOKEN',       'Sonar Token',   'input', '',                                   1, 1,  ''),
-(22, 'LINT_SONAR', 'SONAR_PROJECT_KEY', 'Sonar 项目 Key','input', 'app',                                 0, 2,  ''),
+(20, 'LINT_SONAR', 'SONAR_HOST_URL',    'Sonar 服务地址','input', 'https://sonar.example.com',           1, 0,  '', '[]'),
+(21, 'LINT_SONAR', 'SONAR_TOKEN',       'Sonar Token',   'input', '',                                   1, 1,  '', '[]'),
+(22, 'LINT_SONAR', 'SONAR_PROJECT_KEY', 'Sonar 项目 Key','input', 'app',                                 0, 2,  '', '[]'),
 -- UPLOAD
-(30, 'UPLOAD', 'S3_ENDPOINT',   'S3 端点',        'input', '', 1, 0, ''),
-(31, 'UPLOAD', 'S3_ACCESS_KEY', 'S3 Access Key', 'input', '', 1, 1, ''),
-(32, 'UPLOAD', 'S3_SECRET_KEY', 'S3 Secret Key', 'input', '', 1, 2, ''),
+(30, 'UPLOAD', 'S3_ENDPOINT',   'S3 端点',        'input', '', 1, 0, '', '[]'),
+(31, 'UPLOAD', 'S3_ACCESS_KEY', 'S3 Access Key', 'input', '', 1, 1, '', '[]'),
+(32, 'UPLOAD', 'S3_SECRET_KEY', 'S3 Secret Key', 'input', '', 1, 2, '', '[]'),
 -- DEPENDENCY_TRACK
-(40, 'DEPENDENCY_TRACK', 'DT_HOST_URL',        'DT 服务地址',       'input', 'http://dependency-track:8080', 1, 0, 'http://dependency-track:8080'),
-(41, 'DEPENDENCY_TRACK', 'DT_API_KEY',         'DT API Key',        'input', '',                             1, 1, ''),
-(42, 'DEPENDENCY_TRACK', 'DT_PROJECT_NAME',    '项目名称',          'input', '',                             1, 2, ''),
-(43, 'DEPENDENCY_TRACK', 'DT_PROJECT_VERSION', '项目版本',          'input', 'latest',                       0, 3, 'latest'),
-(44, 'DEPENDENCY_TRACK', 'DT_SBOM_PATH',       'SBOM 文件路径',     'input', 'target/sbom.json',              0, 4, 'target/sbom.json'),
-(45, 'DEPENDENCY_TRACK', 'DT_FAIL_ON',         '失败阈值',          'select', 'none',                        0, 5, '');
+(40, 'DEPENDENCY_TRACK', 'DT_HOST_URL',        'DT 服务地址',       'input', 'http://dependency-track:8080', 1, 0, 'http://dependency-track:8080', '[]'),
+(41, 'DEPENDENCY_TRACK', 'DT_API_KEY',         'DT API Key',        'input', '',                             1, 1, '', '[]'),
+(42, 'DEPENDENCY_TRACK', 'DT_PROJECT_NAME',    '项目名称',          'input', '',                             1, 2, '', '[]'),
+(43, 'DEPENDENCY_TRACK', 'DT_PROJECT_VERSION', '项目版本',          'input', 'latest',                       0, 3, 'latest', '[]'),
+(44, 'DEPENDENCY_TRACK', 'DT_SBOM_PATH',       'SBOM 文件路径',     'input', 'target/sbom.json',              0, 4, 'target/sbom.json', '[]'),
+(45, 'DEPENDENCY_TRACK', 'DT_FAIL_ON',         '失败阈值',          'select', 'none',                        0, 5, '', '[{"value":"none","label":"不检查（仅记录）"},{"value":"critical","label":"Critical 以上"},{"value":"high","label":"High 以上"},{"value":"medium","label":"Medium 以上"},{"value":"low","label":"Low 以上"}]');
 
--- DT_FAIL_ON 选项
-UPDATE pipeline_task_kind_param SET options_json = '[{"value":"none","label":"不检查（仅记录）"},{"value":"critical","label":"Critical 以上"},{"value":"high","label":"High 以上"},{"value":"medium","label":"Medium 以上"},{"value":"low","label":"Low 以上"}]'
-WHERE kind_value = 'DEPENDENCY_TRACK' AND param_key = 'DT_FAIL_ON';
+
 
 -- ============================================================
 -- 任务市场：存储平台支持的 Task 类型元数据
@@ -223,139 +221,9 @@ CREATE TABLE IF NOT EXISTS pipeline_task_kind (
     update_time      TEXT         NOT NULL DEFAULT (datetime('now'))
 );
 
--- 初始化 14 种 Task 类型（含默认工具镜像地址）
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('CLONE', '代码克隆', '代码', '从 Git 仓库拉取代码', 'Clone 命令由平台生成，在流水线里填写仓库与凭证即可。', '', 0, 1, 1, 'alpine/git:2.45.2', 'alpine/git:2.45.2');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('BUILD', '构建', '构建', '编译与打包源码', '', '', 1, 1, 10, '', '');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('IMAGE', '镜像构建', '构建', 'Buildah 多架构构建并签名镜像', '使用任务市场预置的 DEST / IMAGE_PLATFORMS / DOCKERFILE / COSIGN_PRIVATE_KEY 参数。支持 linux/amd64,linux/arm64 等多架构。',
- '', 0, 1, 20, 'quay.io/containers/buildah:v1.37.0', 'quay.io/containers/buildah:v1.37.0');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('LINT_SEMGREP', 'Semgrep 检查', '质量控制', 'Semgrep 静态检查', '填写 Semgrep CLI。', 'semgrep scan --error --config=auto .', 1, 1, 30, 'semgrep/semgrep:1.97.0', 'semgrep/semgrep:1.97.0');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('FORMAT', '代码格式化', '质量控制', '自动格式化代码并提交回仓库', '选择技术栈（Node/Java/Go/Python）并填写格式化命令。会自动 add、commit（[skip ci]）、push。推荐：JS/TS → npx prettier --write .，Java → mvn spotless:apply，Go → gofmt -w .，Python → black .',
- 'npx prettier --write .', 1, 1, 35, '', '');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('LINT_SONAR', 'Sonar 检查', '质量控制', 'SonarScanner 静态检查', '使用任务市场预置的 SONAR_HOST_URL / SONAR_TOKEN / SONAR_PROJECT_KEY 参数。',
- '', 0, 1, 40, 'sonarsource/sonar-scanner-cli:11.2', 'sonarsource/sonar-scanner-cli:11.2');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('DEPENDENCY_ANALYSIS', '依赖分析', '质量控制',
- '生成 CycloneDX 格式的依赖清单（SBOM），为漏洞扫描提供精确的依赖树',
- 'Java 项目使用 CycloneDX Maven Plugin，其他语言使用 cdxgen。产出 target/sbom.json。',
- 'mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress',
- 1, 1, 45, 'maven:3.9.9-eclipse-temurin-21', 'maven:3.9.9-eclipse-temurin-21');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('SCAN', '安全扫描', '质量控制', '依赖与文件系统漏洞扫描', '',
- 'trivy fs --exit-code 1 --scanners vuln,secret,misconfig .', 1, 1, 50, 'aquasec/trivy:0.66.0', 'aquasec/trivy:0.66.0');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('PACKAGE', '打包', '制品', '产出可分发制品', '', '', 1, 1, 60, '', '');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('PUBLISH', '发布制品', '制品', '把制品发布到仓库', '', '', 1, 1, 70, '', '');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('UPLOAD', '上传对象存储', '制品', 'rclone 上传到对象存储', '',
- 'rclone copy ./ :s3:bucket/prefix --s3-provider=Minio --s3-endpoint="${S3_ENDPOINT}" --s3-access-key-id="${S3_ACCESS_KEY}" --s3-secret-access-key="${S3_SECRET_KEY}"', 1, 1, 80, 'rclone/rclone:1.68.2', 'rclone/rclone:1.68.2');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('DEPLOY', '部署', '部署', '发布到 Kubernetes 或其他环境', '', 'kubectl apply -f k8s/', 1, 1, 90, 'bitnami/kubectl:1.31.4', 'bitnami/kubectl:1.31.4');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('TEST', '测试', '测试', '运行单元 / 集成测试', '', '', 1, 1, 100, '', '');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('CUSTOM', '自定义命令', '命令', '在工具链镜像里执行任意命令', '', 'echo ok', 1, 1, 110, '', '');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('APPROVAL', '人工卡点', '流程', '运行到此处暂停，需人工通过',
- '运行到此处会暂停，需在运行页点通过。审批节点必须单独成阶段。', '', 0, 1, 120, '', '');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('NOTIFY', '通知', '流程', 'Webhook / HTTP 通知', '',
- 'curl -fsS -X POST ''https://example.com/hook'' -H ''Content-Type: application/json'' -d ''{"status":"done"}''', 1, 1, 130, 'curlimages/curl:8.11.1', 'curlimages/curl:8.11.1');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('KUBECTL', 'K8s 命令', '部署', '使用用户提供的 kubeconfig 执行 kubectl 命令',
- '填写任意 kubectl 命令，如 kubectl get pods -A',
- 'kubectl get pods -A', 1, 1, 95, 'bitnami/kubectl:1.31.4', 'bitnami/kubectl:1.31.4');
-
-INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image) VALUES
-('DEPENDENCY_TRACK', '依赖漏洞扫描', '质量控制',
- '上传 SBOM 到 Dependency-Track 进行组件漏洞分析，支持按严重等级控制流水线门禁',
- '需要先执行依赖分析（DEPENDENCY_ANALYSIS）生成 target/sbom.json。预置参数：DT_HOST_URL / DT_API_KEY / DT_PROJECT_NAME / DT_PROJECT_VERSION / DT_SBOM_PATH / DT_FAIL_ON',
- '', 1, 1, 55, 'curlimages/curl:8.11.1', 'curlimages/curl:8.11.1');
-
-CREATE INDEX IF NOT EXISTS idx_task_kind_tenant ON pipeline_task_kind (tenant_id, deleted);
-CREATE INDEX IF NOT EXISTS idx_task_kind_group ON pipeline_task_kind (task_group, sort_order);
-
--- ============================================================
--- 流水线运行产物表（SBOM / 测试报告 / 覆盖率报告等）
--- ============================================================
-CREATE TABLE IF NOT EXISTS pipeline_run_artifact (
-    id            INTEGER      NOT NULL PRIMARY KEY,
-    run_id        INTEGER      NOT NULL REFERENCES pipeline_run(id),
-    job_id        INTEGER      REFERENCES pipeline_run_job(id),
-    artifact_type TEXT         NOT NULL DEFAULT 'sbom',
-    file_name     TEXT         NOT NULL,
-    file_size     INTEGER      NOT NULL DEFAULT 0,
-    storage_path  TEXT         NOT NULL,
-    content_type  TEXT         NOT NULL DEFAULT 'application/json',
-    create_time   TEXT         NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_artifact_run ON pipeline_run_artifact (run_id, artifact_type);
-
--- ============================================================
--- 依赖组件表（从 SBOM 解析入库，支撑集中依赖视图）
--- 同一流水线 + 同一组件（purl / GAV）只保留一行，重复跑分析走 upsert
--- ============================================================
-DROP TABLE IF EXISTS dependency_component;
-CREATE TABLE IF NOT EXISTS dependency_component (
-    id              INTEGER      NOT NULL PRIMARY KEY,
-    artifact_id     INTEGER      NOT NULL REFERENCES pipeline_run_artifact(id),
-    run_id          INTEGER      NOT NULL REFERENCES pipeline_run(id),
-    pipeline_id     INTEGER      NOT NULL REFERENCES pipeline(id),
-    identity_key    TEXT         NOT NULL,
-    purl            TEXT         NOT NULL DEFAULT '',
-    group_name      TEXT,
-    name            TEXT         NOT NULL,
-    version         TEXT         NOT NULL,
-    license         TEXT,
-    scope           TEXT,
-    language        TEXT         NOT NULL,
-    create_time     TEXT         NOT NULL DEFAULT (datetime('now'))
-);
-CREATE UNIQUE INDEX IF NOT EXISTS uk_dep_comp_pipeline_identity ON dependency_component (pipeline_id, identity_key);
-CREATE INDEX IF NOT EXISTS idx_dep_comp_purl ON dependency_component (purl);
-CREATE INDEX IF NOT EXISTS idx_dep_comp_run  ON dependency_component (run_id);
-CREATE INDEX IF NOT EXISTS idx_dep_comp_name ON dependency_component (name, version);
-
--- 依赖分析默认命令去掉 -q，便于流水线日志可见
-UPDATE pipeline_task_kind
-SET default_command = 'mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress'
-WHERE kind_value = 'DEPENDENCY_ANALYSIS';
-
-UPDATE pipeline_job
-SET command = replace(command, ' -q', '')
-WHERE kind = 'DEPENDENCY_ANALYSIS'
-  AND instr(command, ' -q') > 0;
-
--- ============================================================
--- 初始化 command_template：定义各任务的完整 Shell 脚本行为
--- 用户可在任务市场编辑覆盖，留空则使用 DEFAULT_TEMPLATE
--- ============================================================
-
--- CLONE
-UPDATE pipeline_task_kind SET command_template =
-'set -eu
+-- 初始化 19 种 Task 类型（IMAGE_COSIGN 默认禁用）（含默认工具镜像地址）
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('CLONE', '代码克隆', '代码', '从 Git 仓库拉取代码', 'Clone 命令由平台生成，在流水线里填写仓库与凭证即可。', '', 0, 1, 1, 'alpine/git:2.45.2', 'alpine/git:2.45.2', 'set -eu
 cd "$(workspaces.source.path)"
 git config --global http.version HTTP/1.1
 git config --global http.postBuffer 524288000
@@ -382,80 +250,14 @@ until git clone --depth 1 --branch "${GIT_REF}" "$URL" src; do
   sleep $((attempt * 2))
 done
 echo "HFWAS_GIT_REF=${GIT_REF}"
-echo "HFWAS_COMMIT=$(git -C src rev-parse HEAD)"'
-WHERE kind_value = 'CLONE';
+echo "HFWAS_COMMIT=$(git -C src rev-parse HEAD)"');
 
--- DEPENDENCY_ANALYSIS
-UPDATE pipeline_task_kind SET command_template =
-'set -eu
-mkdir -p "$(workspaces.source.path)/src"
-cd "$(workspaces.source.path)/src"
-${COMMAND}
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('BUILD', '构建', '构建', '编译与打包源码', '', '', 1, 1, 10, '', '', '');
 
-if [ -n "${API_ENDPOINT:-}" ] && [ -n "${RUN_ID:-}" ]; then
-  SBOM_FILE=""
-  for f in target/sbom.json target/bom.json; do
-    if [ -f "$f" ]; then SBOM_FILE="$f"; break; fi
-  done
-  if [ -z "$SBOM_FILE" ]; then
-    SBOM_FILE=$(find . \( -path ''*/target/sbom.json'' -o -path ''*/target/bom.json'' \) 2>/dev/null | head -n 1 || true)
-  fi
-  if [ -n "$SBOM_FILE" ]; then
-    if ! command -v curl >/dev/null 2>&1; then
-      apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl ca-certificates >/dev/null 2>&1 || true
-    fi
-    size=$(stat -f%z "$SBOM_FILE" 2>/dev/null || stat -c%s "$SBOM_FILE" 2>/dev/null || echo 0)
-    echo "uploading SBOM (${size} bytes) from ${SBOM_FILE}"
-    curl -fsS -X POST "${API_ENDPOINT}/pipeline/runs/${RUN_ID}/artifacts" \
-      -F "type=sbom" -F "file=@${SBOM_FILE};filename=sbom.json" \
-      --connect-timeout 10 --max-time 60 \
-      && echo " SBOM uploaded" || echo " SBOM upload failed (non-fatal)"
-  else
-    echo "target/sbom.json not found, skip upload"
-  fi
-else
-  echo "API_ENDPOINT not configured, skip SBOM upload"
-fi'
-WHERE kind_value = 'DEPENDENCY_ANALYSIS';
-
--- FORMAT
-UPDATE pipeline_task_kind SET command_template =
-'set -eu
-cd "$(workspaces.source.path)/src"
-eval "$(cat <<''HFWAS_USER''
-${COMMAND}
-HFWAS_USER
-)"
-if [ -z "$(git status --porcelain)" ]; then
-  echo "no changes after formatter, skip commit"
-  exit 0
-fi
-git add .
-git config user.name "HFwas Pipeline"
-git config user.email "pipeline@hfwas.com"
-git commit -m "style: auto format code [skip ci]"
-git pull --rebase
-git push'
-WHERE kind_value = 'FORMAT';
-
--- LINT_SONAR
-UPDATE pipeline_task_kind SET command_template =
-'set -eu
-mkdir -p "$(workspaces.source.path)/src"
-cd "$(workspaces.source.path)/src"
-eval "$(cat <<''HFWAS_USER''
-${COMMAND}
-HFWAS_USER
-)"
-: "${SONAR_HOST_URL:?SONAR_HOST_URL is required}"
-: "${SONAR_TOKEN:?SONAR_TOKEN is required}"
-: "${SONAR_PROJECT_KEY:=app}"
-sonar-scanner -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.token="$SONAR_TOKEN" -Dsonar.projectKey="$SONAR_PROJECT_KEY" -Dsonar.sources=.'
-WHERE kind_value = 'LINT_SONAR';
-
--- IMAGE (buildah step)
-UPDATE pipeline_task_kind SET command_template =
-'set -eu
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('IMAGE', '镜像构建', '构建', 'Buildah 多架构构建并签名镜像', '使用任务市场预置的 DEST / IMAGE_PLATFORMS / DOCKERFILE / COSIGN_PRIVATE_KEY 参数。支持 linux/amd64,linux/arm64 等多架构。',
+ '', 0, 1, 20, 'quay.io/containers/buildah:v1.37.0', 'quay.io/containers/buildah:v1.37.0', 'set -eu
 mkdir -p "$(workspaces.source.path)/src"
 cd "$(workspaces.source.path)/src"
 eval "$(cat <<''HFWAS_USER''
@@ -485,35 +287,126 @@ else
     buildah build --manifest "$DEST" --platform "$p" --file "$DOCKERFILE" .
   done
   buildah manifest push --all "$DEST" "docker://$DEST"
-fi'
-WHERE kind_value = 'IMAGE';
+fi');
 
--- IMAGE_COSIGN (cosign signature step)
-UPDATE pipeline_task_kind SET command_template =
-'set -eu
-: "${DEST:?DEST is required}"
-if [ -z "${COSIGN_PRIVATE_KEY:-}" ]; then
-  echo "skip cosign: COSIGN_PRIVATE_KEY empty"
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('LINT_SEMGREP', 'Semgrep 检查', '质量控制', 'Semgrep 静态检查', '填写 Semgrep CLI。', 'semgrep scan --error --config=auto .', 1, 1, 30, 'semgrep/semgrep:1.97.0', 'semgrep/semgrep:1.97.0', '');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('FORMAT', '代码格式化', '质量控制', '自动格式化代码并提交回仓库', '选择技术栈（Node/Java/Go/Python）并填写格式化命令。会自动 add、commit（[skip ci]）、push。推荐：JS/TS → npx prettier --write .，Java → mvn spotless:apply，Go → gofmt -w .，Python → black .',
+ 'npx prettier --write .', 1, 1, 35, '', '', 'set -eu
+cd "$(workspaces.source.path)/src"
+eval "$(cat <<''HFWAS_USER''
+${COMMAND}
+HFWAS_USER
+)"
+if [ -z "$(git status --porcelain)" ]; then
+  echo "no changes after formatter, skip commit"
   exit 0
 fi
-printf ''%s'' "$COSIGN_PRIVATE_KEY" > /tmp/cosign.key
-cosign sign --key /tmp/cosign.key --yes "$DEST"'
-WHERE kind_value = 'IMAGE_COSIGN';
+git add .
+git config user.name "HFwas Pipeline"
+git config user.email "pipeline@hfwas.com"
+git commit -m "style: auto format code [skip ci]"
+git pull --rebase
+git push');
 
--- KUBECTL
-UPDATE pipeline_task_kind SET command_template =
-'set -eu
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('LINT_SONAR', 'Sonar 检查', '质量控制', 'SonarScanner 静态检查', '使用任务市场预置的 SONAR_HOST_URL / SONAR_TOKEN / SONAR_PROJECT_KEY 参数。',
+ '', 0, 1, 40, 'sonarsource/sonar-scanner-cli:11.2', 'sonarsource/sonar-scanner-cli:11.2', 'set -eu
+mkdir -p "$(workspaces.source.path)/src"
+cd "$(workspaces.source.path)/src"
+eval "$(cat <<''HFWAS_USER''
+${COMMAND}
+HFWAS_USER
+)"
+: "${SONAR_HOST_URL:?SONAR_HOST_URL is required}"
+: "${SONAR_TOKEN:?SONAR_TOKEN is required}"
+: "${SONAR_PROJECT_KEY:=app}"
+sonar-scanner -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.token="$SONAR_TOKEN" -Dsonar.projectKey="$SONAR_PROJECT_KEY" -Dsonar.sources=.');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('DEPENDENCY_ANALYSIS', '依赖分析', '质量控制',
+ '生成 CycloneDX 格式的依赖清单（SBOM），为漏洞扫描提供精确的依赖树',
+ 'Java 项目使用 CycloneDX Maven Plugin，其他语言使用 cdxgen。产出 target/sbom.json。',
+ 'mvn org.cyclonedx:cyclonedx-maven-plugin:2.9.3:makeAggregateBom -Dcyclonedx.outputFormat=json -DoutputName=sbom --no-transfer-progress',
+ 1, 1, 45, 'maven:3.9.9-eclipse-temurin-21', 'maven:3.9.9-eclipse-temurin-21', 'set -eu
+mkdir -p "$(workspaces.source.path)/src"
+cd "$(workspaces.source.path)/src"
+${COMMAND}
+
+if [ -n "${API_ENDPOINT:-}" ] && [ -n "${RUN_ID:-}" ]; then
+  SBOM_FILE=""
+  for f in target/sbom.json target/bom.json; do
+    if [ -f "$f" ]; then SBOM_FILE="$f"; break; fi
+  done
+  if [ -z "$SBOM_FILE" ]; then
+    SBOM_FILE=$(find . \( -path ''*/target/sbom.json'' -o -path ''*/target/bom.json'' \) 2>/dev/null | head -n 1 || true)
+  fi
+  if [ -n "$SBOM_FILE" ]; then
+    if ! command -v curl >/dev/null 2>&1; then
+      apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl ca-certificates >/dev/null 2>&1 || true
+    fi
+    size=$(stat -f%z "$SBOM_FILE" 2>/dev/null || stat -c%s "$SBOM_FILE" 2>/dev/null || echo 0)
+    echo "uploading SBOM (${size} bytes) from ${SBOM_FILE}"
+    curl -fsS -X POST "${API_ENDPOINT}/pipeline/runs/${RUN_ID}/artifacts" \
+      -F "type=sbom" -F "file=@${SBOM_FILE};filename=sbom.json" \
+      --connect-timeout 10 --max-time 60 \
+      && echo " SBOM uploaded" || echo " SBOM upload failed (non-fatal)"
+  else
+    echo "target/sbom.json not found, skip upload"
+  fi
+else
+  echo "API_ENDPOINT not configured, skip SBOM upload"
+fi');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('SCAN', '安全扫描', '质量控制', '依赖与文件系统漏洞扫描', '',
+ 'trivy fs --exit-code 1 --scanners vuln,secret,misconfig .', 1, 1, 50, 'aquasec/trivy:0.66.0', 'aquasec/trivy:0.66.0', '');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('PACKAGE', '打包', '制品', '产出可分发制品', '', '', 1, 1, 60, '', '', '');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('PUBLISH', '发布制品', '制品', '把制品发布到仓库', '', '', 1, 1, 70, '', '', '');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('UPLOAD', '上传对象存储', '制品', 'rclone 上传到对象存储', '',
+ 'rclone copy ./ :s3:bucket/prefix --s3-provider=Minio --s3-endpoint="${S3_ENDPOINT}" --s3-access-key-id="${S3_ACCESS_KEY}" --s3-secret-access-key="${S3_SECRET_KEY}"', 1, 1, 80, 'rclone/rclone:1.68.2', 'rclone/rclone:1.68.2', '');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('DEPLOY', '部署', '部署', '发布到 Kubernetes 或其他环境', '', 'kubectl apply -f k8s/', 1, 1, 90, 'bitnami/kubectl:1.31.4', 'bitnami/kubectl:1.31.4', '');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('TEST', '测试', '测试', '运行单元 / 集成测试', '', '', 1, 1, 100, '', '', '');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('CUSTOM', '自定义命令', '命令', '在工具链镜像里执行任意命令', '', 'echo ok', 1, 1, 110, '', '', '');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('APPROVAL', '人工卡点', '流程', '运行到此处暂停，需人工通过',
+ '运行到此处会暂停，需在运行页点通过。审批节点必须单独成阶段。', '', 0, 1, 120, '', '', '');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('NOTIFY', '通知', '流程', 'Webhook / HTTP 通知', '',
+ 'curl -fsS -X POST ''https://example.com/hook'' -H ''Content-Type: application/json'' -d ''{"status":"done"}''', 1, 1, 130, 'curlimages/curl:8.11.1', 'curlimages/curl:8.11.1', '');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('KUBECTL', 'K8s 命令', '部署', '使用用户提供的 kubeconfig 执行 kubectl 命令',
+ '填写任意 kubectl 命令，如 kubectl get pods -A',
+ 'kubectl get pods -A', 1, 1, 95, 'bitnami/kubectl:1.31.4', 'bitnami/kubectl:1.31.4', 'set -eu
 mkdir -p /root/.kube
 if [ -f /etc/kubeconfig/config ]; then
   cp /etc/kubeconfig/config /root/.kube/config
 fi
 cd "$(workspaces.source.path)/src"
-${COMMAND}'
-WHERE kind_value = 'KUBECTL';
+${COMMAND}');
 
--- DEPENDENCY_TRACK
-UPDATE pipeline_task_kind SET command_template =
-'set -eu
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('DEPENDENCY_TRACK', '依赖漏洞扫描', '质量控制',
+ '上传 SBOM 到 Dependency-Track 进行组件漏洞分析，支持按严重等级控制流水线门禁',
+ '需要先执行依赖分析（DEPENDENCY_ANALYSIS）生成 target/sbom.json。预置参数：DT_HOST_URL / DT_API_KEY / DT_PROJECT_NAME / DT_PROJECT_VERSION / DT_SBOM_PATH / DT_FAIL_ON',
+ '', 1, 1, 55, 'curlimages/curl:8.11.1', 'curlimages/curl:8.11.1', 'set -eu
 cd "$(workspaces.source.path)/src"
 
 : "${DT_HOST_URL:?DT_HOST_URL is required}"
@@ -628,5 +521,90 @@ if [ "${FAIL_THRESHOLD}" -le 3 ] && [ "${LOW}" -gt 0 ]; then
   exit 1
 fi
 
-echo "Dependency-Track analysis passed (threshold: ${DT_FAIL_ON})"'
-WHERE kind_value = 'DEPENDENCY_TRACK';
+echo "Dependency-Track analysis passed (threshold: ${DT_FAIL_ON})"');
+
+INSERT OR IGNORE INTO pipeline_task_kind (kind_value, label, task_group, description, hint, default_command, requires_command, enabled, sort_order, tool_image, default_image, command_template) VALUES
+('IMAGE_COSIGN', '镜像签名', '构建', '使用 cosign 对镜像签名', 'IMAGE 任务的子步骤，不单独出现在任务市场。', '', 0, 0, 25, '', '', 'set -eu
+: "${DEST:?DEST is required}"
+if [ -z "${COSIGN_PRIVATE_KEY:-}" ]; then
+  echo "skip cosign: COSIGN_PRIVATE_KEY empty"
+  exit 0
+fi
+printf ''%s'' "$COSIGN_PRIVATE_KEY" > /tmp/cosign.key
+cosign sign --key /tmp/cosign.key --yes "$DEST"');
+
+CREATE INDEX IF NOT EXISTS idx_task_kind_tenant ON pipeline_task_kind (tenant_id, deleted);
+CREATE INDEX IF NOT EXISTS idx_task_kind_group ON pipeline_task_kind (task_group, sort_order);
+
+-- ============================================================
+-- 流水线运行产物表（SBOM / 测试报告 / 覆盖率报告等）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS pipeline_run_artifact (
+    id            INTEGER      NOT NULL PRIMARY KEY,
+    run_id        INTEGER      NOT NULL REFERENCES pipeline_run(id),
+    job_id        INTEGER      REFERENCES pipeline_run_job(id),
+    artifact_type TEXT         NOT NULL DEFAULT 'sbom',
+    file_name     TEXT         NOT NULL,
+    file_size     INTEGER      NOT NULL DEFAULT 0,
+    storage_path  TEXT         NOT NULL,
+    content_type  TEXT         NOT NULL DEFAULT 'application/json',
+    create_time   TEXT         NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_artifact_run ON pipeline_run_artifact (run_id, artifact_type);
+
+-- ============================================================
+-- 依赖组件表（从 SBOM 解析入库，支撑集中依赖视图）
+-- 同一流水线 + 同一组件（purl / GAV）只保留一行，重复跑分析走 upsert
+-- ============================================================
+CREATE TABLE IF NOT EXISTS dependency_component (
+    id              INTEGER      NOT NULL PRIMARY KEY,
+    artifact_id     INTEGER      NOT NULL REFERENCES pipeline_run_artifact(id),
+    run_id          INTEGER      NOT NULL REFERENCES pipeline_run(id),
+    pipeline_id     INTEGER      NOT NULL REFERENCES pipeline(id),
+    identity_key    TEXT         NOT NULL,
+    purl            TEXT         NOT NULL DEFAULT '',
+    group_name      TEXT,
+    name            TEXT         NOT NULL,
+    version         TEXT         NOT NULL,
+    license         TEXT,
+    scope           TEXT,
+    language        TEXT         NOT NULL,
+    create_time     TEXT         NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_dep_comp_pipeline_identity ON dependency_component (pipeline_id, identity_key);
+CREATE INDEX IF NOT EXISTS idx_dep_comp_purl ON dependency_component (purl);
+CREATE INDEX IF NOT EXISTS idx_dep_comp_run  ON dependency_component (run_id);
+CREATE INDEX IF NOT EXISTS idx_dep_comp_name ON dependency_component (name, version);
+
+-- 依赖分析默认命令去掉 -q，便于流水线日志可见
+
+
+
+
+-- ============================================================
+-- 初始化 command_template：定义各任务的完整 Shell 脚本行为
+-- 用户可在任务市场编辑覆盖，留空则使用 DEFAULT_TEMPLATE
+-- ============================================================
+
+-- CLONE
+
+
+-- DEPENDENCY_ANALYSIS
+
+
+-- FORMAT
+
+
+-- LINT_SONAR
+
+
+-- IMAGE (buildah step)
+
+
+-- IMAGE_COSIGN (cosign signature step)
+
+
+-- KUBECTL
+
+
+-- DEPENDENCY_TRACK

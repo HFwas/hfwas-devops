@@ -22,7 +22,7 @@ export function ProductSwitcher({ isAdmin }: { isAdmin: boolean }) {
   const title = product?.name ?? (scope === 'user' ? '用户中心' : '选择产品')
   const subtitle = product?.description ?? 'HFWAS DevOps'
   const Icon = product?.icon ?? (scope === 'user' ? Users : LayoutDashboard)
-  const groups = groupProducts()
+  const groups = groupProducts(undefined, isAdmin)
 
   return (
     <SidebarMenu>

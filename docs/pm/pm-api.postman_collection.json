@@ -1,0 +1,176 @@
+{
+  "info": {
+    "name": "HFWAS PM — P0 project isolation",
+    "_postman_id": "hfwas-pm-p0-isolation",
+    "description": "PM 模块 P0 项目归属校验。跨租户返回 403 + code=20002；update 禁止改 project_id。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8089/api" },
+    { "key": "token", "value": "" },
+    { "key": "tenantId", "value": "" },
+    { "key": "projectId", "value": "9001" },
+    { "key": "workItemId", "value": "9101" }
+  ],
+  "item": [
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "Get project",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/pm/projects/{{projectId}}", "host": ["{{baseUrl}}"], "path": ["pm", "projects", "{{projectId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/pm/projects/{{projectId}}" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"id\":9001,\"name\":\"支付平台\"},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 跨租户", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/pm/projects/{{projectId}}" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Work items",
+      "item": [
+        {
+          "name": "Page work items",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/pm/work-items/page", "host": ["{{baseUrl}}"], "path": ["pm", "work-items", "page"] },
+            "body": { "mode": "raw", "raw": "{\"projectId\": {{projectId}}, \"pageNo\": 1, \"pageSize\": 20}" }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/page" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"records\":[],\"total\":0},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 显式跨项目", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/page" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        },
+        {
+          "name": "Get work item",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}", "host": ["{{baseUrl}}"], "path": ["pm", "work-items", "{{workItemId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"id\":9101,\"projectId\":9001,\"title\":\"支付回调超时\"},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 跨租户", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        },
+        {
+          "name": "Save work item (no project move)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/pm/work-items/save", "host": ["{{baseUrl}}"], "path": ["pm", "work-items", "save"] },
+            "body": { "mode": "raw", "raw": "{\"id\": {{workItemId}}, \"projectId\": {{projectId}}, \"typeCode\": \"TASK\", \"title\": \"支付回调超时\"}" }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/save" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":9101,\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 改归属", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/save" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        },
+        {
+          "name": "Delete work item",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/pm/work-items/delete?id={{workItemId}}", "host": ["{{baseUrl}}"], "path": ["pm", "work-items", "delete"], "query": [{ "key": "id", "value": "{{workItemId}}" }] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/delete" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 跨租户", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/delete" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Board",
+      "item": [
+        {
+          "name": "Get board",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/pm/board", "host": ["{{baseUrl}}"], "path": ["pm", "board"] },
+            "body": { "mode": "raw", "raw": "{\"projectId\": {{projectId}}, \"typeCode\": \"TASK\"}" }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/board" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"open\":[]},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 跨租户", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/board" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

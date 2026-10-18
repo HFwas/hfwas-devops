@@ -35,6 +35,15 @@ describe('menuForScope', () => {
     ])
   })
 
+  it('hides Argo from non-admins', () => {
+    expect(menuForScope('argo', { isAdmin: false })).toEqual([])
+    expect(menuForScope('argo', { isAdmin: true }).flatMap((group) => group.items.map((item) => item.label))).toEqual([
+      '工作流',
+      '模板',
+      '定时任务',
+    ])
+  })
+
   it('hides user management from non-admins', () => {
     expect(menuForScope('user', { isAdmin: false }).flatMap((group) => group.items.map((item) => item.key))).toEqual([
       'settings',

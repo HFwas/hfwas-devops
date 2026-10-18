@@ -26,7 +26,7 @@ public class ApiDefinitionResponseService
      * 批量保存响应定义
      */
     @Transactional(rollbackFor = Exception.class)
-    public void batchSave(Long definitionId, List<ApiDefinitionResponseDTO> responses, Long userId) {
+    public void batchSave(Long definitionId, List<ApiDefinitionResponseDTO> responses) {
         for (ApiDefinitionResponseDTO dto : responses) {
             ApiDefinitionResponseEntity entity = new ApiDefinitionResponseEntity();
             entity.setDefinitionId(definitionId);

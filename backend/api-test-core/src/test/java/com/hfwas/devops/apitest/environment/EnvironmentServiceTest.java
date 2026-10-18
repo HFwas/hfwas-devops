@@ -2,6 +2,9 @@ package com.hfwas.devops.apitest.environment;
 
 import com.hfwas.devops.apitest.BaseApiTest;
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.support.TestProjectAccessValidator;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.apitest.environment.dto.EnvironmentCreateDTO;
 import com.hfwas.devops.apitest.environment.dto.EnvironmentQueryDTO;
 import com.hfwas.devops.apitest.environment.dto.EnvironmentUpdateDTO;
@@ -14,6 +17,7 @@ import com.hfwas.devops.apitest.environment.service.EnvironmentService;
 import com.hfwas.devops.apitest.environment.vo.EnvironmentDetailVO;
 import com.hfwas.devops.apitest.environment.vo.EnvironmentVO;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -46,6 +50,14 @@ class EnvironmentServiceTest extends BaseApiTest {
 
     @Autowired
     private EnvironmentVariableMapper variableMapper;
+
+    @Autowired
+    private TestProjectAccessValidator projectAccessValidator;
+
+    @AfterEach
+    void resetAccessContext() {
+        projectAccessValidator.reset();
+    }
 
     private EnvironmentCreateDTO createDTO;
     private EnvironmentVariableDTO varDTO1;
@@ -84,7 +96,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建基本环境应成功并返回完整详情VO")
         void createBasicEnvironmentShouldSucceed() {
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
 
             assertNotNull(vo);
             assertNotNull(vo.getId());
@@ -99,7 +111,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建后数据库应保存正确的记录")
         void createShouldPersistToDatabase() {
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
 
             EnvironmentEntity saved = environmentMapper.selectById(vo.getId());
             assertNotNull(saved);
@@ -113,7 +125,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建后审计字段应自动填充")
         void createShouldAutoFillAuditFields() {
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
 
             EnvironmentEntity saved = environmentMapper.selectById(vo.getId());
             assertNotNull(saved.getCreateTime());
@@ -127,7 +139,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         void createWithVariablesShouldSucceed() {
             createDTO.setVariables(Arrays.asList(varDTO1, varDTO2));
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
 
             assertNotNull(vo.getVariables());
             assertEquals(2, vo.getVariables().size());
@@ -158,7 +170,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         void createWithSecretVariableShouldMaskInDetail() {
             createDTO.setVariables(Collections.singletonList(varDTO2));
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
 
             assertEquals(1, vo.getVariables().size());
             assertEquals("API_KEY", vo.getVariables().get(0).getName());
@@ -171,7 +183,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         void createWithEmptyVariablesShouldSucceed() {
             createDTO.setVariables(Collections.emptyList());
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             assertNotNull(vo);
             assertNotNull(vo.getId());
         }
@@ -181,7 +193,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         void createWithNullSortOrderShouldDefaultToZero() {
             createDTO.setSortOrder(null);
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             assertEquals(Integer.valueOf(0), vo.getSortOrder());
         }
 
@@ -190,33 +202,33 @@ class EnvironmentServiceTest extends BaseApiTest {
         void createWithNullDescriptionShouldSucceed() {
             createDTO.setDescription(null);
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             assertNull(vo.getDescription());
         }
 
         @Test
         @DisplayName("同一项目下同名环境创建应抛出 ApiTestException")
         void duplicateNameInSameProjectShouldThrow() {
-            environmentService.create(createDTO, testProjectId(), testUserId());
+            environmentService.create(createDTO, testProjectId());
 
             EnvironmentCreateDTO duplicate = new EnvironmentCreateDTO();
             duplicate.setName("测试环境");
 
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> environmentService.create(duplicate, testProjectId(), testUserId()));
+                    () -> environmentService.create(duplicate, testProjectId()));
             assertTrue(ex.getMessage().contains("同名环境"));
         }
 
         @Test
         @DisplayName("不同项目下同名环境应允许创建")
         void sameNameInDifferentProjectsShouldBeAllowed() {
-            environmentService.create(createDTO, testProjectId(), testUserId());
+            environmentService.create(createDTO, testProjectId());
 
             EnvironmentCreateDTO otherProject = new EnvironmentCreateDTO();
             otherProject.setName("测试环境");
             otherProject.setDescription("其他项目的测试环境");
 
-            EnvironmentDetailVO vo = environmentService.create(otherProject, 2002L, testUserId());
+            EnvironmentDetailVO vo = environmentService.create(otherProject, 2002L);
             assertNotNull(vo.getId());
             assertEquals(2002L, vo.getProjectId());
         }
@@ -224,7 +236,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建后无变量时详情VO中变量列表应为空")
         void createWithoutVariablesShouldReturnEmptyVariableList() {
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
 
             assertTrue(vo.getVariables() == null || vo.getVariables().isEmpty());
         }
@@ -243,7 +255,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @BeforeEach
         void insertEnvironment() {
             createDTO.setVariables(Arrays.asList(varDTO1));
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             environmentId = vo.getId();
         }
 
@@ -253,7 +265,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             EnvironmentUpdateDTO dto = new EnvironmentUpdateDTO();
             dto.setName("测试环境V2");
 
-            EnvironmentDetailVO vo = environmentService.update(environmentId, dto, testUserId());
+            EnvironmentDetailVO vo = environmentService.update(environmentId, dto);
             assertEquals("测试环境V2", vo.getName());
 
             EnvironmentEntity saved = environmentMapper.selectById(environmentId);
@@ -266,7 +278,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             EnvironmentUpdateDTO dto = new EnvironmentUpdateDTO();
             dto.setDescription("更新后的环境描述");
 
-            EnvironmentDetailVO vo = environmentService.update(environmentId, dto, testUserId());
+            EnvironmentDetailVO vo = environmentService.update(environmentId, dto);
             assertEquals("更新后的环境描述", vo.getDescription());
         }
 
@@ -276,7 +288,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             EnvironmentUpdateDTO dto = new EnvironmentUpdateDTO();
             dto.setSortOrder(99);
 
-            EnvironmentDetailVO vo = environmentService.update(environmentId, dto, testUserId());
+            EnvironmentDetailVO vo = environmentService.update(environmentId, dto);
             assertEquals(Integer.valueOf(99), vo.getSortOrder());
         }
 
@@ -293,7 +305,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             EnvironmentUpdateDTO dto = new EnvironmentUpdateDTO();
             dto.setVariables(Collections.singletonList(newVar));
 
-            EnvironmentDetailVO vo = environmentService.update(environmentId, dto, testUserId());
+            EnvironmentDetailVO vo = environmentService.update(environmentId, dto);
 
             // 验证旧变量被删除，新变量已插入
             List<EnvironmentVariableEntity> variables = variableMapper.selectList(null);
@@ -313,7 +325,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             EnvironmentUpdateDTO dto = new EnvironmentUpdateDTO();
             dto.setVariables(Collections.emptyList());
 
-            environmentService.update(environmentId, dto, testUserId());
+            environmentService.update(environmentId, dto);
 
             List<EnvironmentVariableEntity> variables = variableMapper.selectList(null);
             assertTrue(variables.isEmpty());
@@ -325,7 +337,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             EnvironmentUpdateDTO dto = new EnvironmentUpdateDTO();
             dto.setName("仅更新名称");
 
-            environmentService.update(environmentId, dto, testUserId());
+            environmentService.update(environmentId, dto);
 
             List<EnvironmentVariableEntity> variables = variableMapper.selectList(null);
             assertEquals(1, variables.size());
@@ -338,13 +350,13 @@ class EnvironmentServiceTest extends BaseApiTest {
             // 创建另一个环境
             EnvironmentCreateDTO another = new EnvironmentCreateDTO();
             another.setName("预发布环境");
-            environmentService.create(another, testProjectId(), testUserId());
+            environmentService.create(another, testProjectId());
 
             EnvironmentUpdateDTO dto = new EnvironmentUpdateDTO();
             dto.setName("预发布环境");
 
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> environmentService.update(environmentId, dto, testUserId()));
+                    () -> environmentService.update(environmentId, dto));
             assertTrue(ex.getMessage().contains("同名环境"));
         }
 
@@ -355,7 +367,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             dto.setName("测试环境");
             dto.setDescription("更新描述");
 
-            EnvironmentDetailVO vo = environmentService.update(environmentId, dto, testUserId());
+            EnvironmentDetailVO vo = environmentService.update(environmentId, dto);
             assertEquals("测试环境", vo.getName());
             assertEquals("更新描述", vo.getDescription());
         }
@@ -367,7 +379,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             dto.setName("不存在");
 
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> environmentService.update(99999L, dto, testUserId()));
+                    () -> environmentService.update(99999L, dto));
             assertTrue(ex.getMessage().contains("环境不存在"));
         }
 
@@ -377,7 +389,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             EnvironmentUpdateDTO dto = new EnvironmentUpdateDTO();
             dto.setName("更新后的名称");
 
-            environmentService.update(environmentId, dto, testUserId());
+            environmentService.update(environmentId, dto);
 
             EnvironmentEntity saved = environmentMapper.selectById(environmentId);
             assertNotNull(saved.getUpdateTime());
@@ -396,7 +408,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @Test
         @DisplayName("查询存在的环境应返回完整详情VO")
         void getExistingEnvironmentShouldReturnDetail() {
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             EnvironmentDetailVO detail = environmentService.getDetail(created.getId());
             assertNotNull(detail);
@@ -412,7 +424,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @DisplayName("查询含变量的环境应返回变量列表")
         void getDetailWithVariablesShouldReturnVariables() {
             createDTO.setVariables(Arrays.asList(varDTO1, varDTO2));
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             EnvironmentDetailVO detail = environmentService.getDetail(created.getId());
             assertNotNull(detail.getVariables());
@@ -423,7 +435,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @DisplayName("详情中敏感变量值应返回掩码")
         void getDetailWithSecretVariableShouldMaskValue() {
             createDTO.setVariables(Collections.singletonList(varDTO2));
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             EnvironmentDetailVO detail = environmentService.getDetail(created.getId());
             EnvironmentDetailVO.EnvironmentVariableItemVO secretVar = detail.getVariables().get(0);
@@ -436,7 +448,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @DisplayName("详情中非敏感变量应返回原始值")
         void getDetailWithNonSecretVariableShouldReturnOriginalValue() {
             createDTO.setVariables(Collections.singletonList(varDTO1));
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             EnvironmentDetailVO detail = environmentService.getDetail(created.getId());
             EnvironmentDetailVO.EnvironmentVariableItemVO nonSecretVar = detail.getVariables().get(0);
@@ -456,7 +468,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @Test
         @DisplayName("多次查询同一环境应返回一致结果")
         void multipleQueriesShouldReturnConsistentResult() {
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             EnvironmentDetailVO detail1 = environmentService.getDetail(created.getId());
             EnvironmentDetailVO detail2 = environmentService.getDetail(created.getId());
@@ -480,7 +492,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @BeforeEach
         void insertEnvironment() {
             createDTO.setVariables(Arrays.asList(varDTO1, varDTO2));
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             environmentId = vo.getId();
         }
 
@@ -526,19 +538,19 @@ class EnvironmentServiceTest extends BaseApiTest {
 
         @BeforeEach
         void insertTestData() {
-            environmentService.create(createDTO, testProjectId(), testUserId());
+            environmentService.create(createDTO, testProjectId());
 
             EnvironmentCreateDTO stagingDTO = new EnvironmentCreateDTO();
             stagingDTO.setName("预发布环境");
             stagingDTO.setDescription("预发布验证环境");
             stagingDTO.setSortOrder(2);
-            environmentService.create(stagingDTO, testProjectId(), testUserId());
+            environmentService.create(stagingDTO, testProjectId());
 
             EnvironmentCreateDTO prodDTO = new EnvironmentCreateDTO();
             prodDTO.setName("生产环境");
             prodDTO.setDescription("线上生产环境");
             prodDTO.setSortOrder(3);
-            environmentService.create(prodDTO, testProjectId(), testUserId());
+            environmentService.create(prodDTO, testProjectId());
         }
 
         @Test
@@ -647,7 +659,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             prodWithVars.setName("生产环境-带变量");
             prodWithVars.setSortOrder(4);
             prodWithVars.setVariables(Collections.singletonList(varDTO1));
-            environmentService.create(prodWithVars, testProjectId(), testUserId());
+            environmentService.create(prodWithVars, testProjectId());
 
             // 创建新查询，使用更具体的关键词
             EnvironmentQueryDTO query = new EnvironmentQueryDTO();
@@ -682,17 +694,17 @@ class EnvironmentServiceTest extends BaseApiTest {
 
         @BeforeEach
         void insertTestData() {
-            environmentService.create(createDTO, testProjectId(), testUserId());
+            environmentService.create(createDTO, testProjectId());
 
             EnvironmentCreateDTO stagingDTO = new EnvironmentCreateDTO();
             stagingDTO.setName("预发布环境");
             stagingDTO.setSortOrder(2);
-            environmentService.create(stagingDTO, testProjectId(), testUserId());
+            environmentService.create(stagingDTO, testProjectId());
 
             EnvironmentCreateDTO prodDTO = new EnvironmentCreateDTO();
             prodDTO.setName("生产环境");
             prodDTO.setSortOrder(3);
-            environmentService.create(prodDTO, testProjectId(), testUserId());
+            environmentService.create(prodDTO, testProjectId());
         }
 
         @Test
@@ -738,7 +750,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @DisplayName("查询存在的环境变量映射应返回 Map")
         void getVariableMapShouldReturnMap() {
             createDTO.setVariables(Arrays.asList(varDTO1, varDTO2));
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             Map<String, String> variableMap = environmentService.getVariableMap(created.getId());
 
@@ -751,7 +763,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @Test
         @DisplayName("无变量的环境应返回空 Map")
         void environmentWithoutVariablesShouldReturnEmptyMap() {
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             Map<String, String> variableMap = environmentService.getVariableMap(created.getId());
 
@@ -769,19 +781,19 @@ class EnvironmentServiceTest extends BaseApiTest {
         }
 
         @Test
-        @DisplayName("不存在的 environmentId 应返回空 Map")
-        void nonExistentEnvironmentIdShouldReturnEmptyMap() {
-            Map<String, String> variableMap = environmentService.getVariableMap(99999L);
+        @DisplayName("不存在的 environmentId 应抛出 ApiTestException")
+        void nonExistentEnvironmentIdShouldThrow() {
+            ApiTestException ex = assertThrows(ApiTestException.class,
+                    () -> environmentService.getVariableMap(99999L));
 
-            assertNotNull(variableMap);
-            assertTrue(variableMap.isEmpty());
+            assertTrue(ex.getMessage().contains("不存在"));
         }
 
         @Test
         @DisplayName("变量映射中敏感变量应返回原始值（getVariableMap 不掩码）")
         void getVariableMapShouldReturnOriginalValueForSecretVariables() {
             createDTO.setVariables(Collections.singletonList(varDTO2));
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             Map<String, String> variableMap = environmentService.getVariableMap(created.getId());
 
@@ -801,7 +813,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         @DisplayName("完整的环境生命周期流转应正确")
         void fullLifecycleShouldWork() {
             // 创建
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
             assertNotNull(created.getId());
             assertEquals("测试环境", created.getName());
             assertEquals(testProjectId(), created.getProjectId());
@@ -810,7 +822,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             EnvironmentUpdateDTO updateDTO = new EnvironmentUpdateDTO();
             updateDTO.setName("测试环境V2");
             updateDTO.setDescription("更新后的描述");
-            EnvironmentDetailVO updated = environmentService.update(created.getId(), updateDTO, testUserId());
+            EnvironmentDetailVO updated = environmentService.update(created.getId(), updateDTO);
             assertEquals("测试环境V2", updated.getName());
             assertEquals("更新后的描述", updated.getDescription());
 
@@ -829,14 +841,14 @@ class EnvironmentServiceTest extends BaseApiTest {
         void fullLifecycleWithVariablesShouldWork() {
             // 创建含变量的环境
             createDTO.setVariables(Arrays.asList(varDTO1));
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
             assertNotNull(created.getId());
             assertEquals(1, created.getVariables().size());
 
             // 更新变量
             EnvironmentUpdateDTO updateDTO = new EnvironmentUpdateDTO();
             updateDTO.setVariables(Arrays.asList(varDTO1, varDTO2));
-            EnvironmentDetailVO updated = environmentService.update(created.getId(), updateDTO, testUserId());
+            EnvironmentDetailVO updated = environmentService.update(created.getId(), updateDTO);
             assertEquals(2, updated.getVariables().size());
 
             // 查询详情并验证变量
@@ -865,12 +877,12 @@ class EnvironmentServiceTest extends BaseApiTest {
         @Test
         @DisplayName("不同项目下的环境应互不干扰")
         void environmentsInDifferentProjectsShouldBeIndependent() {
-            environmentService.create(createDTO, testProjectId(), testUserId());
+            environmentService.create(createDTO, testProjectId());
 
             EnvironmentCreateDTO otherProjectDTO = new EnvironmentCreateDTO();
             otherProjectDTO.setName("其他项目测试环境");
             otherProjectDTO.setSortOrder(1);
-            environmentService.create(otherProjectDTO, 2002L, testUserId());
+            environmentService.create(otherProjectDTO, 2002L);
 
             List<EnvironmentVO> projectEnvs = environmentService.listAll(testProjectId());
             assertEquals(1, projectEnvs.size());
@@ -887,17 +899,17 @@ class EnvironmentServiceTest extends BaseApiTest {
             EnvironmentCreateDTO low = new EnvironmentCreateDTO();
             low.setName("最低优先级");
             low.setSortOrder(10);
-            environmentService.create(low, testProjectId(), testUserId());
+            environmentService.create(low, testProjectId());
 
             EnvironmentCreateDTO high = new EnvironmentCreateDTO();
             high.setName("最高优先级");
             high.setSortOrder(1);
-            environmentService.create(high, testProjectId(), testUserId());
+            environmentService.create(high, testProjectId());
 
             EnvironmentCreateDTO mid = new EnvironmentCreateDTO();
             mid.setName("中间优先级");
             mid.setSortOrder(5);
-            environmentService.create(mid, testProjectId(), testUserId());
+            environmentService.create(mid, testProjectId());
 
             List<EnvironmentVO> result = environmentService.listAll(testProjectId());
             assertEquals(3, result.size());
@@ -909,13 +921,13 @@ class EnvironmentServiceTest extends BaseApiTest {
         @Test
         @DisplayName("不同项目下同名环境应允许创建")
         void sameNameInDifferentProjectsShouldBeAllowed() {
-            environmentService.create(createDTO, testProjectId(), testUserId());
+            environmentService.create(createDTO, testProjectId());
 
             EnvironmentCreateDTO sameNameProject = new EnvironmentCreateDTO();
             sameNameProject.setName("测试环境");
             sameNameProject.setSortOrder(1);
 
-            EnvironmentDetailVO vo = environmentService.create(sameNameProject, 2002L, testUserId());
+            EnvironmentDetailVO vo = environmentService.create(sameNameProject, 2002L);
             assertNotNull(vo.getId());
         }
     }
@@ -934,7 +946,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             String longName = "测试环境" + "A".repeat(100);
             createDTO.setName(longName);
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             assertEquals(longName, vo.getName());
         }
 
@@ -944,7 +956,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             String longDesc = "描述" + "B".repeat(500);
             createDTO.setDescription(longDesc);
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             assertEquals(longDesc, vo.getDescription());
         }
 
@@ -953,7 +965,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         void minSortOrderShouldBeStoredCorrectly() {
             createDTO.setSortOrder(Integer.MIN_VALUE);
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             assertEquals(Integer.valueOf(Integer.MIN_VALUE), vo.getSortOrder());
         }
 
@@ -962,7 +974,7 @@ class EnvironmentServiceTest extends BaseApiTest {
         void maxSortOrderShouldBeStoredCorrectly() {
             createDTO.setSortOrder(Integer.MAX_VALUE);
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             assertEquals(Integer.valueOf(Integer.MAX_VALUE), vo.getSortOrder());
         }
 
@@ -979,7 +991,7 @@ class EnvironmentServiceTest extends BaseApiTest {
             }
             createDTO.setVariables(manyVars);
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             assertEquals(50, vo.getVariables().size());
 
             List<EnvironmentVariableEntity> variables = variableMapper.selectList(null);
@@ -996,7 +1008,7 @@ class EnvironmentServiceTest extends BaseApiTest {
 
             createDTO.setVariables(Collections.singletonList(specialVar));
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             assertEquals("!@#$%^&*()_+-=[]{}|;':\",./<>?`~", vo.getVariables().get(0).getValue());
         }
 
@@ -1010,7 +1022,7 @@ class EnvironmentServiceTest extends BaseApiTest {
 
             createDTO.setVariables(Collections.singletonList(emptyNameVar));
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             assertEquals("", vo.getVariables().get(0).getName());
         }
 
@@ -1024,8 +1036,71 @@ class EnvironmentServiceTest extends BaseApiTest {
 
             createDTO.setVariables(Collections.singletonList(emptyValueVar));
 
-            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO vo = environmentService.create(createDTO, testProjectId());
             assertEquals("", vo.getVariables().get(0).getValue());
         }
+    }
+
+    // ========================================================================
+    // 项目隔离
+    // ========================================================================
+
+    @Nested
+    @DisplayName("项目隔离 — 跨项目读写")
+    class ProjectIsolation {
+
+        @Test
+        @DisplayName("getVariableMap 读取其他项目环境应返回 20002")
+        void variableMapProjectGuard() {
+            EnvironmentDetailVO foreign = environmentService.create(createDTO, 2002L);
+
+            projectAccessValidator.allow(testProjectId());
+
+            BizException ex = assertThrows(BizException.class,
+                    () -> environmentService.getVariableMap(foreign.getId()));
+            assertEquals(ResultCode.PROJECT_ACCESS_DENIED.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("跨项目 detail/update/delete/list/page 应全部 20002")
+        void crossProjectForbidden() {
+            EnvironmentDetailVO foreign = environmentService.create(createDTO, 2002L);
+            projectAccessValidator.allow(testProjectId());
+
+            assertProjectDenied(() -> environmentService.getDetail(foreign.getId()));
+            assertProjectDenied(() -> environmentService.update(foreign.getId(), new EnvironmentUpdateDTO()));
+            assertProjectDenied(() -> environmentService.delete(foreign.getId()));
+            assertProjectDenied(() -> environmentService.listAll(2002L));
+            assertProjectDenied(() -> environmentService.pageQuery(
+                    queryFor(2002L)));
+        }
+
+        @Test
+        @DisplayName("不带 projectId 的分页只返回可见项目")
+        void pageScopedToAccessibleProjects() {
+            environmentService.create(createDTO, testProjectId());
+            EnvironmentCreateDTO foreignDTO = new EnvironmentCreateDTO();
+            foreignDTO.setName("外部环境");
+            environmentService.create(foreignDTO, 2002L);
+
+            projectAccessValidator.allow(testProjectId());
+            IPage<EnvironmentVO> page = environmentService.pageQuery(new EnvironmentQueryDTO());
+            assertEquals(1, page.getTotal());
+
+            projectAccessValidator.denyAll();
+            IPage<EnvironmentVO> empty = environmentService.pageQuery(new EnvironmentQueryDTO());
+            assertEquals(0, empty.getTotal());
+        }
+    }
+
+    private EnvironmentQueryDTO queryFor(Long projectId) {
+        EnvironmentQueryDTO query = new EnvironmentQueryDTO();
+        query.setProjectId(projectId);
+        return query;
+    }
+
+    private void assertProjectDenied(org.junit.jupiter.api.function.Executable executable) {
+        BizException ex = assertThrows(BizException.class, executable);
+        assertEquals(ResultCode.PROJECT_ACCESS_DENIED.getCode(), ex.getCode());
     }
 }

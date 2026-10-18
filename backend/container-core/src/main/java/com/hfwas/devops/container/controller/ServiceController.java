@@ -23,7 +23,7 @@ public class ServiceController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.listServices(clusterId, namespace, keyword, pageNo, pageSize, tenantId));
     }
 
@@ -32,7 +32,7 @@ public class ServiceController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getService(clusterId, namespace, name, tenantId));
     }
 
@@ -41,7 +41,7 @@ public class ServiceController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getServiceYaml(clusterId, namespace, name, tenantId));
     }
 }

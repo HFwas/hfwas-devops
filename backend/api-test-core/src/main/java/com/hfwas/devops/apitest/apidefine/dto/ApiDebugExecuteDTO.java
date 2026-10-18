@@ -2,6 +2,7 @@ package com.hfwas.devops.apitest.apidefine.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.util.List;
@@ -16,7 +17,8 @@ import java.util.Map;
 @Schema(description = "调试执行请求")
 public class ApiDebugExecuteDTO {
 
-    @Schema(description = "项目ID")
+    @NotNull(message = "项目ID不能为空")
+    @Schema(description = "项目ID", requiredMode = Schema.RequiredMode.REQUIRED)
     private Long projectId;
 
     @Schema(description = "接口定义ID（可选，可不关联直接调试）")

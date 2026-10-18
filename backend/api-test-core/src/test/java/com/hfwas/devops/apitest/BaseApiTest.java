@@ -2,6 +2,10 @@ package com.hfwas.devops.apitest;
 
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hfwas.devops.apitest.support.TestCurrentUserAccessor;
+import com.hfwas.devops.apitest.support.TestProjectAccessValidator;
+import com.hfwas.devops.user.context.CurrentUserAccessor;
+import com.hfwas.devops.user.spi.ProjectAccessValidator;
 import org.apache.ibatis.reflection.MetaObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -48,6 +52,16 @@ public abstract class BaseApiTest {
      */
     @Configuration
     static class TestConfig {
+
+        @Bean
+        public TestCurrentUserAccessor testCurrentUserAccessor() {
+            return new TestCurrentUserAccessor();
+        }
+
+        @Bean
+        public TestProjectAccessValidator testProjectAccessValidator() {
+            return new TestProjectAccessValidator();
+        }
 
         @Bean
         public MetaObjectHandler metaObjectHandler() {

@@ -44,9 +44,12 @@ public class TenantContextFilter extends OncePerRequestFilter {
                     authentication.setDetails(auth.getDetails());
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
+            } catch (BizException ex) {
+                apiErrorWriter.write(response, apiErrorWriter.resolveHttpStatus(ex.getCode()), ex);
+                return;
             } catch (IllegalArgumentException ex) {
                 BizException biz = LegacyErrorCodeResolver.resolve(ex);
-                apiErrorWriter.write(response, HttpStatus.FORBIDDEN, biz);
+                apiErrorWriter.write(response, apiErrorWriter.resolveHttpStatus(biz.getCode()), biz);
                 return;
             }
         }

@@ -68,9 +68,10 @@
 |------|------|
 | 数据库文件 | `data/hfwas-devops.db`（compose 使用 `devops-data` 卷） |
 | 上传/生成文件 | `devops-files` 卷（`/app/files`）、`data/uploads` |
-| 备份 | 停止写入后复制 SQLite 文件；或使用 `sqlite3 .backup`。生产建议定期快照卷 |
-| 恢复 | 替换 DB 文件后重启后端；注意 schema 版本 |
-| 迁移 | embedded：应用启动建表；external：`migrate.py` initContainer。禁止修改已执行 SQL |
+| 备份 | 升级前执行 `sqlite3 <db> ".backup '<version>-<timestamp>.db'"`，并用 `PRAGMA integrity_check` 校验；生产建议定期快照卷 |
+| 恢复 | 停止写入 → 恢复备份 → 回退镜像 → 再执行迁移检查 |
+| 迁移 | embedded：应用启动建表；external：`migrate.py` initContainer。禁止修改已执行 SQL；禁止 rollback 到含旧 05 DROP 的版本 |
+| 并发 | Helm `strategy.type: Recreate`；应用与迁移 URL 使用 `busy_timeout=5000` |
 
 ## 6. 配置
 

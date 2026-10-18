@@ -2,7 +2,10 @@ package com.hfwas.devops.pm.workitem.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
+import com.hfwas.devops.pm.project.service.ProjectService;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItemActivity;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemActivityMapper;
@@ -33,6 +36,7 @@ public class WorkItemActivityService {
     private final WorkItemFieldDisplayResolver displayResolver;
     private final WorkItemKeyEnricher keyEnricher;
     private final CurrentUserAccessor currentUserAccessor;
+    private final ProjectService projectService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<WorkItemActivityVo> listByWorkItem(Long workItemId) {
@@ -125,9 +129,11 @@ public class WorkItemActivityService {
     }
 
     private void ensureWorkItemExists(Long workItemId) {
-        if (workItemMapper.selectById(workItemId) == null) {
-            throw new IllegalArgumentException("事项不存在");
+        PmWorkItem item = workItemMapper.selectById(workItemId);
+        if (item == null) {
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
         }
+        projectService.assertProjectAccess(item.getProjectId());
     }
 
     private WorkItemActivityVo toVo(PmWorkItemActivity row) {

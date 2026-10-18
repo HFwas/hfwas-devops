@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PodLogPanel } from '@/modules/container/components/PodLogPanel'
+import { TENANT_ID_KEY } from '@/modules/user/types'
+import { getToken } from '@/shared/keycloak'
 
 vi.mock('@/modules/container/api/pod', () => ({
   podApi: {
@@ -79,5 +81,41 @@ describe('PodLogPanel', () => {
     expect(highlight.checked).toBe(false)
     expect([...container.querySelectorAll('span')].some((node) => node.className.includes('term-danger'))).toBe(false)
     expect(container.textContent).toContain('ERROR')
+  })
+
+  it('sends tenantId in the log websocket url', async () => {
+    vi.mocked(getToken).mockResolvedValue('token')
+    const urls: string[] = []
+    vi.stubGlobal(
+      'WebSocket',
+      class {
+        static CONNECTING = 0
+        static OPEN = 1
+        static CLOSING = 2
+        static CLOSED = 3
+        readyState = 0
+        binaryType = ''
+        onopen: (() => void) | null = null
+        onclose: (() => void) | null = null
+        onmessage: (() => void) | null = null
+        onerror: (() => void) | null = null
+        constructor(url: string) {
+          urls.push(url)
+        }
+        send() {}
+        close() {}
+      },
+    )
+    localStorage.setItem(TENANT_ID_KEY, '10')
+
+    const view = mount(<PodLogPanel clusterId="c1" namespace="ns" name="api" containers={['app']} />)
+    root = view.root
+    container = view.container
+    await flush()
+    await flush()
+
+    expect(urls[0]).toContain('tenantId=10')
+    localStorage.removeItem(TENANT_ID_KEY)
+    vi.unstubAllGlobals()
   })
 })

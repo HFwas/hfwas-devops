@@ -18,7 +18,12 @@ import com.hfwas.devops.apitest.apidefine.service.ApiDefinitionService;
 import com.hfwas.devops.apitest.apidefine.vo.ApiDefinitionDetailVO;
 import com.hfwas.devops.apitest.apidefine.vo.ApiDefinitionVO;
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.support.TestCurrentUserAccessor;
+import com.hfwas.devops.apitest.support.TestProjectAccessValidator;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -57,6 +62,18 @@ class ApiDefinitionServiceTest extends BaseApiTest {
 
     @Autowired
     private ApiDefinitionVersionMapper versionMapper;
+
+    @Autowired
+    private TestProjectAccessValidator projectAccessValidator;
+
+    @Autowired
+    private TestCurrentUserAccessor currentUserAccessor;
+
+    @AfterEach
+    void resetAccessContext() {
+        projectAccessValidator.reset();
+        currentUserAccessor.reset();
+    }
 
     private ApiDefinitionCreateDTO createDTO;
     private ApiDefinitionParamDTO queryParamDTO;
@@ -116,7 +133,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建基本接口定义应成功并返回完整详情VO")
         void createBasicApiShouldSucceed() {
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
 
             assertNotNull(vo);
             assertNotNull(vo.getId());
@@ -138,7 +155,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建后数据库应保存正确的记录")
         void createShouldPersistToDatabase() {
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
 
             ApiDefinitionEntity saved = apiDefinitionMapper.selectById(vo.getId());
             assertNotNull(saved);
@@ -154,7 +171,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建后审计字段应自动填充")
         void createShouldAutoFillAuditFields() {
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
 
             ApiDefinitionEntity saved = apiDefinitionMapper.selectById(vo.getId());
             assertNotNull(saved.getCreateTime());
@@ -169,7 +186,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             createDTO.setParams(Arrays.asList(queryParamDTO, headerParamDTO));
             createDTO.setResponses(Arrays.asList(successResponseDTO, errorResponseDTO));
 
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
 
             // 验证参数
             assertNotNull(vo.getParams());
@@ -199,7 +216,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             createDTO.setParams(new ArrayList<>());
             createDTO.setResponses(new ArrayList<>());
 
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
             assertNotNull(vo);
             assertNotNull(vo.getId());
         }
@@ -209,7 +226,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         void createWithEmptyTagsShouldSucceed() {
             createDTO.setTags(new ArrayList<>());
 
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
             assertNotNull(vo.getId());
             assertTrue(vo.getTags() == null || vo.getTags().isEmpty());
         }
@@ -219,7 +236,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         void createWithNullGroupIdShouldSucceed() {
             createDTO.setGroupId(null);
 
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
             assertNotNull(vo.getId());
             assertNull(vo.getGroupId());
         }
@@ -227,7 +244,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("同一项目下相同路径+方法创建应抛出 ApiTestException")
         void duplicatePathMethodShouldThrow() {
-            apiDefinitionService.create(createDTO, testUserId());
+            apiDefinitionService.create(createDTO);
 
             ApiDefinitionCreateDTO duplicate = new ApiDefinitionCreateDTO();
             duplicate.setProjectId(testProjectId());
@@ -236,14 +253,14 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             duplicate.setMethod("GET");
 
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> apiDefinitionService.create(duplicate, testUserId()));
+                    () -> apiDefinitionService.create(duplicate));
             assertTrue(ex.getMessage().contains("相同路径"));
         }
 
         @Test
         @DisplayName("同一项目下相同路径不同方法应允许创建")
         void samePathDifferentMethodShouldBeAllowed() {
-            apiDefinitionService.create(createDTO, testUserId());
+            apiDefinitionService.create(createDTO);
 
             ApiDefinitionCreateDTO postApi = new ApiDefinitionCreateDTO();
             postApi.setProjectId(testProjectId());
@@ -251,14 +268,14 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             postApi.setPath("/api/users");
             postApi.setMethod("POST");
 
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(postApi, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(postApi);
             assertNotNull(vo.getId());
         }
 
         @Test
         @DisplayName("不同项目下相同路径+方法应允许创建")
         void samePathMethodInDifferentProjectsShouldBeAllowed() {
-            apiDefinitionService.create(createDTO, testUserId());
+            apiDefinitionService.create(createDTO);
 
             ApiDefinitionCreateDTO otherProject = new ApiDefinitionCreateDTO();
             otherProject.setProjectId(2002L);
@@ -266,7 +283,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             otherProject.setPath("/api/users");
             otherProject.setMethod("GET");
 
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(otherProject, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(otherProject);
             assertNotNull(vo.getId());
         }
     }
@@ -283,7 +300,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
 
         @BeforeEach
         void insertApi() {
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
             definitionId = vo.getId();
         }
 
@@ -300,7 +317,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @DisplayName("更新接口名称应成功")
         void updateNameShouldSucceed() {
             ApiDefinitionUpdateDTO dto = buildUpdateDTO("获取用户列表V2", "/api/users", "GET");
-            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto);
 
             assertEquals("获取用户列表V2", vo.getName());
 
@@ -312,7 +329,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @DisplayName("更新接口路径应成功")
         void updatePathShouldSucceed() {
             ApiDefinitionUpdateDTO dto = buildUpdateDTO("获取用户列表", "/api/users/v2", "GET");
-            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto);
 
             assertEquals("/api/users/v2", vo.getPath());
 
@@ -324,7 +341,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @DisplayName("更新接口方法应成功")
         void updateMethodShouldSucceed() {
             ApiDefinitionUpdateDTO dto = buildUpdateDTO("获取用户列表", "/api/users", "POST");
-            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto);
 
             assertEquals("POST", vo.getMethod());
 
@@ -338,7 +355,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             ApiDefinitionUpdateDTO dto = buildUpdateDTO("获取用户列表", "/api/users", "GET");
             dto.setDescription("更新后的描述");
 
-            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto);
             assertEquals("更新后的描述", vo.getDescription());
         }
 
@@ -348,7 +365,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             ApiDefinitionUpdateDTO dto = buildUpdateDTO("获取用户列表", "/api/users", "GET");
             dto.setGroupId(2001L);
 
-            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto);
             assertEquals(2001L, vo.getGroupId());
         }
 
@@ -358,7 +375,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             ApiDefinitionUpdateDTO dto = buildUpdateDTO("获取用户列表", "/api/users", "GET");
             dto.setTags(Arrays.asList("新标签1", "新标签2"));
 
-            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto);
             assertEquals(2, vo.getTags().size());
             assertTrue(vo.getTags().contains("新标签1"));
         }
@@ -369,7 +386,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             // 先创建含参数的接口，使用不同路径避免与 @BeforeEach 冲突
             createDTO.setPath("/api/users-params");
             createDTO.setParams(Arrays.asList(queryParamDTO));
-            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO);
 
             // 更新参数为新的列表
             ApiDefinitionUpdateDTO updateDTO = new ApiDefinitionUpdateDTO();
@@ -387,7 +404,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             newParam.setSortOrder(1);
             updateDTO.setParams(List.of(newParam));
 
-            apiDefinitionService.update(created.getId(), updateDTO, testUserId());
+            apiDefinitionService.update(created.getId(), updateDTO);
 
             // 验证旧参数已被删除，新参数已插入
             List<ApiDefinitionParamEntity> params = paramMapper.selectList(null);
@@ -401,7 +418,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             // 先创建含响应的接口，使用不同路径避免与 @BeforeEach 冲突
             createDTO.setPath("/api/users-responses");
             createDTO.setResponses(Arrays.asList(successResponseDTO));
-            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO);
 
             // 更新响应为新的列表
             ApiDefinitionUpdateDTO updateDTO = new ApiDefinitionUpdateDTO();
@@ -416,7 +433,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             newResponse.setDescription("服务器错误");
             updateDTO.setResponses(List.of(newResponse));
 
-            apiDefinitionService.update(created.getId(), updateDTO, testUserId());
+            apiDefinitionService.update(created.getId(), updateDTO);
 
             // 验证旧响应已被删除，新响应已插入
             List<ApiDefinitionResponseEntity> responses = responseMapper.selectList(null);
@@ -433,12 +450,12 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             another.setName("创建用户");
             another.setPath("/api/users");
             another.setMethod("POST");
-            apiDefinitionService.create(another, testUserId());
+            apiDefinitionService.create(another);
 
             // 尝试将第一个接口的路径+方法改为和第二个相同
             ApiDefinitionUpdateDTO dto = buildUpdateDTO("获取用户列表", "/api/users", "POST");
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> apiDefinitionService.update(definitionId, dto, testUserId()));
+                    () -> apiDefinitionService.update(definitionId, dto));
             assertTrue(ex.getMessage().contains("相同路径"));
         }
 
@@ -446,7 +463,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @DisplayName("更新自身的路径+方法为原名不应抛出异常")
         void updateToSamePathMethodShouldSucceed() {
             ApiDefinitionUpdateDTO dto = buildUpdateDTO("获取用户列表V2", "/api/users", "GET");
-            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.update(definitionId, dto);
 
             assertEquals("获取用户列表V2", vo.getName());
         }
@@ -456,7 +473,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         void updateNonExistentApiShouldThrow() {
             ApiDefinitionUpdateDTO dto = buildUpdateDTO("不存在", "/api/none", "GET");
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> apiDefinitionService.update(99999L, dto, testUserId()));
+                    () -> apiDefinitionService.update(99999L, dto));
             assertTrue(ex.getMessage().contains("不存在"));
         }
 
@@ -464,7 +481,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @DisplayName("更新后 updateBy 和 updateTime 应自动填充")
         void updateShouldAutoFillAuditFields() {
             ApiDefinitionUpdateDTO dto = buildUpdateDTO("获取用户列表V2", "/api/users", "GET");
-            apiDefinitionService.update(definitionId, dto, testUserId());
+            apiDefinitionService.update(definitionId, dto);
 
             ApiDefinitionEntity saved = apiDefinitionMapper.selectById(definitionId);
             assertNotNull(saved.getUpdateTime());
@@ -483,7 +500,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("查询存在的接口应返回完整详情VO")
         void getExistingApiShouldReturnDetail() {
-            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO);
 
             ApiDefinitionDetailVO detail = apiDefinitionService.getDetail(created.getId());
             assertNotNull(detail);
@@ -503,7 +520,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         void getDetailWithParamsAndResponses() {
             createDTO.setParams(Arrays.asList(queryParamDTO, headerParamDTO));
             createDTO.setResponses(Arrays.asList(successResponseDTO));
-            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO);
 
             ApiDefinitionDetailVO detail = apiDefinitionService.getDetail(created.getId());
             assertNotNull(detail.getParams());
@@ -523,7 +540,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("查询无参数无响应的接口应返回空列表")
         void getApiWithoutParamsAndResponses() {
-            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO);
 
             ApiDefinitionDetailVO detail = apiDefinitionService.getDetail(created.getId());
             assertTrue(detail.getParams() == null || detail.getParams().isEmpty());
@@ -533,7 +550,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("多次查询同一接口应返回一致结果")
         void multipleQueriesShouldReturnConsistentResult() {
-            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO);
 
             ApiDefinitionDetailVO detail1 = apiDefinitionService.getDetail(created.getId());
             ApiDefinitionDetailVO detail2 = apiDefinitionService.getDetail(created.getId());
@@ -558,7 +575,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         void insertApi() {
             createDTO.setParams(Arrays.asList(queryParamDTO));
             createDTO.setResponses(Arrays.asList(successResponseDTO));
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
             definitionId = vo.getId();
         }
 
@@ -598,7 +615,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
 
         @BeforeEach
         void insertTestData() {
-            apiDefinitionService.create(createDTO, testUserId());
+            apiDefinitionService.create(createDTO);
 
             ApiDefinitionCreateDTO createApi = new ApiDefinitionCreateDTO();
             createApi.setProjectId(testProjectId());
@@ -606,7 +623,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             createApi.setPath("/api/users");
             createApi.setMethod("POST");
             createApi.setTags(Arrays.asList("用户", "创建"));
-            apiDefinitionService.create(createApi, testUserId());
+            apiDefinitionService.create(createApi);
 
             ApiDefinitionCreateDTO deleteApi = new ApiDefinitionCreateDTO();
             deleteApi.setProjectId(testProjectId());
@@ -614,7 +631,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             deleteApi.setPath("/api/users/{id}");
             deleteApi.setMethod("DELETE");
             deleteApi.setTags(Arrays.asList("用户", "删除"));
-            apiDefinitionService.create(deleteApi, testUserId());
+            apiDefinitionService.create(deleteApi);
         }
 
         @Test
@@ -803,14 +820,14 @@ class ApiDefinitionServiceTest extends BaseApiTest {
 
         @BeforeEach
         void insertDraftApi() {
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
             definitionId = vo.getId();
         }
 
         @Test
         @DisplayName("从草稿发布接口应成功并更新状态为 PUBLISHED")
         void publishDraftShouldSucceed() {
-            apiDefinitionService.publish(definitionId, testUserId());
+            apiDefinitionService.publish(definitionId);
 
             ApiDefinitionEntity entity = apiDefinitionMapper.selectById(definitionId);
             assertEquals("PUBLISHED", entity.getStatus());
@@ -819,7 +836,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("从草稿发布时应创建版本快照")
         void publishDraftShouldCreateVersionSnapshot() {
-            apiDefinitionService.publish(definitionId, testUserId());
+            apiDefinitionService.publish(definitionId);
 
             List<ApiDefinitionVersionEntity> versions = versionMapper.selectList(null);
             assertEquals(1, versions.size());
@@ -833,7 +850,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("发布后版本号应递增")
         void publishShouldIncrementVersion() {
-            apiDefinitionService.publish(definitionId, testUserId());
+            apiDefinitionService.publish(definitionId);
 
             ApiDefinitionEntity entity = apiDefinitionMapper.selectById(definitionId);
             assertEquals("1.0.1", entity.getVersion());
@@ -842,11 +859,11 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("连续发布不会重复创建版本快照（仅草稿→已发布时触发）")
         void publishAlreadyPublishedShouldNotCreateSnapshot() {
-            apiDefinitionService.publish(definitionId, testUserId());
+            apiDefinitionService.publish(definitionId);
             long versionCountAfterFirstPublish = versionMapper.selectCount(null);
 
             // 再次发布（已发布状态）
-            apiDefinitionService.publish(definitionId, testUserId());
+            apiDefinitionService.publish(definitionId);
 
             long versionCountAfterSecondPublish = versionMapper.selectCount(null);
             assertEquals(versionCountAfterFirstPublish, versionCountAfterSecondPublish);
@@ -856,7 +873,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @DisplayName("发布不存在的接口应抛出 ApiTestException")
         void publishNonExistentApiShouldThrow() {
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> apiDefinitionService.publish(99999L, testUserId()));
+                    () -> apiDefinitionService.publish(99999L));
             assertTrue(ex.getMessage().contains("不存在"));
         }
     }
@@ -873,15 +890,15 @@ class ApiDefinitionServiceTest extends BaseApiTest {
 
         @BeforeEach
         void insertPublishedApi() {
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
-            apiDefinitionService.publish(vo.getId(), testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
+            apiDefinitionService.publish(vo.getId());
             publishedId = vo.getId();
         }
 
         @Test
         @DisplayName("废弃已发布的接口应成功并更新状态为 DEPRECATED")
         void deprecatePublishedShouldSucceed() {
-            apiDefinitionService.deprecate(publishedId, testUserId());
+            apiDefinitionService.deprecate(publishedId);
 
             ApiDefinitionEntity entity = apiDefinitionMapper.selectById(publishedId);
             assertEquals("DEPRECATED", entity.getStatus());
@@ -899,10 +916,10 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             draftDTO.setProtocol("HTTP");
             draftDTO.setHost("localhost:8080");
             draftDTO.setContentType("application/json");
-            ApiDefinitionDetailVO draft = apiDefinitionService.create(draftDTO, testUserId());
+            ApiDefinitionDetailVO draft = apiDefinitionService.create(draftDTO);
 
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> apiDefinitionService.deprecate(draft.getId(), testUserId()));
+                    () -> apiDefinitionService.deprecate(draft.getId()));
             assertTrue(ex.getMessage().contains("仅已发布状态可废弃"));
         }
 
@@ -910,7 +927,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @DisplayName("废弃不存在的接口应抛出 ApiTestException")
         void deprecateNonExistentApiShouldThrow() {
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> apiDefinitionService.deprecate(99999L, testUserId()));
+                    () -> apiDefinitionService.deprecate(99999L));
             assertTrue(ex.getMessage().contains("不存在"));
         }
     }
@@ -926,10 +943,10 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("将已发布的接口恢复为草稿应成功")
         void revertPublishedToDraftShouldSucceed() {
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
-            apiDefinitionService.publish(vo.getId(), testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
+            apiDefinitionService.publish(vo.getId());
 
-            apiDefinitionService.revertToDraft(vo.getId(), testUserId());
+            apiDefinitionService.revertToDraft(vo.getId());
 
             ApiDefinitionEntity entity = apiDefinitionMapper.selectById(vo.getId());
             assertEquals("DRAFT", entity.getStatus());
@@ -938,11 +955,11 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("将已废弃的接口恢复为草稿应成功")
         void revertDeprecatedToDraftShouldSucceed() {
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
-            apiDefinitionService.publish(vo.getId(), testUserId());
-            apiDefinitionService.deprecate(vo.getId(), testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
+            apiDefinitionService.publish(vo.getId());
+            apiDefinitionService.deprecate(vo.getId());
 
-            apiDefinitionService.revertToDraft(vo.getId(), testUserId());
+            apiDefinitionService.revertToDraft(vo.getId());
 
             ApiDefinitionEntity entity = apiDefinitionMapper.selectById(vo.getId());
             assertEquals("DRAFT", entity.getStatus());
@@ -951,11 +968,11 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("恢复草稿时已发布的版本快照应保留")
         void revertToDraftShouldPreserveVersionHistory() {
-            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO, testUserId());
-            apiDefinitionService.publish(vo.getId(), testUserId());
+            ApiDefinitionDetailVO vo = apiDefinitionService.create(createDTO);
+            apiDefinitionService.publish(vo.getId());
             long versionCount = versionMapper.selectCount(null);
 
-            apiDefinitionService.revertToDraft(vo.getId(), testUserId());
+            apiDefinitionService.revertToDraft(vo.getId());
 
             long versionCountAfterRevert = versionMapper.selectCount(null);
             assertEquals(versionCount, versionCountAfterRevert);
@@ -965,7 +982,7 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @DisplayName("恢复不存在的接口应抛出 ApiTestException")
         void revertNonExistentApiShouldThrow() {
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> apiDefinitionService.revertToDraft(99999L, testUserId()));
+                    () -> apiDefinitionService.revertToDraft(99999L));
             assertTrue(ex.getMessage().contains("不存在"));
         }
     }
@@ -982,22 +999,22 @@ class ApiDefinitionServiceTest extends BaseApiTest {
         @DisplayName("完整的接口生命周期流转应正确")
         void fullLifecycleShouldWork() {
             // 创建
-            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO, testUserId());
+            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO);
             assertNotNull(created.getId());
             assertEquals("DRAFT", created.getStatus());
 
             // 发布
-            apiDefinitionService.publish(created.getId(), testUserId());
+            apiDefinitionService.publish(created.getId());
             ApiDefinitionEntity published = apiDefinitionMapper.selectById(created.getId());
             assertEquals("PUBLISHED", published.getStatus());
 
             // 废弃
-            apiDefinitionService.deprecate(created.getId(), testUserId());
+            apiDefinitionService.deprecate(created.getId());
             ApiDefinitionEntity deprecated = apiDefinitionMapper.selectById(created.getId());
             assertEquals("DEPRECATED", deprecated.getStatus());
 
             // 恢复草稿
-            apiDefinitionService.revertToDraft(created.getId(), testUserId());
+            apiDefinitionService.revertToDraft(created.getId());
             ApiDefinitionEntity reverted = apiDefinitionMapper.selectById(created.getId());
             assertEquals("DRAFT", reverted.getStatus());
 
@@ -1007,8 +1024,58 @@ class ApiDefinitionServiceTest extends BaseApiTest {
             updateDTO.setPath("/api/users");
             updateDTO.setMethod("GET");
             updateDTO.setGroupId(1001L);
-            ApiDefinitionDetailVO updated = apiDefinitionService.update(created.getId(), updateDTO, testUserId());
+            ApiDefinitionDetailVO updated = apiDefinitionService.update(created.getId(), updateDTO);
             assertEquals("获取用户列表V2", updated.getName());
         }
+    }
+
+    // ========================================================================
+    // 项目隔离
+    // ========================================================================
+
+    @Nested
+    @DisplayName("项目隔离 — 跨项目读写")
+    class ProjectIsolation {
+
+        @Test
+        @DisplayName("跨项目 getDetail/update/delete/publish 应全部 20002")
+        void crossProjectForbidden() {
+            createDTO.setProjectId(2002L);
+            createDTO.setPath("/api/foreign");
+            ApiDefinitionDetailVO foreign = apiDefinitionService.create(createDTO);
+
+            projectAccessValidator.allow(testProjectId());
+
+            assertProjectDenied(() -> apiDefinitionService.getDetail(foreign.getId()));
+            assertProjectDenied(() -> apiDefinitionService.update(foreign.getId(), new ApiDefinitionUpdateDTO()));
+            assertProjectDenied(() -> apiDefinitionService.delete(foreign.getId()));
+            assertProjectDenied(() -> apiDefinitionService.publish(foreign.getId()));
+            assertProjectDenied(() -> apiDefinitionService.deprecate(foreign.getId()));
+            assertProjectDenied(() -> apiDefinitionService.revertToDraft(foreign.getId()));
+        }
+
+        @Test
+        @DisplayName("createBy 取当前登录上下文，不接受外部 userId")
+        void userIdFromContext() {
+            currentUserAccessor.setUser(77L, 1L, "admin");
+
+            ApiDefinitionDetailVO created = apiDefinitionService.create(createDTO);
+
+            assertEquals(77L, apiDefinitionMapper.selectById(created.getId()).getCreateBy());
+        }
+
+        @Test
+        @DisplayName("用户上下文缺失时创建应返回 11010")
+        void missingUserContextRejected() {
+            currentUserAccessor.logout();
+
+            BizException ex = assertThrows(BizException.class, () -> apiDefinitionService.create(createDTO));
+            assertEquals(ResultCode.TENANT_CONTEXT_MISSING.getCode(), ex.getCode());
+        }
+    }
+
+    private void assertProjectDenied(org.junit.jupiter.api.function.Executable executable) {
+        BizException ex = assertThrows(BizException.class, executable);
+        assertEquals(ResultCode.PROJECT_ACCESS_DENIED.getCode(), ex.getCode());
     }
 }

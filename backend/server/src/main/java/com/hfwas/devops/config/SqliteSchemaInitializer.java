@@ -50,7 +50,10 @@ public class SqliteSchemaInitializer implements ApplicationRunner {
         log.info("SQLite schema initialized at ./data/hfwas-devops.db");
     }
 
-    /** 旧表无 pipeline_id / identity_key，直接丢掉重建（组件可从 SBOM 再解析）。 */
+    /**
+     * 旧表缺列时先备份到 dependency_component_legacy，再重建。
+     * 组件数据可从 SBOM 重新解析，但保留 legacy 表便于追溯。
+     */
     private void dropStaleDependencyComponentTable() {
         try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
             boolean exists;
@@ -61,19 +64,21 @@ public class SqliteSchemaInitializer implements ApplicationRunner {
             if (!exists) {
                 return;
             }
-            boolean hasPipelineId = false;
+            java.util.Set<String> columns = new java.util.HashSet<>();
             try (ResultSet rs = stmt.executeQuery("PRAGMA table_info(dependency_component)")) {
                 while (rs.next()) {
-                    if ("pipeline_id".equalsIgnoreCase(rs.getString("name"))) {
-                        hasPipelineId = true;
-                        break;
-                    }
+                    columns.add(rs.getString("name").toLowerCase(java.util.Locale.ROOT));
                 }
             }
-            if (!hasPipelineId) {
-                stmt.execute("DROP TABLE dependency_component");
-                log.info("dropped stale dependency_component (missing pipeline_id)");
+            java.util.Set<String> required = java.util.Set.of(
+                    "pipeline_id", "identity_key", "run_id", "purl", "name", "version");
+            if (columns.containsAll(required)) {
+                return;
             }
+            stmt.execute("DROP TABLE IF EXISTS dependency_component_legacy");
+            stmt.execute("CREATE TABLE dependency_component_legacy AS SELECT * FROM dependency_component");
+            stmt.execute("DROP TABLE dependency_component");
+            log.info("rebuilt stale dependency_component; legacy backup kept");
         } catch (Exception e) {
             log.warn("check dependency_component schema failed: {}", e.getMessage());
         }

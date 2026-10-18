@@ -22,7 +22,7 @@ public class SecretController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.listSecrets(clusterId, namespace, keyword, pageNo, pageSize, tenantId));
     }
 
@@ -31,7 +31,7 @@ public class SecretController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.deleteSecret(clusterId, namespace, name, tenantId);
         return BaseResult.ok();
     }

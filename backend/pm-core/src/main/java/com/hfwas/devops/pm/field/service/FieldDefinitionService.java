@@ -1,6 +1,8 @@
 package com.hfwas.devops.pm.field.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.pm.common.IdUtils;
 import com.hfwas.devops.pm.field.mapper.FieldDefinitionMapper;
 import com.hfwas.devops.pm.field.mapper.FieldOptionMapper;
@@ -11,6 +13,8 @@ import com.hfwas.devops.pm.field.model.FieldRemoteOptionsConfig;
 import com.hfwas.devops.pm.field.model.ResolvedFieldOption;
 import com.hfwas.devops.pm.field.model.RemoteOptionFetchResult;
 import com.hfwas.devops.pm.field.model.TypeFieldLayoutConfig;
+import com.hfwas.devops.pm.project.service.ProjectService;
+import com.hfwas.devops.user.context.CurrentUserAccessor;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -32,8 +36,15 @@ public class FieldDefinitionService {
     private final FieldLayoutService fieldLayoutService;
     private final FieldOptionRemoteService fieldOptionRemoteService;
     private final FieldOptionConfigHelper fieldOptionConfigHelper;
+    private final ProjectService projectService;
+    private final CurrentUserAccessor currentUserAccessor;
 
     public List<FieldDefinition> listByProjectAndType(Long projectId, String typeCode) {
+        if (projectId == null) {
+            // Tenant-wide work-item page: custom fields are project-scoped, so only system fields apply.
+            return listRawByProjectAndType(null, typeCode);
+        }
+        projectService.assertProjectAccess(projectId);
         List<FieldDefinition> merged = listRawByProjectAndType(projectId, typeCode);
         TypeFieldLayoutConfig layout = fieldLayoutService.resolveLayout(projectId, typeCode, merged);
         fieldLayoutService.applyLayout(merged, layout);
@@ -70,6 +81,29 @@ public class FieldDefinitionService {
 
     @Transactional
     public Long save(FieldDefinition definition, List<FieldOption> options) {
+        if (definition.getId() == null) {
+            if (definition.getProjectId() == null) {
+                throw new BizException(ResultCode.PROJECT_ACCESS_DENIED, "禁止新建全局字段");
+            }
+            projectService.assertProjectAccess(definition.getProjectId());
+        } else {
+            FieldDefinition old = fieldDefinitionMapper.selectById(definition.getId());
+            if (old == null) {
+                throw new BizException(ResultCode.FIELD_NOT_FOUND);
+            }
+            if (old.getProjectId() == null) {
+                if (!currentUserAccessor.isAdmin()) {
+                    throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+                }
+            } else {
+                projectService.assertProjectAccess(old.getProjectId());
+                if (definition.getProjectId() != null
+                        && !definition.getProjectId().equals(old.getProjectId())) {
+                    throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+                }
+            }
+            definition.setProjectId(old.getProjectId());
+        }
         if (StringUtils.isBlank(definition.getFieldKey()) || StringUtils.isBlank(definition.getFieldName())) {
             throw new IllegalArgumentException("字段编码和名称不能为空");
         }
@@ -99,17 +133,14 @@ public class FieldDefinitionService {
     }
 
     public List<FieldOption> listOptions(Long fieldId) {
+        getById(fieldId);
         return fieldOptionMapper.selectList(Wrappers.<FieldOption>lambdaQuery()
                 .eq(FieldOption::getFieldId, fieldId)
                 .orderByAsc(FieldOption::getSortOrder));
     }
 
     public List<ResolvedFieldOption> resolveOptions(Long fieldId) {
-        FieldDefinition def = fieldDefinitionMapper.selectById(fieldId);
-        if (def == null) {
-            throw new IllegalArgumentException("字段不存在或已删除");
-        }
-        return resolveOptions(def);
+        return resolveOptions(getById(fieldId));
     }
 
     public List<ResolvedFieldOption> resolveOptions(FieldDefinition def) {
@@ -148,6 +179,7 @@ public class FieldDefinitionService {
     }
 
     public List<FieldDefinition> listCatalogByProject(Long projectId) {
+        projectService.assertProjectAccess(projectId);
         List<FieldDefinition> system = systemFieldDefinitions();
         List<FieldDefinition> custom = fieldDefinitionMapper.selectList(
                 Wrappers.<FieldDefinition>lambdaQuery()
@@ -168,14 +200,28 @@ public class FieldDefinitionService {
     }
 
     public FieldDefinition getById(Long id) {
-        return fieldDefinitionMapper.selectById(id);
+        FieldDefinition def = fieldDefinitionMapper.selectById(id);
+        if (def == null) {
+            throw new BizException(ResultCode.FIELD_NOT_FOUND);
+        }
+        if (def.getProjectId() != null) {
+            projectService.assertProjectAccess(def.getProjectId());
+        }
+        return def;
     }
 
     @Transactional
     public void deleteField(Long id) {
         FieldDefinition def = fieldDefinitionMapper.selectById(id);
         if (def == null) {
-            throw new IllegalArgumentException("字段不存在或已删除");
+            throw new BizException(ResultCode.FIELD_NOT_FOUND);
+        }
+        if (def.getProjectId() == null) {
+            if (!currentUserAccessor.isAdmin()) {
+                throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+            }
+        } else {
+            projectService.assertProjectAccess(def.getProjectId());
         }
         if (def.getSystemFlag() != null && def.getSystemFlag() == 1) {
             throw new IllegalArgumentException("系统字段不可删除");
@@ -187,9 +233,17 @@ public class FieldDefinitionService {
 
     @Transactional
     public void removeFromType(Long projectId, Long fieldId, String typeCode) {
+        projectService.assertProjectAccess(projectId);
         FieldDefinition def = fieldDefinitionMapper.selectById(fieldId);
         if (def == null) {
-            throw new IllegalArgumentException("字段不存在或已删除");
+            throw new BizException(ResultCode.FIELD_NOT_FOUND);
+        }
+        if (def.getProjectId() == null) {
+            // 全局字段只读兼容，不允许任何角色修改绑定。
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+        }
+        if (!def.getProjectId().equals(projectId)) {
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
         }
         if (def.getSystemFlag() != null && def.getSystemFlag() == 1) {
             throw new IllegalArgumentException("系统字段不可修改绑定");
@@ -215,15 +269,20 @@ public class FieldDefinitionService {
 
     @Transactional
     public void addToType(Long projectId, Long fieldId, String typeCode) {
+        projectService.assertProjectAccess(projectId);
         FieldDefinition def = fieldDefinitionMapper.selectById(fieldId);
         if (def == null) {
-            throw new IllegalArgumentException("字段不存在或已删除");
+            throw new BizException(ResultCode.FIELD_NOT_FOUND);
         }
         if (def.getSystemFlag() != null && def.getSystemFlag() == 1) {
             throw new IllegalArgumentException("系统字段不可修改绑定");
         }
-        if (def.getProjectId() != null && !IdUtils.sameId(def.getProjectId(), projectId)) {
-            throw new IllegalArgumentException("字段不属于当前项目");
+        if (def.getProjectId() == null) {
+            // 全局字段只读兼容，不允许任何角色修改绑定。
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+        }
+        if (!def.getProjectId().equals(projectId)) {
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
         }
         List<String> types = def.getApplicableTypes();
         if (types == null) {
@@ -245,6 +304,7 @@ public class FieldDefinitionService {
     }
 
     public List<FieldDefinition> listAvailableForType(Long projectId, String typeCode) {
+        projectService.assertProjectAccess(projectId);
         List<FieldDefinition> catalog = listCatalogByProject(projectId);
         List<FieldDefinition> current = listRawByProjectAndType(projectId, typeCode);
         Set<String> currentKeys = current.stream()

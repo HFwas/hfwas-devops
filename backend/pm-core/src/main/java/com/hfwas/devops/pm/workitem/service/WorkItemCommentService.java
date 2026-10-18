@@ -1,6 +1,9 @@
 package com.hfwas.devops.pm.workitem.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
+import com.hfwas.devops.pm.project.service.ProjectService;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItemComment;
@@ -13,8 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,6 +29,7 @@ public class WorkItemCommentService {
     private final PmWorkItemCommentMapper commentMapper;
     private final PmWorkItemMapper workItemMapper;
     private final CurrentUserAccessor currentUserAccessor;
+    private final ProjectService projectService;
 
     public List<WorkItemCommentVo> listByWorkItem(Long workItemId) {
         ensureWorkItemExists(workItemId);
@@ -47,6 +53,18 @@ public class WorkItemCommentService {
         if (workItemIds == null || workItemIds.isEmpty()) {
             return Map.of();
         }
+        List<PmWorkItem> items = workItemMapper.selectBatchIds(workItemIds);
+        Map<Long, PmWorkItem> itemById = items.stream()
+                .collect(Collectors.toMap(PmWorkItem::getId, item -> item));
+        Set<Long> projectIds = new HashSet<>();
+        for (Long workItemId : workItemIds) {
+            PmWorkItem item = itemById.get(workItemId);
+            if (item == null) {
+                throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+            }
+            projectIds.add(item.getProjectId());
+        }
+        projectIds.forEach(projectService::assertProjectAccess);
         List<PmWorkItemComment> comments = commentMapper.selectList(
                 Wrappers.<PmWorkItemComment>lambdaQuery()
                         .in(PmWorkItemComment::getWorkItemId, workItemIds)
@@ -91,14 +109,17 @@ public class WorkItemCommentService {
         if (!canDelete(comment)) {
             throw new IllegalArgumentException("无权删除该评论");
         }
+        ensureWorkItemExists(comment.getWorkItemId());
         commentMapper.deleteById(id);
     }
 
-    private void ensureWorkItemExists(Long workItemId) {
+    private PmWorkItem ensureWorkItemExists(Long workItemId) {
         PmWorkItem item = workItemMapper.selectById(workItemId);
         if (item == null) {
-            throw new IllegalArgumentException("事项不存在");
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
         }
+        projectService.assertProjectAccess(item.getProjectId());
+        return item;
     }
 
     private boolean canDelete(PmWorkItemComment comment) {

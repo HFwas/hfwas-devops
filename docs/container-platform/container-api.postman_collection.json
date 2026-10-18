@@ -1,0 +1,170 @@
+{
+  "info": {
+    "name": "HFWAS Container — P0 tenant isolation",
+    "_postman_id": "hfwas-container-p0-isolation",
+    "description": "容器平台 P0 租户隔离。所有请求需要 Bearer token 与 X-Tenant-Id；跨租户返回 30005/30202。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8089/api" },
+    { "key": "token", "value": "" },
+    { "key": "tenantId", "value": "" },
+    { "key": "clusterId", "value": "7001" },
+    { "key": "registryId", "value": "7101" }
+  ],
+  "item": [
+    {
+      "name": "Clusters",
+      "item": [
+        {
+          "name": "Page clusters",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/container/clusters/page", "host": ["{{baseUrl}}"], "path": ["container", "clusters", "page"] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/container/clusters/page" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"records\":[],\"total\":0},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "401 无租户", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/container/clusters/page" } },
+              "status": "Unauthorized", "code": 401, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":11010,\"msg\":\"未登录或租户上下文缺失\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        },
+        {
+          "name": "Get cluster",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/container/clusters/{{clusterId}}", "host": ["{{baseUrl}}"], "path": ["container", "clusters", "{{clusterId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/container/clusters/{{clusterId}}" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"id\":7001,\"name\":\"prod-shanghai\"},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 跨租户", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/container/clusters/{{clusterId}}" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":30005,\"msg\":\"无权访问该集群\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Registries",
+      "item": [
+        {
+          "name": "Page registries",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/container/registries/page", "host": ["{{baseUrl}}"], "path": ["container", "registries", "page"] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/container/registries/page" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"records\":[],\"total\":0},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "401 无租户", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/container/registries/page" } },
+              "status": "Unauthorized", "code": 401, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":11010,\"msg\":\"未登录或租户上下文缺失\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        },
+        {
+          "name": "Get registry",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/container/registries/{{registryId}}", "host": ["{{baseUrl}}"], "path": ["container", "registries", "{{registryId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/container/registries/{{registryId}}" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"id\":7101,\"name\":\"harbor-prod\"},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 跨租户", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/container/registries/{{registryId}}" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":30202,\"msg\":\"无权访问该镜像仓库\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Helm & Monitor",
+      "item": [
+        {
+          "name": "Page helm charts",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/container/helm/charts", "host": ["{{baseUrl}}"], "path": ["container", "helm", "charts"] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/container/helm/charts" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"records\":[],\"total\":0},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "401 无租户", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/container/helm/charts" } },
+              "status": "Unauthorized", "code": 401, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":11010,\"msg\":\"未登录或租户上下文缺失\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        },
+        {
+          "name": "Monitor overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/container/clusters/{{clusterId}}/monitor/overview", "host": ["{{baseUrl}}"], "path": ["container", "clusters", "{{clusterId}}", "monitor", "overview"] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/container/clusters/{{clusterId}}/monitor/overview" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"cpuUsage\":0.42,\"memoryUsage\":0.61},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 跨租户", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/container/clusters/{{clusterId}}/monitor/overview" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":30005,\"msg\":\"无权访问该集群\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

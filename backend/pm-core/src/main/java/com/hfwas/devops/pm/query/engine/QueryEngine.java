@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.field.service.FieldDefinitionService;
 import com.hfwas.devops.pm.query.model.*;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemMapper;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -24,11 +27,25 @@ public class QueryEngine {
     private final FieldDefinitionService fieldDefinitionService;
     private final FieldResolver fieldResolver;
 
-    public IPage<PmWorkItem> execute(QuerySpec spec) {
+    private static final Set<String> SYSTEM_SORT_FIELDS = Set.of(
+            "id", "item_no", "title", "status", "priority", "assignee_id", "reporter_id",
+            "project_id", "type_code", "create_time", "update_time", "module_id",
+            "sprint_id", "parent_id"
+    );
+
+    public IPage<PmWorkItem> execute(QuerySpec spec, Long tenantId) {
         Map<String, FieldDefinition> customFieldMap = loadCustomFields(spec.getProjectId(), spec.getTypeCode());
         QueryWrapper<PmWorkItem> wrapper = new QueryWrapper<>();
         if (spec.getProjectId() != null) {
+            // Caller has already asserted access to this project (deep-link friendly).
             wrapper.eq("project_id", spec.getProjectId());
+        } else {
+            if (tenantId == null) {
+                throw new BizException(ResultCode.TENANT_CONTEXT_MISSING);
+            }
+            wrapper.apply(
+                    "project_id IN (SELECT id FROM pm_project WHERE tenant_id = {0} AND del_flag = 0)",
+                    tenantId);
         }
         if (StringUtils.isNotBlank(spec.getTypeCode())) {
             wrapper.eq("type_code", spec.getTypeCode());
@@ -39,7 +56,7 @@ public class QueryEngine {
         for (QueryConditionGroup group : spec.getGroups()) {
             fieldResolver.applyGroup(wrapper, group, customFieldMap);
         }
-        applySort(wrapper, spec.getSort());
+        applySort(wrapper, spec.getSort(), customFieldMap);
         Page<PmWorkItem> page = new Page<>(spec.resolvePageNo(), spec.resolvePageSize());
         return workItemMapper.selectPage(page, wrapper);
     }
@@ -55,18 +72,28 @@ public class QueryEngine {
         return map;
     }
 
-    private void applySort(QueryWrapper<PmWorkItem> wrapper, List<SortSpec> sortList) {
+    private void applySort(QueryWrapper<PmWorkItem> wrapper, List<SortSpec> sortList,
+                           Map<String, FieldDefinition> customFieldMap) {
         if (sortList == null || sortList.isEmpty()) {
             wrapper.orderByDesc("create_time");
             return;
         }
         for (SortSpec sort : sortList) {
+            String field = sort.getField();
+            if (StringUtils.isBlank(field)) {
+                continue;
+            }
             boolean asc = "ASC".equalsIgnoreCase(sort.getOrder());
-            if (sort.getField() != null && sort.getField().startsWith("custom.")) {
-                String key = sort.getField().substring("custom.".length());
+            if (field.startsWith("custom.")) {
+                String key = field.substring("custom.".length());
+                if (!customFieldMap.containsKey(key)) {
+                    throw new BizException(ResultCode.BAD_REQUEST, "不支持的自定义排序字段: " + key);
+                }
                 wrapper.orderBy(true, asc, JsonSqlDialect.orderBy("custom_fields", key));
+            } else if (SYSTEM_SORT_FIELDS.contains(field)) {
+                wrapper.orderBy(true, asc, field);
             } else {
-                wrapper.orderBy(true, asc, sort.getField());
+                throw new BizException(ResultCode.BAD_REQUEST, "不支持的排序字段: " + field);
             }
         }
     }

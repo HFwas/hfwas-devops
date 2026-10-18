@@ -11,6 +11,7 @@ import com.hfwas.devops.apitest.apidefine.entity.ApiGroupEntity;
 import com.hfwas.devops.apitest.apidefine.mapper.ApiGroupMapper;
 import com.hfwas.devops.apitest.apidefine.vo.ApiGroupVO;
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.common.security.ApiTestAccessGuard;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -33,18 +34,23 @@ public class ApiGroupService extends ServiceImpl<ApiGroupMapper, ApiGroupEntity>
 
     private final ApiGroupConvert apiGroupConvert;
     private final ApiDefinitionService apiDefinitionService;
+    private final ApiTestAccessGuard accessGuard;
 
     public ApiGroupService(ApiGroupConvert apiGroupConvert,
-                           @Lazy ApiDefinitionService apiDefinitionService) {
+                           @Lazy ApiDefinitionService apiDefinitionService,
+                           ApiTestAccessGuard accessGuard) {
         this.apiGroupConvert = apiGroupConvert;
         this.apiDefinitionService = apiDefinitionService;
+        this.accessGuard = accessGuard;
     }
 
     /**
      * 创建分组
      */
     @Transactional(rollbackFor = Exception.class)
-    public ApiGroupVO create(ApiGroupCreateDTO dto, Long userId) {
+    public ApiGroupVO create(ApiGroupCreateDTO dto) {
+        accessGuard.assertProject(dto.getProjectId());
+
         // 校验同名分组
         boolean exists = lambdaQuery()
                 .eq(ApiGroupEntity::getProjectId, dto.getProjectId())
@@ -57,6 +63,7 @@ public class ApiGroupService extends ServiceImpl<ApiGroupMapper, ApiGroupEntity>
 
         ApiGroupEntity entity = apiGroupConvert.toEntity(dto);
         entity.setSortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : 0);
+        entity.setCreateBy(accessGuard.requireUserId());
         save(entity);
 
         log.info("创建分组: id={}, name={}, projectId={}", entity.getId(), entity.getName(), entity.getProjectId());
@@ -67,11 +74,12 @@ public class ApiGroupService extends ServiceImpl<ApiGroupMapper, ApiGroupEntity>
      * 更新分组
      */
     @Transactional(rollbackFor = Exception.class)
-    public ApiGroupVO update(Long id, ApiGroupUpdateDTO dto, Long userId) {
+    public ApiGroupVO update(Long id, ApiGroupUpdateDTO dto) {
         ApiGroupEntity entity = getById(id);
         if (entity == null) {
             throw new ApiTestException("分组不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
 
         // 校验同名
         boolean exists = lambdaQuery()
@@ -101,6 +109,7 @@ public class ApiGroupService extends ServiceImpl<ApiGroupMapper, ApiGroupEntity>
         if (entity == null) {
             throw new ApiTestException("分组不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
 
         // 检查是否有子分组
         boolean hasChildren = lambdaQuery().eq(ApiGroupEntity::getParentId, id).exists();
@@ -124,8 +133,19 @@ public class ApiGroupService extends ServiceImpl<ApiGroupMapper, ApiGroupEntity>
      * 获取分组树
      */
     public List<ApiGroupVO> getGroupTree(Long projectId) {
+        List<Long> projectIds;
+        if (projectId != null) {
+            accessGuard.assertProject(projectId);
+            projectIds = List.of(projectId);
+        } else {
+            projectIds = accessGuard.accessibleProjectIds();
+            if (projectIds.isEmpty()) {
+                return new ArrayList<>();
+            }
+        }
+
         List<ApiGroupEntity> allGroups = lambdaQuery()
-                .eq(ApiGroupEntity::getProjectId, projectId)
+                .in(ApiGroupEntity::getProjectId, projectIds)
                 .orderByAsc(ApiGroupEntity::getSortOrder)
                 .list();
 
@@ -135,7 +155,7 @@ public class ApiGroupService extends ServiceImpl<ApiGroupMapper, ApiGroupEntity>
 
         // 统计每个分组下的接口数量
         Map<Long, Long> apiCountMap = apiDefinitionService.lambdaQuery()
-                .eq(com.hfwas.devops.apitest.apidefine.entity.ApiDefinitionEntity::getProjectId, projectId)
+                .in(com.hfwas.devops.apitest.apidefine.entity.ApiDefinitionEntity::getProjectId, projectIds)
                 .select(com.hfwas.devops.apitest.apidefine.entity.ApiDefinitionEntity::getGroupId)
                 .list()
                 .stream()
@@ -185,6 +205,7 @@ public class ApiGroupService extends ServiceImpl<ApiGroupMapper, ApiGroupEntity>
         if (entity == null) {
             throw new ApiTestException("分组不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
         return apiGroupConvert.toVO(entity);
     }
 }

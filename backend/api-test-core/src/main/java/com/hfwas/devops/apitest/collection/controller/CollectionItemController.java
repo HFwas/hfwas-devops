@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -36,9 +35,8 @@ public class CollectionItemController {
     @Operation(summary = "添加集合项")
     @PostMapping
     public BaseResult<CollectionItemVO> add(@PathVariable Long collectionId,
-                                             @Valid @RequestBody CollectionItemAddDTO dto,
-                                             @RequestParam Long userId) {
-        return BaseResult.ok(itemService.add(collectionId, dto, userId));
+                                             @Valid @RequestBody CollectionItemAddDTO dto) {
+        return BaseResult.ok(itemService.add(collectionId, dto));
     }
 
     @Operation(summary = "更新集合项")
@@ -68,9 +66,8 @@ public class CollectionItemController {
     @Operation(summary = "批量添加")
     @PostMapping("/batch")
     public BaseResult<Void> batchAdd(@PathVariable Long collectionId,
-                                      @Valid @RequestBody CollectionItemBatchDTO dto,
-                                      @RequestParam Long userId) {
-        itemService.batchAdd(collectionId, dto, userId);
+                                      @Valid @RequestBody CollectionItemBatchDTO dto) {
+        itemService.batchAdd(collectionId, dto);
         return BaseResult.ok();
     }
 }

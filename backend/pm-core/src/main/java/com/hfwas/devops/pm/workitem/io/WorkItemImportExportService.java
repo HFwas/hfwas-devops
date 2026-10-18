@@ -7,12 +7,14 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.project.entity.PmProject;
 import com.hfwas.devops.pm.project.mapper.PmProjectMapper;
+import com.hfwas.devops.pm.project.service.ProjectService;
 import com.hfwas.devops.pm.query.engine.QueryEngine;
 import com.hfwas.devops.pm.query.model.QuerySpec;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemMapper;
 import com.hfwas.devops.pm.workitem.service.WorkItemKeyEnricher;
 import com.hfwas.devops.pm.workitem.service.WorkItemService;
+import com.hfwas.devops.user.context.CurrentUserAccessor;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -39,6 +41,8 @@ public class WorkItemImportExportService {
     private final WorkItemKeyEnricher keyEnricher;
     private final QueryEngine queryEngine;
     private final PmProjectMapper projectMapper;
+    private final ProjectService projectService;
+    private final CurrentUserAccessor currentUserAccessor;
 
     public List<WorkItemIoColumn> listColumns(Long projectId, String typeCode) {
         validateScope(projectId, typeCode);
@@ -257,7 +261,7 @@ public class WorkItemImportExportService {
             spec.setTypeCode(typeCode);
             spec.setPageNo(1);
             spec.setPageSize(MAX_EXPORT_ROWS);
-            items = queryEngine.execute(spec).getRecords();
+            items = queryEngine.execute(spec, currentUserAccessor.currentTenantId()).getRecords();
         }
         keyEnricher.enrich(items);
         if (items.size() >= MAX_EXPORT_ROWS) {
@@ -414,6 +418,7 @@ public class WorkItemImportExportService {
         if (projectId == null || StringUtils.isBlank(typeCode)) {
             throw new IllegalArgumentException("projectId 与 typeCode 不能为空");
         }
+        projectService.assertProjectAccess(projectId);
     }
 
     private static class ParsedSheet {

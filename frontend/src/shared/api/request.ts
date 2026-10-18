@@ -36,6 +36,18 @@ request.interceptors.request.use(async (config) => {
   return config
 })
 
+/** blob 请求（导出/下载）的错误体是 Blob，必须先读 text 再解析 JSON。 */
+export async function readErrorPayload(data: unknown): Promise<BaseResult<unknown> | undefined> {
+  if (data && typeof data === 'object' && typeof (data as Blob).text === 'function') {
+    try {
+      return JSON.parse(await (data as Blob).text()) as BaseResult<unknown>
+    } catch {
+      return undefined
+    }
+  }
+  return data as BaseResult<unknown> | undefined
+}
+
 request.interceptors.response.use(
   (response) => {
     const result = response.data as BaseResult<unknown>
@@ -44,9 +56,9 @@ request.interceptors.response.use(
     }
     return response
   },
-  (error) => {
+  async (error) => {
     const status = error.response?.status
-    const payload = error.response?.data as BaseResult<unknown> | undefined
+    const payload = await readErrorPayload(error.response?.data)
     const code = typeof payload?.code === 'number' ? payload.code : undefined
 
     if (status === 401 || code === ResultCode.UNAUTHORIZED) {
@@ -55,6 +67,13 @@ request.interceptors.response.use(
 
     if (code != null) {
       return Promise.reject(toApiError(code, payload?.msg))
+    }
+
+    if (status === 403) {
+      return Promise.reject(new ApiError(ResultCode.FORBIDDEN, payload?.msg || '无权访问'))
+    }
+    if (status === 401) {
+      return Promise.reject(new ApiError(ResultCode.UNAUTHORIZED, payload?.msg || '未登录或登录已过期'))
     }
 
     const msg = payload?.msg

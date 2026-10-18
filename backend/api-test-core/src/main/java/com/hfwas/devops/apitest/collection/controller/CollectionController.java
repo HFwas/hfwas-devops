@@ -36,7 +36,7 @@ public class CollectionController {
 
     @Operation(summary = "分页查询集合列表")
     @GetMapping("/page")
-    public BaseResult<IPage<CollectionVO>> pageQuery(@RequestParam Long projectId,
+    public BaseResult<IPage<CollectionVO>> pageQuery(@RequestParam(required = false) Long projectId,
                                                       @RequestParam(required = false) String keyword,
                                                       @RequestParam(required = false, defaultValue = "1") Integer pageNo,
                                                       @RequestParam(required = false, defaultValue = "20") Integer pageSize) {
@@ -52,17 +52,15 @@ public class CollectionController {
     @Operation(summary = "创建集合")
     @PostMapping
     public BaseResult<CollectionVO> create(@Valid @RequestBody CollectionCreateDTO dto,
-                                            @RequestParam Long projectId,
-                                            @RequestParam Long userId) {
-        return BaseResult.ok(collectionService.create(dto, projectId, userId));
+                                            @RequestParam Long projectId) {
+        return BaseResult.ok(collectionService.create(dto, projectId));
     }
 
     @Operation(summary = "更新集合")
     @PutMapping("/{id}")
     public BaseResult<CollectionVO> update(@PathVariable Long id,
-                                            @Valid @RequestBody CollectionUpdateDTO dto,
-                                            @RequestParam Long userId) {
-        return BaseResult.ok(collectionService.update(id, dto, userId));
+                                            @Valid @RequestBody CollectionUpdateDTO dto) {
+        return BaseResult.ok(collectionService.update(id, dto));
     }
 
     @Operation(summary = "删除集合")

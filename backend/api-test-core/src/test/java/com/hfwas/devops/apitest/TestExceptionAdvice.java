@@ -2,10 +2,12 @@ package com.hfwas.devops.apitest;
 
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
 import com.hfwas.devops.common.core.base.BaseResult;
+import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ResultCode;
 import lombok.extern.slf4j.Slf4j;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -33,9 +35,38 @@ public class TestExceptionAdvice {
         return BaseResult.failed(e.getCode(), e.getMessage());
     }
 
+    @ExceptionHandler(BizException.class)
+    public ResponseEntity<BaseResult<Void>> handleBizException(BizException e) {
+        log.warn("[Biz] code={}, {}", e.getCode(), e.getMessage());
+        return ResponseEntity.status(resolveHttpStatus(e.getCode()))
+                .body(BaseResult.failed(e.getCode(), e.getMessage()));
+    }
+
+    /**
+     * 对齐生产 ApiErrorWriter 的权限错误映射。
+     */
+    private HttpStatus resolveHttpStatus(int code) {
+        if (code == ResultCode.UNAUTHORIZED.getCode()
+                || code == ResultCode.TENANT_CONTEXT_MISSING.getCode()) {
+            return HttpStatus.UNAUTHORIZED;
+        }
+        if (code == ResultCode.PROJECT_ACCESS_DENIED.getCode()
+                || code == ResultCode.FORBIDDEN.getCode()
+                || code == ResultCode.TENANT_FORBIDDEN.getCode()
+                || code == ResultCode.ADMIN_REQUIRED.getCode()
+                || code == ResultCode.PLATFORM_ADMIN_REQUIRED.getCode()) {
+            return HttpStatus.FORBIDDEN;
+        }
+        if (code == ResultCode.PROJECT_NOT_FOUND.getCode()
+                || code == ResultCode.NOT_FOUND.getCode()) {
+            return HttpStatus.NOT_FOUND;
+        }
+        return HttpStatus.OK;
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.OK)
-    public BaseResult<Void> handleIllegalArgument(IllegalArgumentException e) {
+    public BaseResult<Void> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("[IllegalArgument] {}", e.getMessage());
         return BaseResult.failed(ResultCode.BAD_REQUEST.getCode(), e.getMessage());
     }

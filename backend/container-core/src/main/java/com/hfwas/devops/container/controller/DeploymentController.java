@@ -31,7 +31,7 @@ public class DeploymentController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.listDeployments(clusterId, namespace, keyword, pageNo, pageSize, tenantId));
     }
 
@@ -40,7 +40,7 @@ public class DeploymentController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getDeployment(clusterId, namespace, name, tenantId));
     }
 
@@ -49,7 +49,7 @@ public class DeploymentController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.listDeploymentPods(clusterId, namespace, name, tenantId));
     }
 
@@ -58,7 +58,7 @@ public class DeploymentController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getDeploymentEnv(clusterId, namespace, name, tenantId));
     }
 
@@ -68,7 +68,7 @@ public class DeploymentController {
             @PathVariable String namespace,
             @PathVariable String name,
             @RequestBody WorkloadEnvUpdateDTO body) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.updateDeploymentEnv(clusterId, namespace, name, body, tenantId);
         return BaseResult.ok();
     }
@@ -78,7 +78,7 @@ public class DeploymentController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getDeploymentVolumes(clusterId, namespace, name, tenantId));
     }
 
@@ -88,7 +88,7 @@ public class DeploymentController {
             @PathVariable String namespace,
             @PathVariable String name,
             @RequestBody WorkloadVolumeUpdateDTO body) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.updateDeploymentVolumes(clusterId, namespace, name, body, tenantId);
         return BaseResult.ok();
     }
@@ -98,7 +98,7 @@ public class DeploymentController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getDeploymentYaml(clusterId, namespace, name, tenantId));
     }
 
@@ -108,7 +108,7 @@ public class DeploymentController {
             @PathVariable String namespace,
             @PathVariable String name,
             @RequestBody String yamlBody) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.updateDeploymentYaml(clusterId, namespace, name, yamlBody, tenantId);
         return BaseResult.ok();
     }
@@ -120,7 +120,7 @@ public class DeploymentController {
             @PathVariable String name,
             @RequestBody Map<String, Integer> body) {
         int replicas = body.getOrDefault("replicas", 1);
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.scaleDeployment(clusterId, namespace, name, replicas, tenantId);
         return BaseResult.ok();
     }
@@ -130,7 +130,7 @@ public class DeploymentController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.restartDeployment(clusterId, namespace, name, tenantId);
         return BaseResult.ok();
     }
@@ -140,7 +140,7 @@ public class DeploymentController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.deleteDeployment(clusterId, namespace, name, tenantId);
         return BaseResult.ok();
     }

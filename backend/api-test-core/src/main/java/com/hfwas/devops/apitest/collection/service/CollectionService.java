@@ -22,6 +22,7 @@ import com.hfwas.devops.apitest.collection.vo.CollectionFolderVO;
 import com.hfwas.devops.apitest.collection.vo.CollectionItemVO;
 import com.hfwas.devops.apitest.collection.vo.CollectionVO;
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.common.security.ApiTestAccessGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,7 @@ public class CollectionService extends ServiceImpl<CollectionMapper, CollectionE
     private final CollectionItemMapper itemMapper;
     private final CollectionRunMapper runMapper;
     private final ApiDefinitionMapper definitionMapper;
+    private final ApiTestAccessGuard accessGuard;
 
     /**
      * 分页查询集合列表
@@ -58,7 +60,14 @@ public class CollectionService extends ServiceImpl<CollectionMapper, CollectionE
 
         LambdaQueryWrapper<CollectionEntity> wrapper = new LambdaQueryWrapper<>();
         if (projectId != null) {
+            accessGuard.assertProject(projectId);
             wrapper.eq(CollectionEntity::getProjectId, projectId);
+        } else {
+            List<Long> accessibleProjectIds = accessGuard.accessibleProjectIds();
+            if (accessibleProjectIds.isEmpty()) {
+                return page.convert(entity -> new CollectionVO());
+            }
+            wrapper.in(CollectionEntity::getProjectId, accessibleProjectIds);
         }
         if (StrUtil.isNotBlank(keyword)) {
             wrapper.like(CollectionEntity::getName, keyword);
@@ -114,6 +123,7 @@ public class CollectionService extends ServiceImpl<CollectionMapper, CollectionE
         if (entity == null) {
             throw new ApiTestException("集合不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
 
         CollectionDetailVO vo = new CollectionDetailVO();
         vo.setId(entity.getId());
@@ -156,7 +166,9 @@ public class CollectionService extends ServiceImpl<CollectionMapper, CollectionE
      * 创建集合
      */
     @Transactional(rollbackFor = Exception.class)
-    public CollectionVO create(CollectionCreateDTO dto, Long projectId, Long userId) {
+    public CollectionVO create(CollectionCreateDTO dto, Long projectId) {
+        accessGuard.assertProject(projectId);
+
         // 校验集合名唯一性
         boolean exists = lambdaQuery()
                 .eq(CollectionEntity::getProjectId, projectId)
@@ -171,6 +183,7 @@ public class CollectionService extends ServiceImpl<CollectionMapper, CollectionE
         entity.setName(dto.getName());
         entity.setDescription(dto.getDescription());
         entity.setSortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : 0);
+        entity.setCreateBy(accessGuard.requireUserId());
         save(entity);
 
         log.info("创建集合: id={}, name={}, projectId={}", entity.getId(), entity.getName(), projectId);
@@ -192,11 +205,12 @@ public class CollectionService extends ServiceImpl<CollectionMapper, CollectionE
      * 更新集合
      */
     @Transactional(rollbackFor = Exception.class)
-    public CollectionVO update(Long id, CollectionUpdateDTO dto, Long userId) {
+    public CollectionVO update(Long id, CollectionUpdateDTO dto) {
         CollectionEntity entity = getById(id);
         if (entity == null) {
             throw new ApiTestException("集合不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
 
         if (StrUtil.isNotBlank(dto.getName())) {
             // 校验名称唯一性（排除自身）
@@ -240,6 +254,7 @@ public class CollectionService extends ServiceImpl<CollectionMapper, CollectionE
         if (entity == null) {
             throw new ApiTestException("集合不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
 
         // 逻辑删除文件夹
         folderMapper.delete(new LambdaQueryWrapper<CollectionFolderEntity>()

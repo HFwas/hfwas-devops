@@ -7,7 +7,8 @@ import { useAuthStore } from '@/stores/auth'
 export function WorkbenchPage() {
   const user = useAuthStore((s) => s.user)
   const tenantName = useAuthStore((s) => s.activeTenantName)
-  const groups = groupProducts(CONSOLE_PRODUCTS.filter((item) => !item.comingSoon))
+  const isAdmin = useAuthStore((s) => s.isAdmin)()
+  const groups = groupProducts(CONSOLE_PRODUCTS.filter((item) => !item.comingSoon), isAdmin)
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 md:gap-6">

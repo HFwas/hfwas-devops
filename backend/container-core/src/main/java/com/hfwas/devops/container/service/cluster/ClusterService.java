@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.container.dto.ClusterComponentVO;
 import com.hfwas.devops.container.dto.ClusterVO;
 import com.hfwas.devops.container.entity.ClusterEntity;
@@ -68,8 +69,11 @@ public class ClusterService {
      * Paginated list filtered by tenant, optionally matching name / alias.
      */
     public IPage<ClusterEntity> page(int pageNo, int pageSize, Long tenantId, String keyword) {
+        if (tenantId == null) {
+            throw new BizException(ResultCode.TENANT_CONTEXT_MISSING);
+        }
         LambdaQueryWrapper<ClusterEntity> wrapper = new LambdaQueryWrapper<ClusterEntity>()
-                .eq(tenantId != null, ClusterEntity::getTenantId, tenantId)
+                .eq(ClusterEntity::getTenantId, tenantId)
                 .orderByDesc(ClusterEntity::getUpdatedAt);
         if (keyword != null && !keyword.isBlank()) {
             String kw = keyword.trim();
@@ -82,17 +86,21 @@ public class ClusterService {
      * Get cluster by id, visibility-checked against tenant.
      */
     public ClusterEntity getById(Long id, Long tenantId) {
+        if (tenantId == null) {
+            throw new BizException(ResultCode.TENANT_CONTEXT_MISSING);
+        }
         ClusterEntity entity = clusterMapper.selectById(id);
-        if (entity == null || (tenantId != null && !tenantId.equals(entity.getTenantId()))) {
+        if (entity == null || !tenantId.equals(entity.getTenantId())) {
             throw new BizException(ContainerErrorCode.CLUSTER_FORBIDDEN);
         }
         return entity;
     }
 
     /**
-     * Get cluster by id without tenant check (internal use, e.g. heartbeat).
+     * System-only lookup for startup self-checks/background jobs.
+     * Never call from a user request path.
      */
-    public ClusterEntity getByIdInternal(Long id) {
+    public ClusterEntity getByIdForSystem(Long id) {
         ClusterEntity entity = clusterMapper.selectById(id);
         if (entity == null) {
             throw new BizException(ContainerErrorCode.CLUSTER_NOT_FOUND);

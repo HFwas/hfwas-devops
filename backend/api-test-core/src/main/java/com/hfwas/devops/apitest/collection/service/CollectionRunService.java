@@ -10,6 +10,7 @@ import com.hfwas.devops.apitest.apidefine.entity.ApiDefinitionEntity;
 import com.hfwas.devops.apitest.apidefine.entity.ApiDefinitionParamEntity;
 import com.hfwas.devops.apitest.apidefine.mapper.ApiDefinitionMapper;
 import com.hfwas.devops.apitest.apidefine.mapper.ApiDefinitionParamMapper;
+import com.hfwas.devops.apitest.collection.entity.CollectionEntity;
 import com.hfwas.devops.apitest.collection.entity.CollectionItemEntity;
 import com.hfwas.devops.apitest.collection.entity.CollectionRunEntity;
 import com.hfwas.devops.apitest.collection.entity.CollectionRunItemEntity;
@@ -20,10 +21,14 @@ import com.hfwas.devops.apitest.collection.vo.CollectionRunDetailVO;
 import com.hfwas.devops.apitest.collection.vo.CollectionRunItemVO;
 import com.hfwas.devops.apitest.collection.vo.CollectionRunVO;
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.common.security.ApiTestAccessGuard;
 import com.hfwas.devops.apitest.debugger.engine.HttpDebugEngine;
 import com.hfwas.devops.apitest.debugger.model.DebugRequest;
 import com.hfwas.devops.apitest.debugger.model.DebugResult;
+import com.hfwas.devops.apitest.environment.entity.EnvironmentEntity;
 import com.hfwas.devops.apitest.environment.service.EnvironmentService;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -51,12 +56,27 @@ public class CollectionRunService extends ServiceImpl<CollectionRunMapper, Colle
     private final ApiDefinitionParamMapper paramMapper;
     private final HttpDebugEngine httpDebugEngine;
     private final EnvironmentService environmentService;
+    private final CollectionService collectionService;
+    private final ApiTestAccessGuard accessGuard;
 
     /**
      * 执行集合
      */
     @Transactional(rollbackFor = Exception.class)
-    public CollectionRunVO execute(Long collectionId, Long environmentId, Long userId) {
+    public CollectionRunVO execute(Long collectionId, Long environmentId) {
+        CollectionEntity collection = requireCollectionAccess(collectionId);
+
+        // 环境必须存在且与集合属于同一项目
+        if (environmentId != null) {
+            EnvironmentEntity environment = environmentService.getById(environmentId);
+            if (environment == null) {
+                throw new ApiTestException("环境不存在");
+            }
+            if (!java.util.Objects.equals(environment.getProjectId(), collection.getProjectId())) {
+                throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+            }
+        }
+
         // 查询集合内所有启用的集合项
         List<CollectionItemEntity> items = itemMapper.selectList(
                 new LambdaQueryWrapper<CollectionItemEntity>()
@@ -71,6 +91,9 @@ public class CollectionRunService extends ServiceImpl<CollectionRunMapper, Colle
         // 创建运行记录
         CollectionRunEntity run = new CollectionRunEntity();
         run.setCollectionId(collectionId);
+        run.setProjectId(collection.getProjectId());
+        run.setEnvironmentId(environmentId);
+        run.setCreateBy(accessGuard.requireUserId());
         run.setName("Run - " + DateUtil.format(LocalDateTime.now(), "yyyy-MM-dd HH:mm:ss"));
         run.setStatus("RUNNING");
         run.setTotalCount(items.size());
@@ -170,6 +193,7 @@ public class CollectionRunService extends ServiceImpl<CollectionRunMapper, Colle
      * 查询运行历史
      */
     public IPage<CollectionRunVO> pageQuery(Long collectionId, Integer pageNo, Integer pageSize) {
+        requireCollectionAccess(collectionId);
         Page<CollectionRunEntity> page = new Page<>(
                 pageNo != null && pageNo > 0 ? pageNo : 1,
                 pageSize != null && pageSize > 0 ? pageSize : 20);
@@ -190,6 +214,7 @@ public class CollectionRunService extends ServiceImpl<CollectionRunMapper, Colle
         if (run == null) {
             throw new ApiTestException("运行记录不存在");
         }
+        assertRunAccess(run);
 
         CollectionRunDetailVO vo = new CollectionRunDetailVO();
         vo.setId(run.getId());
@@ -225,6 +250,7 @@ public class CollectionRunService extends ServiceImpl<CollectionRunMapper, Colle
         if (run == null) {
             throw new ApiTestException("运行记录不存在");
         }
+        assertRunAccess(run);
 
         // 删除执行项结果
         runItemMapper.delete(new LambdaQueryWrapper<CollectionRunItemEntity>()
@@ -233,6 +259,32 @@ public class CollectionRunService extends ServiceImpl<CollectionRunMapper, Colle
         removeById(runId);
 
         log.info("删除运行记录: id={}", runId);
+    }
+
+    /**
+     * 校验集合存在并校验项目访问权限
+     */
+    private CollectionEntity requireCollectionAccess(Long collectionId) {
+        CollectionEntity collection = collectionService.getById(collectionId);
+        if (collection == null) {
+            throw new ApiTestException("集合不存在");
+        }
+        accessGuard.assertProject(collection.getProjectId());
+        return collection;
+    }
+
+    /**
+     * 运行记录按 runId → collection → projectId 校验；存量 run.projectId 为空时反查集合。
+     */
+    private void assertRunAccess(CollectionRunEntity run) {
+        Long projectId = run.getProjectId();
+        if (projectId == null && run.getCollectionId() != null) {
+            CollectionEntity collection = collectionService.getById(run.getCollectionId());
+            if (collection != null) {
+                projectId = collection.getProjectId();
+            }
+        }
+        accessGuard.assertProject(projectId);
     }
 
     /**

@@ -1,7 +1,7 @@
 # 接口模块覆盖矩阵
 
 > 日期：2026-10-18
-> 版本：v0.2
+> 版本：v0.3
 > 状态：已完成
 > 数据来源：`grep @RequestMapping` / `@*Mapping`（排除 `target/`）、`docs/backend/api_spec.md`、`docs/pm/pm-api.md`、`docs/pipeline/pipeline-core-api.md`
 
@@ -11,6 +11,7 @@
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：8 个模块、67 个 Controller 的文档与 Postman 覆盖矩阵 |
 | v0.2 | 2026-10-18 | 流水线 Markdown 升 v0.4 并补齐 Postman；更新覆盖状态 |
+| v0.3 | 2026-10-18 | P0：PM/容器/API 测试补 P0 变更说明与 Postman collection |
 
 ---
 
@@ -19,16 +20,16 @@
 | 模块 | 路径前缀 | Controller 数 | 本文档 | 既有 Markdown | Postman |
 |------|----------|---------------|--------|---------------|---------|
 | 用户 / 租户 | `/user/*`、`/internal/keycloak` | 10 | [user.md](modules/user.md) | 无 | ❌ |
-| 项目管理 | `/pm/*` | 14 | [pm.md](modules/pm.md) | `docs/pm/pm-api.md` | ❌ |
+| 项目管理 | `/pm/*` | 14 | [pm.md](modules/pm.md) | `docs/pm/pm-api.md`（v1.4） | ✅ `docs/pm/pm-api.postman_collection.json`（P0 变更） |
 | 流水线 | `/pipeline/*`、`/dependency-*`、`/argo/*` | 11 | [pipeline.md](modules/pipeline.md) | `docs/pipeline/pipeline-core-api.md`（v0.4） | ✅ `docs/pipeline/pipeline-core-api.postman_collection.json` |
-| 容器平台 | `/container/*` | 20 | [container.md](modules/container.md) | 无（设计文档仅零散端点） | ❌ |
-| API 测试 | `/apitest/*` | 10 | [api-test.md](modules/api-test.md) | `docs/backend/api_spec.md`（实为 api-test） | ❌ |
+| 容器平台 | `/container/*` | 20 | [container.md](modules/container.md) | `docs/container-platform/container-api.md`（v0.1） | ✅ `docs/container-platform/container-api.postman_collection.json` |
+| API 测试 | `/apitest/*` | 10 | [api-test.md](modules/api-test.md) | `docs/backend/api_spec.md`（v0.2） | ✅ `docs/backend/api_spec.postman_collection.json` |
 | 文档生成 | `/api/docgen/*` | 1 | [docgen.md](modules/docgen.md) | `docs/docgen/` | ❌ |
 | 文件解析 | `/api/file-parser/*` | 1 | [file-parser.md](modules/file-parser.md) | `docs/file-parser/` | ❌ |
 | 图片处理 | `/api/image/*` | 1 | [image.md](modules/image.md) | `docs/image/` | ❌ |
 | 健康检查 | `/health/*` | 1 | [api-overview.md](api-overview.md) | `README.md` | ❌ |
 
-合计 67 个 Controller（含 1 个健康检查）。流水线模块已提供 Postman collection（43 个请求），其余 7 个模块仍待补。
+合计 67 个 Controller（含 1 个健康检查）。流水线、PM、容器、API 测试已提供 Postman collection（覆盖 P0 变更接口）；用户/租户、Docgen、File Parser、Image 仍待补。
 
 ## 2. 覆盖说明
 

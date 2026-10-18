@@ -472,7 +472,7 @@ public class HelmReleaseService {
         if (clusterId == null) {
             throw new BizException(ContainerErrorCode.CLUSTER_NOT_FOUND);
         }
-        ClusterEntity cluster = clusterService.getById(clusterId, SecurityHelper.currentTenantId());
+        ClusterEntity cluster = clusterService.getById(clusterId, SecurityHelper.requireTenantId());
         if (!"Connected".equals(cluster.getStatus())) {
             throw new BizException(ContainerErrorCode.CLUSTER_NOT_CONNECTED,
                     "集群状态为 " + cluster.getStatus() + "，无法操作");
@@ -557,8 +557,7 @@ public class HelmReleaseService {
     }
 
     private static Long tenantId() {
-        Long current = SecurityHelper.currentTenantId();
-        return current == null ? HelmChartService.PLATFORM_TENANT_ID : current;
+        return SecurityHelper.requireTenantId();
     }
 
     private enum HelmOp {

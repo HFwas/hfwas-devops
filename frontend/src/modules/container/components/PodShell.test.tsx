@@ -2,6 +2,7 @@ import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PodShell } from '@/modules/container/components/PodShell'
+import { TENANT_ID_KEY } from '@/modules/user/types'
 
 vi.mock('@xterm/xterm', () => ({
   Terminal: class {
@@ -93,5 +94,49 @@ describe('PodShell toolbar', () => {
     const headerClass = container.querySelector('header')?.className.split(/\s+/) ?? []
     expect(headerClass).toContain('min-h-10')
     expect(headerClass).toContain('flex-wrap')
+  })
+
+  it('sends tenantId in the shell websocket url', async () => {
+    const urls: string[] = []
+    vi.stubGlobal(
+      'WebSocket',
+      class {
+        static CONNECTING = 0
+        static OPEN = 1
+        static CLOSING = 2
+        static CLOSED = 3
+        readyState = 0
+        binaryType = ''
+        onopen: (() => void) | null = null
+        onclose: (() => void) | null = null
+        onmessage: (() => void) | null = null
+        onerror: (() => void) | null = null
+        constructor(url: string) {
+          urls.push(url)
+        }
+        send() {}
+        close() {}
+      },
+    )
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        disconnect() {}
+        unobserve() {}
+      },
+    )
+    localStorage.setItem(TENANT_ID_KEY, '10')
+
+    const view = mount(<PodShell clusterId="1" namespace="default" name="demo" containers={['app']} />)
+    root = view.root
+    container = view.container
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    })
+
+    expect(urls[0]).toContain('tenantId=10')
+    localStorage.removeItem(TENANT_ID_KEY)
+    vi.unstubAllGlobals()
   })
 })

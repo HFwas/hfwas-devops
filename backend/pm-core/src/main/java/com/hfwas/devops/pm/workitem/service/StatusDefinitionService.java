@@ -3,6 +3,9 @@ package com.hfwas.devops.pm.workitem.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
+import com.hfwas.devops.pm.project.service.ProjectService;
 import com.hfwas.devops.pm.query.model.QueryCondition;
 import com.hfwas.devops.pm.query.model.QueryConditionGroup;
 import com.hfwas.devops.pm.query.model.QueryOperator;
@@ -54,12 +57,14 @@ public class StatusDefinitionService {
     private final PmWorkItemMapper workItemMapper;
     private final PmWorkItemTypeMapper workItemTypeMapper;
     private final TransitionConditionEvaluator transitionConditionEvaluator;
+    private final ProjectService projectService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public StatusWorkflowVO getWorkflow(Long projectId, String typeCode) {
         if (projectId == null || StringUtils.isBlank(typeCode)) {
             throw new IllegalArgumentException("projectId 与 typeCode 不能为空");
         }
+        projectService.assertProjectAccess(projectId);
         List<PmStatusDefinition> projectRows = listByScope(projectId, typeCode);
         boolean customized = !projectRows.isEmpty();
         List<PmStatusDefinition> rows = customized ? projectRows : listByScope(null, typeCode);
@@ -97,8 +102,9 @@ public class StatusDefinitionService {
         if (workItemId != null) {
             workItem = workItemMapper.selectById(workItemId);
             if (workItem == null) {
-                throw new IllegalArgumentException("Work item not found: " + workItemId);
+                throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
             }
+            projectService.assertProjectAccess(workItem.getProjectId());
             if (projectId != null && !projectId.equals(workItem.getProjectId())) {
                 throw new IllegalArgumentException("事项不属于该项目");
             }
@@ -196,6 +202,7 @@ public class StatusDefinitionService {
         if (projectId == null || StringUtils.isBlank(typeCode)) {
             throw new IllegalArgumentException("projectId 与 typeCode 不能为空");
         }
+        projectService.assertProjectAccess(projectId);
         if (statuses == null || statuses.isEmpty()) {
             throw new IllegalArgumentException("至少需要一个状态");
         }
@@ -224,6 +231,7 @@ public class StatusDefinitionService {
 
     @Transactional
     public void resetWorkflow(Long projectId, String typeCode) {
+        projectService.assertProjectAccess(projectId);
         statusDefinitionMapper.delete(Wrappers.<PmStatusDefinition>lambdaQuery()
                 .eq(PmStatusDefinition::getProjectId, projectId)
                 .eq(PmStatusDefinition::getTypeCode, typeCode));

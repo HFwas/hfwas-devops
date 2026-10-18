@@ -25,7 +25,7 @@ public class ApiDefinitionParamService extends ServiceImpl<ApiDefinitionParamMap
      * 批量保存参数
      */
     @Transactional(rollbackFor = Exception.class)
-    public void batchSave(Long definitionId, List<ApiDefinitionParamDTO> params, Long userId) {
+    public void batchSave(Long definitionId, List<ApiDefinitionParamDTO> params) {
         for (int i = 0; i < params.size(); i++) {
             ApiDefinitionParamDTO dto = params.get(i);
             ApiDefinitionParamEntity entity = new ApiDefinitionParamEntity();

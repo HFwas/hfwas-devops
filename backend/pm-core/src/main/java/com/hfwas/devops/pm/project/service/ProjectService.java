@@ -8,12 +8,16 @@ import com.hfwas.devops.pm.meta.ProjectIssueTypeService;
 import com.hfwas.devops.pm.project.entity.PmProject;
 import com.hfwas.devops.pm.project.mapper.PmProjectMapper;
 import com.hfwas.devops.pm.project.model.ProjectAccessContextVO;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
 import com.hfwas.devops.user.context.UserContext;
 import com.hfwas.devops.user.spi.TenantAccessValidator;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -30,16 +34,37 @@ public class ProjectService {
     public ProjectAccessContextVO resolveAccessContext(Long projectId) {
         PmProject project = projectMapper.selectById(projectId);
         if (project == null || project.getTenantId() == null) {
-            throw new IllegalArgumentException("项目不存在");
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
         }
         UserContext ctx = currentUserAccessor.current()
-                .orElseThrow(() -> new IllegalArgumentException("未登录或登录已过期"));
+                .orElseThrow(() -> new BizException(ResultCode.UNAUTHORIZED));
         tenantAccessValidator.assertAccess(ctx.getUserId(), ctx.getRole(), project.getTenantId());
         ProjectAccessContextVO vo = new ProjectAccessContextVO();
         vo.setProjectId(project.getId());
         vo.setProjectName(project.getName());
         vo.setTenantId(project.getTenantId());
         return vo;
+    }
+
+    /**
+     * Guard for every project-scoped entry point. Uses the project's tenant and
+     * the user's membership, so deep links from another selected tenant work.
+     */
+    public void assertProjectAccess(Long projectId) {
+        resolveAccessContext(projectId);
+    }
+
+    /** Project ids visible in the given tenant, for cross-module list filtering. */
+    public List<Long> accessibleProjectIds(Long tenantId) {
+        if (tenantId == null) {
+            throw new BizException(ResultCode.TENANT_CONTEXT_MISSING);
+        }
+        return projectMapper.selectList(Wrappers.<PmProject>lambdaQuery()
+                        .eq(PmProject::getTenantId, tenantId)
+                        .select(PmProject::getId))
+                .stream()
+                .map(PmProject::getId)
+                .toList();
     }
 
     public IPage<PmProject> page(PmPageRequest request, String keyword) {
@@ -83,13 +108,12 @@ public class ProjectService {
 
     public PmProject getById(Long id) {
         PmProject project = projectMapper.selectById(id);
-        if (project == null) {
-            return null;
+        if (project == null || project.getTenantId() == null) {
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
         }
-        Long tenantId = requireTenantId();
-        if (project.getTenantId() != null && !tenantId.equals(project.getTenantId())) {
-            throw new IllegalArgumentException("项目不存在或无权访问");
-        }
+        UserContext ctx = currentUserAccessor.current()
+                .orElseThrow(() -> new BizException(ResultCode.UNAUTHORIZED));
+        tenantAccessValidator.assertAccess(ctx.getUserId(), ctx.getRole(), project.getTenantId());
         return project;
     }
 
@@ -101,14 +125,14 @@ public class ProjectService {
     private void assertProjectTenant(Long projectId, Long tenantId) {
         PmProject project = projectMapper.selectById(projectId);
         if (project == null || project.getTenantId() == null || !tenantId.equals(project.getTenantId())) {
-            throw new IllegalArgumentException("项目不存在或无权访问");
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
         }
     }
 
     private Long requireTenantId() {
         Long tenantId = currentUserAccessor.currentTenantId();
         if (tenantId == null) {
-            throw new IllegalArgumentException("未登录或租户上下文缺失");
+            throw new BizException(ResultCode.TENANT_CONTEXT_MISSING);
         }
         return tenantId;
     }

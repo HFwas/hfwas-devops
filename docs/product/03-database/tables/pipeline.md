@@ -178,7 +178,7 @@ pipeline_task_kind 1 ── N pipeline_task_kind_version
 
 索引：`idx_task_kind_tenant`、`idx_task_kind_group`。
 
-种子任务类型 17 个：CLONE、BUILD、IMAGE、LINT_SEMGREP、FORMAT、LINT_SONAR、DEPENDENCY_ANALYSIS、SCAN、PACKAGE、PUBLISH、UPLOAD、DEPLOY、TEST、CUSTOM、APPROVAL、NOTIFY、DEPENDENCY_TRACK。`KUBECTL` 在枚举中但无种子记录。
+种子任务类型 19 行（18 个 enabled）：CLONE、BUILD、IMAGE、LINT_SEMGREP、FORMAT、LINT_SONAR、DEPENDENCY_ANALYSIS、SCAN、PACKAGE、PUBLISH、UPLOAD、DEPLOY、TEST、CUSTOM、APPROVAL、NOTIFY、KUBECTL、DEPENDENCY_TRACK，以及 `enabled=0` 的 IMAGE_COSIGN（仅作为 IMAGE 的编译器子步骤，不进入任务市场）。
 
 ## 9. pipeline_task_kind_param
 
@@ -288,9 +288,10 @@ pipeline_task_kind 1 ── N pipeline_task_kind_version
 | 增量 | `10-add-runtime-params.sql` | `pipeline_run.runtime_params` |
 | 增量 | `11-add-task-kind-resource-limits.sql` | 任务类型资源限制 |
 | 增量 | `12-add-pipeline-job-param-bindings.sql` | `pipeline_job.param_bindings` |
-| 增量 | `15-task-kind-version-visibility.sql` | 参数 `visibility` |
+| 增量 | `15-task-kind-version-visibility.sql` | 参数 `visibility`；external 创建 `pipeline_task_kind_version` |
+| 增量 | `16-upgrade-task-template-seeds.sql` | 历史默认命令/DT_FAIL_ON 选项；唯一允许 UPDATE 的迁移 |
 
-> `pipeline_task_kind_version` 在 external 的 `05-pipeline-schema.sql` 中缺失，需由后续迁移/初始化补齐；发版前必须核对两种模式建表结果一致。
+> 05 为零 UPDATE 基线：种子模板/选项直接写入 `INSERT OR IGNORE`；历史库通过 `16-*` 精确匹配旧默认值升级。embedded 与 external 的任务类型、DT 参数、模板、IMAGE_COSIGN 已对齐。
 
 ## 15. 写入方
 

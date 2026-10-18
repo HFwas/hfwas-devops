@@ -45,7 +45,7 @@ public class MonitorService {
         int total = 0, ok = 0, fail = 0;
         for (Long clusterId : clusterIds) {
             total++;
-            ClusterEntity entity = clusterService.getByIdInternal(clusterId);
+            ClusterEntity entity = clusterService.getByIdForSystem(clusterId);
             if (entity == null) continue;
             String url;
             try {
@@ -81,14 +81,6 @@ public class MonitorService {
      */
     public String getPrometheusUrl(Long clusterId, Long tenantId) {
         ClusterEntity entity = clusterService.getById(clusterId, tenantId);
-        return extractPrometheusUrl(entity.getLabels());
-    }
-
-    /**
-     * Get prometheusUrl from cluster (internal, no tenant check).
-     */
-    public String getPrometheusUrlInternal(Long clusterId) {
-        ClusterEntity entity = clusterService.getByIdInternal(clusterId);
         return extractPrometheusUrl(entity.getLabels());
     }
 

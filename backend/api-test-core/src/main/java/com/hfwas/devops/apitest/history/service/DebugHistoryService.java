@@ -6,8 +6,12 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.hfwas.devops.apitest.apidefine.dto.ApiDebugExecuteDTO;
+import com.hfwas.devops.apitest.apidefine.entity.ApiDefinitionEntity;
+import com.hfwas.devops.apitest.apidefine.service.ApiDefinitionService;
 import com.hfwas.devops.apitest.apidefine.vo.ApiDebugHistoryVO;
 import com.hfwas.devops.apitest.common.enums.DebugStatusEnum;
+import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.common.security.ApiTestAccessGuard;
 import com.hfwas.devops.apitest.debugger.model.DebugResult;
 import com.hfwas.devops.apitest.history.dto.DebugHistoryQueryDTO;
 import com.hfwas.devops.apitest.history.entity.DebugHistoryEntity;
@@ -30,6 +34,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DebugHistoryService extends ServiceImpl<DebugHistoryMapper, DebugHistoryEntity> {
 
+    private final ApiDefinitionService apiDefinitionService;
+    private final ApiTestAccessGuard accessGuard;
+
     /**
      * 分页查询调试历史
      */
@@ -38,7 +45,14 @@ public class DebugHistoryService extends ServiceImpl<DebugHistoryMapper, DebugHi
 
         LambdaQueryWrapper<DebugHistoryEntity> wrapper = new LambdaQueryWrapper<>();
         if (query.getProjectId() != null) {
+            accessGuard.assertProject(query.getProjectId());
             wrapper.eq(DebugHistoryEntity::getProjectId, query.getProjectId());
+        } else {
+            List<Long> accessibleProjectIds = accessGuard.accessibleProjectIds();
+            if (accessibleProjectIds.isEmpty()) {
+                return page.convert(this::toHistoryVO);
+            }
+            wrapper.in(DebugHistoryEntity::getProjectId, accessibleProjectIds);
         }
         if (query.getDefinitionId() != null) {
             wrapper.eq(DebugHistoryEntity::getDefinitionId, query.getDefinitionId());
@@ -47,13 +61,18 @@ public class DebugHistoryService extends ServiceImpl<DebugHistoryMapper, DebugHi
             wrapper.eq(DebugHistoryEntity::getStatus, query.getStatus());
         }
         if (StrUtil.isNotBlank(query.getKeyword())) {
-            wrapper.like(DebugHistoryEntity::getName, query.getKeyword())
+            // OR 条件必须包裹，避免突破项目过滤
+            wrapper.and(w -> w.like(DebugHistoryEntity::getName, query.getKeyword())
                     .or()
-                    .like(DebugHistoryEntity::getRequestUrl, query.getKeyword());
+                    .like(DebugHistoryEntity::getRequestUrl, query.getKeyword()));
         }
         wrapper.orderByDesc(DebugHistoryEntity::getCreateTime);
 
         IPage<DebugHistoryEntity> entityPage = page(page, wrapper);
+        // MyBatis-Plus 3.5.10+ 移除了 PaginationInnerInterceptor，需手动补 total
+        if (entityPage.getTotal() == 0 && !entityPage.getRecords().isEmpty()) {
+            entityPage.setTotal(baseMapper.selectCount(wrapper));
+        }
 
         return entityPage.convert(this::toHistoryVO);
     }
@@ -66,6 +85,7 @@ public class DebugHistoryService extends ServiceImpl<DebugHistoryMapper, DebugHi
         if (entity == null) {
             return null;
         }
+        accessGuard.assertProject(entity.getProjectId());
         return toDetailVO(entity);
     }
 
@@ -73,6 +93,12 @@ public class DebugHistoryService extends ServiceImpl<DebugHistoryMapper, DebugHi
      * 查询某接口的调试历史列表
      */
     public List<ApiDebugHistoryVO> getByDefinitionId(Long definitionId, int limit) {
+        ApiDefinitionEntity definition = apiDefinitionService.getById(definitionId);
+        if (definition == null) {
+            throw new ApiTestException("接口不存在");
+        }
+        accessGuard.assertProject(definition.getProjectId());
+
         LambdaQueryWrapper<DebugHistoryEntity> wrapper = new LambdaQueryWrapper<DebugHistoryEntity>()
                 .eq(DebugHistoryEntity::getDefinitionId, definitionId)
                 .orderByDesc(DebugHistoryEntity::getCreateTime)
@@ -85,6 +111,10 @@ public class DebugHistoryService extends ServiceImpl<DebugHistoryMapper, DebugHi
      * 删除调试历史
      */
     public void delete(Long id) {
+        DebugHistoryEntity entity = getById(id);
+        if (entity != null) {
+            accessGuard.assertProject(entity.getProjectId());
+        }
         removeById(id);
         log.info("删除调试历史: id={}", id);
     }
@@ -93,6 +123,13 @@ public class DebugHistoryService extends ServiceImpl<DebugHistoryMapper, DebugHi
      * 批量删除调试历史
      */
     public void deleteBatch(List<Long> ids) {
+        // 先整体校验，任一记录越权则整批拒绝，避免部分删除
+        for (Long id : ids) {
+            DebugHistoryEntity entity = getById(id);
+            if (entity != null) {
+                accessGuard.assertProject(entity.getProjectId());
+            }
+        }
         removeBatchByIds(ids);
         log.info("批量删除调试历史: count={}", ids.size());
     }
@@ -102,10 +139,9 @@ public class DebugHistoryService extends ServiceImpl<DebugHistoryMapper, DebugHi
      *
      * @param result 调试结果
      * @param dto    调试请求参数
-     * @param userId 执行用户ID
      * @return 历史记录ID
      */
-    public Long save(DebugResult result, ApiDebugExecuteDTO dto, Long userId) {
+    public Long save(DebugResult result, ApiDebugExecuteDTO dto) {
         DebugHistoryEntity entity = new DebugHistoryEntity();
 
         // 基本信息
@@ -151,8 +187,8 @@ public class DebugHistoryService extends ServiceImpl<DebugHistoryMapper, DebugHi
         // 提取变量
         entity.setExtractedVariables(result.getExtractedVariables());
 
-        // 审计
-        entity.setCreateBy(userId);
+        // 审计：身份取当前认证上下文
+        entity.setCreateBy(accessGuard.requireUserId());
 
         // 保存
         save(entity);

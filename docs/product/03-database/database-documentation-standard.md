@@ -324,7 +324,8 @@ erDiagram
 | 文件命名 | `NN-<描述>.sql`，两位数递增；继承当前最大编号 |
 | 变更方式 | 新增文件，不修改已执行文件；语句幂等 |
 | 双模式 | 所有变更必须说明 embedded 与 external 的落点，并保证建表结果一致 |
-| 执行记录 | `migrate.py` 使用 `schema_migrations`，`migrate.sh` 使用 `_schema_migrations`；不得混用 |
+| 执行记录 | 统一使用 `_schema_migrations`；`migrate.sh` 是 `migrate.py` 的包装；旧 `schema_migrations` 自动合并 |
+| 数据变更 | 05 零 UPDATE；UPDATE 仅允许在 `16-upgrade-task-template-seeds.sql`，且必须精确匹配旧默认值 |
 | DDL 文档 | 文档列出文件路径、编号、变更摘要与差异，不复制全文 |
 | 回滚 | 说明回滚方式（重建/补偿 SQL/备份恢复） |
 | 校验 | 发布前对比 `CREATE TABLE` 清单与生产库，确认无漂移 |
