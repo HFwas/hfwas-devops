@@ -1,7 +1,7 @@
 # HFWAS DevOps
 
-> 日期：2026-10-17
-> 版本：v0.7
+> 日期：2026-10-18
+> 版本：v0.8
 
 ### 变更记录
 
@@ -14,6 +14,7 @@
 | v0.5 | 2026-10-01 | 各服务 Dockerfile 集中到 `deploy/docker/<服务名>/` |
 | v0.6 | 2026-10-07 | 文档索引补充 Helm 包上传推仓与安装/升级实施计划 |
 | v0.7 | 2026-10-17 | 新增 `docs/product/` 产品文档体系索引；修正前端技术栈（React 19）、认证说明与失效文档链接 |
+| v0.8 | 2026-10-18 | 文档索引新增流水线用户操作手册 |
 
 ---
 
@@ -645,6 +646,7 @@ helm uninstall dependency-track
 | [docs/pm/pm-jira-comparison.md](docs/pm/pm-jira-comparison.md) | 与 Jira 能力对比 |
 | [docs/evolution/](docs/evolution/) | 各演进步骤详细设计 |
 | **流水线/CI** | |
+| [docs/pipeline/pipeline-user-manual.md](docs/pipeline/pipeline-user-manual.md) | 流水线用户操作手册（列表、编排、运行、日志、审批、凭证、任务市场、排错） |
 | [docs/pipeline/pipeline-core-api.md](docs/pipeline/pipeline-core-api.md) | 流水线 API 说明 |
 | [docs/pipeline/cicd-tech-selection.md](docs/pipeline/cicd-tech-selection.md) | CI/CD 技术选型 |
 | [docs/pipeline/tekton-intro.md](docs/pipeline/tekton-intro.md) | Tekton 介绍 |

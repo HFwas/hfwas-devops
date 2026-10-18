@@ -1,7 +1,7 @@
 # HFWAS DevOps 产品文档总索引
 
 > 日期：2026-10-18
-> 版本：v0.4
+> 版本：v0.8
 > 状态：首批（骨架 + 核心内容）
 > 适用范围：HFWAS DevOps 全部 8 个已上线子系统
 > 数据来源：`README.md`、`frontend/src/router.tsx`、`frontend/src/shared/console/products.ts`、`backend/*/controller`、`backend/*/src/main/resources/db/*.sql`
@@ -14,6 +14,10 @@
 | v0.2 | 2026-10-18 | 更新缺口看板：流水线接口文档与 Postman 已完成 |
 | v0.3 | 2026-10-18 | 新增数据库文档规范入口 `03-database/database-documentation-standard.md` |
 | v0.4 | 2026-10-18 | 新增前端原型先行规范入口 `docs/frontend/prototype-first-standard.md` |
+| v0.5 | 2026-10-18 | 新增依赖漏洞修复固定流程入口 `docs/general/dependency-vulnerability-remediation.md` |
+| v0.6 | 2026-10-18 | 新增流水线产品五年规划、行业对标与页面习惯审计入口 |
+| v0.7 | 2026-10-18 | 新增流水线用户操作手册入口 `docs/pipeline/pipeline-user-manual.md` |
+| v0.8 | 2026-10-18 | 新增 AI 用户走查标准与首份流水线原型走查报告入口 |
 
 ---
 
@@ -64,12 +68,16 @@
 | [test-spec.md](05-testing/test-spec.md) | 用例编号、优先级、环境、准入准出与自动化映射 |
 | [prototype-index.md](06-prototype/prototype-index.md) | 现有原型入口与待建清单 |
 | [prototype-first-standard.md](../frontend/prototype-first-standard.md) | 前端原型先行规范：原型规格、可点击原型、状态矩阵、评审冻结与实现对齐 |
+| [ai-ux-review-standard.md](../frontend/ai-ux-review-standard.md) | AI 用户走查标准：persona、任务脚本、证据格式、rubric、严重级与执行流程 |
+| [walkthrough-report.md](../superpowers/features/20261018-ai-ux-walkthrough-pilot/walkthrough-report.md) | 第一份流水线原型 AI 用户走查报告（10 条发现，含证据与下一阶段建议） |
 | [architecture.md](07-operations/architecture.md) | 系统架构、模块划分、部署拓扑与数据流 |
 | [deployment-ops.md](07-operations/deployment-ops.md) | 本地/Helm/集群部署与运维索引 |
 | [third-party-integrations.md](07-operations/third-party-integrations.md) | Keycloak、K8s、Tekton、Harbor 等集成清单 |
 | [non-functional.md](07-operations/non-functional.md) | 性能、可用性、安全、可观测性现状 |
+| [dependency-vulnerability-remediation.md](../general/dependency-vulnerability-remediation.md) | 依赖漏洞修复固定流程：分级、影响评估、版本选择、升级检查项、测试与记录模板 |
 | [release-notes.md](07-operations/release-notes.md) | 版本发布记录与发布检查单 |
-| [user-manual.md](07-operations/user-manual.md) | 面向最终用户的操作手册（骨架） |
+| [user-manual.md](07-operations/user-manual.md) | 面向最终用户的操作手册（骨架，流水线已拆出独立完整手册） |
+| [pipeline-user-manual.md](../pipeline/pipeline-user-manual.md) | 流水线用户操作手册：概念、快速开始、编排、运行、日志、审批、历史、凭证、任务市场与排错 |
 
 ## 4. 文档状态图例
 
@@ -110,6 +118,9 @@
 | 错误码规范与清单 | [../backend/error-code-design.md](../backend/error-code-design.md) |
 | PM 详细设计 | [../pm/pm-design.md](../pm/pm-design.md)、[../pm/pm-api.md](../pm/pm-api.md) |
 | 流水线详细设计与 API | [../pipeline/](../pipeline/)、[../pipeline/pipeline-core-api.md](../pipeline/pipeline-core-api.md) |
+| 流水线五年规划 | [pipeline-5year-roadmap.md](../pipeline/pipeline-5year-roadmap.md) |
+| 流水线行业对标 | [pipeline-industry-benchmark.md](../pipeline/pipeline-industry-benchmark.md) |
+| 流水线页面习惯审计 | [pipeline-ux-audit.md](../pipeline/pipeline-ux-audit.md) |
 | 容器平台设计与实施 | [../container-platform/](../container-platform/) |
 | API 测试平台设计 | [../api-test/](../api-test/)、[../backend/api_spec.md](../backend/api_spec.md) |
 | 前端协作规范 | [../frontend/ai-collaboration-frontend.md](../frontend/ai-collaboration-frontend.md) |
@@ -124,7 +135,7 @@
 | Postman collection | P0 | 流水线已提供；用户/PM/容器/API 测试/Docgen/File Parser/Image 仍待补 |
 | 全量测试用例 | P1 | 当前为每模块核心场景；需覆盖边界值、异常、权限、并发与数据隔离 |
 | 其余模块高保真原型 | P1 | 仅 pipeline 有原型；pm/api-test/container 需补 |
-| 用户操作手册 | P1 | 需基于真实界面走查后补截图与逐步操作 |
+| 用户操作手册 | P1 | 流水线已完成独立完整手册；其余 7 个模块仍需基于真实界面走查后补截图与逐步操作 |
 | 非功能基线 | P2 | 无 SLO、容量、性能测试基线，需采集后回填 |
 | 权限矩阵细化 | P2 | 当前权限主要由“已认证 + 平台 admin”控制，模块内细粒度权限未定义 |
 | 历史文档归档标记 | P2 | `docs/pm/`、`docs/api-test/`、`docs/container-platform/` 中仍描述 Vue 3 + Naive UI，需标注“历史归档”或重写 |
