@@ -1,0 +1,528 @@
+{
+  "meta": {
+    "name": "hfwas-devops · 流水线管理",
+    "version": "v0.1",
+    "date": "2026-10-17",
+    "viewport": { "width": 1440, "height": 900, "minWidth": 1024 },
+    "source": [
+      "frontend/src/modules/pipeline",
+      "backend/pipeline-core",
+      "deploy/charts/backend/files/db/05-pipeline-schema.sql"
+    ]
+  },
+  "tokens": {
+    "color": {
+      "background": { "light": "oklch(1 0 0)", "dark": "oklch(0.141 0.005 285.823)" },
+      "foreground": { "light": "oklch(0.141 0.005 285.823)", "dark": "oklch(0.985 0 0)" },
+      "card": { "light": "oklch(1 0 0)", "dark": "oklch(0.21 0.006 285.885)" },
+      "primary": { "light": "oklch(0.55 0.22 235)", "dark": "oklch(0.65 0.18 235)" },
+      "primaryForeground": { "light": "oklch(0.98 0.01 235)", "dark": "oklch(0.15 0.02 235)" },
+      "muted": { "light": "oklch(0.967 0.001 286.375)", "dark": "oklch(0.274 0.006 286.033)" },
+      "mutedForeground": { "light": "oklch(0.552 0.016 285.938)", "dark": "oklch(0.705 0.015 286.067)" },
+      "border": { "light": "oklch(0.92 0.004 286.32)", "dark": "oklch(1 0 0 / 10%)" },
+      "destructive": { "light": "oklch(0.577 0.245 27.325)", "dark": "oklch(0.704 0.191 22.216)" },
+      "termBackground": { "light": "oklch(0.18 0.01 235)", "dark": "oklch(0.18 0.01 235)" },
+      "termForeground": { "light": "oklch(0.85 0.005 235)", "dark": "oklch(0.85 0.005 235)" }
+    },
+    "radius": { "sm": 4, "md": 6, "lg": 8, "xl": 12 },
+    "font": {
+      "body": "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, sans-serif",
+      "mono": "Maple Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "console": "Maple Mono, system sans fallback"
+    },
+    "layout": {
+      "sidebarExpanded": 256,
+      "sidebarCollapsed": 48,
+      "sidebarMobile": 288,
+      "headerHeight": 56,
+      "contentPadding": 16,
+      "contentPaddingLarge": 24,
+      "contentGap": 16,
+      "contentGapLarge": 24
+    }
+  },
+  "shell": {
+    "sidebar": {
+      "variant": "inset",
+      "collapsible": "icon",
+      "navItems": [
+        { "key": "pipelines", "label": "流水线", "path": "/pipeline/pipelines", "icon": "GitBranch" },
+        { "key": "task-kinds", "label": "任务市场", "path": "/pipeline/task-kinds", "icon": "Package" },
+        { "key": "credentials", "label": "凭证", "path": "/pipeline/credentials", "icon": "KeyRound" }
+      ]
+    },
+    "header": {
+      "height": 56,
+      "sticky": true,
+      "elements": ["SidebarTrigger", "Breadcrumb", "GlobalSearch", "TenantSwitcher", "ThemeToggle", "AvatarMenu"]
+    },
+    "breadcrumbs": [
+      { "path": "/pipeline/pipelines", "items": ["流水线"] },
+      { "path": "/pipeline/pipelines/new", "items": ["流水线", "新建流水线"] },
+      { "path": "/pipeline/pipelines/:id", "items": ["流水线", "流水线名称"] },
+      { "path": "/pipeline/pipelines/:id/history", "items": ["流水线", "流水线名称", "运行历史"] },
+      { "path": "/pipeline/pipelines/:id/edit", "items": ["流水线", "流水线名称", "编辑"] },
+      { "path": "/pipeline/pipelines/:id/runs/:runId", "items": ["流水线", "流水线名称", "运行 #ID"] }
+    ]
+  },
+  "pages": [
+    {
+      "id": "pipeline-list",
+      "frame": "P01_PipelineList_Desktop",
+      "name": "流水线列表",
+      "route": "/pipeline/pipelines",
+      "entry": ["sidebar:pipelines"],
+      "regions": [
+        {
+          "id": "pageHeader",
+          "component": "PageHeader",
+          "layout": "horizontal",
+          "elements": [
+            { "type": "heading", "text": "流水线" },
+            { "type": "caption", "text": "共 N 条流水线", "binding": "total" },
+            { "type": "searchInput", "placeholder": "搜索流水线、仓库或分支", "width": 256 },
+            { "type": "button", "label": "新建流水线", "variant": "primary", "action": "L03" }
+          ]
+        },
+        {
+          "id": "filterBar",
+          "component": "SegmentedControl",
+          "options": ["全部", "运行中", "成功", "失败"],
+          "hint": "状态筛选仅作用于当前页"
+        },
+        {
+          "id": "table",
+          "component": "DataTable",
+          "columns": [
+            { "id": "name", "header": "流水线名称", "width": "28%", "fields": ["name", "stages[].jobs[].name"] },
+            { "id": "repo", "header": "仓库 / 分支", "width": "24%", "fields": ["repoUrl", "gitRef"] },
+            { "id": "stages", "header": "阶段预览", "width": "16%", "fields": ["stages[]", "lastRunStatus"] },
+            { "id": "lastRun", "header": "最近运行", "width": "auto", "fields": ["lastRunStatus", "lastRunTime", "lastRunId"] },
+            { "id": "actions", "header": "操作", "width": 220, "actions": ["run", "edit", "history", "delete"] }
+          ]
+        },
+        { "id": "pagination", "component": "Pagination", "pageSize": 10 }
+      ],
+      "states": [
+        { "id": "loading", "behavior": "4 行骨架屏" },
+        { "id": "ready", "behavior": "正常数据" },
+        { "id": "empty", "behavior": "还没有流水线" },
+        { "id": "filteredEmpty", "behavior": "没有匹配的流水线" },
+        { "id": "error", "behavior": "流水线列表加载失败" }
+      ],
+      "actions": [
+        { "id": "L01", "element": "search", "trigger": "input", "condition": "300ms 防抖", "effect": "写 URL ?q 并重置页码", "api": "POST /pipeline/pipelines/page" },
+        { "id": "L02", "element": "segmented", "trigger": "click", "effect": "仅过滤当前页 lastRunStatus" },
+        { "id": "L03", "element": "createButton", "trigger": "click", "target": "P03_PipelineEditor_New_Desktop" },
+        { "id": "L04", "element": "nameLink", "trigger": "click", "target": "P02_PipelineDetail_Desktop" },
+        { "id": "L05", "element": "lastRunLink", "trigger": "click", "target": "P05_RunDetail_Desktop" },
+        { "id": "L06", "element": "runButton", "trigger": "click", "effect": "进入运行参数流程", "target": "O01_RunParams_Dialog|P05_RunDetail_Desktop" },
+        { "id": "L07", "element": "editButton", "trigger": "click", "target": "P03B_PipelineEditor_Edit_Desktop" },
+        { "id": "L08", "element": "historyButton", "trigger": "click", "target": "P04_PipelineHistory_Desktop" },
+        { "id": "L09", "element": "deleteButton", "trigger": "click", "target": "O03_ConfirmDeletePipeline" },
+        { "id": "L10", "element": "pagination", "trigger": "click", "effect": "写 URL ?page" }
+      ]
+    },
+    {
+      "id": "pipeline-detail",
+      "frame": "P02_PipelineDetail_Desktop",
+      "name": "流水线详情",
+      "route": "/pipeline/pipelines/:id",
+      "entry": ["pipeline-list:name", "breadcrumb"],
+      "regions": [
+        {
+          "id": "stickyHeader",
+          "component": "DetailShell",
+          "elements": [
+            { "type": "button", "label": "返回", "variant": "ghost", "action": "D01" },
+            { "type": "heading", "text": "流水线名称", "binding": "name" },
+            { "type": "status", "binding": "lastRunStatus" },
+            { "type": "button", "label": "编辑", "variant": "outline", "action": "D02" },
+            { "type": "button", "label": "运行", "variant": "primary", "action": "D03" }
+          ]
+        },
+        { "id": "tabs", "component": "TabBar", "items": ["详情", "运行历史"], "value": "详情" },
+        {
+          "id": "metrics",
+          "component": "MetricCards",
+          "items": ["仓库", "分支", "阶段", "最近运行", "凭证"]
+        },
+        { "id": "body", "component": "DefinitionCanvas", "readonly": true, "flow": ["开始", "阶段", "结束"] }
+      ],
+      "states": [
+        { "id": "loading", "behavior": "加载中…" },
+        { "id": "ready", "behavior": "渲染定义画布" },
+        { "id": "error", "behavior": "流水线加载失败" },
+        { "id": "emptyCanvas", "behavior": "这条流水线还没有阶段。点右上角「编辑」后，阶段会显示在这里。" }
+      ],
+      "actions": [
+        { "id": "D01", "element": "backButton", "trigger": "click", "target": "P01_PipelineList_Desktop" },
+        { "id": "D02", "element": "editButton", "trigger": "click", "target": "P03B_PipelineEditor_Edit_Desktop" },
+        { "id": "D03", "element": "runButton", "trigger": "click", "target": "O01_RunParams_Dialog|P05_RunDetail_Desktop" },
+        { "id": "D04", "element": "tabDefinition", "trigger": "click", "effect": "URL → /:id" },
+        { "id": "D05", "element": "tabHistory", "trigger": "click", "target": "P04_PipelineHistory_Desktop" }
+      ]
+    },
+    {
+      "id": "pipeline-editor-new",
+      "frame": "P03_PipelineEditor_New_Desktop",
+      "name": "新建流水线",
+      "route": "/pipeline/pipelines/new",
+      "entry": ["pipeline-list:create"],
+      "regions": [
+        {
+          "id": "topBar",
+          "elements": [
+            { "type": "heading", "text": "新建流水线" },
+            { "type": "button", "label": "取消", "variant": "outline", "action": "E01" },
+            { "type": "button", "label": "保存", "variant": "outline", "action": "E03" },
+            { "type": "button", "label": "保存并运行", "variant": "primary", "action": "E04" }
+          ]
+        },
+        {
+          "id": "basicInfo",
+          "component": "FormGrid",
+          "fields": [
+            { "key": "name", "label": "名称", "required": true, "control": "input" },
+            { "key": "repoUrl", "label": "仓库", "requiredWhenClone": true, "control": "input", "validation": "http/https + host + path" },
+            { "key": "gitRef", "label": "分支", "required": false, "control": "input", "default": "main" },
+            { "key": "credentialId", "label": "凭证", "required": false, "control": "asyncSelect", "clearable": true }
+          ]
+        },
+        { "id": "errorBanner", "component": "ErrorText", "variant": "banner", "conditional": true },
+        {
+          "id": "lanes",
+          "component": "LanesCanvas",
+          "elements": ["zoomSelect", "StageCard", "JobCard", "addJobButton", "addStageCard"],
+          "stageWidth": 240,
+          "zoomOptions": [75, 100, 125, 150]
+        },
+        {
+          "id": "sidePanel",
+          "width": 352,
+          "modes": [
+            { "id": "add", "component": "TaskAddList", "groups": ["代码", "构建", "质量控制", "制品", "部署", "测试", "命令", "流程"] },
+            { "id": "config", "component": "Inspector", "fields": ["任务名称", "任务类型", "命令", "参数绑定", "技术栈", "运行时", "工具版本"] }
+          ]
+        }
+      ],
+      "states": [
+        { "id": "new", "behavior": "空草稿，仅添加阶段" },
+        { "id": "dirty", "behavior": "取消触发 O05" },
+        { "id": "saving", "behavior": "按钮禁用" },
+        { "id": "invalid", "behavior": "错误条 + 字段红框" },
+        { "id": "addMode", "behavior": "右侧显示任务市场" },
+        { "id": "configMode", "behavior": "右侧显示任务检查器" },
+        { "id": "selected", "behavior": "任务卡 primary 边框 + ring" },
+        { "id": "dragging", "behavior": "拖拽元素 50% 透明，目标阶段高亮" }
+      ],
+      "actions": [
+        { "id": "E01", "element": "cancel", "trigger": "click", "condition": "无改动", "target": "P01_PipelineList_Desktop" },
+        { "id": "E02", "element": "cancel", "trigger": "click", "condition": "有改动", "target": "O05_ConfirmDiscardChanges" },
+        { "id": "E03", "element": "save", "trigger": "click|cmd+s", "effect": "校验 → 创建", "api": "POST /pipeline/pipelines" },
+        { "id": "E04", "element": "saveAndRun", "trigger": "click", "effect": "保存 → 运行参数流程", "target": "O01_RunParams_Dialog|P05_RunDetail_Desktop" },
+        { "id": "E05", "element": "addStage", "trigger": "click", "effect": "追加空阶段" },
+        { "id": "E06", "element": "stageName", "trigger": "input", "effect": "更新草稿" },
+        { "id": "E07", "element": "moveStage", "trigger": "click", "effect": "左移 / 右移" },
+        { "id": "E08", "element": "removeStage", "trigger": "click", "effect": "移除阶段" },
+        { "id": "E09", "element": "addJob", "trigger": "click", "effect": "打开任务市场" },
+        { "id": "E10", "element": "taskKind", "trigger": "click", "effect": "添加到当前或新阶段" },
+        { "id": "E11", "element": "jobCard", "trigger": "click", "effect": "选中并打开检查器" },
+        { "id": "E12", "element": "moveJob", "trigger": "click", "effect": "上移 / 下移" },
+        { "id": "E13", "element": "removeJob", "trigger": "click", "target": "O06_ConfirmDeleteJob" },
+        { "id": "E14", "element": "drag", "trigger": "drop", "effect": "阶段 / 任务排序" },
+        { "id": "E15", "element": "zoom", "trigger": "select", "effect": "缩放画布" },
+        { "id": "E16", "element": "closeInspector", "trigger": "click", "effect": "取消选中" },
+        { "id": "E17", "element": "window", "trigger": "beforeunload", "condition": "有改动", "effect": "浏览器离开确认" }
+      ]
+    },
+    {
+      "id": "pipeline-editor-edit",
+      "frame": "P03B_PipelineEditor_Edit_Desktop",
+      "name": "编辑流水线",
+      "route": "/pipeline/pipelines/:id/edit",
+      "entry": ["pipeline-list:edit", "pipeline-detail:edit"],
+      "regions": [
+        { "ref": "pipeline-editor-new", "note": "同 P03，标题为「编辑流水线」，初始数据来自 GET /pipeline/pipelines/{id}" }
+      ],
+      "states": [
+        { "id": "editLoading", "behavior": "加载中…" },
+        { "id": "editReady", "behavior": "已加载草稿" },
+        { "id": "dirty", "behavior": "取消触发 O05" },
+        { "id": "saving", "behavior": "按钮禁用" }
+      ],
+      "actions": [
+        { "id": "EE01", "element": "save", "trigger": "click|cmd+s", "effect": "校验 → 更新", "api": "PUT /pipeline/pipelines/{id}" },
+        { "id": "EE02", "element": "saveAndRun", "trigger": "click", "effect": "保存 → 运行参数流程", "target": "O01_RunParams_Dialog|P05_RunDetail_Desktop" }
+      ]
+    },
+    {
+      "id": "pipeline-history",
+      "frame": "P04_PipelineHistory_Desktop",
+      "name": "运行历史",
+      "route": "/pipeline/pipelines/:id/history",
+      "entry": ["pipeline-detail:tabHistory", "pipeline-list:history"],
+      "regions": [
+        { "id": "stickyHeader", "component": "DetailShell", "elements": ["返回", "流水线名称", "编辑", "运行"] },
+        { "id": "tabs", "component": "TabBar", "items": ["详情", "运行历史"], "value": "运行历史" },
+        { "id": "metrics", "component": "MetricCards", "items": ["仓库", "分支", "阶段", "最近运行", "凭证"] },
+        {
+          "id": "toolbar",
+          "elements": [
+            { "type": "select", "label": "状态", "options": ["全部", "运行中", "成功", "失败", "排队中", "待审批", "已取消"] },
+            { "type": "select", "label": "时间", "options": ["近 24 小时", "近 7 天", "近 30 天", "全部时间"], "default": "近 7 天" },
+            { "type": "searchInput", "placeholder": "搜索运行编号、分支", "width": 224 },
+            { "type": "summary", "text": "最近 N 次中 M 条 · {range}成功率 X%" }
+          ]
+        },
+        {
+          "id": "table",
+          "component": "DataTable",
+          "columns": [
+            { "id": "id", "header": "运行编号", "fields": ["id", "commitSha", "triggeredByName"] },
+            { "id": "trigger", "header": "触发方式", "fields": ["trigger"] },
+            { "id": "ref", "header": "分支", "fields": ["gitRef"] },
+            { "id": "status", "header": "状态", "fields": ["status"] },
+            { "id": "started", "header": "开始时间", "fields": ["startedAt"] },
+            { "id": "duration", "header": "耗时", "fields": ["startedAt", "finishedAt"] },
+            { "id": "actions", "header": "操作", "actions": ["viewDetail"] }
+          ]
+        },
+        { "id": "pagination", "component": "Pagination", "pageSize": 10, "mode": "local" }
+      ],
+      "states": [
+        { "id": "loading", "behavior": "骨架屏" },
+        { "id": "ready", "behavior": "正常数据" },
+        { "id": "noRuns", "behavior": "还没有运行。点击「运行」后会打开这次运行的详情。" },
+        { "id": "filteredEmpty", "behavior": "没有符合筛选的运行" },
+        { "id": "error", "behavior": "运行记录加载失败" },
+        { "id": "polling", "behavior": "存在非终态时每 4s 刷新" }
+      ],
+      "actions": [
+        { "id": "H01", "element": "statusSelect", "trigger": "change", "effect": "写 URL ?status" },
+        { "id": "H02", "element": "rangeSelect", "trigger": "change", "effect": "写 URL ?range" },
+        { "id": "H03", "element": "search", "trigger": "input", "condition": "300ms 防抖", "effect": "写 URL ?q" },
+        { "id": "H04", "element": "row", "trigger": "click", "target": "P05_RunDetail_Desktop" },
+        { "id": "H05", "element": "viewDetail", "trigger": "click", "target": "P05_RunDetail_Desktop" },
+        { "id": "H06", "element": "pagination", "trigger": "click", "effect": "本地分页 + URL ?page" }
+      ]
+    },
+    {
+      "id": "run-detail",
+      "frame": "P05_RunDetail_Desktop",
+      "name": "运行详情",
+      "route": "/pipeline/pipelines/:id/runs/:runId",
+      "entry": ["pipeline-history:row", "run-start:redirect"],
+      "regions": [
+        {
+          "id": "stickyHeader",
+          "elements": [
+            { "type": "button", "label": "返回", "action": "R01" },
+            { "type": "heading", "text": "流水线名 #运行ID", "binding": ["pipelineName", "id"] },
+            { "type": "description", "binding": ["errorMessage", "gitRef", "commitSha"] },
+            { "type": "status", "binding": "status" },
+            { "type": "button", "label": "通过", "condition": "status == WAITING_APPROVAL", "action": "R02" },
+            { "type": "button", "label": "取消", "condition": "status not terminal", "action": "R03" }
+          ]
+        },
+        {
+          "id": "fields",
+          "component": "FieldRow",
+          "items": [
+            { "label": "触发", "binding": "trigger" },
+            { "label": "触发人", "binding": "triggeredByName" },
+            { "label": "开始", "binding": "startedAt" },
+            { "label": "耗时", "binding": ["startedAt", "finishedAt"] }
+          ]
+        },
+        {
+          "id": "swimlane",
+          "component": "RunSwimlane",
+          "flow": ["开始", "阶段", "结束"],
+          "stageWidth": 176,
+          "elements": ["stageCard", "stageLogButton", "jobItem", "jobLogButton", "overallLogButton"]
+        }
+      ],
+      "states": [
+        { "id": "loading", "behavior": "加载中…" },
+        { "id": "live", "behavior": "3s 轮询 + 1s 计时" },
+        { "id": "waitingApproval", "behavior": "显示通过按钮" },
+        { "id": "terminal", "behavior": "停止轮询" },
+        { "id": "error", "behavior": "运行详情加载失败" }
+      ],
+      "actions": [
+        { "id": "R01", "element": "back", "trigger": "click", "target": "P04_PipelineHistory_Desktop" },
+        { "id": "R02", "element": "approve", "trigger": "click", "api": "POST /pipeline/pipelines/{id}/runs/{runId}/approve" },
+        { "id": "R03", "element": "cancel", "trigger": "click", "target": "O04_ConfirmCancelRun" },
+        { "id": "R04", "element": "overallLog", "trigger": "click", "target": "O02_LogDrawer_Right", "focus": "overall" },
+        { "id": "R05", "element": "stageLog", "trigger": "click", "target": "O02_LogDrawer_Right", "focus": "stage" },
+        { "id": "R06", "element": "jobLog", "trigger": "click", "target": "O02_LogDrawer_Right", "focus": "job" },
+        { "id": "R07", "element": "page", "trigger": "interval", "condition": "非终态", "effect": "每 3s 刷新" }
+      ]
+    }
+  ],
+  "overlays": [
+    {
+      "id": "run-params",
+      "frame": "O01_RunParams_Dialog",
+      "name": "运行参数",
+      "trigger": ["L06", "D03", "E04", "EE02"],
+      "condition": "GET /runs/default-params 返回非空",
+      "content": {
+        "title": "运行参数",
+        "fields": ["paramKey", "paramLabel", "paramType", "defaultValue", "required", "options", "placeholder"],
+        "controls": ["input", "select"],
+        "footer": ["取消", "运行"]
+      },
+      "confirm": { "validate": "required", "api": "POST /pipeline/pipelines/{id}/runs", "effect": "跳转 P05" },
+      "cancel": "关闭弹窗",
+      "close": ["X", "scrim", "Esc"]
+    },
+    {
+      "id": "delete-pipeline",
+      "frame": "O03_ConfirmDeletePipeline",
+      "name": "删除流水线确认",
+      "trigger": ["L09"],
+      "content": {
+        "title": "删除流水线「名称」？",
+        "description": "删除后无法恢复，运行历史会一并移除。",
+        "footer": ["取消", "删除"]
+      },
+      "confirm": { "api": "DELETE /pipeline/pipelines/{id}", "effect": "Toast 已删除 + 刷新列表", "destructive": true },
+      "cancel": "关闭",
+      "close": ["X", "scrim", "Esc"]
+    },
+    {
+      "id": "cancel-run",
+      "frame": "O04_ConfirmCancelRun",
+      "name": "取消运行确认",
+      "trigger": ["R03"],
+      "condition": "运行非终态",
+      "content": {
+        "title": "取消运行 #ID？",
+        "description": "正在执行的任务会被中止。",
+        "footer": ["继续运行", "取消运行"]
+      },
+      "confirm": { "api": "POST /pipeline/pipelines/{id}/runs/{runId}/cancel", "effect": "Toast 已取消运行 + 刷新", "destructive": true },
+      "cancel": "关闭",
+      "close": ["X", "scrim", "Esc"]
+    },
+    {
+      "id": "discard-changes",
+      "frame": "O05_ConfirmDiscardChanges",
+      "name": "放弃修改确认",
+      "trigger": ["E02"],
+      "condition": "草稿与保存快照不一致",
+      "content": {
+        "title": "放弃未保存的修改？",
+        "description": "未保存的改动会丢失。",
+        "footer": ["取消", "放弃"]
+      },
+      "confirm": { "effect": "返回列表", "destructive": true },
+      "cancel": "留在编辑页",
+      "close": ["X", "scrim", "Esc"]
+    },
+    {
+      "id": "delete-job",
+      "frame": "O06_ConfirmDeleteJob",
+      "name": "删除任务确认",
+      "trigger": ["E13"],
+      "content": {
+        "title": "删除任务「名称」？",
+        "footer": ["取消", "删除"]
+      },
+      "confirm": { "effect": "从草稿移除任务", "destructive": true },
+      "cancel": "关闭",
+      "close": ["X", "scrim", "Esc"]
+    },
+    {
+      "id": "log-drawer",
+      "frame": "O02_LogDrawer_Right",
+      "name": "日志抽屉",
+      "trigger": ["R04", "R05", "R06"],
+      "content": {
+        "side": "right",
+        "width": "min(720, 92vw)",
+        "variant": "terminal",
+        "titleByFocus": { "overall": "全程日志", "stage": "阶段 · 名称", "job": "阶段名 / 任务名" },
+        "connection": ["连接中", "已连接", "未连接"],
+        "actions": ["跟随最新"]
+      },
+      "close": ["X", "scrim", "Esc"],
+      "autoClose": "焦点任务或阶段不存在时"
+    }
+  ],
+  "components": [
+    { "name": "AppShell", "figma": "App/Shell", "variants": ["light", "dark"] },
+    { "name": "AppSidebar", "figma": "App/Sidebar", "variants": ["expanded", "icon", "mobile"] },
+    { "name": "Header", "figma": "App/Header", "variants": ["default", "withTenant"] },
+    { "name": "PageHeader", "figma": "Layout/PageHeader", "props": ["title", "description", "actions"] },
+    { "name": "DetailShell", "figma": "Layout/DetailShell", "props": ["title", "description", "meta", "leading", "actions", "tabs"] },
+    { "name": "TabBar", "figma": "Layout/TabBar", "variants": ["selected", "default", "hover"] },
+    { "name": "MetricCards", "figma": "Layout/MetricCards", "variants": ["5col", "6col"] },
+    { "name": "DataTable", "figma": "Data/Table", "variants": ["loading", "ready", "empty", "error"] },
+    { "name": "Pagination", "figma": "Data/Pagination", "variants": ["single", "multi", "edge"] },
+    { "name": "StatusIcon", "figma": "Data/Status", "variants": ["icon", "dot"], "states": ["未运行", "排队中", "运行中", "待审批", "成功", "失败", "已取消"] },
+    { "name": "StagePreview", "figma": "Data/StagePreview", "variants": ["empty", "1-8 stages"] },
+    { "name": "DefinitionCanvas", "figma": "Pipeline/DefinitionCanvas", "variants": ["empty", "ready"] },
+    { "name": "RunSwimlane", "figma": "Pipeline/RunSwimlane", "variants": ["live", "terminal"] },
+    { "name": "StageCard", "figma": "Pipeline/StageCard", "variants": ["definition", "editor", "run"] },
+    { "name": "JobCard", "figma": "Pipeline/JobCard", "variants": ["definition", "editor", "run", "selected", "dragging"] },
+    { "name": "LogPanel", "figma": "Data/LogPanel", "variants": ["terminal", "default"], "states": ["connecting", "connected", "idle"] },
+    { "name": "Button", "figma": "Action/Button", "variants": ["default", "outline", "ghost", "destructive"], "sizes": ["default", "sm", "icon"] },
+    { "name": "IconButton", "figma": "Action/IconButton", "variants": ["default", "hover", "disabled"] },
+    { "name": "Input", "figma": "Input/Text", "variants": ["default", "focus", "invalid", "disabled"] },
+    { "name": "Textarea", "figma": "Input/Textarea", "variants": ["default", "focus", "invalid"] },
+    { "name": "Select", "figma": "Input/Select", "variants": ["default", "open", "disabled"] },
+    { "name": "SegmentedControl", "figma": "Input/Segmented", "variants": ["selected", "default"] },
+    { "name": "AsyncSelect", "figma": "Input/AsyncSelect", "states": ["idle", "loading", "empty", "selected"] },
+    { "name": "Toast", "figma": "Feedback/Toast", "variants": ["success", "error", "message"] },
+    { "name": "Dialog", "figma": "Overlay/Dialog", "variants": ["default", "submitting"] },
+    { "name": "AlertDialog", "figma": "Overlay/Confirm", "variants": ["default", "destructive"] },
+    { "name": "Sheet", "figma": "Overlay/SheetRight", "variants": ["default", "terminal"] }
+  ],
+  "navigation": [
+    { "from": "pipeline-list", "via": "L03", "to": "pipeline-editor-new" },
+    { "from": "pipeline-list", "via": "L04", "to": "pipeline-detail" },
+    { "from": "pipeline-list", "via": "L05", "to": "run-detail" },
+    { "from": "pipeline-list", "via": "L07", "to": "pipeline-editor-edit" },
+    { "from": "pipeline-list", "via": "L08", "to": "pipeline-history" },
+    { "from": "pipeline-detail", "via": "D01", "to": "pipeline-list" },
+    { "from": "pipeline-detail", "via": "D02", "to": "pipeline-editor-edit" },
+    { "from": "pipeline-detail", "via": "D05", "to": "pipeline-history" },
+    { "from": "pipeline-history", "via": "H04", "to": "run-detail" },
+    { "from": "run-detail", "via": "R01", "to": "pipeline-history" },
+    { "from": "run-detail", "via": "R04-R06", "to": "log-drawer" },
+    { "from": "pipeline-editor-new", "via": "E03", "to": "pipeline-editor-edit" },
+    { "from": "run-start", "via": "redirect", "to": "run-detail" }
+  ],
+  "statusDictionary": {
+    "runStatus": [
+      { "value": "", "label": "未运行", "tone": "neutral" },
+      { "value": "QUEUED", "label": "排队中", "tone": "warning" },
+      { "value": "RUNNING", "label": "运行中", "tone": "progress" },
+      { "value": "WAITING_APPROVAL", "label": "待审批", "tone": "warning" },
+      { "value": "SUCCEEDED", "label": "成功", "tone": "success" },
+      { "value": "FAILED", "label": "失败", "tone": "failed" },
+      { "value": "CANCELLED", "label": "已取消", "tone": "terminating" }
+    ],
+    "trigger": [
+      { "value": "MANUAL", "label": "手动" },
+      { "value": "WEBHOOK", "label": "Webhook" },
+      { "value": "SCHEDULE", "label": "定时" },
+      { "value": "SCHEDULED", "label": "定时" },
+      { "value": "CRON", "label": "定时" },
+      { "value": "TIMER", "label": "定时" }
+    ],
+    "jobKindGroups": {
+      "代码": ["CLONE"],
+      "构建": ["BUILD", "IMAGE"],
+      "质量控制": ["LINT_SEMGREP", "LINT_SONAR", "FORMAT", "DEPENDENCY_ANALYSIS", "SCAN", "DEPENDENCY_TRACK"],
+      "制品": ["PACKAGE", "PUBLISH", "UPLOAD"],
+      "部署": ["DEPLOY", "KUBECTL"],
+      "测试": ["TEST"],
+      "命令": ["CUSTOM"],
+      "流程": ["APPROVAL", "NOTIFY"]
+    }
+  }
+}

@@ -1,0 +1,992 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>流水线管理 · 高保真可点击原型</title>
+<style>
+:root{
+  --background:oklch(1 0 0);
+  --foreground:oklch(0.141 0.005 285.823);
+  --card:oklch(1 0 0);
+  --card-foreground:oklch(0.141 0.005 285.823);
+  --primary:oklch(0.55 0.22 235);
+  --primary-foreground:oklch(0.98 0.01 235);
+  --secondary:oklch(0.967 0.001 286.375);
+  --muted:oklch(0.967 0.001 286.375);
+  --muted-foreground:oklch(0.552 0.016 285.938);
+  --accent:oklch(0.967 0.001 286.375);
+  --destructive:oklch(0.577 0.245 27.325);
+  --border:oklch(0.92 0.004 286.32);
+  --input:oklch(0.92 0.004 286.32);
+  --ring:oklch(0.55 0.22 235);
+  --sidebar:oklch(0.985 0 0);
+  --sidebar-border:oklch(0.92 0.004 286.32);
+  --sidebar-accent:oklch(0.967 0.001 286.375);
+  --term-bg:oklch(0.18 0.01 235);
+  --term-fg:oklch(0.85 0.005 235);
+  --success:oklch(0.55 0.15 150);
+  --failed:oklch(0.577 0.245 27.325);
+  --warning:oklch(0.62 0.14 80);
+  --progress:oklch(0.55 0.22 235);
+  --neutral:oklch(0.552 0.016 285.938);
+  --font-sans:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans",sans-serif;
+  --font-mono:"Maple Mono",ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+  --font-console:"Maple Mono",ui-sans-serif,system-ui,sans-serif;
+  --header-height:56px;
+}
+body.dark{
+  --background:oklch(0.141 0.005 285.823);
+  --foreground:oklch(0.985 0 0);
+  --card:oklch(0.21 0.006 285.885);
+  --card-foreground:oklch(0.985 0 0);
+  --primary:oklch(0.65 0.18 235);
+  --primary-foreground:oklch(0.15 0.02 235);
+  --secondary:oklch(0.274 0.006 286.033);
+  --muted:oklch(0.274 0.006 286.033);
+  --muted-foreground:oklch(0.705 0.015 286.067);
+  --accent:oklch(0.274 0.006 286.033);
+  --destructive:oklch(0.704 0.191 22.216);
+  --border:oklch(1 0 0 / 10%);
+  --input:oklch(1 0 0 / 15%);
+  --sidebar:oklch(0.21 0.006 285.885);
+  --sidebar-border:oklch(1 0 0 / 10%);
+  --sidebar-accent:oklch(0.274 0.006 286.033);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#dde3ea;font-family:var(--font-sans);font-size:14px;color:var(--foreground)}
+#app{width:1440px;height:900px}
+.frame{width:1440px;height:900px;display:flex;background:var(--background);overflow:hidden;position:relative}
+.ico{width:16px;height:16px;flex:0 0 auto}
+.muted{color:var(--muted-foreground)}
+.mono{font-family:var(--font-mono)}
+.console{font-family:var(--font-console)}
+.grow{flex:1}
+
+/* ---------- sidebar ---------- */
+.sidebar{width:256px;flex:0 0 256px;background:var(--sidebar);border-right:1px solid var(--sidebar-border);display:flex;flex-direction:column;padding:12px}
+.product{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--card);margin-bottom:16px}
+.product-icon{width:32px;height:32px;border-radius:8px;background:color-mix(in oklch,var(--primary) 12%,transparent);color:var(--primary);display:grid;place-items:center;flex:0 0 32px}
+.product-icon .ico{width:17px;height:17px}
+.product-text{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+.product-text strong{font-size:13px;font-weight:600}
+.product-text span{font-size:10px;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.product .chev{width:14px;height:14px;color:var(--muted-foreground)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav-item{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:7px;font-size:13px;color:var(--muted-foreground);text-decoration:none;cursor:pointer;border:none;background:none;font-family:inherit;text-align:left}
+.nav-item .ico{width:17px;height:17px}
+.nav-item:hover{background:var(--sidebar-accent)}
+.nav-item.active{background:var(--sidebar-accent);color:var(--foreground);font-weight:600}
+.nav-item.active .ico{color:var(--primary)}
+.sidebar-foot{margin-top:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted-foreground);padding:8px 10px;border-top:1px solid var(--border)}
+.tenant-dot{width:8px;height:8px;border-radius:50%;background:var(--success)}
+
+/* ---------- topbar ---------- */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{height:var(--header-height);flex:0 0 var(--header-height);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 16px;background:color-mix(in oklch,var(--background) 95%,transparent)}
+.vsep{width:1px;height:16px;background:var(--border);margin:0 2px}
+.crumb{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted-foreground);min-width:0;white-space:nowrap}
+.crumb .sep{opacity:.55}
+.crumb .current{color:var(--foreground);font-weight:500;overflow:hidden;text-overflow:ellipsis;max-width:320px}
+.top-search{width:260px}
+.top-search .input{height:32px;font-size:12px}
+.icon-btn{width:30px;height:30px;display:grid;place-items:center;border-radius:6px;border:none;background:transparent;color:var(--muted-foreground);cursor:pointer;padding:0}
+.icon-btn:hover{background:var(--accent);color:var(--foreground)}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--muted);display:grid;place-items:center;font-size:12px;font-weight:600}
+
+/* ---------- content ---------- */
+.content{flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;padding:16px 24px;overflow:hidden}
+.content.flush{padding:24px}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.page-head h1{margin:0;font-size:20px;line-height:26px;font-weight:600;letter-spacing:-.01em}
+.caption{font-size:12px;color:var(--muted-foreground);margin-top:2px}
+.actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.search{position:relative;display:inline-flex;align-items:center}
+.search>.ico{position:absolute;left:9px;width:14px;height:14px;color:var(--muted-foreground);pointer-events:none}
+.search .input{padding-left:29px}
+.filter-row{display:flex;align-items:center;gap:10px}
+.segmented{display:flex;gap:2px;padding:4px;border:1px solid var(--border);border-radius:8px;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.segmented button{height:28px;padding:0 11px;border:none;border-radius:6px;background:transparent;color:var(--muted-foreground);font:inherit;font-size:12px;cursor:pointer}
+.segmented button:hover{background:var(--muted)}
+.segmented button.active{background:var(--muted);color:var(--foreground);font-weight:600}
+.hint{font-size:12px;color:var(--muted-foreground)}
+
+/* ---------- buttons / inputs ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:6px;border:1px solid transparent;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;background:none;color:inherit;text-decoration:none}
+.btn .ico{width:14px;height:14px}
+.btn.primary{background:var(--primary);color:var(--primary-foreground)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.outline{border-color:var(--border);background:var(--card)}
+.btn.outline:hover{background:var(--accent)}
+.btn.ghost{color:var(--muted-foreground)}
+.btn.ghost:hover{background:var(--accent);color:var(--foreground)}
+.btn.danger{background:var(--destructive);color:#fff}
+.btn.sm{height:28px;padding:0 8px;font-size:12px}
+.btn.xs{height:24px;padding:0 6px;font-size:12px;gap:4px}
+.btn.xs .ico{width:13px;height:13px}
+.btn:disabled{opacity:.5;cursor:default}
+.input{height:32px;border:1px solid var(--input);border-radius:6px;background:var(--background);padding:0 10px;font:inherit;font-size:13px;color:inherit;outline:none;min-width:0;width:100%}
+.input:focus{border-color:var(--ring);box-shadow:0 0 0 2px color-mix(in oklch,var(--ring) 18%,transparent)}
+.input.mono{font-family:var(--font-mono);font-size:12px}
+.input.invalid{border-color:var(--destructive)}
+select.input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted-foreground) 50%),linear-gradient(135deg,var(--muted-foreground) 50%,transparent 50%);background-position:calc(100% - 14px) 13px,calc(100% - 9px) 13px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:28px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field>label{font-size:11px;color:var(--muted-foreground)}
+.field>label b{color:var(--destructive);font-weight:500}
+textarea.input{height:auto;padding:8px 10px;resize:none;line-height:20px;font-family:var(--font-mono);font-size:12px}
+
+/* ---------- status ---------- */
+.status{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
+.status .ico{width:14px;height:14px}
+.s-success{color:var(--success)}
+.s-failed{color:var(--failed)}
+.s-warning{color:var(--warning)}
+.s-progress{color:var(--progress)}
+.s-neutral{color:var(--neutral)}
+.s-terminal{color:var(--warning)}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex:0 0 6px}
+.dot.success{background:var(--success)}
+.dot.failed{background:var(--failed)}
+.dot.warning{background:var(--warning)}
+.dot.progress{background:var(--progress)}
+.dot.neutral{background:var(--neutral)}
+
+/* ---------- table ---------- */
+.table-wrap{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card);flex:0 0 auto}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+thead th{height:40px;background:var(--muted);font-size:12px;font-weight:500;color:var(--muted-foreground);text-align:left;padding:0 8px;border-bottom:1px solid var(--border)}
+tbody td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:top;font-size:13px}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:color-mix(in oklch,var(--muted) 45%,transparent)}
+.cell-title{font-family:var(--font-console);font-size:13px;font-weight:600;color:var(--primary);cursor:pointer;text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell-title:hover{text-decoration:underline}
+.cell-sub{font-size:11px;color:var(--muted-foreground);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cell-mono{font-family:var(--font-mono);font-size:11px;display:flex;align-items:center;gap:6px;min-width:0}
+.cell-mono span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell-mono .ico{width:13px;height:13px;color:var(--muted-foreground)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);background:var(--card);border-radius:6px;padding:1px 6px;font-size:11px;font-family:var(--font-console);white-space:nowrap;max-width:112px;overflow:hidden;text-overflow:ellipsis}
+.row-actions{display:flex;flex-wrap:wrap;gap:0}
+.pager{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--muted-foreground)}
+.pager-btns{display:flex;align-items:center;gap:4px}
+.pager-btns button{width:28px;height:28px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--foreground);font:inherit;font-size:12px;cursor:pointer}
+.pager-btns button.active{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}
+.pager-btns button:disabled{opacity:.45}
+.empty-cell{height:160px;text-align:center!important;color:var(--muted-foreground);font-size:13px;vertical-align:middle!important}
+
+/* ---------- metrics / detail ---------- */
+.detail-head{display:flex;align-items:flex-start;gap:10px}
+.detail-head h1{margin:0;font-size:24px;line-height:32px;font-weight:700;letter-spacing:-.02em}
+.detail-title{display:flex;flex-direction:column;gap:3px;min-width:0}
+.detail-desc{font-size:13px;color:var(--muted-foreground);display:flex;align-items:center;gap:8px;flex-flow:row wrap}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-top:-4px}
+.tab{height:36px;padding:0 12px;border:none;border-bottom:2px solid transparent;background:none;color:var(--muted-foreground);font:inherit;font-size:13px;cursor:pointer;margin-bottom:-1px}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.metric{border:1px solid var(--border);border-radius:8px;background:var(--card);padding:12px 14px;min-width:0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.metric .k{font-size:11px;color:var(--muted-foreground)}
+.metric .v{margin-top:6px;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.metric .v.mono{font-family:var(--font-mono);font-size:12px}
+
+/* ---------- canvas ---------- */
+.canvas{border:1px solid var(--border);border-radius:8px;background:oklch(0.97 0.002 286);padding:24px;overflow:auto;flex:0 0 auto;min-height:360px}
+.flow{display:flex;align-items:flex-start;width:max-content;min-width:100%}
+.cap{height:40px;flex:0 0 auto;display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;background:var(--card);padding:0 12px;font-size:13px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-top:24px}
+.cap .ico{color:var(--muted-foreground)}
+.cap.start .ico{color:var(--primary)}
+.arrow{width:32px;flex:0 0 32px;height:40px;margin-top:40px;display:flex;align-items:center;color:var(--muted-foreground)}
+.arrow .line{height:1px;flex:1;background:var(--border)}
+.arrow .ico{width:16px;height:16px;margin-left:-2px}
+.stage{width:224px;flex:0 0 224px;border:1px solid var(--border);border-radius:8px;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.04);margin-top:24px}
+.canvas .stage{width:196px;flex:0 0 196px}
+.canvas .arrow{width:24px;flex:0 0 24px}
+.stage-head{padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stage-head .idx{color:var(--muted-foreground)}
+.stage-body{padding:8px;display:flex;flex-direction:column;gap:8px}
+.job{border:1px solid var(--border);border-radius:6px;background:var(--background);padding:8px;display:flex;gap:8px;align-items:flex-start}
+.job .ico{color:var(--primary);margin-top:1px}
+.job .name{font-size:13px;font-weight:600;font-family:var(--font-console);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.job .kind{font-size:11px;color:var(--muted-foreground);font-family:var(--font-mono);margin-top:1px}
+.job-empty{font-size:11px;color:var(--muted-foreground);padding:4px}
+
+/* ---------- editor ---------- */
+.editor{height:812px;border:1px solid var(--border);border-radius:8px;background:var(--card);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.editor-top{height:48px;flex:0 0 48px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:0 16px}
+.editor-title{font-size:13px;font-weight:600}
+.basic{display:grid;grid-template-columns:auto minmax(0,.9fr) minmax(0,1.5fr) minmax(0,.7fr) minmax(0,.8fr);gap:12px;align-items:end;padding:12px 16px;border-bottom:1px solid var(--border)}
+.basic-label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding-bottom:8px;white-space:nowrap}
+.basic-label .ico{color:var(--primary)}
+.error-banner{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid color-mix(in oklch,var(--destructive) 30%,transparent);background:color-mix(in oklch,var(--destructive) 10%,transparent);color:var(--destructive);font-size:13px}
+.workspace{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 352px}
+.lanes{min-width:0;display:flex;flex-direction:column;background:oklch(0.975 0.002 286)}
+.lanes-toolbar{height:36px;flex:0 0 36px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;padding:0 12px}
+.lanes-scroll{flex:1;overflow:auto;padding:16px;display:flex;align-items:flex-start;gap:8px}
+.lanes-scroll.zoom-75{zoom:.75}
+.lanes-scroll.zoom-125{zoom:1.25}
+.lanes-scroll.zoom-150{zoom:1.5}
+.editor-stage{width:240px;flex:0 0 240px;border:1px solid var(--border);border-radius:8px;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.04);margin-top:8px}
+.editor-stage.target{outline:2px solid color-mix(in oklch,var(--primary) 28%,transparent);border-color:var(--primary)}
+.stage-head.stage-head-editor{display:flex;align-items:center;gap:3px;padding:5px 6px}
+.stage-head.stage-head-editor .idx{font-size:11px;color:var(--muted-foreground);white-space:nowrap}
+.stage-name-input{height:28px;border:1px solid transparent;background:transparent;font:inherit;font-family:var(--font-console);font-size:13px;font-weight:600;border-radius:4px;padding:0 4px;min-width:0;flex:1;color:inherit}
+.stage-name-input:hover{border-color:var(--input)}
+.stage-head.stage-head-editor .grip{color:var(--muted-foreground);cursor:grab}
+.editor-job{border:1px solid var(--border);border-radius:6px;background:var(--background);padding:6px;display:flex;gap:6px;align-items:flex-start;cursor:pointer}
+.editor-job.selected{border-color:var(--primary);box-shadow:0 0 0 2px color-mix(in oklch,var(--primary) 25%,transparent)}
+.editor-job .ico{color:var(--primary);margin-top:2px}
+.editor-job .name{font-family:var(--font-console);font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.editor-job .kind{font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)}
+.editor-job .ops{display:flex;flex-direction:column;margin-left:auto}
+.icon-btn.xs{width:20px;height:18px}
+.icon-btn.xs .ico{width:12px;height:12px}
+.add-job{height:38px;border:1px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--muted-foreground);cursor:pointer;background:transparent;font-family:inherit}
+.add-job:hover{border-color:var(--primary);color:var(--primary)}
+.add-stage{width:144px;flex:0 0 144px;height:112px;border:1px dashed var(--border);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:var(--muted-foreground);font-size:13px;margin-top:8px;cursor:pointer;background:transparent;font-family:inherit}
+.add-stage:hover{border-color:var(--primary);color:var(--primary)}
+.inspector{border-left:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
+.inspector-head{height:40px;flex:0 0 40px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:13px;font-weight:600}
+.inspector-body{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.section-title{font-size:13px;font-weight:600;margin:2px 0 0}
+.param-row{display:grid;grid-template-columns:minmax(0,1fr) 84px minmax(0,1.1fr);gap:6px;align-items:center}
+.param-key{font-family:var(--font-mono);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.advanced{border-top:1px solid var(--border);padding-top:10px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600}
+.task-groups{padding:8px;display:flex;flex-direction:column;gap:4px;overflow:auto}
+.task-group{border:none;border-radius:6px;background:var(--card);font:inherit;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;cursor:pointer;color:inherit;text-align:left}
+.task-group.open{background:var(--primary);color:var(--primary-foreground)}
+.task-item{border:none;background:transparent;font:inherit;display:flex;gap:8px;align-items:flex-start;padding:8px;border-radius:6px;cursor:pointer;text-align:left;color:inherit}
+.task-item:hover{background:var(--muted)}
+.task-item .name{display:block;font-size:13px;font-weight:600}
+.task-item .desc{display:block;font-size:11px;color:var(--muted-foreground);margin-top:1px}
+.task-list-foot{border-top:1px solid var(--border);padding:10px;text-align:center;font-size:11px;color:var(--muted-foreground)}
+
+/* ---------- run ---------- */
+.run-canvas{border:1px solid var(--border);border-radius:8px;background:oklch(0.97 0.002 286);padding:0 24px 24px;display:flex;flex-direction:column;flex:0 0 auto;min-height:360px;overflow:auto}
+.run-canvas-top{height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:flex-end}
+.link{color:var(--primary);font-size:13px;text-decoration:none;background:none;border:none;font-family:inherit;cursor:pointer;padding:0}
+.link:hover{text-decoration:underline}
+.run-flow{display:flex;align-items:flex-start;width:max-content;min-width:100%}
+.run-cap{margin-top:1px;height:40px;display:flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:6px;background:var(--card);padding:0 12px;font-size:13px;flex:0 0 auto}
+.run-stage-wrap{display:flex;align-items:flex-start;gap:8px;flex:0 0 176px;width:176px;flex-direction:column}
+.run-stage{border:2px solid var(--border);border-radius:6px;background:var(--card);padding:8px 12px;width:100%}
+.run-stage.success{border-color:var(--success)}
+.run-stage.failed{border-color:var(--failed)}
+.run-stage.running{border-color:var(--progress)}
+.run-stage.waiting{border-color:var(--warning)}
+.run-stage.queued{border-color:var(--border)}
+.run-stage-head{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
+.run-stage-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.run-stage-duration{font-size:11px;color:var(--muted-foreground);white-space:nowrap}
+.run-stage-wrap .link{align-self:flex-start}
+.run-cap.end-success .ico{color:var(--success)}
+.run-cap.end-failed .ico{color:var(--failed)}
+.run-cap.end-running .ico{color:var(--progress)}
+.run-cap.end-waiting .ico{color:var(--warning)}
+.run-job{border:1px solid var(--border);border-radius:6px;background:var(--background);padding:6px 8px;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;cursor:pointer;font-family:inherit;color:inherit}
+.run-job .status{gap:5px;font-size:12px}
+
+/* ---------- overlay ---------- */
+.scrim{position:absolute;inset:0;background:rgba(8,12,20,.48);z-index:40}
+.dialog{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;background:var(--card);color:var(--card-foreground);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.28);z-index:41;padding:24px}
+.dialog.confirm{width:460px}
+.dialog h3{margin:0;font-size:18px;line-height:26px}
+.dialog .desc{margin:8px 0 0;font-size:13px;color:var(--muted-foreground);line-height:20px}
+.dialog-body{margin-top:16px;display:flex;flex-direction:column;gap:12px}
+.dialog-foot{margin-top:22px;display:flex;justify-content:flex-end;gap:8px}
+.sheet{position:absolute;top:0;right:0;bottom:0;width:720px;background:var(--term-bg);color:var(--term-fg);z-index:41;display:flex;flex-direction:column;box-shadow:-24px 0 60px rgba(0,0,0,.35)}
+.sheet-head{height:40px;flex:0 0 40px;border-bottom:1px solid oklch(1 0 0 / .16);display:flex;align-items:center;gap:10px;padding:0 12px 0 16px;font-size:13px;font-weight:600}
+.sheet-head .status{font-size:11px;color:var(--term-fg);opacity:.75}
+.sheet-head .icon-btn{color:var(--term-fg);margin-left:auto}
+.sheet-body{flex:1;overflow:hidden;padding:10px 16px;font-family:var(--font-mono);font-size:12px;line-height:20px;white-space:pre-wrap}
+.log-line{display:flex;gap:12px}
+.log-line .ln{width:28px;flex:0 0 28px;text-align:right;opacity:.4;user-select:none}
+.log-line .ok{color:oklch(0.78 0.14 150)}
+.log-line .dim{color:oklch(0.65 0.01 235)}
+.toast{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);background:#111827;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+
+/* ---------- flow board ---------- */
+.flow-board{width:1440px;height:900px;background:var(--background);padding:28px 32px;display:flex;flex-direction:column;gap:14px}
+.flow-board h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-.02em}
+.flow-board .sub{font-size:13px;color:var(--muted-foreground)}
+.flow-legend{display:flex;gap:16px;font-size:12px;color:var(--muted-foreground)}
+.flow-legend span{display:inline-flex;align-items:center;gap:6px}
+.flow-legend i{width:14px;height:8px;border-radius:2px;display:inline-block}
+
+/* ---------- proto tools ---------- */
+.proto-tools{position:fixed;right:16px;bottom:16px;z-index:100;background:#111827;color:#e5e7eb;border-radius:10px;padding:10px;font-size:11px;display:flex;flex-wrap:wrap;gap:5px;max-width:560px;box-shadow:0 12px 30px rgba(0,0,0,.3);font-family:var(--font-sans)}
+.proto-tools strong{width:100%;font-size:11px;letter-spacing:.04em;color:#9ca3af;text-transform:uppercase}
+.proto-tools button{border:1px solid #374151;background:#1f2937;color:#e5e7eb;border-radius:6px;padding:4px 7px;font:inherit;cursor:pointer}
+.proto-tools button:hover{background:#374151}
+body.capture .proto-tools{display:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ============================================================
+   图标（Lucide 风格，MIT）
+   ============================================================ */
+const ICON = {
+  branch:'<line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
+  package:'<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  key:'<path d="M2.6 17.4A2 2 0 0 0 2 18.8V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.17a2 2 0 0 0 1.42-.59l.81-.81a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
+  play:'<polygon points="6 3 20 12 6 21 6 3"/>',
+  power:'<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>',
+  pencil:'<path d="M21.2 6.8a1 1 0 0 0-4-4L3.8 16.2a2 2 0 0 0-.5.8l-1.3 4.4a.5.5 0 0 0 .6.6l4.4-1.3a2 2 0 0 0 .8-.5z"/><path d="m15 5 4 4"/>',
+  history:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  trash:'<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+  workflow:'<rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/>',
+  alert:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+  chevronR:'<path d="m9 18 6-6-6-6"/>',
+  chevronD:'<path d="m6 9 6 6 6-6"/>',
+  chevronU:'<path d="m18 15-6-6-6 6"/>',
+  arrowLeft:'<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  check:'<path d="M21.8 10A10 10 0 1 1 17 3.3"/><path d="m9 11 3 3L22 4"/>',
+  xcircle:'<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+  circle:'<circle cx="12" cy="12" r="10"/>',
+  loader:'<path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m7.8 16.2-2.9 2.9"/><path d="M6 12H2"/><path d="m7.8 7.8-2.9-2.9"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  grip:'<circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/>',
+  menu:'<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>',
+  moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>',
+  folderGit:'<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><circle cx="12" cy="13" r="2"/><path d="M14 13h3"/><path d="M7 13h3"/>',
+  image:'<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+  scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
+  rocket:'<path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2 0-2.8-.8-.8-2.2-.8-3 .8z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.9A12.8 12.8 0 0 1 22 2c0 2.9-.8 7.5-6 11a22 22 0 0 1-4 2z"/><path d="M9 12H4s.5-2.8 2-4c1.7-1.3 5 0 5 0"/><path d="M12 15v5s2.8-.5 4-2c1.3-1.7 0-5 0-5"/>',
+  terminal:'<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
+  user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  settings:'<path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.3.2a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.4a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.3.2a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.3-.2a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.4a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.3-.2a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>'
+};
+function icon(name, cls){ return '<svg class="ico '+(cls||'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICON[name]||'')+'</svg>'; }
+
+/* ============================================================
+   数据（与 spec JSON 对齐）
+   ============================================================ */
+const PIPELINES = [
+  { id:1, name:'构建部署流水线', repo:'hfwas/devops-backend', branch:'main', credential:'GitHub Token',
+    last:{status:'SUCCEEDED',time:'3 分钟前'},
+    stages:[
+      {name:'代码检查',jobs:[{name:'克隆代码',kind:'CLONE'},{name:'Sonar 检查',kind:'LINT_SONAR'}]},
+      {name:'构建',jobs:[{name:'Maven 构建',kind:'BUILD'},{name:'单元测试',kind:'TEST'}]},
+      {name:'镜像',jobs:[{name:'镜像构建',kind:'IMAGE'}]},
+      {name:'部署',jobs:[{name:'部署到 k3s',kind:'DEPLOY'}]}
+    ]},
+  { id:2, name:'前端发布流水线', repo:'hfwas/devops-frontend', branch:'main', credential:'GitHub Token',
+    last:{status:'RUNNING',time:'12 秒前'},
+    stages:[
+      {name:'依赖安装',jobs:[{name:'npm ci',kind:'CUSTOM'}]},
+      {name:'构建',jobs:[{name:'Vite 构建',kind:'BUILD'},{name:'Vitest',kind:'TEST'}]},
+      {name:'上传',jobs:[{name:'上传对象存储',kind:'UPLOAD'}]}
+    ]},
+  { id:3, name:'容器基座发布', repo:'hfwas/devops-container', branch:'release', credential:'Harbor 机器人账号',
+    last:{status:'FAILED',time:'1 小时前'},
+    stages:[
+      {name:'构建',jobs:[{name:'镜像构建',kind:'IMAGE'}]},
+      {name:'扫描',jobs:[{name:'Trivy 扫描',kind:'SCAN'}]},
+      {name:'推送',jobs:[{name:'推送 Harbor',kind:'PUBLISH'}]}
+    ]},
+  { id:4, name:'依赖扫描', repo:'hfwas/cn-app-operator', branch:'main', credential:'—',
+    last:{status:'WAITING_APPROVAL',time:'2 小时前'},
+    stages:[
+      {name:'依赖分析',jobs:[{name:'CycloneDX',kind:'DEPENDENCY_ANALYSIS'}]},
+      {name:'人工卡点',jobs:[{name:'人工审批',kind:'APPROVAL'}]},
+      {name:'漏洞扫描',jobs:[{name:'Dependency-Track',kind:'DEPENDENCY_TRACK'}]}
+    ]},
+  { id:5, name:'夜间回归', repo:'hfwas/devops-backend', branch:'develop', credential:'GitHub Token',
+    last:{status:'QUEUED',time:'5 小时前'},
+    stages:[
+      {name:'测试',jobs:[{name:'集成测试',kind:'TEST'},{name:'接口测试',kind:'TEST'}]},
+      {name:'通知',jobs:[{name:'企业微信通知',kind:'NOTIFY'}]}
+    ]}
+];
+
+const RUNS = [
+  {id:128,commit:'9f2c1ab',trigger:'MANUAL',branch:'main',status:'RUNNING',started:'2026-10-17 10:42:18',duration:'1m 12s'},
+  {id:127,commit:'7d3e4c2',trigger:'WEBHOOK',branch:'main',status:'SUCCEEDED',started:'2026-10-17 09:15:04',duration:'4m 08s'},
+  {id:126,commit:'4b8a9f1',trigger:'MANUAL',branch:'main',status:'SUCCEEDED',started:'2026-10-16 22:31:47',duration:'3m 52s'},
+  {id:125,commit:'c1d7e60',trigger:'SCHEDULE',branch:'develop',status:'FAILED',started:'2026-10-16 20:00:02',duration:'58s'},
+  {id:124,commit:'a2f3b84',trigger:'MANUAL',branch:'main',status:'CANCELLED',started:'2026-10-16 18:20:11',duration:'1m 05s'},
+  {id:123,commit:'e9c4d27',trigger:'WEBHOOK',branch:'main',status:'SUCCEEDED',started:'2026-10-16 16:08:39',duration:'4m 21s'},
+  {id:122,commit:'5a6b0c8',trigger:'MANUAL',branch:'release',status:'WAITING_APPROVAL',started:'2026-10-16 14:45:00',duration:'2m 33s'},
+  {id:121,commit:'3f1e7d9',trigger:'MANUAL',branch:'main',status:'QUEUED',started:'2026-10-16 14:40:12',duration:'—'}
+];
+
+const STATUS = {
+  '':{label:'未运行',tone:'neutral',icon:'circle'},
+  QUEUED:{label:'排队中',tone:'warning',icon:'clock'},
+  RUNNING:{label:'运行中',tone:'progress',icon:'loader',spin:true},
+  WAITING_APPROVAL:{label:'待审批',tone:'warning',icon:'alert'},
+  SUCCEEDED:{label:'成功',tone:'success',icon:'check'},
+  FAILED:{label:'失败',tone:'failed',icon:'xcircle'},
+  CANCELLED:{label:'已取消',tone:'terminal',icon:'xcircle'}
+};
+function statusInfo(s){ return STATUS[s] || STATUS['']; }
+function statusEl(s){
+  const info = statusInfo(s);
+  return '<span class="status s-'+info.tone+'">'+icon(info.icon, info.spin?'spin':'')+info.label+'</span>';
+}
+function dotEl(s){ return '<span class="dot '+statusInfo(s).tone+'"></span>'; }
+function triggerLabel(t){ return t==='MANUAL'?'手动':t==='WEBHOOK'?'Webhook':(t==='SCHEDULE'||t==='CRON'||t==='TIMER')?'定时':(t||'—'); }
+function kindLabel(k){
+  const m={CLONE:'代码克隆',BUILD:'构建',IMAGE:'镜像构建',LINT_SONAR:'Sonar 检查',LINT_SEMGREP:'Semgrep 检查',TEST:'测试',SCAN:'安全扫描',DEPLOY:'部署',PUBLISH:'发布制品',UPLOAD:'上传对象存储',APPROVAL:'人工卡点',NOTIFY:'通知',CUSTOM:'自定义命令',DEPENDENCY_ANALYSIS:'依赖分析',DEPENDENCY_TRACK:'依赖漏洞扫描',FORMAT:'代码格式化',PACKAGE:'打包',KUBECTL:'K8s 命令'};
+  return m[k]||k;
+}
+
+/* ============================================================
+   原型状态
+   ============================================================ */
+const qp = new URLSearchParams(location.search);
+const ui = {
+  capture: qp.get('capture')==='1',
+  overlay: qp.get('overlay')||'',
+  state: qp.get('state')||'',
+  zoom: qp.get('zoom') || '100',
+  selectedJob: 'j1',
+  addMode: qp.get('panel')==='add',
+  logFocus: qp.get('focus')||'overall',
+  toast: ''
+};
+if (ui.capture) document.body.classList.add('capture');
+
+/* ============================================================
+   通用片段
+   ============================================================ */
+function sidebar(){
+  return '<aside class="sidebar">'
+    +'<div class="product"><div class="product-icon">'+icon('branch')+'</div><div class="product-text"><strong>流水线</strong><span>持续集成与持续交付</span></div>'+icon('chevronD','chev')+'</div>'
+    +'<nav class="nav">'
+    +'<a class="nav-item active" data-go="#/list">'+icon('branch')+'<span>流水线</span></a>'
+    +'<a class="nav-item" data-toast="任务市场页面不在本次原型范围">'+icon('package')+'<span>任务市场</span></a>'
+    +'<a class="nav-item" data-toast="凭证页面不在本次原型范围">'+icon('key')+'<span>凭证</span></a>'
+    +'</nav>'
+    +'<div class="sidebar-foot"><span class="tenant-dot"></span>默认租户</div>'
+    +'</aside>';
+}
+function header(crumbs){
+  const crumbHtml = crumbs.map((c,i)=> i===crumbs.length-1
+    ? '<span class="current" title="'+c+'">'+c+'</span>'
+    : '<span>'+c+'</span><span class="sep">/</span>').join('');
+  return '<header class="topbar">'
+    +'<button class="icon-btn" aria-label="切换侧栏">'+icon('menu')+'</button>'
+    +'<span class="vsep"></span>'
+    +'<div class="crumb">'+crumbHtml+'</div>'
+    +'<div class="grow"></div>'
+    +'<div class="search top-search">'+icon('search')+'<input class="input" placeholder="搜索项目、Pod、流水线"></div>'
+    +'<button class="btn outline sm">默认租户</button>'
+    +'<button class="icon-btn" data-action="theme" aria-label="切换主题">'+icon('moon')+'</button>'
+    +'<div class="avatar">H</div>'
+    +'</header>';
+}
+function shell(content, opts){
+  opts = opts || {};
+  return '<div class="frame">'+sidebar()+'<main class="main">'+header(opts.crumbs||['流水线'])+'<div class="content '+(opts.flush?'flush':'')+'">'+content+'</div></main>'+overlay()+'</div>';
+}
+function jobCard(job){
+  return '<div class="job">'+icon('workflow')+'<div style="min-width:0"><div class="name">'+job.name+'</div><div class="kind">'+kindLabel(job.kind)+'</div></div></div>';
+}
+function definitionFlow(p){
+  let html = '<div class="flow"><div class="cap start">'+icon('play')+'开始</div>';
+  (p.stages||[]).forEach(function(s, i){
+    html += '<div class="arrow"><span class="line"></span>'+icon('chevronR')+'</div>';
+    html += '<div class="stage"><div class="stage-head"><span class="idx">阶段 '+(i+1)+'</span> · <span class="console">'+s.name+'</span></div><div class="stage-body">'
+      + (s.jobs.length ? s.jobs.map(jobCard).join('') : '<div class="job-empty">这个阶段没有任务</div>')
+      + '</div></div>';
+  });
+  html += '<div class="arrow"><span class="line"></span>'+icon('chevronR')+'</div><div class="cap">'+icon('power')+'结束</div></div>';
+  return html;
+}
+
+/* ============================================================
+   页面：列表
+   ============================================================ */
+function listRows(){
+  return PIPELINES.map(function(p){
+    return '<tr data-row data-status="'+p.last.status+'" data-text="'+p.name+' '+p.repo+' '+p.branch+'">'
+      +'<td><a class="cell-title" data-go="#/detail/'+p.id+'">'+p.name+'</a><div class="cell-sub">'+p.stages.flatMap(function(s){return s.jobs.map(function(j){return j.name;});}).join('、')+'</div></td>'
+      +'<td><div class="cell-mono">'+icon('folderGit')+'<span>'+p.repo+'</span></div><div class="cell-mono" style="margin-top:4px">'+icon('branch')+'<span>'+p.branch+'</span></div></td>'
+      +'<td><div class="chips">'+p.stages.slice(0,4).map(function(s){return '<span class="chip">'+dotEl(p.last.status)+s.name+'</span>';}).join('')+'</div></td>'
+      +'<td>'+statusEl(p.last.status)+'<div class="cell-sub" style="font-family:var(--font-mono)">'+p.last.time+'</div></td>'
+      +'<td><div class="row-actions">'
+        +'<button class="btn ghost xs" data-overlay="run-params">'+icon('play')+'运行</button>'
+        +'<button class="btn ghost xs" data-go="#/editor/'+p.id+'">'+icon('pencil')+'编辑</button>'
+        +'<button class="btn ghost xs" data-go="#/history/'+p.id+'">'+icon('history')+'历史</button>'
+        +'<button class="btn ghost xs" data-overlay="delete">'+icon('trash')+'删除</button>'
+      +'</div></td></tr>';
+  }).join('');
+}
+function renderList(){
+  const empty = ui.state==='empty';
+  const loading = ui.state==='loading';
+  const body = loading
+    ? '<div class="table-wrap"><table><colgroup><col style="width:28%"><col style="width:24%"><col style="width:16%"><col><col style="width:220px"></colgroup><thead><tr><th>流水线名称</th><th>仓库 / 分支</th><th>阶段预览</th><th>最近运行</th><th>操作</th></tr></thead><tbody>'
+      + Array.from({length:4}).map(function(){return '<tr><td colspan="5"><div style="height:18px;border-radius:4px;background:var(--muted)"></div></td></tr>';}).join('')
+      + '</tbody></table></div>'
+    : '<div class="table-wrap"><table><colgroup><col style="width:28%"><col style="width:24%"><col style="width:16%"><col><col style="width:220px"></colgroup><thead><tr><th>流水线名称</th><th>仓库 / 分支</th><th>阶段预览</th><th>最近运行</th><th>操作</th></tr></thead><tbody>'
+      + (empty ? '<tr><td colspan="5" class="empty-cell">还没有流水线</td></tr>' : listRows())
+      + '</tbody></table></div>';
+  const content = '<div class="page-head"><div><h1>流水线</h1><div class="caption">'+(empty?'共 0 条流水线':'共 '+PIPELINES.length+' 条流水线')+'</div></div>'
+    +'<div class="actions"><div class="search">'+icon('search')+'<input id="list-search" class="input" style="width:256px" placeholder="搜索流水线、仓库或分支"></div>'
+    +'<button class="btn primary" data-go="#/editor/new">'+icon('plus')+'新建流水线</button></div></div>'
+    +'<div class="filter-row"><div class="segmented" id="list-filter"><button class="active" data-filter="all">全部</button><button data-filter="RUNNING">运行中</button><button data-filter="SUCCEEDED">成功</button><button data-filter="FAILED">失败</button></div><span class="hint">状态筛选仅作用于当前页</span></div>'
+    + body
+    +'<div class="pager"><span>第 1 / 1 页</span><div class="pager-btns"><button disabled>'+icon('arrowLeft')+'</button><button class="active">1</button><button disabled>'+icon('chevronR')+'</button></div></div>';
+  return shell(content,{crumbs:['流水线']});
+}
+
+/* ============================================================
+   页面：详情
+   ============================================================ */
+function pipelineOf(id){ return PIPELINES.find(function(p){return String(p.id)===String(id);}) || PIPELINES[0]; }
+function renderDetail(id){
+  const p = pipelineOf(id);
+  const metrics = [
+    ['仓库', '<span class="v mono">'+p.repo+'</span>'],
+    ['分支', '<span class="v mono">'+p.branch+'</span>'],
+    ['阶段', '<span class="v" style="font-family:var(--font-console)">'+p.stages.map(function(s){return s.name;}).join(' · ')+'</span>'],
+    ['最近运行', '<span class="v" style="display:flex;align-items:center;gap:6px">'+statusEl(p.last.status)+'<span class="muted" style="font-family:var(--font-mono);font-size:11px;font-weight:400">'+p.last.time+'</span></span>'],
+    ['凭证', '<span class="v">'+p.credential+'</span>']
+  ].map(function(m){return '<div class="metric"><div class="k">'+m[0]+'</div>'+m[1]+'</div>';}).join('');
+  const content = '<div class="detail-head"><button class="btn ghost sm" data-go="#/list">'+icon('arrowLeft')+'返回</button>'
+    +'<div class="detail-title"><h1>'+p.name+'</h1><div class="detail-desc">'+statusEl(p.last.status)+'<span>'+p.last.time+'</span></div></div>'
+    +'<div class="grow"></div>'
+    +'<button class="btn outline sm" data-go="#/editor/'+p.id+'">'+icon('pencil')+'编辑</button>'
+    +'<button class="btn primary sm" data-overlay="run-params">'+icon('play')+'运行</button></div>'
+    +'<div class="tabs"><button class="tab active" data-go="#/detail/'+p.id+'">详情</button><button class="tab" data-go="#/history/'+p.id+'">运行历史</button></div>'
+    +'<div class="metrics">'+metrics+'</div>'
+    +'<div class="canvas">'+definitionFlow(p)+'</div>';
+  return shell(content,{crumbs:['流水线',p.name]});
+}
+
+/* ============================================================
+   页面：编辑器
+   ============================================================ */
+function editorStages(p){
+  if (p) return p.stages;
+  return [
+    {name:'代码检查',jobs:[{name:'克隆代码',kind:'CLONE'}]},
+    {name:'构建',jobs:[{name:'Maven 构建',kind:'BUILD'},{name:'单元测试',kind:'TEST'}]},
+    {name:'部署',jobs:[{name:'部署到 k3s',kind:'DEPLOY'}]}
+  ];
+}
+function renderEditor(id){
+  const isNew = !id || id==='new';
+  const p = isNew ? null : pipelineOf(id);
+  const stages = editorStages(p);
+  const title = isNew ? '新建流水线' : '编辑流水线';
+  const invalid = ui.state==='invalid';
+
+  const zoom = ui.zoom;
+  const lanes = '<section class="lanes"><div class="lanes-toolbar"><select class="input" style="width:96px;height:28px;font-size:12px">'
+    + ['75','100','125','150'].map(function(z){ return '<option '+(z===zoom?'selected':'')+'>'+z+'%</option>'; }).join('')
+    +'</select></div>'
+    +'<div class="lanes-scroll '+(zoom!=='100'?'zoom-'+zoom:'')+'">'
+    + stages.map(function(s, si){
+        return '<div class="editor-stage '+(ui.addMode && si===1?'target':'')+'">'
+          +'<div class="stage-head stage-head-editor">'+icon('grip','grip')+'<span class="idx">阶段 '+(si+1)+' ·</span><input class="stage-name-input" value="'+s.name+'">'
+          +'<button class="icon-btn xs" aria-label="左移阶段">'+icon('arrowLeft')+'</button>'
+          +'<button class="icon-btn xs" aria-label="右移阶段">'+icon('chevronR')+'</button>'
+          +'<button class="icon-btn xs" aria-label="删除阶段">'+icon('trash')+'</button></div>'
+          +'<div class="stage-body">'
+          + s.jobs.map(function(j, ji){
+              const key = 'j'+(si+1)+'-'+(ji+1);
+              return '<div class="editor-job '+(key===ui.selectedJob?'selected':'')+'" data-job="'+key+'">'+icon('workflow')
+                +'<div style="min-width:0"><div class="name">'+j.name+'</div><div class="kind">'+j.kind+'</div></div>'
+                +'<div class="ops"><button class="icon-btn xs">'+icon('chevronU')+'</button><button class="icon-btn xs">'+icon('chevronD')+'</button><button class="icon-btn xs">'+icon('trash')+'</button></div></div>';
+            }).join('')
+          +'<button class="add-job" data-action="add-task">'+icon('plus')+'添加任务</button>'
+          +'</div></div>';
+      }).join('')
+    + '<button class="add-stage" data-toast="已添加一个新阶段">'+icon('plus')+'添加阶段</button>'
+    +'</div></section>';
+
+  const selected = (function(){
+    const flat = [];
+    stages.forEach(function(s,si){ s.jobs.forEach(function(j,ji){ flat.push({job:j,key:'j'+(si+1)+'-'+(ji+1),stage:s.name}); }); });
+    return flat.find(function(x){return x.key===ui.selectedJob;}) || flat[0] || {job:{name:'克隆代码',kind:'CLONE'},stage:'代码检查'};
+  })();
+
+  const inspector = '<aside class="inspector"><div class="inspector-head"><span>'+(ui.addMode?'添加任务':'任务配置')+'</span><button class="icon-btn xs" data-action="'+(ui.addMode?'close-add':'clear-job')+'">'+icon('x')+'</button></div>'
+    + (ui.addMode ? renderTaskGroups() : '<div class="inspector-body">'
+      +'<div class="field"><label>任务名称 <b>*</b></label><input class="input" value="'+selected.job.name+'"></div>'
+      +'<div class="field"><label>任务类型</label><select class="input"><option>'+kindLabel(selected.job.kind)+'</option><option>构建</option><option>测试</option><option>自定义命令</option></select></div>'
+      + (selected.job.kind==='CLONE'
+          ? '<div style="font-size:11px;color:var(--muted-foreground);border:1px dashed var(--border);border-radius:6px;padding:7px 9px">这个任务类型不需要命令，克隆命令由平台生成。</div>'
+          : '<div class="field"><label>命令</label><textarea class="input" rows="5">mvn -B clean package -DskipTests</textarea></div>')
+      +'<div class="section-title" title="隐藏参数由平台或凭证注入">参数绑定</div>'
+      +'<div class="param-row"><span class="param-key">GIT_REF *</span><select class="input" style="height:28px;font-size:11px"><option>写死</option><option>变量</option></select><span class="muted" style="font-size:11px">使用分支</span></div>'
+      +'<div class="param-row"><span class="param-key">SONAR_TOKEN *</span><select class="input" style="height:28px;font-size:11px"><option>变量</option><option>写死</option></select><span class="muted" style="font-size:11px">运行时填写</span></div>'
+      +'<div class="param-row"><span class="param-key">SONAR_HOST_URL</span><select class="input" style="height:28px;font-size:11px"><option>写死</option><option>变量</option></select><input class="input" style="height:28px;font-size:11px" value="https://sonar.example.com"></div>'
+      +'<div class="advanced"><span>高级设置</span>'+icon('chevronD')+'</div>'
+      +'<div class="field"><label>技术栈</label><select class="input"><option>JAVA_MAVEN</option><option>NODE</option><option>GO</option><option>PYTHON</option></select></div>'
+      +'<div class="field"><label>运行时</label><select class="input"><option>21</option><option>17</option></select></div>'
+      +'<div class="field"><label>工具版本</label><select class="input"><option>3.9.9</option><option>3.9.6</option></select></div>'
+      +'</div>')
+    +'</aside>';
+
+  const content = '<div class="editor">'
+    +'<div class="editor-top"><span class="editor-title">'+title+'</span><div class="grow"></div>'
+      +'<button class="btn outline sm" data-overlay="discard">取消</button>'
+      +'<button class="btn outline sm" data-toast="已保存">保存</button>'
+      +'<button class="btn primary sm" data-overlay="run-params">'+icon('play')+'保存并运行</button></div>'
+    +'<div class="basic"><div class="basic-label">'+icon('workflow')+'基本信息</div>'
+      +'<div class="field"><label>名称 <b>*</b></label><input class="input '+(invalid?'invalid':'')+'" value="'+(p?p.name:'前端发布流水线')+'"></div>'
+      +'<div class="field"><label>仓库 <b>*</b></label><input class="input mono" value="'+(p?'https://github.com/'+p.repo+'.git':'https://github.com/hfwas/devops-frontend.git')+'"></div>'
+      +'<div class="field"><label>分支</label><input class="input mono" value="'+(p?p.branch:'main')+'"></div>'
+      +'<div class="field"><label>凭证</label><select class="input"><option>'+(p?p.credential:'GitHub Token')+'</option><option>不使用凭证</option></select></div>'
+    +'</div>'
+    + (invalid?'<div class="error-banner">'+icon('alert')+'名称不能为空</div>':'')
+    +'<div class="workspace">'+lanes+inspector+'</div>'
+    +'</div>';
+  return shell(content,{crumbs:['流水线', isNew?'新建流水线':(p?p.name:'流水线'),'编辑'],flush:true});
+}
+function renderTaskGroups(){
+  const groups = [
+    ['代码',1],['构建',2],['质量控制',6],['制品',3],['部署',2],['测试',1],['命令',1],['流程',2]
+  ];
+  return '<div class="task-groups">'
+    + '<div style="font-size:12px;font-weight:600;padding:4px 6px">添加到「阶段 2 · 构建」</div>'
+    + groups.map(function(g,i){
+        return '<button class="task-group '+(i===2?'open':'')+'"><span>'+g[0]+' ('+g[1]+')</span>'+icon('chevronD')+'</button>'
+          + (i===2 ? '<button class="task-item">'+icon('scan')+'<span><span class="name">Semgrep 检查</span><span class="desc">Semgrep 静态检查</span></span></button>'
+            + '<button class="task-item">'+icon('check')+'<span><span class="name">Sonar 检查</span><span class="desc">SonarScanner 静态检查</span></span></button>'
+            + '<button class="task-item">'+icon('terminal')+'<span><span class="name">代码格式化</span><span class="desc">自动格式化代码并提交回仓库</span></span></button>' : '');
+      }).join('')
+    + '<div class="task-list-foot">点击任务即可添加</div></div>';
+}
+
+/* ============================================================
+   页面：运行历史
+   ============================================================ */
+function renderHistory(id){
+  const p = pipelineOf(id);
+  const empty = ui.state==='empty';
+  const rows = empty ? '<tr><td colspan="7" class="empty-cell">还没有运行。点击「运行」后会打开这次运行的详情。</td></tr>' : RUNS.map(function(r){
+    return '<tr data-run data-status="'+r.status+'" data-go="#/run/'+p.id+'/'+r.id+'" style="cursor:pointer">'
+      +'<td><div class="cell-title" style="font-size:13px">#'+r.id+'</div><div class="cell-sub mono">'+r.commit+'</div></td>'
+      +'<td>'+triggerLabel(r.trigger)+'</td>'
+      +'<td class="mono" style="font-size:12px">'+r.branch+'</td>'
+      +'<td>'+statusEl(r.status)+'</td>'
+      +'<td class="mono" style="font-size:12px">'+r.started+'</td>'
+      +'<td class="mono" style="font-size:12px">'+r.duration+'</td>'
+      +'<td><button class="btn outline xs" data-go="#/run/'+p.id+'/'+r.id+'">查看详情</button></td></tr>';
+  }).join('');
+  const content = '<div class="detail-head"><button class="btn ghost sm" data-go="#/list">'+icon('arrowLeft')+'返回</button>'
+    +'<div class="detail-title"><h1>'+p.name+'</h1><div class="detail-desc">'+statusEl(p.last.status)+'<span>'+p.last.time+'</span></div></div>'
+    +'<div class="grow"></div><button class="btn outline sm" data-go="#/editor/'+p.id+'">'+icon('pencil')+'编辑</button><button class="btn primary sm" data-overlay="run-params">'+icon('play')+'运行</button></div>'
+    +'<div class="tabs"><button class="tab" data-go="#/detail/'+p.id+'">详情</button><button class="tab active" data-go="#/history/'+p.id+'">运行历史</button></div>'
+    +'<div class="metrics">'
+      +'<div class="metric"><div class="k">仓库</div><div class="v mono">'+p.repo+'</div></div>'
+      +'<div class="metric"><div class="k">分支</div><div class="v mono">'+p.branch+'</div></div>'
+      +'<div class="metric"><div class="k">阶段</div><div class="v">'+p.stages.map(function(s){return s.name;}).join(' · ')+'</div></div>'
+      +'<div class="metric"><div class="k">最近运行</div><div class="v" style="display:flex;align-items:center;gap:6px">'+statusEl(p.last.status)+'<span class="muted" style="font-family:var(--font-mono);font-size:11px;font-weight:400">'+p.last.time+'</span></div></div>'
+      +'<div class="metric"><div class="k">凭证</div><div class="v">'+p.credential+'</div></div>'
+    +'</div>'
+    +'<div class="table-wrap"><div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap">'
+      +'<select class="input" id="run-status" style="width:132px;height:30px;font-size:12px"><option>全部</option><option>运行中</option><option>成功</option><option>失败</option><option>排队中</option><option>待审批</option><option>已取消</option></select>'
+      +'<select class="input" style="width:132px;height:30px;font-size:12px"><option>近 7 天</option><option>近 24 小时</option><option>近 30 天</option><option>全部时间</option></select>'
+      +'<div class="search">'+icon('search')+'<input class="input" style="width:224px;height:30px;font-size:12px" placeholder="搜索运行编号、分支"></div>'
+      +'<span class="grow"></span><span class="hint">最近 8 次中 8 条 · 近 7 天成功率 62%</span>'
+    +'</div><table><colgroup><col style="width:15%"><col style="width:11%"><col style="width:11%"><col style="width:14%"><col style="width:21%"><col style="width:12%"><col style="width:140px"></colgroup>'
+    +'<thead><tr><th>运行编号</th><th>触发方式</th><th>分支</th><th>状态</th><th>开始时间</th><th>耗时</th><th>操作</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'<div class="pager"><span>第 1 / 1 页</span><div class="pager-btns"><button disabled>'+icon('arrowLeft')+'</button><button class="active">1</button><button disabled>'+icon('chevronR')+'</button></div></div>';
+  return shell(content,{crumbs:['流水线',p.name,'运行历史']});
+}
+
+/* ============================================================
+   页面：运行详情
+   ============================================================ */
+function runState(){
+  const s = ui.state;
+  if (s==='waiting') return 'WAITING_APPROVAL';
+  if (s==='failed') return 'FAILED';
+  if (s==='succeeded') return 'SUCCEEDED';
+  return 'RUNNING';
+}
+function runStages(status){
+  if (status==='WAITING_APPROVAL') return [
+    {name:'代码检查',status:'SUCCEEDED',duration:'32s',jobs:[{name:'克隆代码',status:'SUCCEEDED'},{name:'Sonar 检查',status:'SUCCEEDED'}]},
+    {name:'构建',status:'SUCCEEDED',duration:'2m 10s',jobs:[{name:'Maven 构建',status:'SUCCEEDED'},{name:'单元测试',status:'SUCCEEDED'}]},
+    {name:'人工审批',status:'WAITING_APPROVAL',duration:'—',jobs:[{name:'人工审批',status:'WAITING_APPROVAL'}]},
+    {name:'镜像',status:'QUEUED',duration:'',jobs:[{name:'镜像构建',status:'QUEUED'}]}
+  ];
+  if (status==='FAILED') return [
+    {name:'代码检查',status:'SUCCEEDED',duration:'30s',jobs:[{name:'克隆代码',status:'SUCCEEDED'}]},
+    {name:'构建',status:'FAILED',duration:'58s',jobs:[{name:'Maven 构建',status:'FAILED'}]},
+    {name:'镜像',status:'CANCELLED',duration:'—',jobs:[{name:'镜像构建',status:'CANCELLED'}]},
+    {name:'部署',status:'CANCELLED',duration:'—',jobs:[{name:'部署到 k3s',status:'CANCELLED'}]}
+  ];
+  if (status==='SUCCEEDED') return [
+    {name:'代码检查',status:'SUCCEEDED',duration:'31s',jobs:[{name:'克隆代码',status:'SUCCEEDED'},{name:'Sonar 检查',status:'SUCCEEDED'}]},
+    {name:'构建',status:'SUCCEEDED',duration:'2m 08s',jobs:[{name:'Maven 构建',status:'SUCCEEDED'},{name:'单元测试',status:'SUCCEEDED'}]},
+    {name:'镜像',status:'SUCCEEDED',duration:'1m 02s',jobs:[{name:'镜像构建',status:'SUCCEEDED'}]},
+    {name:'部署',status:'SUCCEEDED',duration:'24s',jobs:[{name:'部署到 k3s',status:'SUCCEEDED'}]}
+  ];
+  return [
+    {name:'代码检查',status:'SUCCEEDED',duration:'32s',jobs:[{name:'克隆代码',status:'SUCCEEDED'},{name:'Sonar 检查',status:'SUCCEEDED'}]},
+    {name:'构建',status:'RUNNING',duration:'1m 12s',jobs:[{name:'Maven 构建',status:'RUNNING'},{name:'单元测试',status:'QUEUED'}]},
+    {name:'镜像',status:'QUEUED',duration:'',jobs:[{name:'镜像构建',status:'QUEUED'}]},
+    {name:'部署',status:'QUEUED',duration:'',jobs:[{name:'部署到 k3s',status:'QUEUED'}]}
+  ];
+}
+function toneOf(s){
+  if (s==='SUCCEEDED') return 'success';
+  if (s==='FAILED') return 'failed';
+  if (s==='RUNNING') return 'running';
+  if (s==='WAITING_APPROVAL') return 'waiting';
+  return 'queued';
+}
+function renderRun(id, runId){
+  const p = pipelineOf(id);
+  const status = runState();
+  const run = RUNS.find(function(r){return String(r.id)===String(runId);}) || RUNS[0];
+  const stages = runStages(status);
+  const live = status==='RUNNING' || status==='WAITING_APPROVAL';
+  const desc = status==='FAILED'
+    ? '<span style="color:var(--failed)">Maven 构建失败：returned a non-zero code: 1</span>'
+    : '<span class="mono">'+run.branch+' · '+run.commit+'</span>';
+  const actions = (status==='WAITING_APPROVAL' ? '<button class="btn primary sm" data-toast="已通过审批">通过</button>' : '')
+    + (live ? '<button class="btn outline sm" data-overlay="cancel">取消</button>' : '');
+  const swimlane = '<div class="run-flow"><div class="run-cap">'+icon('play')+'开始</div>'
+    + stages.map(function(s){
+        return '<div class="arrow"><span class="line"></span>'+icon('chevronR')+'</div>'
+          +'<div class="run-stage-wrap"><div class="run-stage '+toneOf(s.status)+'"><div class="run-stage-head"><span class="run-stage-name">'+s.name+'</span><span class="run-stage-duration">'+s.duration+'</span></div><button class="link" data-overlay="log" data-focus="stage">日志</button></div>'
+          + s.jobs.map(function(j){
+              return '<button class="run-job" data-overlay="log" data-focus="job">'+statusEl(j.status)+'<span>'+j.name+'</span></button>';
+            }).join('')
+          +'</div>';
+      }).join('')
+    +'<div class="arrow"><span class="line"></span>'+icon('chevronR')+'</div><div class="run-cap end-'+toneOf(status)+'">'+icon('power')+'结束</div></div>';
+  const content = '<div class="detail-head"><button class="btn ghost sm" data-go="#/history/'+p.id+'">'+icon('arrowLeft')+'返回</button>'
+    +'<div class="detail-title"><h1>'+p.name+' #'+run.id+'</h1><div class="detail-desc">'+desc+'</div><div class="detail-desc">'+statusEl(status)+'</div></div>'
+    +'<div class="grow"></div>'+actions+'</div>'
+    +'<div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr))">'
+      +'<div class="metric"><div class="k">触发</div><div class="v">'+triggerLabel(run.trigger)+'</div></div>'
+      +'<div class="metric"><div class="k">触发人</div><div class="v">HFwas</div></div>'
+      +'<div class="metric"><div class="k">开始</div><div class="v mono">'+run.started+'</div></div>'
+      +'<div class="metric"><div class="k">耗时</div><div class="v mono">'+(status==='SUCCEEDED'?'4m 05s':'1m 12s')+'</div></div>'
+    +'</div>'
+    +'<div class="run-canvas"><div class="run-canvas-top"><button class="link" data-overlay="log" data-focus="overall">查看全程日志</button></div>'+swimlane+'</div>';
+  return shell(content,{crumbs:['流水线',p.name,'运行 #'+run.id]});
+}
+
+/* ============================================================
+   弹层
+   ============================================================ */
+function overlay(){
+  if (!ui.overlay) return '';
+  const scrim = '<div class="scrim" data-close></div>';
+  if (ui.overlay==='log') {
+    const titles = {overall:'全程日志', stage:'阶段 · 构建', job:'构建 / Maven 构建'};
+    const lines = [
+      '[10:42:18] Cloning into \'source\'...',
+      '[10:42:19] remote: Enumerating objects: 1284, done.',
+      '[10:42:21] Receiving objects: 100% (1284/1284), 4.21 MiB',
+      '[10:42:22] Resolving deltas: 100% (612/612), done.',
+      '[10:42:24] $ mvn -B -q -DskipTests compile',
+      '[10:42:25] [INFO] Scanning for projects...',
+      '[10:42:27] [INFO] Building devops-backend 1.0-SNAPSHOT',
+      '[10:42:31] [INFO] Compiling 218 source files to /workspace/source/target/classes',
+      '[10:42:47] [INFO] BUILD SUCCESS',
+      '[10:42:48] $ mvn -B test',
+      '[10:42:50] [INFO] Running com.hfwas.devops.pipeline.PipelineGraphTest',
+      '[10:42:52] [INFO] Tests run: 42, Failures: 0, Errors: 0, Skipped: 0',
+      '[10:43:02] [INFO] Running com.hfwas.devops.pipeline.RunServiceTest',
+      '[10:43:08] [INFO] Tests run: 18, Failures: 0, Errors: 0, Skipped: 0',
+      '[10:43:12] [INFO] BUILD SUCCESS',
+      '[10:43:13] step-build completed with exit code 0',
+      '[10:43:14] $ node scripts/build.js',
+      '[10:43:15] vite v6.0.5 building for production...',
+      '[10:43:25] ✓ 2841 modules transformed.',
+      '[10:43:27] dist/assets/index-B1lUAB1N.js  2,574.93 kB │ gzip: 790.26 kB',
+      '[10:43:29] ✓ built in 5.40s'
+    ];
+    return scrim + '<aside class="sheet"><div class="sheet-head"><span>'+titles[ui.logFocus]+'</span><span class="status"><span class="dot success"></span>已连接</span><button class="icon-btn" data-close aria-label="关闭日志">'+icon('x')+'</button></div><div class="sheet-body">'
+      + lines.map(function(l,i){ return '<div class="log-line"><span class="ln">'+(i+1)+'</span><span class="'+(l.indexOf('BUILD SUCCESS')>=0||l.indexOf('✓')>=0?'ok':'')+'">'+l+'</span></div>'; }).join('')
+      + '</div></aside>';
+  }
+  if (ui.overlay==='run-params') {
+    return scrim + '<div class="dialog"><h3>运行参数</h3><p class="desc">本次运行会使用以下参数，带 * 的为必填项。</p><div class="dialog-body">'
+      +'<div class="field"><label>镜像标签 <b>*</b></label><input class="input mono" value="v1.2.0"></div>'
+      +'<div class="field"><label>部署环境 <b>*</b></label><select class="input"><option>开发环境</option><option>测试环境</option><option>生产环境</option></select></div>'
+      +'<div class="field"><label>是否跳过测试</label><select class="input"><option>否</option><option>是</option></select></div>'
+      +'</div><div class="dialog-foot"><button class="btn outline sm" data-close>取消</button><button class="btn primary sm" data-go="#/run/1/128" data-action="start-run">运行</button></div></div>';
+  }
+  if (ui.overlay==='delete') {
+    return scrim + '<div class="dialog confirm"><h3>删除流水线「构建部署流水线」？</h3><p class="desc">删除后无法恢复，运行历史会一并移除。</p><div class="dialog-foot"><button class="btn outline sm" data-close>取消</button><button class="btn danger sm" data-close data-toast="已删除">删除</button></div></div>';
+  }
+  if (ui.overlay==='cancel') {
+    return scrim + '<div class="dialog confirm"><h3>取消运行 #128？</h3><p class="desc">正在执行的任务会被中止。</p><div class="dialog-foot"><button class="btn outline sm" data-close>继续运行</button><button class="btn danger sm" data-close data-toast="已取消运行">取消运行</button></div></div>';
+  }
+  if (ui.overlay==='discard') {
+    return scrim + '<div class="dialog confirm"><h3>放弃未保存的修改？</h3><p class="desc">未保存的改动会丢失。</p><div class="dialog-foot"><button class="btn outline sm" data-close>取消</button><button class="btn danger sm" data-go="#/list">放弃</button></div></div>';
+  }
+  return '';
+}
+
+/* ============================================================
+   流程总览
+   ============================================================ */
+function renderFlow(){
+  return '<div class="flow-board">'
+    +'<div><h1>流水线管理 · 页面与交互流程</h1><div class="sub">基于 pipeline-management-prototype-spec.json · 1440×900</div></div>'
+    +'<div class="flow-legend"><span><i style="background:oklch(0.55 0.22 235)"></i>页面</span><span><i style="background:oklch(0.62 0.14 80)"></i>弹层</span><span><i style="background:oklch(0.55 0.15 150)"></i>动作结果</span></div>'
+    +'<svg viewBox="0 0 1376 760" style="width:100%;flex:1" xmlns="http://www.w3.org/2000/svg">'
+    + '<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#7c8798"/></marker></defs>'
+    + box(390,30,220,72,'P01 流水线列表','/pipeline/pipelines','#eef5ff','#b8cdf0')
+    + box(30,170,170,72,'P03 新建流水线','/pipelines/new','#eef5ff','#b8cdf0')
+    + box(220,170,170,72,'P03B 编辑流水线','/.../:id/edit','#eef5ff','#b8cdf0')
+    + box(410,170,180,72,'P02 流水线详情','/.../:id','#eef5ff','#b8cdf0')
+    + box(610,170,180,72,'P04 运行历史','/.../:id/history','#eef5ff','#b8cdf0')
+    + box(810,170,190,72,'P05 运行详情','/.../runs/:runId','#eef5ff','#b8cdf0')
+    + box(410,360,180,72,'O01 运行参数弹窗','default-params 非空','#fff8e6','#ecd9a4')
+    + box(410,520,180,60,'POST /runs','创建运行 → P05','#eaf7ef','#b8e0c4')
+    + line(500,102,115,170)+line(500,102,305,170)+line(500,102,500,170)+line(500,102,700,170)+line(500,102,905,170)
+    + label(100,160,'新建')+label(288,160,'编辑')+label(486,160,'名称')+label(686,160,'历史')+label(864,160,'运行 / 查看')
+    + line(200,206,220,206)
+    + line(590,206,610,206)
+    + line(790,206,810,206)
+    + label(30,745,'相邻页面：P03 → P03B 保存 · P02 → P04 运行历史页签 · P04 → P05 查看详情')
+    + line(305,242,470,360)+label(330,300,'运行 / 保存并运行')
+    + line(500,242,500,360)+label(506,300,'运行')
+    + line(500,432,500,520)+label(506,480,'确认')
+    + panel(1030,30,346,720)
+    + '</svg></div>';
+  function box(x,y,w,h,title,sub,fill,stroke){
+    return '<g><rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="10" fill="'+fill+'" stroke="'+stroke+'"/>'
+      + '<text x="'+(x+w/2)+'" y="'+(y+30)+'" text-anchor="middle" font-size="15" font-weight="600" fill="#1f2937">'+title+'</text>'
+      + '<text x="'+(x+w/2)+'" y="'+(y+50)+'" text-anchor="middle" font-size="11" fill="#64748b">'+sub+'</text></g>';
+  }
+  function line(x1,y1,x2,y2){
+    return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="#9aa6b6" stroke-width="1.4" marker-end="url(#a)"/>';
+  }
+  function label(x,y,text){
+    return '<text x="'+x+'" y="'+y+'" font-size="11" fill="#64748b">'+text+'</text>';
+  }
+  function panel(x,y,w,h){
+    const rows=[
+      ['O01','运行参数','入口：列表 / 详情 / 编辑 · 运行','条件：default-params 非空','确认：POST /runs → P05'],
+      ['O03','删除确认','入口：列表 · 删除','确认：DELETE /pipelines/{id} → 刷新列表'],
+      ['O04','取消运行','入口：运行详情 · 取消','确认：POST cancel → 刷新运行'],
+      ['O05','放弃修改','入口：编辑 · 取消（有改动）','确认：返回列表'],
+      ['O02','日志抽屉','入口：运行详情 · 全程 / 阶段 / 任务','关闭：X / 遮罩 / Esc']
+    ];
+    let out='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="12" fill="#ffffff" stroke="#d7dee8"/>'
+      +'<text x="'+(x+20)+'" y="'+(y+32)+'" font-size="15" font-weight="600" fill="#1f2937">弹窗触发逻辑</text>'
+      +'<text x="'+(x+20)+'" y="'+(y+52)+'" font-size="11" fill="#94a3b8">入口 / 条件 / 确认后的行为</text>';
+    rows.forEach(function(r,i){
+      const ry=y+80+i*116;
+      out+='<rect x="'+(x+20)+'" y="'+(ry-14)+'" width="42" height="20" rx="4" fill="#fff8e6" stroke="#ecd9a4"/>'
+        +'<text x="'+(x+26)+'" y="'+ry+'" font-size="10" fill="#8a6d1f">'+r[0]+'</text>'
+        +'<text x="'+(x+72)+'" y="'+ry+'" font-size="13" font-weight="600" fill="#1f2937">'+r[1]+'</text>'
+        +'<text x="'+(x+20)+'" y="'+(ry+24)+'" font-size="11" fill="#64748b">'+r[2]+'</text>'
+        +'<text x="'+(x+20)+'" y="'+(ry+44)+'" font-size="11" fill="#64748b">'+r[3]+'</text>'
+        +'<text x="'+(x+20)+'" y="'+(ry+64)+'" font-size="11" fill="#64748b">'+(r[4]||'')+'</text>';
+    });
+    out+='<text x="'+(x+20)+'" y="'+(y+h-20)+'" font-size="11" fill="#94a3b8">点击页面上对应控件可验证弹窗</text>';
+    return out;
+  }
+}
+
+/* ============================================================
+   路由与绑定
+   ============================================================ */
+function render(){
+  const hash = location.hash.replace(/^#\/?/,'') || 'list';
+  const parts = hash.split('/');
+  const screen = parts[0];
+  let html;
+  if (screen==='detail') html = renderDetail(parts[1]);
+  else if (screen==='editor') html = renderEditor(parts[1]);
+  else if (screen==='history') html = renderHistory(parts[1]);
+  else if (screen==='run') html = renderRun(parts[1], parts[2]);
+  else if (screen==='flow') html = renderFlow();
+  else html = renderList();
+  document.getElementById('app').innerHTML = html;
+  bind();
+}
+function bind(){
+  const search = document.getElementById('list-search');
+  if (search) {
+    search.addEventListener('input', function(){
+      const needle = search.value.trim().toLowerCase();
+      document.querySelectorAll('tr[data-row]').forEach(function(tr){
+        tr.style.display = !needle || tr.dataset.text.toLowerCase().indexOf(needle)>=0 ? '' : 'none';
+      });
+    });
+  }
+  const filter = document.getElementById('list-filter');
+  if (filter) {
+    filter.addEventListener('click', function(e){
+      const btn = e.target.closest('button[data-filter]');
+      if (!btn) return;
+      filter.querySelectorAll('button').forEach(function(b){ b.classList.toggle('active', b===btn); });
+      const f = btn.dataset.filter;
+      document.querySelectorAll('tr[data-row]').forEach(function(tr){
+        tr.style.display = f==='all' || tr.dataset.status===f ? '' : 'none';
+      });
+    });
+  }
+  const runStatus = document.getElementById('run-status');
+  if (runStatus) {
+    runStatus.addEventListener('change', function(){
+      const map = {'全部':'', '运行中':'RUNNING', '成功':'SUCCEEDED', '失败':'FAILED', '排队中':'QUEUED', '待审批':'WAITING_APPROVAL', '已取消':'CANCELLED'};
+      const wanted = map[runStatus.value] || '';
+      document.querySelectorAll('tr[data-run]').forEach(function(tr){
+        tr.style.display = !wanted || tr.dataset.status===wanted ? '' : 'none';
+      });
+    });
+  }
+}
+document.addEventListener('click', function(e){
+  const target = e.target;
+  const toastBtn = target.closest('[data-toast]');
+  const closeBtn = target.closest('[data-close]');
+  const go = target.closest('[data-go]');
+  const overlayBtn = target.closest('[data-overlay]');
+  const job = target.closest('[data-job]');
+  const action = target.closest('[data-action]');
+
+  if (closeBtn) { ui.overlay=''; render(); return; }
+  if (go) {
+    ui.overlay='';
+    location.hash = go.dataset.go;
+    render();
+    if (toastBtn) showToast(toastBtn.dataset.toast);
+    return;
+  }
+  if (overlayBtn) {
+    ui.overlay = overlayBtn.dataset.overlay;
+    if (overlayBtn.dataset.focus) ui.logFocus = overlayBtn.dataset.focus;
+    render();
+    return;
+  }
+  if (toastBtn) { showToast(toastBtn.dataset.toast); return; }
+  if (action) {
+    const a = action.dataset.action;
+    if (a==='theme') { document.body.classList.toggle('dark'); return; }
+    if (a==='start-run') { ui.overlay=''; location.hash='#/run/1/128'; render(); return; }
+    if (a==='add-task') { ui.addMode = true; render(); return; }
+    if (a==='close-add') { ui.addMode = false; render(); return; }
+    return;
+  }
+  if (job) { ui.selectedJob = job.dataset.job; ui.addMode=false; render(); return; }
+});
+window.addEventListener('hashchange', render);
+function showToast(text){
+  const frame = document.querySelector('.frame');
+  if (!frame) return;
+  const old = frame.querySelector('.toast'); if (old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = text;
+  frame.appendChild(el);
+  setTimeout(function(){ if (el.parentNode) el.remove(); }, 2200);
+}
+render();
+</script>
+</body>
+</html>
