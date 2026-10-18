@@ -1,8 +1,9 @@
 # AI 协作前端规范
 
-> 日期：2026-10-12
-> 版本：v0.5
+> 日期：2026-10-18
+> 版本：v0.6
 > 状态：强制。Agent 写前端代码前必须遵守；执行摘要在 `AGENTS.md`「前端」一节。
+> 前置门禁：[prototype-first-standard.md](./prototype-first-standard.md) v0.1。页面类需求先冻结高保真原型，再写代码。
 > 视觉真相：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.8；落地范围：[frontend-style-unification-plan.md](./frontend-style-unification-plan.md) v0.10；组件用法：[shared-ui-patterns.md](./shared-ui-patterns.md)
 
 ### 变更记录
@@ -14,12 +15,15 @@
 | v0.3 | 2026-10-07 | 新 UI 必须使用全局 CSS 变量与共享 token；主色为冷蓝；禁止模块私有主题 |
 | v0.4 | 2026-10-07 | 新列表/详情/状态/日志必须用 `components/console` 共享模式，禁止私有表格皮肤 |
 | v0.5 | 2026-10-12 | 强制指向样式规范 v0.8 与统一 Plan：token、`components/console`、禁止硬编码色和私有表格皮肤；补 tabular-nums 与信息层级 |
+| v0.6 | 2026-10-18 | 增加原型先行门禁：页面类需求须先完成并冻结高保真原型，再进入实现；补「动手前」第 0 步与禁止项 |
 
 ---
 
 ## 1. 结论
 
 适合和 AI 一起改的前端，组件源码在仓库里，样式是可预测的工具类，类型检查给模型当反馈回路。
+
+**原型先行是本节的前置条件。** 新增或改版页面必须先按 [prototype-first-standard.md](./prototype-first-standard.md) 产出高保真可点击原型并通过评审冻结；没有冻结原型，不得开始写页面代码。
 
 | 场景 | 强制栈 |
 |------|--------|
@@ -98,6 +102,7 @@ components.json
 
 - 禁止 Vue，以及 Element Plus、Ant Design、naive-ui 等封闭组件库。
 - 禁止 CSS-in-JS（styled-components、Emotion）和除 Tailwind 以外的第二套原子化 CSS。
+- 禁止跳过原型直接写页面，或实现阶段静默偏离冻结原型。原型门禁见 [prototype-first-standard.md](./prototype-first-standard.md)。
 - 禁止把基础组件封进私有运行时黑盒。视觉定制改仓库里的组件源码和 CSS 变量。
 - 禁止在业务代码里堆裸十六进制颜色和各写各的间距。先用全局主题 token。业务页不要写 `#hex`，也不要写 `bg-blue-500` 这类非状态字典的色阶来充当主色或用量色。
 - 禁止私有表格皮肤、私有状态色和另一套详情 Tab 壳。用 `components/console` 里的共享模式。新列表走 `DataTable`，不要再包一层自己的 `Table` 密度。
@@ -107,6 +112,7 @@ components.json
 
 ## 6. Agent 动手前
 
+0. 确认功能目录下已有冻结的高保真原型（`prototype/index.html`、`prototype-spec.json`、`shots/`、评审记录）。没有就先做原型，不要写页面代码。
 1. 读 `frontend/components.json`，确认别名、图标库和已安装组件。
 2. 缺基础组件时用 `npx shadcn@latest add <name>`，再在业务组件里组合。
 3. 改完跑 `tsc --noEmit`。

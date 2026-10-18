@@ -1,7 +1,7 @@
 # 产品原型索引
 
-> 日期：2026-10-17
-> 版本：v0.1
+> 日期：2026-10-18
+> 版本：v0.2
 > 状态：部分完成
 > 数据来源：`docs/pipeline/prototype/`、`docs/pipeline/pipeline-management-ui-prototype.md`、`docs/pipeline/pipeline-management-prototype-spec.md`
 
@@ -10,6 +10,7 @@
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：现有原型入口、截图清单与待建清单 |
+| v0.2 | 2026-10-18 | 原型规范改为引用 `docs/frontend/prototype-first-standard.md`，明确新增页面必须先冻结原型 |
 
 ---
 
@@ -55,15 +56,16 @@
 | 图片处理 | 无 | 待建 |
 | 工作台 / 产品切换器 | 无 | 待建 |
 
-## 3. 原型规范建议
+## 3. 原型规范
 
-新增模块原型时沿用流水线原型的做法：
+新增或改版页面统一遵守 [前端原型先行规范](../../frontend/prototype-first-standard.md)：
 
-1. 单文件 `index.html`，可直接打开；
-2. 关键页面输出 1440×900 @2x 截图到 `shots/`；
-3. 同步提供 `README.md`（页面清单、交互说明、Figma 导入/连线表）；
+1. 先写 `prototype-spec.json` / `prototype-spec.md`，再生成单文件可点击 `index.html`；
+2. 关键页面与状态输出 1440×900 @2x 截图到 `shots/`；
+3. 同步提供 `README.md`（页面清单、路由、状态参数、画板清单、评审与冻结记录）；
 4. 原型与 [feature-catalog.md](../02-features/feature-catalog.md) 的功能项一一对应；
-5. 原型中的路由与 `frontend/src/router.tsx` 保持一致，避免“原型有、实现无”。
+5. 原型中的路由与 `frontend/src/router.tsx` 保持一致，避免“原型有、实现无”；
+6. 原型评审冻结后才能进入测试用例与编码，冻结后修改必须升版并重新评审。
 
 ## 4. 待确认
 

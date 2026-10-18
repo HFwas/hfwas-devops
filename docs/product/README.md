@@ -1,7 +1,7 @@
 # HFWAS DevOps 产品文档总索引
 
 > 日期：2026-10-18
-> 版本：v0.3
+> 版本：v0.4
 > 状态：首批（骨架 + 核心内容）
 > 适用范围：HFWAS DevOps 全部 8 个已上线子系统
 > 数据来源：`README.md`、`frontend/src/router.tsx`、`frontend/src/shared/console/products.ts`、`backend/*/controller`、`backend/*/src/main/resources/db/*.sql`
@@ -13,6 +13,7 @@
 | v0.1 | 2026-10-17 | 初版：建立产品文档体系、总索引、文档状态与缺口看板 |
 | v0.2 | 2026-10-18 | 更新缺口看板：流水线接口文档与 Postman 已完成 |
 | v0.3 | 2026-10-18 | 新增数据库文档规范入口 `03-database/database-documentation-standard.md` |
+| v0.4 | 2026-10-18 | 新增前端原型先行规范入口 `docs/frontend/prototype-first-standard.md` |
 
 ---
 
@@ -62,6 +63,7 @@
 | [api-module-matrix.md](04-api/api-module-matrix.md) | 模块 × 前缀 × Controller × 文档/Postman 覆盖矩阵 |
 | [test-spec.md](05-testing/test-spec.md) | 用例编号、优先级、环境、准入准出与自动化映射 |
 | [prototype-index.md](06-prototype/prototype-index.md) | 现有原型入口与待建清单 |
+| [prototype-first-standard.md](../frontend/prototype-first-standard.md) | 前端原型先行规范：原型规格、可点击原型、状态矩阵、评审冻结与实现对齐 |
 | [architecture.md](07-operations/architecture.md) | 系统架构、模块划分、部署拓扑与数据流 |
 | [deployment-ops.md](07-operations/deployment-ops.md) | 本地/Helm/集群部署与运维索引 |
 | [third-party-integrations.md](07-operations/third-party-integrations.md) | Keycloak、K8s、Tekton、Harbor 等集成清单 |

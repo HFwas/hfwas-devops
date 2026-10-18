@@ -1,7 +1,7 @@
 # Agent instructions
 
-> 日期：2026-10-17
-> 版本：v0.20
+> 日期：2026-10-18
+> 版本：v0.22
 
 ### 变更记录
 
@@ -27,6 +27,8 @@
 | v0.18 | 2026-10-17 | docs 索引新增产品文档体系入口 `docs/product/README.md`（总览 / 功能 / 数据库 / 接口 / 测试 / 原型 / 运维） |
 | v0.19 | 2026-10-18 | 新增「数据库文档」规范：四节结构、10 列数据字典、ER/枚举/JSON/迁移要求 |
 | v0.20 | 2026-10-18 | 提交门禁：CI 与 PR 必须执行测试，禁止 `-Dmaven.test.skip=true` / `-DskipTests` 跳过主流程测试 |
+| v0.21 | 2026-10-18 | 新增「前端原型先行」门禁：页面类需求必须先出高保真可点击原型与原型规格，评审冻结后才允许实现；规范见 `docs/frontend/prototype-first-standard.md` |
+| v0.22 | 2026-10-18 | 新增功能目录 `progress.md`：每轮 AI 协作必须追加进度记录，规范见 `docs/superpowers/features/README.md` |
 
 ---
 
@@ -55,13 +57,13 @@ HFWAS DevOps：从 0 到 1 的 DevOps 平台。后端 Spring Boot 3 / Java 21。
 | PM 工作流演进 | `docs/evolution/` |
 | 后端架构 / API / 库表 | `docs/backend/` |
 | 接口文档（Markdown + Postman） | 既有模块见「接口变更」一节；新模块 `docs/api/<module>/` |
-| 前端 | `docs/frontend/`；强制规范 `docs/frontend/ai-collaboration-frontend.md` |
+| 前端 | `docs/frontend/`；强制规范 `docs/frontend/ai-collaboration-frontend.md`、`docs/frontend/prototype-first-standard.md` |
 | 文件解析 / OCR | `docs/file-parser/` |
 | 文档生成 | `docs/docgen/` |
 | 图片处理 | `docs/image/` |
 | API 测试平台 | `docs/api-test/` |
 | 测试 / 进度 / 安全 | `docs/general/` |
-| 设计稿与实现计划 | `docs/superpowers/` |
+| 设计稿与实现计划 | `docs/superpowers/`；功能目录规范与 `progress.md` 见 `docs/superpowers/features/README.md` |
 | 交付运维平台 | `docs/superpowers/specs/2026-09-16-delivery-ops-platform-design.md`（**独立产品**，禁止在本仓库 `backend/` `frontend/` 落地） |
 | 云游 / 交付研究 | `docs/research/` |
 
@@ -81,14 +83,18 @@ HFWAS DevOps：从 0 到 1 的 DevOps 平台。后端 Spring Boot 3 / Java 21。
 
 适用于新增功能、新模块，以及跨 3 个以上文件的改动。单文件小修、错别字、纯配置调整可以跳过，但要在回复里说明为什么跳过。
 
-**每个功能新建一个独立目录，三份文档全部放在该目录内，不要拆到不同顶层目录**：
+**每个功能新建一个独立目录，功能文档、进度日志与原型全部放在该目录内，不要拆到不同顶层目录**：
 
 ```text
 docs/superpowers/features/YYYYMMDD-<feature>/
 ├── design.md       # 功能设计文档
 ├── test-cases.md   # 测试用例文档（长期维护）
-└── changes.md      # 代码变更文档
+├── changes.md      # 代码变更文档
+├── progress.md     # AI 协作进度日志（每轮追加）
+└── prototype/      # 前端页面类功能：高保真原型
 ```
+
+**每轮 AI 协作结束必须向 `progress.md` 追加一条记录。** 轮次定义、模板与状态词表见 `docs/superpowers/features/README.md`。要求：当场追加、不等到功能完成；只追加不改历史；写清状态、变更文件、**真实执行过的**验证结果、决策与理由、偏差与假设、下一步唯一动作。用户只读该文件就应知道当前进展。
 
 目录名前缀为 `YYYYMMDD`，其余部分用英文短横线（如 `20261017-dependabot-integration`）。历史 `docs/superpowers/specs/`、`docs/superpowers/plans/` 下的文档保持不动，新功能不再使用这些平铺目录。
 
@@ -96,23 +102,29 @@ docs/superpowers/features/YYYYMMDD-<feature>/
 
 1. **先写功能设计文档**：`design.md`
    - 背景与目标、范围 / 非目标、接口与数据结构、关键流程、异常与边界、兼容性与迁移、验收标准。
-2. **再写测试用例文档**：`test-cases.md`
+2. **前端页面类功能：先做高保真原型**（强制，见 `docs/frontend/prototype-first-standard.md`）
+   - 在功能目录下新建 `prototype/`，先写 `prototype-spec.json` / `prototype-spec.md`，再生成单文件可点击 `index.html` 与 1440×900 @2x 画板。
+   - 必须覆盖默认、空态、加载、失败、无权限、校验失败等状态，并让每个状态可通过 URL 直达。
+   - 原型评审通过并在 `prototype/README.md` 记录冻结版本后，才能进入测试用例与编码。
+   - 没有冻结原型不得开始写页面代码；“先写代码再补原型图”视为未完成。
+3. **再写测试用例文档**：`test-cases.md`
    - 每条用例带编号，写清前置条件、步骤、输入、预期结果。
    - 必须覆盖正常路径、边界值、异常 / 失败路径；标明对应的自动化测试位置（`文件::测试名`），无法自动化的写手工验证步骤。
    - 这是长期维护的文档：需求变更时**先改测试用例文档，再改代码**。
-3. **再写代码变更文档**：`changes.md`
+4. **再写代码变更文档**：`changes.md`
    - 开工前先列骨架：计划新增 / 修改的文件，以及每处改动对应设计文档的哪一节。
    - 实施过程中补全实际改动，并记录所有**计划外偏差**及原因。
-4. **然后才开始写代码**：按测试用例实现，同步补自动化测试；测试用例文档里标注的位置必须真实存在。
-5. **实施完成后做两项校验**：
-   - **用 Agent 工具新开一个独立 agent**（全新上下文，不继承当前实现过程），把三份文档 + 当前分支 diff 一起交给它。
+5. **然后才开始写代码**：按测试用例实现，同步补自动化测试；测试用例文档里标注的位置必须真实存在。
+6. **每轮追加进度日志**：每轮 AI 协作结束，当场向 `progress.md` 追加一条记录（状态、变更文件、真实验证结果、决策、偏差、下一步唯一动作），格式见 `docs/superpowers/features/README.md`。不要等全部做完再补。
+7. **实施完成后做两项校验**：
+   - **用 Agent 工具新开一个独立 agent**（全新上下文，不继承当前实现过程），把 `design.md`、`test-cases.md`、`changes.md`、`progress.md`、原型产物 + 当前分支 diff 一起交给它。
    - 让它检查两件事：
      a. **文档一致性**：功能设计文档 ↔ 代码变更文档 ↔ 实际 diff 是否一致，列出漏做、多做、行为与设计不符的地方；
      b. **测试验证**：按测试用例文档逐条执行，确认全部通过。
    - 校验结论写回代码变更文档的「校验结果」一节：通过 / 失败、差异清单、失败用例与原因。
    - 有差异或有用例不通过 → 修复后重新校验；**未重新校验不得声称功能完成**。
 
-三份文档同样遵守下面「文档」一节的版本号与变更记录要求。
+`design.md`、`test-cases.md`、`changes.md` 同样遵守下面「文档」一节的版本号与变更记录要求；`progress.md` 的 `版本` 表示记录格式版本，内容按轮次追加，不因每轮递增。
 
 ## 接口变更：必须同步维护接口文档
 
@@ -273,7 +285,18 @@ Docker 容器访问宿主机代理用 `host.docker.internal:7890`，不要把 `1
 
 ## 前端
 
-写任何前端代码前，先读 `docs/frontend/ai-collaboration-frontend.md` 并遵守本节。与通用知识冲突时，以该文档为准。
+写任何前端代码前，先读 `docs/frontend/ai-collaboration-frontend.md` 与 `docs/frontend/prototype-first-standard.md` 并遵守本节。与通用知识冲突时，以这两份文档为准。
+
+### 原型先行（强制）
+
+任何新增或改版的前端页面，必须先有高保真原型，再进入测试用例与编码。
+
+1. **交付物**：功能目录下的 `prototype/index.html`（单文件可点击）、`prototype-spec.json`、`prototype-spec.md`、`shots/*.png`（1440×900 @2x）、`README.md`（路由、状态参数、画板清单、评审记录）。
+2. **技术要求**：零外部依赖、hash 路由、`state` / `overlay` / `capture` 查询参数、与生产一致的语义 token、亮暗主题、真实感中文数据。
+3. **状态覆盖**：默认、空态、加载、失败、无权限、表单校验失败、大数据量、长文本、危险操作确认。
+4. **评审冻结**：产品、前端、测试按规范第 9 节评审；冻结版本与提交写入 `prototype/README.md`。冻结后修改必须升版并重新评审。
+5. **实现对齐**：`changes.md` 记录「原型 → 路由 → 实现文件 → 共享组件」映射；视觉差异走截图对比并记录偏差；独立 agent 校验时逐页逐状态对照冻结原型。
+6. **豁免**：单文件小修、纯样式修复、纯后端改动可跳过，但必须在回复与 `changes.md` 中说明理由。
 
 ### 新建前端（默认，强制）
 
