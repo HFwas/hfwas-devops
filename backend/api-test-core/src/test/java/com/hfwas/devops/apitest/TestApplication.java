@@ -1,6 +1,7 @@
 package com.hfwas.devops.apitest;
 
 import org.mybatis.spring.annotation.MapperScan;
+import org.redisson.spring.starter.RedissonAutoConfigurationV2;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
@@ -12,7 +13,7 @@ import org.springframework.context.annotation.ComponentScan;
  *
  * @author hfwas
  */
-@SpringBootApplication
+@SpringBootApplication(exclude = RedissonAutoConfigurationV2.class)
 @ComponentScan("com.hfwas.devops.apitest")
 @MapperScan("com.hfwas.devops.apitest.**.mapper")
 public class TestApplication {
