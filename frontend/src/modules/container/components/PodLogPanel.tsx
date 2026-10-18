@@ -4,6 +4,7 @@ import { LogPanel, type ConnectionState } from '@/components/console/LogPanel'
 import { Button } from '@/components/ui/button'
 import { podApi } from '@/modules/container/api/pod'
 import { downloadTextFile, logDownloadName, tokenizeLog } from '@/modules/container/pod-log/session'
+import { TENANT_ID_KEY } from '@/modules/user/types'
 import { getToken } from '@/shared/keycloak'
 
 const TONE_CLASS = {
@@ -61,6 +62,13 @@ export function PodLogPanel({
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
       const params = new URLSearchParams({ namespace, pod: name })
       if (container) params.set('container', container)
+      const tenantId = localStorage.getItem(TENANT_ID_KEY)
+      if (!tenantId) {
+        setConnection('disconnected')
+        setLive('请先在右上角选择租户后再查看日志')
+        return
+      }
+      params.set('tenantId', tenantId)
       ws = new WebSocket(
         `${proto}//${location.host}/api/ws/container/logs/${clusterId}?${params.toString()}`,
         [token],

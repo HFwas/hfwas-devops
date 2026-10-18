@@ -1,0 +1,205 @@
+{
+  "info": {
+    "name": "HFWAS API Test — P0 isolation",
+    "_postman_id": "hfwas-apitest-p0-isolation",
+    "description": "API 测试平台 P0 项目隔离变更。userId 已移除，身份来自 Bearer token；跨项目返回 403 + code=20002。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8089/api" },
+    { "key": "token", "value": "" },
+    { "key": "tenantId", "value": "" },
+    { "key": "projectId", "value": "1001" },
+    { "key": "definitionId", "value": "2001" },
+    { "key": "groupId", "value": "3001" },
+    { "key": "collectionId", "value": "4001" },
+    { "key": "environmentId", "value": "5001" }
+  ],
+  "item": [
+    {
+      "name": "Definitions",
+      "item": [
+        {
+          "name": "Page definitions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/apitest/definitions/page?projectId={{projectId}}&pageNo=1&pageSize=20", "host": ["{{baseUrl}}"], "path": ["apitest", "definitions", "page"], "query": [{ "key": "projectId", "value": "{{projectId}}" }, { "key": "pageNo", "value": "1" }, { "key": "pageSize", "value": "20" }] }
+          },
+          "response": [
+            {
+              "name": "200 正常",
+              "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/apitest/definitions/page" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"records\":[],\"total\":0},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 跨项目",
+              "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/apitest/definitions/page" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        },
+        {
+          "name": "Get definition",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/apitest/definitions/{{definitionId}}", "host": ["{{baseUrl}}"], "path": ["apitest", "definitions", "{{definitionId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/apitest/definitions/{{definitionId}}" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"id\":2001,\"projectId\":1001,\"name\":\"登录接口\"},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 跨项目", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/apitest/definitions/{{definitionId}}" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Groups",
+      "item": [
+        {
+          "name": "Get group detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/apitest/groups/{{groupId}}", "host": ["{{baseUrl}}"], "path": ["apitest", "groups", "{{groupId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/apitest/groups/{{groupId}}" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"id\":3001,\"projectId\":1001,\"name\":\"用户模块\"},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 跨项目", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/apitest/groups/{{groupId}}" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Collections & Environments",
+      "item": [
+        {
+          "name": "Page collections",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/apitest/collections/page?pageNo=1&pageSize=20", "host": ["{{baseUrl}}"], "path": ["apitest", "collections", "page"], "query": [{ "key": "pageNo", "value": "1" }, { "key": "pageSize", "value": "20" }] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/apitest/collections/page" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"records\":[],\"total\":0},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "401 未登录", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/apitest/collections/page" } },
+              "status": "Unauthorized", "code": 401, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":11001,\"msg\":\"未登录或登录已过期\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        },
+        {
+          "name": "Get environment",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/apitest/environments/{{environmentId}}", "host": ["{{baseUrl}}"], "path": ["apitest", "environments", "{{environmentId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/apitest/environments/{{environmentId}}" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"id\":5001,\"projectId\":1001,\"variables\":{\"baseUrl\":\"https://api.example.com\"}},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 跨项目", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/apitest/environments/{{environmentId}}" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Debug & History",
+      "item": [
+        {
+          "name": "Execute debug request",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/apitest/debug/execute", "host": ["{{baseUrl}}"], "path": ["apitest", "debug", "execute"] },
+            "body": { "mode": "raw", "raw": "{\"projectId\": {{projectId}}, \"url\": \"https://httpbin.org/get\", \"method\": \"GET\", \"environmentId\": {{environmentId}}}" }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/apitest/debug/execute" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"status\":200,\"durationMs\":18},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 环境跨项目", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/apitest/debug/execute" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        },
+        {
+          "name": "Page debug histories",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/apitest/debug-histories/page?projectId={{projectId}}&keyword=登录&pageNo=1&pageSize=20", "host": ["{{baseUrl}}"], "path": ["apitest", "debug-histories", "page"], "query": [{ "key": "projectId", "value": "{{projectId}}" }, { "key": "keyword", "value": "登录" }, { "key": "pageNo", "value": "1" }, { "key": "pageSize", "value": "20" }] }
+          },
+          "response": [
+            {
+              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/apitest/debug-histories/page" } },
+              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":0,\"msg\":null,\"data\":{\"records\":[],\"total\":0},\"requestId\":\"a1b2c3d4\"}"
+            },
+            {
+              "name": "403 跨项目", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/apitest/debug-histories/page" } },
+              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

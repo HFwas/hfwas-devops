@@ -1,7 +1,7 @@
 # 接口总览与通用约定
 
-> 日期：2026-10-17
-> 版本：v0.1
+> 日期：2026-10-18
+> 版本：v0.2
 > 状态：已完成
 > 数据来源：`backend/server/src/main/resources/application.yml`、`SecurityConfig.java`、`BaseResult.java`、`ResultCode.java`、`RequestIdFilter.java`、`RequestIdResponseAdvice.java`、`ExceptionAdvice.java`、`frontend/vite.config.ts`
 
@@ -10,6 +10,7 @@
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：基础地址、认证、统一响应、错误码、分页、鉴权白名单与文档缺口 |
+| v0.2 | 2026-10-18 | P0 权限错误 HTTP 映射：11010/11006/12012/20002/30005/30202；补 401/403/404 约定 |
 
 ---
 
@@ -83,6 +84,24 @@
 | 23000–23999 | 模块 |
 
 > 流水线、容器、API 测试、Docgen、File Parser、Image 模块的错误码多复用通用段或使用模块内枚举（如 `ContainerErrorCode`），需按模块补充。
+
+### 3.1 P0 权限错误 HTTP 状态（2026-10-18）
+
+`ExceptionAdvice` 与 `TenantContextFilter` 已按 `ApiErrorWriter.resolveHttpStatus` 输出：
+
+| 场景 | code | HTTP |
+|------|------|------|
+| 未登录 | 11001 | 401 |
+| 租户上下文缺失 | 11010 | 401 |
+| 无效租户 ID / 角色 | 11006 / 12012 | 400 |
+| 缺少 projectId / typeCode | 20005 / 20006 | 400 |
+| 非租户成员 | 11005 | 403 |
+| 项目无权访问 | 20002 | 403 |
+| 集群/镜像仓库无权访问 | 30005 / 30202 | 403 |
+| 项目/事项/字段不存在 | 20001 / 21001 / 22003 | 404 |
+| 其它业务错误 | 原 code | 200 |
+
+---
 
 ## 4. 请求追踪
 

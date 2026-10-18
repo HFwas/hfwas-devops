@@ -3,7 +3,11 @@ package com.hfwas.devops.apitest.apidefine.service;
 import com.hfwas.devops.apitest.apidefine.dto.ApiDebugAssertionDTO;
 import com.hfwas.devops.apitest.apidefine.dto.ApiDebugExecuteDTO;
 import com.hfwas.devops.apitest.apidefine.dto.ApiDebugExtractDTO;
+import com.hfwas.devops.apitest.apidefine.entity.ApiDefinitionEntity;
+import com.hfwas.devops.apitest.apidefine.mapper.ApiDefinitionMapper;
 import com.hfwas.devops.apitest.apidefine.vo.ApiDebugResultVO;
+import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.common.security.ApiTestAccessGuard;
 import com.hfwas.devops.apitest.debugger.assertion.AssertionExecutor;
 import com.hfwas.devops.apitest.debugger.engine.HttpDebugEngine;
 import com.hfwas.devops.apitest.debugger.extract.VariableExtractor;
@@ -13,8 +17,11 @@ import com.hfwas.devops.apitest.debugger.script.PostResponseScriptExecutor;
 import com.hfwas.devops.apitest.debugger.script.PreRequestScriptExecutor;
 import com.hfwas.devops.apitest.debugger.script.ScriptSandbox;
 import com.hfwas.devops.apitest.debugger.variable.VariableRenderer;
+import com.hfwas.devops.apitest.environment.entity.EnvironmentEntity;
 import com.hfwas.devops.apitest.environment.service.EnvironmentService;
 import com.hfwas.devops.apitest.history.service.DebugHistoryService;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,16 +59,40 @@ public class ApiDebugService {
     private final VariableExtractor variableExtractor;
     private final EnvironmentService environmentService;
     private final DebugHistoryService debugHistoryService;
+    private final ApiDefinitionMapper definitionMapper;
+    private final ApiTestAccessGuard accessGuard;
 
     /**
      * 执行接口调试
      *
-     * @param dto    调试请求参数
-     * @param userId 执行用户ID
+     * @param dto 调试请求参数
      * @return 调试结果
      */
-    public ApiDebugResultVO execute(ApiDebugExecuteDTO dto, Long userId) {
+    public ApiDebugResultVO execute(ApiDebugExecuteDTO dto) {
         log.info("开始执行调试: url={}, method={}, envId={}", dto.getUrl(), dto.getMethod(), dto.getEnvironmentId());
+        accessGuard.assertProject(dto.getProjectId());
+
+        // 关联接口定义必须与调试项目一致
+        if (dto.getDefinitionId() != null) {
+            ApiDefinitionEntity definition = definitionMapper.selectById(dto.getDefinitionId());
+            if (definition == null) {
+                throw new ApiTestException("接口定义不存在");
+            }
+            if (!java.util.Objects.equals(definition.getProjectId(), dto.getProjectId())) {
+                throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+            }
+        }
+
+        // 关联环境必须与调试项目一致
+        if (dto.getEnvironmentId() != null) {
+            EnvironmentEntity environment = environmentService.getById(dto.getEnvironmentId());
+            if (environment == null) {
+                throw new ApiTestException("环境不存在");
+            }
+            if (!java.util.Objects.equals(environment.getProjectId(), dto.getProjectId())) {
+                throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+            }
+        }
 
         // ===== 1. 获取环境变量 =====
         Map<String, String> environmentVariables = getEnvironmentVariables(dto.getEnvironmentId());
@@ -106,7 +137,7 @@ public class ApiDebugService {
         debugResult.setExtractedVariables(extractedVariables);
 
         // ===== 8. 保存调试历史 =====
-        Long historyId = debugHistoryService.save(debugResult, dto, userId);
+        Long historyId = debugHistoryService.save(debugResult, dto);
 
         // ===== 9. 转换为 VO 返回 =====
         return toResultVO(debugResult, historyId);

@@ -58,17 +58,15 @@ public class EnvironmentController {
     @Operation(summary = "创建环境")
     @PostMapping
     public BaseResult<EnvironmentDetailVO> create(@Valid @RequestBody EnvironmentCreateDTO dto,
-                                                   @RequestParam Long projectId,
-                                                   @RequestParam Long userId) {
-        return BaseResult.ok(environmentService.create(dto, projectId, userId));
+                                                   @RequestParam Long projectId) {
+        return BaseResult.ok(environmentService.create(dto, projectId));
     }
 
     @Operation(summary = "更新环境")
     @PutMapping("/{id}")
     public BaseResult<EnvironmentDetailVO> update(@PathVariable Long id,
-                                                   @Valid @RequestBody EnvironmentUpdateDTO dto,
-                                                   @RequestParam Long userId) {
-        return BaseResult.ok(environmentService.update(id, dto, userId));
+                                                   @Valid @RequestBody EnvironmentUpdateDTO dto) {
+        return BaseResult.ok(environmentService.update(id, dto));
     }
 
     @Operation(summary = "删除环境")

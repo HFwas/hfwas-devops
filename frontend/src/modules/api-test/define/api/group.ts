@@ -11,12 +11,12 @@ export const apiGroupApi = {
   detail: (id: number) => get<ApiGroupVO>(`/apitest/groups/${id}`),
 
   /** 创建分组 */
-  create: (data: ApiGroupCreateDTO, userId: number) =>
-    post<ApiGroupVO>(`/apitest/groups?userId=${userId}`, data),
+  create: (data: ApiGroupCreateDTO) =>
+    post<ApiGroupVO>('/apitest/groups', data),
 
   /** 更新分组 */
-  update: (id: number, data: ApiGroupUpdateDTO, userId: number) =>
-    request.put<BaseResult<ApiGroupVO>>(`/apitest/groups/${id}?userId=${userId}`, data)
+  update: (id: number, data: ApiGroupUpdateDTO) =>
+    request.put<BaseResult<ApiGroupVO>>(`/apitest/groups/${id}`, data)
       .then(res => res.data.data),
 
   /** 删除分组 */

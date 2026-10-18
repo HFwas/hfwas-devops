@@ -1,8 +1,11 @@
 package com.hfwas.devops.pm.module.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.pm.module.entity.PmProjectModule;
 import com.hfwas.devops.pm.module.mapper.PmProjectModuleMapper;
+import com.hfwas.devops.pm.project.service.ProjectService;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemMapper;
 import lombok.RequiredArgsConstructor;
@@ -19,13 +22,16 @@ public class ProjectModuleService {
 
     private final PmProjectModuleMapper moduleMapper;
     private final PmWorkItemMapper workItemMapper;
+    private final ProjectService projectService;
 
     public List<PmProjectModule> listTree(Long projectId) {
+        projectService.assertProjectAccess(projectId);
         List<PmProjectModule> all = listEnabledByProject(projectId);
         return buildTree(all);
     }
 
     public List<PmProjectModule> listFlat(Long projectId) {
+        projectService.assertProjectAccess(projectId);
         List<PmProjectModule> all = listEnabledByProject(projectId);
         Map<Long, PmProjectModule> byId = all.stream()
                 .collect(Collectors.toMap(PmProjectModule::getId, m -> m, (a, b) -> a, LinkedHashMap::new));
@@ -41,6 +47,19 @@ public class ProjectModuleService {
     public Long save(PmProjectModule module) {
         if (module.getProjectId() == null) {
             throw new IllegalArgumentException("项目不能为空");
+        }
+        if (module.getId() == null) {
+            projectService.assertProjectAccess(module.getProjectId());
+        } else {
+            PmProjectModule old = moduleMapper.selectById(module.getId());
+            if (old == null) {
+                throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+            }
+            projectService.assertProjectAccess(old.getProjectId());
+            if (!module.getProjectId().equals(old.getProjectId())) {
+                throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+            }
+            module.setProjectId(old.getProjectId());
         }
         if (StringUtils.isBlank(module.getName())) {
             throw new IllegalArgumentException("模块名称不能为空");
@@ -79,8 +98,9 @@ public class ProjectModuleService {
     public void delete(Long id) {
         PmProjectModule module = moduleMapper.selectById(id);
         if (module == null) {
-            throw new IllegalArgumentException("模块不存在或已删除");
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
         }
+        projectService.assertProjectAccess(module.getProjectId());
         Long childCount = moduleMapper.selectCount(Wrappers.<PmProjectModule>lambdaQuery()
                 .eq(PmProjectModule::getParentId, id));
         if (childCount != null && childCount > 0) {

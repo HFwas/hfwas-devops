@@ -15,11 +15,16 @@ import com.hfwas.devops.container.mapper.HelmChartRepositoryMapper;
 import com.hfwas.devops.container.service.cluster.ClusterService;
 import com.hfwas.devops.container.service.cluster.KubeconfigCipher;
 import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.user.entity.SysUser;
+import com.hfwas.devops.user.security.AuthUserPrincipal;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -77,6 +82,23 @@ class HelmReleaseServiceTest {
                 new HelmReleaseProperties(),
                 artifactMapper,
                 repositoryMapper);
+        authenticate(1L, 0L);
+    }
+
+    @AfterEach
+    void clearSecurity() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private static void authenticate(long userId, long tenantId) {
+        SysUser user = new SysUser();
+        user.setId(userId);
+        user.setUsername("tester");
+        user.setRole("user");
+        user.setEnabled(1);
+        AuthUserPrincipal principal = new AuthUserPrincipal(user, tenantId);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
     }
 
     @Test
@@ -389,7 +411,7 @@ class HelmReleaseServiceTest {
         cluster.setId(4L);
         cluster.setStatus("Disconnected");
         cluster.setKubeconfig(cipher.encrypt("apiVersion: v1\n"));
-        when(clusterService.getById(eq(4L), isNull())).thenReturn(cluster);
+        when(clusterService.getById(eq(4L), eq(0L))).thenReturn(cluster);
 
         BizException ex = assertThrows(BizException.class, () -> service.list(4L, null));
         assertEquals(ContainerErrorCode.CLUSTER_NOT_CONNECTED.getCode(), ex.getCode());
@@ -402,7 +424,7 @@ class HelmReleaseServiceTest {
         cluster.setTenantId(0L);
         cluster.setStatus("Connected");
         cluster.setKubeconfig(cipher.encrypt("apiVersion: v1\nkind: Config\n# " + MARKER + "\n"));
-        when(clusterService.getById(eq(4L), isNull())).thenReturn(cluster);
+        when(clusterService.getById(eq(4L), eq(0L))).thenReturn(cluster);
     }
 
     private static HelmChartArtifactEntity artifact() {

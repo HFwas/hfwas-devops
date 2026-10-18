@@ -31,7 +31,7 @@ public class ClusterController {
         int pageNo = params.get("pageNo") != null ? Integer.parseInt(params.get("pageNo").toString()) : 1;
         int pageSize = params.get("pageSize") != null ? Integer.parseInt(params.get("pageSize").toString()) : 10;
         String keyword = params.get("keyword") != null ? params.get("keyword").toString() : null;
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         IPage<ClusterEntity> page = clusterService.page(pageNo, pageSize, tenantId, keyword);
         IPage<ClusterVO> voPage = page.convert(this::toVO);
         return BaseResult.ok(voPage);
@@ -39,7 +39,7 @@ public class ClusterController {
 
     @GetMapping("/{id}")
     public BaseResult<ClusterVO> getById(@PathVariable Long id) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         ClusterEntity entity = clusterService.getById(id, tenantId);
         return BaseResult.ok(toVO(entity));
     }
@@ -47,7 +47,7 @@ public class ClusterController {
     @PostMapping
     public BaseResult<Long> create(@Valid @RequestBody ClusterSaveDTO dto) {
         ClusterEntity entity = new ClusterEntity();
-        entity.setTenantId(SecurityHelper.currentTenantId());
+        entity.setTenantId(SecurityHelper.requireTenantId());
         entity.setName(dto.getName());
         entity.setAlias(dto.getAlias());
         entity.setProvider(dto.getProvider());
@@ -65,7 +65,7 @@ public class ClusterController {
 
     @PutMapping("/{id}")
     public BaseResult<Void> update(@PathVariable Long id, @RequestBody ClusterUpdateDTO dto) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         ClusterEntity entity = new ClusterEntity();
         entity.setId(id);
         entity.setAlias(dto.getAlias());
@@ -84,21 +84,21 @@ public class ClusterController {
 
     @DeleteMapping("/{id}")
     public BaseResult<Void> delete(@PathVariable Long id) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         clusterService.delete(id, tenantId);
         return BaseResult.ok();
     }
 
     @PostMapping("/{id}/test")
     public BaseResult<Boolean> testConnection(@PathVariable Long id) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         boolean ok = clusterService.testConnection(id, tenantId);
         return BaseResult.ok(ok);
     }
 
     @GetMapping("/{id}/stats")
     public BaseResult<ClusterStatsVO> stats(@PathVariable Long id) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         ClusterService.ClusterStats s = clusterService.stats(id, tenantId);
         ClusterStatsVO vo = new ClusterStatsVO();
         vo.setNodeCount(s.nodeCount());
@@ -113,7 +113,7 @@ public class ClusterController {
 
     @GetMapping("/{id}/components")
     public BaseResult<ClusterComponentVO> components(@PathVariable Long id) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(clusterService.getComponents(id, tenantId));
     }
 

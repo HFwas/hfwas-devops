@@ -6,6 +6,7 @@ import com.hfwas.devops.pm.field.model.ProjectFieldSchemeExport;
 import com.hfwas.devops.pm.field.model.TypeFieldSchemeExport;
 import com.hfwas.devops.pm.meta.PmWorkItemType;
 import com.hfwas.devops.pm.meta.PmWorkItemTypeMapper;
+import com.hfwas.devops.pm.project.service.ProjectService;
 import com.hfwas.devops.pm.scheme.model.*;
 import com.hfwas.devops.pm.scheme.spi.IssueTypeSchemeContributor;
 import com.hfwas.devops.pm.scheme.spi.IssueTypeSchemeContributorRegistry;
@@ -24,8 +25,10 @@ public class IssueTypeSchemeService {
 
     private final IssueTypeSchemeContributorRegistry contributorRegistry;
     private final PmWorkItemTypeMapper workItemTypeMapper;
+    private final ProjectService projectService;
 
     public IssueTypeSchemeExport exportTypeScheme(Long projectId, String typeCode) {
+        projectService.assertProjectAccess(projectId);
         validateTypeCode(typeCode);
         IssueTypeSchemeExport export = new IssueTypeSchemeExport();
         export.setTypeCode(typeCode);
@@ -41,6 +44,7 @@ public class IssueTypeSchemeService {
         if (projectId == null) {
             throw new IllegalArgumentException("projectId 不能为空");
         }
+        projectService.assertProjectAccess(projectId);
         List<PmWorkItemType> types = workItemTypeMapper.selectList(
                 Wrappers.<PmWorkItemType>lambdaQuery()
                         .eq(PmWorkItemType::getEnabled, 1)
@@ -55,6 +59,7 @@ public class IssueTypeSchemeService {
 
     public IssueTypeSchemeImportPreview previewTypeImport(Long projectId, String typeCode,
                                                           IssueTypeSchemeExport payload) {
+        projectService.assertProjectAccess(projectId);
         IssueTypeSchemeExport normalized = normalizePayload(payload);
         validateTypePayload(normalized);
         IssueTypeSchemeImportPreview preview = new IssueTypeSchemeImportPreview();
@@ -76,11 +81,12 @@ public class IssueTypeSchemeService {
     public IssueTypeSchemeImportResult importTypeScheme(Long projectId, String typeCode,
                                                         IssueTypeSchemeExport payload,
                                                         FieldSchemeImportMode mode) {
-        IssueTypeSchemeExport normalized = normalizePayload(payload);
-        validateTypePayload(normalized);
         if (projectId == null || StringUtils.isBlank(typeCode)) {
             throw new IllegalArgumentException("projectId 与 typeCode 不能为空");
         }
+        projectService.assertProjectAccess(projectId);
+        IssueTypeSchemeExport normalized = normalizePayload(payload);
+        validateTypePayload(normalized);
         IssueTypeSchemeImportResult result = new IssueTypeSchemeImportResult();
         result.setTypeCode(typeCode);
         for (IssueTypeSchemeContributor contributor : contributorRegistry.all()) {
@@ -96,6 +102,7 @@ public class IssueTypeSchemeService {
     public List<IssueTypeSchemeImportResult> importProjectSchemes(Long projectId,
                                                                   ProjectIssueTypeSchemeExport payload,
                                                                   FieldSchemeImportMode mode) {
+        projectService.assertProjectAccess(projectId);
         ProjectIssueTypeSchemeExport normalized = normalizeProjectPayload(payload);
         validateProjectPayload(normalized);
         List<IssueTypeSchemeImportResult> results = new ArrayList<>();

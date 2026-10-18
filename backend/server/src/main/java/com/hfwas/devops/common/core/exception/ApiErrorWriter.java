@@ -6,6 +6,7 @@ import com.hfwas.devops.common.core.requestid.RequestIdHolder;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ErrorCode;
 import com.hfwas.devops.common.error.ResultCode;
+import com.hfwas.devops.container.error.ContainerErrorCode;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -53,19 +54,32 @@ public class ApiErrorWriter {
     }
 
     public HttpStatus resolveHttpStatus(int code) {
-        if (code == ResultCode.UNAUTHORIZED.getCode()) {
+        if (code == ResultCode.UNAUTHORIZED.getCode()
+                || code == ResultCode.TENANT_CONTEXT_MISSING.getCode()) {
             return HttpStatus.UNAUTHORIZED;
+        }
+        if (code == ResultCode.TENANT_ID_INVALID.getCode()
+                || code == ResultCode.INVALID_TENANT_ROLE.getCode()
+                || code == ResultCode.PROJECT_ID_REQUIRED.getCode()
+                || code == ResultCode.PROJECT_TYPE_CODE_REQUIRED.getCode()) {
+            return HttpStatus.BAD_REQUEST;
         }
         if (code == ResultCode.FORBIDDEN.getCode()
                 || code == ResultCode.TENANT_FORBIDDEN.getCode()
                 || code == ResultCode.ADMIN_REQUIRED.getCode()
-                || code == ResultCode.PLATFORM_ADMIN_REQUIRED.getCode()) {
+                || code == ResultCode.PLATFORM_ADMIN_REQUIRED.getCode()
+                || code == ResultCode.PROJECT_ACCESS_DENIED.getCode()
+                || code == ContainerErrorCode.CLUSTER_FORBIDDEN.getCode()
+                || code == ContainerErrorCode.REGISTRY_FORBIDDEN.getCode()) {
             return HttpStatus.FORBIDDEN;
         }
         if (code == ResultCode.NOT_FOUND.getCode()
                 || code == ResultCode.PROJECT_NOT_FOUND.getCode()
+                || code == ResultCode.WORK_ITEM_NOT_FOUND.getCode()
+                || code == ResultCode.FIELD_NOT_FOUND.getCode()
                 || code == ResultCode.USER_NOT_FOUND.getCode()
-                || code == ResultCode.TENANT_NOT_FOUND.getCode()) {
+                || code == ResultCode.TENANT_NOT_FOUND.getCode()
+                || code == ContainerErrorCode.CLUSTER_NOT_FOUND.getCode()) {
             return HttpStatus.NOT_FOUND;
         }
         return HttpStatus.OK;

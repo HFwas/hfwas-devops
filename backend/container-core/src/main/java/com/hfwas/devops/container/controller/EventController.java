@@ -21,7 +21,7 @@ public class EventController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @RequestParam(required = false) String uid) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.listEvents(clusterId, namespace, uid, tenantId));
     }
 }

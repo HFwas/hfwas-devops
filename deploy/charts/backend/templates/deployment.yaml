@@ -125,7 +125,7 @@ spec:
             - name: DOCGEN_OUTPUT_DIR
               value: {{ .Values.config.docgenOutputDir | quote }}
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:sqlite:{{ .Values.persistence.mountPath }}/hfwas-devops.db"
+              value: "jdbc:sqlite:{{ .Values.persistence.mountPath }}/hfwas-devops.db?busy_timeout=5000"
             - name: LOGGING_CONFIG
               value: "file:{{ .Values.config.logbackPath | default "/app/config/logback-spring.xml" }}"
             - name: JAVA_TOOL_OPTIONS

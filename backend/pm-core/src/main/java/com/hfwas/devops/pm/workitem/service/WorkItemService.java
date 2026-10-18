@@ -5,7 +5,10 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.hfwas.devops.pm.field.engine.FieldValidator;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.field.service.FieldDefinitionService;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.pm.meta.PmMetaService;
+import com.hfwas.devops.pm.project.service.ProjectService;
 import com.hfwas.devops.pm.query.engine.QueryEngine;
 import com.hfwas.devops.pm.query.model.QuerySpec;
 import com.hfwas.devops.pm.spi.registry.WorkItemTypeRegistry;
@@ -48,26 +51,56 @@ public class WorkItemService {
     private final TransitionConditionEvaluator transitionConditionEvaluator;
     private final WorkItemFieldApplicator workItemFieldApplicator;
     private final PmMetaService metaService;
+    private final ProjectService projectService;
 
     public IPage<PmWorkItem> page(QuerySpec spec) {
-        IPage<PmWorkItem> page = queryEngine.execute(spec);
+        Long tenantId = currentUserAccessor.currentTenantId();
+        if (spec.getProjectId() != null) {
+            projectService.assertProjectAccess(spec.getProjectId());
+        } else if (tenantId == null) {
+            throw new BizException(ResultCode.TENANT_CONTEXT_MISSING);
+        }
+        IPage<PmWorkItem> page = queryEngine.execute(spec, tenantId);
         keyEnricher.enrich(page);
         return page;
     }
 
     public PmWorkItem getById(Long id) {
         PmWorkItem item = workItemMapper.selectById(id);
+        if (item == null) {
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+        }
+        projectService.assertProjectAccess(item.getProjectId());
         keyEnricher.enrich(item);
         return item;
     }
 
     @Transactional
     public Long save(PmWorkItem item) {
-        List<FieldDefinition> definitions = fieldDefinitionService.listByProjectAndType(item.getProjectId(), item.getTypeCode());
+        PmWorkItem old = null;
+        if (item.getId() == null) {
+            if (item.getProjectId() == null) {
+                throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+            }
+            projectService.assertProjectAccess(item.getProjectId());
+        } else {
+            old = workItemMapper.selectById(item.getId());
+            if (old == null) {
+                throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+            }
+            projectService.assertProjectAccess(old.getProjectId());
+            if (item.getProjectId() != null && !item.getProjectId().equals(old.getProjectId())) {
+                throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+            }
+            item.setProjectId(old.getProjectId());
+        }
+
+        List<FieldDefinition> definitions = fieldDefinitionService.listByProjectAndType(
+                item.getProjectId(), item.getTypeCode());
         Map<String, Object> normalized = fieldValidator.validateAndNormalize(item, definitions);
         item.setCustomFields(normalized);
 
-        if (item.getId() == null) {
+        if (old == null) {
             metaService.assertTypeUsableInProject(item.getProjectId(), item.getTypeCode());
             typeRegistry.get(item.getTypeCode()).ifPresent(p -> p.validateOnCreate(item));
             if (item.getStatus() == null || item.getStatus().isBlank()) {
@@ -78,9 +111,9 @@ public class WorkItemService {
             notifyAssigneeIfChanged(new PmWorkItem(), item);
             activityService.recordCreate(item);
         } else {
-            PmWorkItem old = workItemMapper.selectById(item.getId());
-            typeRegistry.get(item.getTypeCode()).ifPresent(p -> p.validateOnUpdate(old, item));
-            if (old != null && item.getStatus() != null && !item.getStatus().equals(old.getStatus())) {
+            final PmWorkItem existing = old;
+            typeRegistry.get(item.getTypeCode()).ifPresent(p -> p.validateOnUpdate(existing, item));
+            if (item.getStatus() != null && !item.getStatus().equals(old.getStatus())) {
                 throw new IllegalArgumentException("请通过 transition API 变更状态（需指定 transitionId）");
             }
             workItemMapper.updateById(item);
@@ -103,8 +136,9 @@ public class WorkItemService {
         }
         PmWorkItem old = workItemMapper.selectById(id);
         if (old == null) {
-            throw new IllegalArgumentException("Work item not found");
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
         }
+        projectService.assertProjectAccess(old.getProjectId());
         PmWorkItem before = snapshot(old);
         String fromStatus = before.getStatus();
         statusDefinitionService.validateTransition(
@@ -133,11 +167,23 @@ public class WorkItemService {
     }
 
     public void delete(Long id) {
+        PmWorkItem item = workItemMapper.selectById(id);
+        if (item == null) {
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+        }
+        projectService.assertProjectAccess(item.getProjectId());
         workItemMapper.deleteById(id);
     }
 
     @Transactional
     public Long addLink(Long sourceId, Long targetId, String linkType) {
+        PmWorkItem source = workItemMapper.selectById(sourceId);
+        PmWorkItem target = workItemMapper.selectById(targetId);
+        if (source == null || target == null) {
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+        }
+        projectService.assertProjectAccess(source.getProjectId());
+        projectService.assertProjectAccess(target.getProjectId());
         PmWorkItemLink link = new PmWorkItemLink();
         link.setSourceId(sourceId);
         link.setTargetId(targetId);
@@ -148,12 +194,27 @@ public class WorkItemService {
     }
 
     public List<PmWorkItemLink> listLinks(Long workItemId) {
+        PmWorkItem item = workItemMapper.selectById(workItemId);
+        if (item == null) {
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+        }
+        projectService.assertProjectAccess(item.getProjectId());
         return linkMapper.selectList(Wrappers.<PmWorkItemLink>lambdaQuery()
                 .eq(PmWorkItemLink::getSourceId, workItemId)
                 .or(w -> w.eq(PmWorkItemLink::getTargetId, workItemId)));
     }
 
     public List<PmWorkItem> listByStatus(Long projectId, String typeCode, String status) {
+        projectService.assertProjectAccess(projectId);
+        return listByStatusInternal(projectId, typeCode, status);
+    }
+
+    /** Board entry: caller has already asserted project access once. */
+    public List<PmWorkItem> listByStatusForBoard(Long projectId, String typeCode, String status) {
+        return listByStatusInternal(projectId, typeCode, status);
+    }
+
+    private List<PmWorkItem> listByStatusInternal(Long projectId, String typeCode, String status) {
         List<PmWorkItem> items = workItemMapper.selectList(Wrappers.<PmWorkItem>lambdaQuery()
                 .eq(PmWorkItem::getProjectId, projectId)
                 .eq(PmWorkItem::getTypeCode, typeCode)

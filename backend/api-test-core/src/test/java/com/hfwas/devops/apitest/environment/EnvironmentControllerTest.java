@@ -210,22 +210,9 @@ class EnvironmentControllerTest extends BaseApiTest {
         }
 
         @Test
-        @DisplayName("缺少 userId 请求参数应返回业务错误码")
-        void missingUserIdShouldReturnBadRequest() throws Exception {
-            EnvironmentCreateDTO dto = buildCreateDTO("测试环境", 1, null);
-
-            mockMvc.perform(post(BASE_URL)
-                            .param("projectId", String.valueOf(testProjectId()))
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(toJson(dto)))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(10002));
-        }
-
-        @Test
         @DisplayName("同一项目下创建同名环境应返回业务错误码")
         void duplicateNameShouldReturnBusinessError() throws Exception {
-            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
+            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId());
 
             EnvironmentCreateDTO duplicate = buildCreateDTO("测试环境", 2, null);
 
@@ -241,7 +228,7 @@ class EnvironmentControllerTest extends BaseApiTest {
         @Test
         @DisplayName("不同项目下创建同名环境应成功")
         void sameNameInDifferentProjectsShouldSucceed() throws Exception {
-            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
+            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId());
 
             EnvironmentCreateDTO dto = buildCreateDTO("测试环境", 1, null);
 
@@ -295,7 +282,7 @@ class EnvironmentControllerTest extends BaseApiTest {
         @DisplayName("更新环境名称应返回 200 和更新后的数据")
         void updateNameShouldReturnOk() throws Exception {
             EnvironmentDetailVO created = environmentService.create(
-                    buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
+                    buildCreateDTO("测试环境", 1, null), testProjectId());
 
             EnvironmentUpdateDTO dto = buildUpdateDTO("测试环境V2", 2, "更新后的描述");
 
@@ -319,7 +306,7 @@ class EnvironmentControllerTest extends BaseApiTest {
             EnvironmentCreateDTO createDTO = buildCreateDTO("测试环境", 1, null);
             createDTO.setVariables(Collections.singletonList(
                     buildVariableDTO("OLD_VAR", "old-value", false, 1)));
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             EnvironmentUpdateDTO dto = new EnvironmentUpdateDTO();
             dto.setVariables(Collections.singletonList(
@@ -345,7 +332,7 @@ class EnvironmentControllerTest extends BaseApiTest {
             EnvironmentCreateDTO createDTO = buildCreateDTO("测试环境", 1, null);
             createDTO.setVariables(Collections.singletonList(
                     buildVariableDTO("VAR", "value", false, 1)));
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             EnvironmentUpdateDTO dto = new EnvironmentUpdateDTO();
             dto.setVariables(Collections.emptyList());
@@ -378,9 +365,9 @@ class EnvironmentControllerTest extends BaseApiTest {
         @Test
         @DisplayName("更新为同一项目下已存在的同名环境应返回业务错误码")
         void updateToDuplicateNameShouldReturnBusinessError() throws Exception {
-            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
+            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId());
             EnvironmentDetailVO second = environmentService.create(
-                    buildCreateDTO("预发布环境", 2, null), testProjectId(), testUserId());
+                    buildCreateDTO("预发布环境", 2, null), testProjectId());
 
             EnvironmentUpdateDTO dto = buildUpdateDTO("测试环境", 1, null);
 
@@ -396,7 +383,7 @@ class EnvironmentControllerTest extends BaseApiTest {
         @DisplayName("更新为自身原名应成功")
         void updateToSameNameShouldSucceed() throws Exception {
             EnvironmentDetailVO created = environmentService.create(
-                    buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
+                    buildCreateDTO("测试环境", 1, null), testProjectId());
 
             EnvironmentUpdateDTO dto = buildUpdateDTO("测试环境", 1, "更新描述");
 
@@ -414,24 +401,10 @@ class EnvironmentControllerTest extends BaseApiTest {
         }
 
         @Test
-        @DisplayName("缺少 userId 请求参数应返回业务错误码")
-        void missingUserIdShouldReturnBadRequest() throws Exception {
-            EnvironmentDetailVO created = environmentService.create(
-                    buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
-            EnvironmentUpdateDTO dto = buildUpdateDTO("新名称", 1, null);
-
-            mockMvc.perform(put(BASE_URL + "/{id}", created.getId())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(toJson(dto)))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(10002));
-        }
-
-        @Test
         @DisplayName("空请求体应返回业务错误码")
         void emptyBodyShouldReturnBadRequest() throws Exception {
             EnvironmentDetailVO created = environmentService.create(
-                    buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
+                    buildCreateDTO("测试环境", 1, null), testProjectId());
 
             mockMvc.perform(put(BASE_URL + "/{id}", created.getId())
                             .param("userId", String.valueOf(testUserId()))
@@ -454,7 +427,7 @@ class EnvironmentControllerTest extends BaseApiTest {
         @DisplayName("删除存在环境应返回 200")
         void deleteExistingEnvironmentShouldReturnOk() throws Exception {
             EnvironmentDetailVO created = environmentService.create(
-                    buildCreateDTO("临时环境", 1, null), testProjectId(), testUserId());
+                    buildCreateDTO("临时环境", 1, null), testProjectId());
 
             mockMvc.perform(delete(BASE_URL + "/{id}", created.getId()))
                     .andExpect(status().isOk())
@@ -475,7 +448,7 @@ class EnvironmentControllerTest extends BaseApiTest {
             EnvironmentCreateDTO createDTO = buildCreateDTO("含变量环境", 1, null);
             createDTO.setVariables(Collections.singletonList(
                     buildVariableDTO("VAR", "value", false, 1)));
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             mockMvc.perform(delete(BASE_URL + "/{id}", created.getId()))
                     .andExpect(status().isOk())
@@ -486,7 +459,7 @@ class EnvironmentControllerTest extends BaseApiTest {
         @DisplayName("多次删除同一环境应返回业务错误码")
         void deleteSameEnvironmentTwiceShouldReturnBusinessError() throws Exception {
             EnvironmentDetailVO created = environmentService.create(
-                    buildCreateDTO("临时环境", 1, null), testProjectId(), testUserId());
+                    buildCreateDTO("临时环境", 1, null), testProjectId());
 
             // 第一次删除成功
             mockMvc.perform(delete(BASE_URL + "/{id}", created.getId()))
@@ -511,9 +484,9 @@ class EnvironmentControllerTest extends BaseApiTest {
         @Test
         @DisplayName("分页查询所有环境应返回全部记录")
         void pageQueryAllShouldReturnAllEnvironments() throws Exception {
-            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
-            environmentService.create(buildCreateDTO("预发布环境", 2, null), testProjectId(), testUserId());
-            environmentService.create(buildCreateDTO("生产环境", 3, null), testProjectId(), testUserId());
+            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId());
+            environmentService.create(buildCreateDTO("预发布环境", 2, null), testProjectId());
+            environmentService.create(buildCreateDTO("生产环境", 3, null), testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/page")
                             .param("projectId", String.valueOf(testProjectId())))
@@ -533,9 +506,9 @@ class EnvironmentControllerTest extends BaseApiTest {
         @Test
         @DisplayName("按关键词搜索应返回匹配结果")
         void filterByKeywordShouldReturnMatchingEnvironments() throws Exception {
-            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
-            environmentService.create(buildCreateDTO("预发布环境", 2, null), testProjectId(), testUserId());
-            environmentService.create(buildCreateDTO("生产环境", 3, null), testProjectId(), testUserId());
+            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId());
+            environmentService.create(buildCreateDTO("预发布环境", 2, null), testProjectId());
+            environmentService.create(buildCreateDTO("生产环境", 3, null), testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/page")
                             .param("projectId", String.valueOf(testProjectId()))
@@ -554,9 +527,9 @@ class EnvironmentControllerTest extends BaseApiTest {
         @Test
         @DisplayName("分页查询结果应按 sortOrder 升序排列")
         void pageQueryShouldBeOrderedBySortOrderAsc() throws Exception {
-            environmentService.create(buildCreateDTO("生产环境", 3, null), testProjectId(), testUserId());
-            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
-            environmentService.create(buildCreateDTO("预发布环境", 2, null), testProjectId(), testUserId());
+            environmentService.create(buildCreateDTO("生产环境", 3, null), testProjectId());
+            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId());
+            environmentService.create(buildCreateDTO("预发布环境", 2, null), testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/page")
                             .param("projectId", String.valueOf(testProjectId())))
@@ -577,9 +550,9 @@ class EnvironmentControllerTest extends BaseApiTest {
         @Test
         @DisplayName("分页查询应支持页码和每页条数")
         void pageQueryShouldSupportPagination() throws Exception {
-            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
-            environmentService.create(buildCreateDTO("预发布环境", 2, null), testProjectId(), testUserId());
-            environmentService.create(buildCreateDTO("生产环境", 3, null), testProjectId(), testUserId());
+            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId());
+            environmentService.create(buildCreateDTO("预发布环境", 2, null), testProjectId());
+            environmentService.create(buildCreateDTO("生产环境", 3, null), testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/page")
                             .param("projectId", String.valueOf(testProjectId()))
@@ -600,9 +573,9 @@ class EnvironmentControllerTest extends BaseApiTest {
         @Test
         @DisplayName("第二页应返回剩余记录")
         void secondPageShouldReturnRemaining() throws Exception {
-            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
-            environmentService.create(buildCreateDTO("预发布环境", 2, null), testProjectId(), testUserId());
-            environmentService.create(buildCreateDTO("生产环境", 3, null), testProjectId(), testUserId());
+            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId());
+            environmentService.create(buildCreateDTO("预发布环境", 2, null), testProjectId());
+            environmentService.create(buildCreateDTO("生产环境", 3, null), testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/page")
                             .param("projectId", String.valueOf(testProjectId()))
@@ -623,7 +596,7 @@ class EnvironmentControllerTest extends BaseApiTest {
         @Test
         @DisplayName("无匹配条件时应返回空列表")
         void noMatchShouldReturnEmptyPage() throws Exception {
-            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
+            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/page")
                             .param("projectId", String.valueOf(testProjectId()))
@@ -643,7 +616,7 @@ class EnvironmentControllerTest extends BaseApiTest {
         @Test
         @DisplayName("不同项目应返回各自的环境列表")
         void differentProjectsShouldReturnIndependentResults() throws Exception {
-            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
+            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/page")
                             .param("projectId", "2002"))
@@ -671,9 +644,9 @@ class EnvironmentControllerTest extends BaseApiTest {
         @Test
         @DisplayName("查询所有环境应返回全部记录，按 sortOrder 升序排列")
         void listAllShouldReturnAllEnvironmentsOrderedBySortOrder() throws Exception {
-            environmentService.create(buildCreateDTO("生产环境", 3, null), testProjectId(), testUserId());
-            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
-            environmentService.create(buildCreateDTO("预发布环境", 2, null), testProjectId(), testUserId());
+            environmentService.create(buildCreateDTO("生产环境", 3, null), testProjectId());
+            environmentService.create(buildCreateDTO("测试环境", 1, null), testProjectId());
+            environmentService.create(buildCreateDTO("预发布环境", 2, null), testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/list")
                             .param("projectId", String.valueOf(testProjectId())))
@@ -708,7 +681,7 @@ class EnvironmentControllerTest extends BaseApiTest {
         @Test
         @DisplayName("不同项目应返回各自独立的环境列表")
         void differentProjectsShouldReturnIndependentLists() throws Exception {
-            environmentService.create(buildCreateDTO("项目1环境", 1, null), testProjectId(), testUserId());
+            environmentService.create(buildCreateDTO("项目1环境", 1, null), testProjectId());
 
             mockMvc.perform(get(BASE_URL + "/list")
                             .param("projectId", String.valueOf(testProjectId())))
@@ -741,7 +714,7 @@ class EnvironmentControllerTest extends BaseApiTest {
         @DisplayName("查询存在的环境应返回完整详情")
         void getExistingEnvironmentShouldReturnDetail() throws Exception {
             EnvironmentDetailVO created = environmentService.create(
-                    buildCreateDTO("测试环境", 1, "用于接口功能测试"), testProjectId(), testUserId());
+                    buildCreateDTO("测试环境", 1, "用于接口功能测试"), testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/{id}", created.getId()))
                     .andExpect(status().isOk())
@@ -768,7 +741,7 @@ class EnvironmentControllerTest extends BaseApiTest {
             createDTO.setVariables(Arrays.asList(
                     buildVariableDTO("BASE_URL", "http://localhost:8080", false, 1),
                     buildVariableDTO("API_KEY", "sk-test-12345", true, 2)));
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/{id}", created.getId()))
                     .andExpect(status().isOk())
@@ -789,7 +762,7 @@ class EnvironmentControllerTest extends BaseApiTest {
             EnvironmentCreateDTO createDTO = buildCreateDTO("测试环境", 1, null);
             createDTO.setVariables(Collections.singletonList(
                     buildVariableDTO("API_KEY", "sk-test-12345", true, 1)));
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/{id}", created.getId()))
                     .andExpect(status().isOk())
@@ -811,7 +784,7 @@ class EnvironmentControllerTest extends BaseApiTest {
             EnvironmentCreateDTO createDTO = buildCreateDTO("测试环境", 1, null);
             createDTO.setVariables(Collections.singletonList(
                     buildVariableDTO("BASE_URL", "http://localhost:8080", false, 1)));
-            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId(), testUserId());
+            EnvironmentDetailVO created = environmentService.create(createDTO, testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/{id}", created.getId()))
                     .andExpect(status().isOk())
@@ -839,7 +812,7 @@ class EnvironmentControllerTest extends BaseApiTest {
         @DisplayName("多次查询同一环境应返回一致结果")
         void multipleQueriesShouldReturnConsistentResult() throws Exception {
             EnvironmentDetailVO created = environmentService.create(
-                    buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
+                    buildCreateDTO("测试环境", 1, null), testProjectId());
 
             MvcResult result1 = mockMvc.perform(get(BASE_URL + "/{id}", created.getId()))
                     .andExpect(status().isOk())
@@ -864,7 +837,7 @@ class EnvironmentControllerTest extends BaseApiTest {
         @DisplayName("无变量的环境详情中 variables 应返回空列表")
         void environmentWithoutVariablesShouldReturnEmptyList() throws Exception {
             EnvironmentDetailVO created = environmentService.create(
-                    buildCreateDTO("测试环境", 1, null), testProjectId(), testUserId());
+                    buildCreateDTO("测试环境", 1, null), testProjectId());
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/{id}", created.getId()))
                     .andExpect(status().isOk())

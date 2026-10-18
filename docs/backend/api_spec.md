@@ -2,7 +2,16 @@
 
 > 基础路径：`/api/apitest`
 > 响应格式：`BaseResult<T>` 统一包装
-> 日期：2026-08-28
+> 日期：2026-10-18
+> 版本：v0.2
+> 状态：生效
+
+### 变更记录
+
+| 版本 | 日期 | 变更说明 |
+|------|------|----------|
+| v0.1 | 2026-08-28 | 初版：分组/定义/环境/集合/调试/历史接口 |
+| v0.2 | 2026-10-18 | P0 隔离：删除客户端 userId 参数；列表按可见项目；补 401/403/404 契约；新增 Postman collection |
 
 ---
 
@@ -24,6 +33,25 @@
 | `data` | T | 业务数据 |
 | `requestId` | String | 请求追踪 ID，由 `RequestIdResponseAdvice` 自动注入 |
 
+### 1.1 P0 隔离与错误状态（2026-10-18）
+
+- 所有接口不再接受 `userId` query 参数；操作人由服务端从认证上下文解析。
+- 未指定 `projectId` 的列表接口只返回当前租户可见项目；可见项目为空时返回空页。
+- 跨项目读写、调试执行引用其他项目 `environmentId`/`definitionId`、集合运行引用其他项目 environment，统一返回 `403` + `code=20002`。
+- 未登录返回 `401` + `code=11001`；租户上下文缺失返回 `401` + `code=11010`；资源不存在返回 `404` + `code=20001/21001`。
+
+失败示例：
+
+```json
+{ "code": 20002, "msg": "项目不存在或无权访问", "data": null, "requestId": "a1b2c3d4" }
+```
+
+```json
+{ "code": 11010, "msg": "未登录或租户上下文缺失", "data": null, "requestId": "a1b2c3d4" }
+```
+
+Postman collection：`docs/backend/api_spec.postman_collection.json`。
+
 ---
 
 ## 二、分组管理 API
@@ -31,7 +59,7 @@
 ### 2.1 创建分组
 
 ```
-POST /api/apitest/groups?userId={userId}
+POST /api/apitest/groups
 ```
 
 **Request Body：**
@@ -69,7 +97,7 @@ POST /api/apitest/groups?userId={userId}
 ### 2.2 更新分组
 
 ```
-PUT /api/apitest/groups/{id}?userId={userId}
+PUT /api/apitest/groups/{id}
 ```
 
 **Request Body：**
@@ -264,7 +292,7 @@ GET /api/apitest/definitions/{id}
 ### 3.3 创建接口定义
 
 ```
-POST /api/apitest/definitions?userId={userId}
+POST /api/apitest/definitions
 ```
 
 **Request Body：**
@@ -313,7 +341,7 @@ POST /api/apitest/definitions?userId={userId}
 ### 3.4 更新接口定义
 
 ```
-PUT /api/apitest/definitions/{id}?userId={userId}
+PUT /api/apitest/definitions/{id}
 ```
 
 **Request Body：** 同创建接口，但不含 `projectId`。
@@ -330,9 +358,9 @@ DELETE /api/apitest/definitions/{id}
 
 | 操作 | API | 说明 |
 |------|-----|------|
-| 发布 | `POST /api/apitest/definitions/{id}/publish?userId={userId}` | DRAFT → PUBLISHED |
-| 废弃 | `POST /api/apitest/definitions/{id}/deprecate?userId={userId}` | PUBLISHED → DEPRECATED |
-| 恢复草稿 | `POST /api/apitest/definitions/{id}/revert-draft?userId={userId}` | PUBLISHED/DEPRECATED → DRAFT |
+| 发布 | `POST /api/apitest/definitions/{id}/publish` | DRAFT → PUBLISHED |
+| 废弃 | `POST /api/apitest/definitions/{id}/deprecate` | PUBLISHED → DEPRECATED |
+| 恢复草稿 | `POST /api/apitest/definitions/{id}/revert-draft` | PUBLISHED/DEPRECATED → DRAFT |
 
 ---
 
@@ -520,7 +548,7 @@ GET /api/apitest/environments/{id}
 ### 5.4 创建环境
 
 ```
-POST /api/apitest/environments?projectId={projectId}&userId={userId}
+POST /api/apitest/environments?projectId={projectId}
 ```
 
 **Request Body：**
@@ -551,7 +579,7 @@ POST /api/apitest/environments?projectId={projectId}&userId={userId}
 ### 5.5 更新环境
 
 ```
-PUT /api/apitest/environments/{id}?userId={userId}
+PUT /api/apitest/environments/{id}
 ```
 
 **Request Body：** 同创建，不含 `projectId`。
@@ -646,7 +674,7 @@ DELETE /api/apitest/debug-histories/batch?ids=1,2,3
 ### 7.1 创建集合
 
 ```
-POST /api/apitest/collections?projectId={projectId}&userId={userId}
+POST /api/apitest/collections?projectId={projectId}
 ```
 
 **Request Body：**
@@ -679,7 +707,7 @@ POST /api/apitest/collections?projectId={projectId}&userId={userId}
 ### 7.2 更新集合
 
 ```
-PUT /api/apitest/collections/{id}?userId={userId}
+PUT /api/apitest/collections/{id}
 ```
 
 **Request Body：**
@@ -805,7 +833,7 @@ GET /api/apitest/collections/{id}
 ### 7.6 创建文件夹
 
 ```
-POST /api/apitest/collections/{collectionId}/folders?userId={userId}
+POST /api/apitest/collections/{collectionId}/folders
 ```
 
 **Request Body：**
@@ -821,7 +849,7 @@ POST /api/apitest/collections/{collectionId}/folders?userId={userId}
 ### 7.7 更新文件夹
 
 ```
-PUT /api/apitest/collections/{collectionId}/folders/{folderId}?userId={userId}
+PUT /api/apitest/collections/{collectionId}/folders/{folderId}
 ```
 
 ### 7.8 删除文件夹
@@ -839,7 +867,7 @@ GET /api/apitest/collections/{collectionId}/folders/tree
 ### 7.10 添加集合项
 
 ```
-POST /api/apitest/collections/{collectionId}/items?userId={userId}
+POST /api/apitest/collections/{collectionId}/items
 ```
 
 **Request Body：**
@@ -881,7 +909,7 @@ PUT /api/apitest/collections/{collectionId}/items/reorder
 ### 7.14 批量添加
 
 ```
-POST /api/apitest/collections/{collectionId}/items/batch?userId={userId}
+POST /api/apitest/collections/{collectionId}/items/batch
 ```
 
 **Request Body：**
@@ -1050,20 +1078,20 @@ DELETE /api/apitest/collections/runs/{runId}
 
 ```
 集合CRUD
-  POST   /api/apitest/collections?projectId={projectId}&userId={userId}    创建集合
-  PUT    /api/apitest/collections/{id}?userId={userId}                     更新集合
+  POST   /api/apitest/collections?projectId={projectId}    创建集合
+  PUT    /api/apitest/collections/{id}                     更新集合
   DELETE /api/apitest/collections/{id}                                     删除集合
   GET    /api/apitest/collections/page                                     分页查询集合列表
   GET    /api/apitest/collections/{id}                                     获取集合详情（含树形结构）
 
 文件夹CRUD
-  POST   /api/apitest/collections/{collectionId}/folders?userId={userId}   创建文件夹
-  PUT    /api/apitest/collections/{collectionId}/folders/{folderId}?userId={userId} 更新文件夹
+  POST   /api/apitest/collections/{collectionId}/folders   创建文件夹
+  PUT    /api/apitest/collections/{collectionId}/folders/{folderId} 更新文件夹
   DELETE /api/apitest/collections/{collectionId}/folders/{folderId}        删除文件夹
   GET    /api/apitest/collections/{collectionId}/folders/tree              获取文件夹树
 
 集合项管理
-  POST   /api/apitest/collections/{collectionId}/items?userId={userId}     添加集合项
+  POST   /api/apitest/collections/{collectionId}/items     添加集合项
   PUT    /api/apitest/collections/{collectionId}/items/{itemId}            更新集合项
   DELETE /api/apitest/collections/{collectionId}/items/{itemId}            删除集合项
   PUT    /api/apitest/collections/{collectionId}/items/reorder             重排序

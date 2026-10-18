@@ -1,5 +1,7 @@
 package com.hfwas.devops.container.service;
 
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.user.security.AuthUserPrincipal;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,6 +23,15 @@ public final class SecurityHelper {
             return principal.getLoginTenantId();
         }
         return null;
+    }
+
+    /** Tenant-scoped entry points must use this, never the nullable variant. */
+    public static Long requireTenantId() {
+        Long tenantId = currentTenantId();
+        if (tenantId == null) {
+            throw new BizException(ResultCode.TENANT_CONTEXT_MISSING);
+        }
+        return tenantId;
     }
 
     public static Long currentUserId() {

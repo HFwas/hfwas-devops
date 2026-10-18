@@ -19,12 +19,12 @@ export const apiDefinitionApi = {
   detail: (id: number | string) => get<ApiDefinitionDetailVO>(`/apitest/definitions/${id}`),
 
   /** 创建接口定义 */
-  create: (data: ApiDefinitionCreateDTO, userId: number) =>
-    post<ApiDefinitionDetailVO>(`/apitest/definitions?userId=${userId}`, data),
+  create: (data: ApiDefinitionCreateDTO) =>
+    post<ApiDefinitionDetailVO>('/apitest/definitions', data),
 
   /** 更新接口定义 */
-  update: (id: number, data: ApiDefinitionUpdateDTO, userId: number) =>
-    request.put<BaseResult<ApiDefinitionDetailVO>>(`/apitest/definitions/${id}?userId=${userId}`, data)
+  update: (id: number, data: ApiDefinitionUpdateDTO) =>
+    request.put<BaseResult<ApiDefinitionDetailVO>>(`/apitest/definitions/${id}`, data)
       .then(res => res.data.data),
 
   /** 删除接口定义 */
@@ -33,14 +33,14 @@ export const apiDefinitionApi = {
       .then(res => res.data.data),
 
   /** 发布接口（草稿→已发布） */
-  publish: (id: number | string, userId: number | string) =>
-    post<void>(`/apitest/definitions/${id}/publish?userId=${userId}`, {}),
+  publish: (id: number | string) =>
+    post<void>(`/apitest/definitions/${id}/publish`, {}),
 
   /** 废弃接口（已发布→已废弃） */
-  deprecate: (id: number | string, userId: number | string) =>
-    post<void>(`/apitest/definitions/${id}/deprecate?userId=${userId}`, {}),
+  deprecate: (id: number | string) =>
+    post<void>(`/apitest/definitions/${id}/deprecate`, {}),
 
   /** 恢复草稿（已发布/已废弃→草稿） */
-  revertDraft: (id: number | string, userId: number | string) =>
-    post<void>(`/apitest/definitions/${id}/revert-draft?userId=${userId}`, {}),
+  revertDraft: (id: number | string) =>
+    post<void>(`/apitest/definitions/${id}/revert-draft`, {}),
 }

@@ -5,8 +5,10 @@ import com.hfwas.devops.common.core.base.BaseResult;
 import com.hfwas.devops.common.core.requestid.RequestIdHolder;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ResultCode;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
@@ -19,36 +21,40 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 @Slf4j
+@RequiredArgsConstructor
 public class ExceptionAdvice {
 
+    private final ApiErrorWriter apiErrorWriter;
+
     @ExceptionHandler(BizException.class)
-    @ResponseStatus(HttpStatus.OK)
-    public BaseResult<Void> handleBizException(BizException e) {
+    public ResponseEntity<BaseResult<Void>> handleBizException(BizException e) {
         log.warn("[{}] {}", e.getCode(), e.getMessage());
-        return withRequestId(BaseResult.failed(e.getCode(), e.getMessage()));
+        return respond(e.getCode(), e.getMessage());
     }
 
     @ExceptionHandler(ApiTestException.class)
-    @ResponseStatus(HttpStatus.OK)
-    public BaseResult<Void> handleApiTestException(ApiTestException e) {
+    public ResponseEntity<BaseResult<Void>> handleApiTestException(ApiTestException e) {
         log.warn("[ApiTest] {}", e.getMessage());
-        return withRequestId(BaseResult.failed(e.getCode(), e.getMessage()));
+        return respond(e.getCode(), e.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.OK)
-    public BaseResult<Void> handleIllegalArgument(IllegalArgumentException e) {
+    public ResponseEntity<BaseResult<Void>> handleIllegalArgument(IllegalArgumentException e) {
         BizException biz = LegacyErrorCodeResolver.resolve(e);
         log.warn("[{}] {}", biz.getCode(), biz.getMessage());
-        return withRequestId(BaseResult.failed(biz.getCode(), biz.getMessage()));
+        return respond(biz.getCode(), biz.getMessage());
     }
 
     @ExceptionHandler(IllegalStateException.class)
-    @ResponseStatus(HttpStatus.OK)
-    public BaseResult<Void> handleIllegalState(IllegalStateException e) {
+    public ResponseEntity<BaseResult<Void>> handleIllegalState(IllegalStateException e) {
         BizException biz = LegacyErrorCodeResolver.resolve(e);
         log.warn("[{}] {}", biz.getCode(), biz.getMessage());
-        return withRequestId(BaseResult.failed(biz.getCode(), biz.getMessage()));
+        return respond(biz.getCode(), biz.getMessage());
+    }
+
+    private ResponseEntity<BaseResult<Void>> respond(int code, String message) {
+        return ResponseEntity.status(apiErrorWriter.resolveHttpStatus(code))
+                .body(withRequestId(BaseResult.failed(code, message)));
     }
 
     @ExceptionHandler(AuthenticationException.class)

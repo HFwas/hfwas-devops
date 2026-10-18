@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.common.security.ApiTestAccessGuard;
 import com.hfwas.devops.apitest.environment.dto.EnvironmentCreateDTO;
 import com.hfwas.devops.apitest.environment.dto.EnvironmentQueryDTO;
 import com.hfwas.devops.apitest.environment.dto.EnvironmentUpdateDTO;
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
 public class EnvironmentService extends ServiceImpl<EnvironmentMapper, EnvironmentEntity> {
 
     private final EnvironmentVariableMapper variableMapper;
+    private final ApiTestAccessGuard accessGuard;
 
     /**
      * 分页查询环境列表
@@ -46,7 +48,14 @@ public class EnvironmentService extends ServiceImpl<EnvironmentMapper, Environme
 
         LambdaQueryWrapper<EnvironmentEntity> wrapper = new LambdaQueryWrapper<>();
         if (query.getProjectId() != null) {
+            accessGuard.assertProject(query.getProjectId());
             wrapper.eq(EnvironmentEntity::getProjectId, query.getProjectId());
+        } else {
+            List<Long> accessibleProjectIds = accessGuard.accessibleProjectIds();
+            if (accessibleProjectIds.isEmpty()) {
+                return page.convert(entity -> new EnvironmentVO());
+            }
+            wrapper.in(EnvironmentEntity::getProjectId, accessibleProjectIds);
         }
         if (StrUtil.isNotBlank(query.getKeyword())) {
             wrapper.like(EnvironmentEntity::getName, query.getKeyword());
@@ -92,6 +101,7 @@ public class EnvironmentService extends ServiceImpl<EnvironmentMapper, Environme
      * 查询所有环境列表（不分页）
      */
     public List<EnvironmentVO> listAll(Long projectId) {
+        accessGuard.assertProject(projectId);
         List<EnvironmentEntity> entities = lambdaQuery()
                 .eq(EnvironmentEntity::getProjectId, projectId)
                 .orderByAsc(EnvironmentEntity::getSortOrder)
@@ -118,6 +128,7 @@ public class EnvironmentService extends ServiceImpl<EnvironmentMapper, Environme
         if (entity == null) {
             throw new ApiTestException("环境不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
 
         return buildDetailVO(entity);
     }
@@ -126,7 +137,9 @@ public class EnvironmentService extends ServiceImpl<EnvironmentMapper, Environme
      * 创建环境
      */
     @Transactional(rollbackFor = Exception.class)
-    public EnvironmentDetailVO create(EnvironmentCreateDTO dto, Long projectId, Long userId) {
+    public EnvironmentDetailVO create(EnvironmentCreateDTO dto, Long projectId) {
+        accessGuard.assertProject(projectId);
+
         // 校验环境名唯一性
         boolean exists = lambdaQuery()
                 .eq(EnvironmentEntity::getProjectId, projectId)
@@ -141,6 +154,7 @@ public class EnvironmentService extends ServiceImpl<EnvironmentMapper, Environme
         entity.setName(dto.getName());
         entity.setDescription(dto.getDescription());
         entity.setSortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : 0);
+        entity.setCreateBy(accessGuard.requireUserId());
         save(entity);
 
         // 保存变量
@@ -156,11 +170,12 @@ public class EnvironmentService extends ServiceImpl<EnvironmentMapper, Environme
      * 更新环境
      */
     @Transactional(rollbackFor = Exception.class)
-    public EnvironmentDetailVO update(Long id, EnvironmentUpdateDTO dto, Long userId) {
+    public EnvironmentDetailVO update(Long id, EnvironmentUpdateDTO dto) {
         EnvironmentEntity entity = getById(id);
         if (entity == null) {
             throw new ApiTestException("环境不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
 
         if (StrUtil.isNotBlank(dto.getName())) {
             // 校验环境名唯一性（排除自身）
@@ -202,6 +217,7 @@ public class EnvironmentService extends ServiceImpl<EnvironmentMapper, Environme
         if (entity == null) {
             throw new ApiTestException("环境不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
 
         // 删除变量
         variableMapper.delete(new LambdaQueryWrapper<EnvironmentVariableEntity>()
@@ -219,6 +235,12 @@ public class EnvironmentService extends ServiceImpl<EnvironmentMapper, Environme
         if (environmentId == null) {
             return Collections.emptyMap();
         }
+
+        EnvironmentEntity environment = getById(environmentId);
+        if (environment == null) {
+            throw new ApiTestException("环境不存在");
+        }
+        accessGuard.assertProject(environment.getProjectId());
 
         List<EnvironmentVariableEntity> variables = variableMapper.selectList(
                 new LambdaQueryWrapper<EnvironmentVariableEntity>()

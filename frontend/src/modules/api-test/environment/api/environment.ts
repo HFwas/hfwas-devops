@@ -18,12 +18,12 @@ export const environmentApi = {
     get<EnvironmentDetailVO>(`/apitest/environments/${id}`),
 
   /** 创建环境 */
-  create: (data: EnvironmentCreateDTO, projectId: number | string, userId: number | string) =>
-    post<EnvironmentDetailVO>(`/apitest/environments?projectId=${projectId}&userId=${userId}`, data),
+  create: (data: EnvironmentCreateDTO, projectId: number | string) =>
+    post<EnvironmentDetailVO>(`/apitest/environments?projectId=${projectId}`, data),
 
   /** 更新环境 */
-  update: (id: number, data: EnvironmentUpdateDTO, userId: number) =>
-    request.put<BaseResult<EnvironmentDetailVO>>(`/apitest/environments/${id}?userId=${userId}`, data)
+  update: (id: number, data: EnvironmentUpdateDTO) =>
+    request.put<BaseResult<EnvironmentDetailVO>>(`/apitest/environments/${id}`, data)
       .then(res => res.data.data),
 
   /** 删除环境 */

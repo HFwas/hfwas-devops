@@ -102,7 +102,7 @@ class ApiGroupControllerTest extends BaseApiTest {
         @DisplayName("创建子级分组应正确关联父级 ID")
         void createChildGroupShouldLinkParent() throws Exception {
             // 先创建父分组
-            ApiGroupVO parent = apiGroupService.create(buildCreateDTO("父分组", 1, "父分组"), testUserId());
+            ApiGroupVO parent = apiGroupService.create(buildCreateDTO("父分组", 1, "父分组"));
 
             ApiGroupCreateDTO child = new ApiGroupCreateDTO();
             child.setProjectId(testProjectId());
@@ -158,22 +158,10 @@ class ApiGroupControllerTest extends BaseApiTest {
         }
 
         @Test
-        @DisplayName("缺少 userId 请求参数应返回业务错误码")
-        void missingUserIdShouldReturnBadRequest() throws Exception {
-            ApiGroupCreateDTO dto = buildCreateDTO("用户管理", 1, null);
-
-            mockMvc.perform(post(BASE_URL)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(toJson(dto)))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(10002));
-        }
-
-        @Test
         @DisplayName("创建同级同名分组应返回业务错误码")
         void duplicateNameShouldReturnBusinessError() throws Exception {
             // 先创建一个分组
-            apiGroupService.create(buildCreateDTO("用户管理", 1, null), testUserId());
+            apiGroupService.create(buildCreateDTO("用户管理", 1, null));
 
             ApiGroupCreateDTO duplicate = buildCreateDTO("用户管理", 2, null);
 
@@ -219,7 +207,7 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("更新分组名称应返回 200 和更新后的数据")
         void updateNameShouldReturnOk() throws Exception {
-            ApiGroupVO created = apiGroupService.create(buildCreateDTO("用户管理", 1, null), testUserId());
+            ApiGroupVO created = apiGroupService.create(buildCreateDTO("用户管理", 1, null));
 
             ApiGroupUpdateDTO dto = buildUpdateDTO("用户管理V2", 2, "更新描述");
 
@@ -256,8 +244,8 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("更新为同级同名分组应返回业务错误码")
         void updateToDuplicateNameShouldReturnBusinessError() throws Exception {
-            apiGroupService.create(buildCreateDTO("用户管理", 1, null), testUserId());
-            ApiGroupVO second = apiGroupService.create(buildCreateDTO("订单管理", 2, null), testUserId());
+            apiGroupService.create(buildCreateDTO("用户管理", 1, null));
+            ApiGroupVO second = apiGroupService.create(buildCreateDTO("订单管理", 2, null));
 
             ApiGroupUpdateDTO dto = buildUpdateDTO("用户管理", 1, null);
 
@@ -272,7 +260,7 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("缺少必填字段(name)应返回业务错误码")
         void updateMissingNameShouldReturnBadRequest() throws Exception {
-            ApiGroupVO created = apiGroupService.create(buildCreateDTO("用户管理", 1, null), testUserId());
+            ApiGroupVO created = apiGroupService.create(buildCreateDTO("用户管理", 1, null));
 
             ApiGroupUpdateDTO dto = new ApiGroupUpdateDTO();
             dto.setSortOrder(1);
@@ -288,7 +276,7 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("空请求体应返回业务错误码")
         void updateEmptyBodyShouldReturnBadRequest() throws Exception {
-            ApiGroupVO created = apiGroupService.create(buildCreateDTO("用户管理", 1, null), testUserId());
+            ApiGroupVO created = apiGroupService.create(buildCreateDTO("用户管理", 1, null));
 
             mockMvc.perform(put(BASE_URL + "/{id}", created.getId())
                             .param("userId", String.valueOf(testUserId()))
@@ -298,18 +286,6 @@ class ApiGroupControllerTest extends BaseApiTest {
                     .andExpect(jsonPath("$.code").value(10002));
         }
 
-        @Test
-        @DisplayName("缺少 userId 请求参数应返回业务错误码")
-        void updateMissingUserIdShouldReturnBadRequest() throws Exception {
-            ApiGroupVO created = apiGroupService.create(buildCreateDTO("用户管理", 1, null), testUserId());
-            ApiGroupUpdateDTO dto = buildUpdateDTO("新名称", 1, null);
-
-            mockMvc.perform(put(BASE_URL + "/{id}", created.getId())
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(toJson(dto)))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(10002));
-        }
     }
 
     // ========================================================================
@@ -323,7 +299,7 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("删除无依赖分组应返回 200")
         void deleteGroupWithoutDependenciesShouldReturnOk() throws Exception {
-            ApiGroupVO created = apiGroupService.create(buildCreateDTO("临时分组", 1, null), testUserId());
+            ApiGroupVO created = apiGroupService.create(buildCreateDTO("临时分组", 1, null));
 
             mockMvc.perform(delete(BASE_URL + "/{id}", created.getId()))
                     .andExpect(status().isOk())
@@ -333,14 +309,14 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("删除存在子分组的分组应返回业务错误码")
         void deleteGroupWithChildrenShouldReturnBusinessError() throws Exception {
-            ApiGroupVO parent = apiGroupService.create(buildCreateDTO("父分组", 1, null), testUserId());
+            ApiGroupVO parent = apiGroupService.create(buildCreateDTO("父分组", 1, null));
 
             ApiGroupCreateDTO child = new ApiGroupCreateDTO();
             child.setProjectId(testProjectId());
             child.setParentId(parent.getId());
             child.setName("子分组");
             child.setSortOrder(1);
-            apiGroupService.create(child, testUserId());
+            apiGroupService.create(child);
 
             mockMvc.perform(delete(BASE_URL + "/{id}", parent.getId()))
                     .andExpect(status().isOk())
@@ -385,8 +361,8 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("仅有根级分组时应返回扁平列表")
         void onlyRootGroupsShouldReturnFlatList() throws Exception {
-            apiGroupService.create(buildCreateDTO("分组A", 1, null), testUserId());
-            apiGroupService.create(buildCreateDTO("分组B", 2, null), testUserId());
+            apiGroupService.create(buildCreateDTO("分组A", 1, null));
+            apiGroupService.create(buildCreateDTO("分组B", 2, null));
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/tree")
                             .param("projectId", String.valueOf(testProjectId())))
@@ -406,14 +382,14 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("多级分组应返回正确树形结构")
         void multiLevelGroupsShouldReturnTreeStructure() throws Exception {
-            ApiGroupVO root = apiGroupService.create(buildCreateDTO("根分组", 1, null), testUserId());
+            ApiGroupVO root = apiGroupService.create(buildCreateDTO("根分组", 1, null));
 
             ApiGroupCreateDTO child = new ApiGroupCreateDTO();
             child.setProjectId(testProjectId());
             child.setParentId(root.getId());
             child.setName("子分组");
             child.setSortOrder(1);
-            apiGroupService.create(child, testUserId());
+            apiGroupService.create(child);
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/tree")
                             .param("projectId", String.valueOf(testProjectId())))
@@ -437,9 +413,9 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("分组树应按 sortOrder 升序排列")
         void treeShouldBeOrderedBySortOrder() throws Exception {
-            apiGroupService.create(buildCreateDTO("分组B", 3, null), testUserId());
-            apiGroupService.create(buildCreateDTO("分组A", 1, null), testUserId());
-            apiGroupService.create(buildCreateDTO("分组C", 2, null), testUserId());
+            apiGroupService.create(buildCreateDTO("分组B", 3, null));
+            apiGroupService.create(buildCreateDTO("分组A", 1, null));
+            apiGroupService.create(buildCreateDTO("分组C", 2, null));
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/tree")
                             .param("projectId", String.valueOf(testProjectId())))
@@ -462,13 +438,13 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("不同项目应返回各自独立的树")
         void differentProjectsShouldReturnIndependentTrees() throws Exception {
-            apiGroupService.create(buildCreateDTO("项目1分组", 1, null), testUserId());
+            apiGroupService.create(buildCreateDTO("项目1分组", 1, null));
 
             ApiGroupCreateDTO otherProject = new ApiGroupCreateDTO();
             otherProject.setProjectId(2002L);
             otherProject.setName("项目2分组");
             otherProject.setSortOrder(1);
-            apiGroupService.create(otherProject, testUserId());
+            apiGroupService.create(otherProject);
 
             mockMvc.perform(get(BASE_URL + "/tree")
                             .param("projectId", String.valueOf(testProjectId())))
@@ -484,7 +460,7 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("分组树中应包含 apiCount 统计")
         void treeShouldIncludeApiCount() throws Exception {
-            ApiGroupVO root = apiGroupService.create(buildCreateDTO("根分组", 1, null), testUserId());
+            ApiGroupVO root = apiGroupService.create(buildCreateDTO("根分组", 1, null));
 
             // 通过 service 创建子分组（不关联接口）
             ApiGroupCreateDTO child = new ApiGroupCreateDTO();
@@ -492,7 +468,7 @@ class ApiGroupControllerTest extends BaseApiTest {
             child.setParentId(root.getId());
             child.setName("子分组");
             child.setSortOrder(1);
-            apiGroupService.create(child, testUserId());
+            apiGroupService.create(child);
 
             mockMvc.perform(get(BASE_URL + "/tree")
                             .param("projectId", String.valueOf(testProjectId())))
@@ -501,11 +477,12 @@ class ApiGroupControllerTest extends BaseApiTest {
         }
 
         @Test
-        @DisplayName("缺少 projectId 参数应返回业务错误码")
-        void missingProjectIdShouldReturnBadRequest() throws Exception {
+        @DisplayName("缺少 projectId 参数时应返回可见项目分组")
+        void missingProjectIdShouldReturnAccessibleGroups() throws Exception {
             mockMvc.perform(get(BASE_URL + "/tree"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(10002));
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data").isArray());
         }
     }
 
@@ -520,7 +497,7 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("查询存在的分组应返回完整详情")
         void getExistingGroupShouldReturnDetail() throws Exception {
-            ApiGroupVO created = apiGroupService.create(buildCreateDTO("用户管理", 1, "用户相关接口分组"), testUserId());
+            ApiGroupVO created = apiGroupService.create(buildCreateDTO("用户管理", 1, "用户相关接口分组"));
 
             MvcResult result = mockMvc.perform(get(BASE_URL + "/{id}", created.getId()))
                     .andExpect(status().isOk())
@@ -551,14 +528,14 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("查询子分组详情应正确返回父级 ID")
         void getChildGroupDetailShouldReturnParentId() throws Exception {
-            ApiGroupVO parent = apiGroupService.create(buildCreateDTO("父分组", 1, null), testUserId());
+            ApiGroupVO parent = apiGroupService.create(buildCreateDTO("父分组", 1, null));
 
             ApiGroupCreateDTO child = new ApiGroupCreateDTO();
             child.setProjectId(testProjectId());
             child.setParentId(parent.getId());
             child.setName("子分组");
             child.setSortOrder(1);
-            ApiGroupVO childVo = apiGroupService.create(child, testUserId());
+            ApiGroupVO childVo = apiGroupService.create(child);
 
             mockMvc.perform(get(BASE_URL + "/{id}", childVo.getId()))
                     .andExpect(status().isOk())
@@ -568,7 +545,7 @@ class ApiGroupControllerTest extends BaseApiTest {
         @Test
         @DisplayName("多次查询同一分组应返回一致结果")
         void multipleQueriesShouldReturnConsistentResult() throws Exception {
-            ApiGroupVO created = apiGroupService.create(buildCreateDTO("用户管理", 1, null), testUserId());
+            ApiGroupVO created = apiGroupService.create(buildCreateDTO("用户管理", 1, null));
 
             MvcResult result1 = mockMvc.perform(get(BASE_URL + "/{id}", created.getId()))
                     .andExpect(status().isOk())

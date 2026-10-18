@@ -7,6 +7,7 @@ import { TerminalChrome, type ConnectionState } from '@/components/console/LogPa
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { podApi } from '@/modules/container/api/pod'
+import { TENANT_ID_KEY } from '@/modules/user/types'
 import { getToken } from '@/shared/keycloak'
 
 export function PodShell({
@@ -65,7 +66,17 @@ export function PodShell({
         return
       }
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const query = container ? `?container=${encodeURIComponent(container)}` : ''
+      const queryParams = new URLSearchParams()
+      if (container) queryParams.set('container', container)
+      const tenantId = localStorage.getItem(TENANT_ID_KEY)
+      if (!tenantId) {
+        setConnection('disconnected')
+        term.writeln('请先在右上角选择租户后再打开终端')
+        toast.warning('请先选择租户')
+        return
+      }
+      queryParams.set('tenantId', tenantId)
+      const query = queryParams.toString() ? `?${queryParams.toString()}` : ''
       const ws = new WebSocket(
         `${proto}//${location.host}/api/ws/container/shell/${clusterId}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}${query}`,
         [token],

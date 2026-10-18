@@ -22,7 +22,7 @@ public class ConfigMapController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.listConfigMaps(clusterId, namespace, keyword, pageNo, pageSize, tenantId));
     }
 
@@ -31,7 +31,7 @@ public class ConfigMapController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getConfigMapYaml(clusterId, namespace, name, tenantId));
     }
 
@@ -41,7 +41,7 @@ public class ConfigMapController {
             @PathVariable String namespace,
             @PathVariable String name,
             @RequestBody String yamlBody) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.updateConfigMapYaml(clusterId, namespace, name, yamlBody, tenantId);
         return BaseResult.ok();
     }
@@ -51,7 +51,7 @@ public class ConfigMapController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.deleteConfigMap(clusterId, namespace, name, tenantId);
         return BaseResult.ok();
     }

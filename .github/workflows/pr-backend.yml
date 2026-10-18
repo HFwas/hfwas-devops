@@ -10,6 +10,10 @@ on:
       - "pom.xml"
       - "backend/**"
       - "keycloak/**"
+      - "deploy/charts/backend/files/db/**"
+      - "scripts/check-migrations.sh"
+      - "scripts/migrations.lock"
+      - "scripts/tests/**"
 
 permissions:
   contents: read
@@ -50,3 +54,14 @@ jobs:
       # 独立 pom，不在 root reactor 内，需要单独构建
       - name: Build keycloak http-event-listener
         run: mvn -B -f keycloak/http-event-listener/pom.xml package
+
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check migration safety
+        run: bash scripts/check-migrations.sh
+
+      - name: Run migration tests
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'

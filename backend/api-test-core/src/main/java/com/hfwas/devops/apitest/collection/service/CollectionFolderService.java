@@ -10,6 +10,7 @@ import com.hfwas.devops.apitest.collection.entity.CollectionFolderEntity;
 import com.hfwas.devops.apitest.collection.mapper.CollectionFolderMapper;
 import com.hfwas.devops.apitest.collection.vo.CollectionFolderVO;
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.common.security.ApiTestAccessGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,17 +31,19 @@ import java.util.stream.Collectors;
 public class CollectionFolderService extends ServiceImpl<CollectionFolderMapper, CollectionFolderEntity> {
 
     private final CollectionService collectionService;
+    private final ApiTestAccessGuard accessGuard;
 
     /**
      * 创建文件夹
      */
     @Transactional(rollbackFor = Exception.class)
-    public CollectionFolderVO create(Long collectionId, CollectionFolderCreateDTO dto, Long userId) {
-        // 校验集合是否存在
+    public CollectionFolderVO create(Long collectionId, CollectionFolderCreateDTO dto) {
+        // 校验集合是否存在并校验项目访问权限
         CollectionEntity collection = collectionService.getById(collectionId);
         if (collection == null) {
             throw new ApiTestException("集合不存在");
         }
+        accessGuard.assertProject(collection.getProjectId());
 
         // 校验父文件夹是否属于同一集合
         if (dto.getParentId() != null) {
@@ -65,6 +68,7 @@ public class CollectionFolderService extends ServiceImpl<CollectionFolderMapper,
         entity.setName(dto.getName());
         entity.setDescription(dto.getDescription());
         entity.setSortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : 0);
+        entity.setCreateBy(accessGuard.requireUserId());
         save(entity);
 
         log.info("创建文件夹: id={}, name={}, collectionId={}", entity.getId(), entity.getName(), collectionId);
@@ -76,11 +80,12 @@ public class CollectionFolderService extends ServiceImpl<CollectionFolderMapper,
      * 更新文件夹
      */
     @Transactional(rollbackFor = Exception.class)
-    public CollectionFolderVO update(Long collectionId, Long folderId, CollectionFolderUpdateDTO dto, Long userId) {
+    public CollectionFolderVO update(Long collectionId, Long folderId, CollectionFolderUpdateDTO dto) {
         CollectionFolderEntity entity = getById(folderId);
         if (entity == null || !entity.getCollectionId().equals(collectionId)) {
             throw new ApiTestException("文件夹不存在");
         }
+        assertCollectionAccess(collectionId);
 
         if (StrUtil.isNotBlank(dto.getName())) {
             // 校验名称唯一性
@@ -115,6 +120,7 @@ public class CollectionFolderService extends ServiceImpl<CollectionFolderMapper,
         if (entity == null || !entity.getCollectionId().equals(collectionId)) {
             throw new ApiTestException("文件夹不存在");
         }
+        assertCollectionAccess(collectionId);
 
         // 检查是否有子文件夹
         boolean hasChildren = lambdaQuery()
@@ -132,12 +138,25 @@ public class CollectionFolderService extends ServiceImpl<CollectionFolderMapper,
      * 获取文件夹树
      */
     public List<CollectionFolderVO> getTree(Long collectionId) {
+        assertCollectionAccess(collectionId);
+
         List<CollectionFolderEntity> allFolders = lambdaQuery()
                 .eq(CollectionFolderEntity::getCollectionId, collectionId)
                 .orderByAsc(CollectionFolderEntity::getSortOrder)
                 .list();
 
         return buildTree(allFolders, null);
+    }
+
+    /**
+     * 校验父集合是否存在并校验项目访问权限
+     */
+    private void assertCollectionAccess(Long collectionId) {
+        CollectionEntity collection = collectionService.getById(collectionId);
+        if (collection == null) {
+            throw new ApiTestException("集合不存在");
+        }
+        accessGuard.assertProject(collection.getProjectId());
     }
 
     /**

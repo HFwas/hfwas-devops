@@ -37,7 +37,7 @@ public class RegistryService {
 
     @Transactional
     public Long create(RegistrySaveDTO dto) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
 
         RegistryEntity entity = new RegistryEntity();
         entity.setTenantId(tenantId);
@@ -74,9 +74,9 @@ public class RegistryService {
     }
 
     public IPage<RegistryVO> page(int pageNo, int pageSize, String keyword) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         LambdaQueryWrapper<RegistryEntity> wrapper = new LambdaQueryWrapper<RegistryEntity>()
-                .eq(tenantId != null, RegistryEntity::getTenantId, tenantId)
+                .eq(RegistryEntity::getTenantId, tenantId)
                 .orderByDesc(RegistryEntity::getUpdatedAt);
         if (keyword != null && !keyword.isBlank()) {
             String kw = keyword.trim();
@@ -92,9 +92,9 @@ public class RegistryService {
     }
 
     public RegistryEntity findById(Long id) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         RegistryEntity entity = registryMapper.selectById(id);
-        if (entity == null || (tenantId != null && !tenantId.equals(entity.getTenantId()))) {
+        if (entity == null || !tenantId.equals(entity.getTenantId())) {
             throw new BizException(ContainerErrorCode.REGISTRY_FORBIDDEN);
         }
         return entity;
@@ -214,7 +214,7 @@ public class RegistryService {
             log.info("Discovered built-in Harbor at {} for cluster id={}", url, clusterId);
 
             RegistryEntity entity = new RegistryEntity();
-            entity.setTenantId(SecurityHelper.currentTenantId());
+            entity.setTenantId(SecurityHelper.requireTenantId());
             entity.setName(clusterId + "-builtin-harbor");
             entity.setAlias("内置 Harbor");
             entity.setType("harbor");
@@ -266,7 +266,7 @@ public class RegistryService {
      * Get a registry entity by its name (within tenant scope).
      */
     public RegistryEntity getByName(String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         LambdaQueryWrapper<RegistryEntity> wrapper = new LambdaQueryWrapper<RegistryEntity>()
                 .eq(RegistryEntity::getTenantId, tenantId)
                 .eq(RegistryEntity::getName, name);
@@ -288,9 +288,9 @@ public class RegistryService {
      * List registries scoped to the current tenant.
      */
     public List<RegistryEntity> listByTenant() {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         LambdaQueryWrapper<RegistryEntity> wrapper = new LambdaQueryWrapper<RegistryEntity>()
-                .eq(tenantId != null, RegistryEntity::getTenantId, tenantId);
+                .eq(RegistryEntity::getTenantId, tenantId);
         return registryMapper.selectList(wrapper);
     }
 

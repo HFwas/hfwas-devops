@@ -132,7 +132,7 @@ class DebugHistoryServiceSaveTest extends BaseApiTest {
         @DisplayName("保存完整调试结果应返回历史 ID")
         void saveFullResultShouldReturnHistoryId() {
             DebugResult debugResult = buildFullDebugResult();
-            Long historyId = debugHistoryService.save(debugResult, baseDto, 1L);
+            Long historyId = debugHistoryService.save(debugResult, baseDto);
 
             assertNotNull(historyId);
             assertTrue(historyId > 0);
@@ -142,7 +142,7 @@ class DebugHistoryServiceSaveTest extends BaseApiTest {
         @DisplayName("保存后数据库应包含完整记录")
         void savedRecordShouldContainAllFields() {
             DebugResult debugResult = buildFullDebugResult();
-            Long historyId = debugHistoryService.save(debugResult, baseDto, 1L);
+            Long historyId = debugHistoryService.save(debugResult, baseDto);
 
             DebugHistoryEntity saved = debugHistoryMapper.selectById(historyId);
             assertNotNull(saved);
@@ -205,7 +205,7 @@ class DebugHistoryServiceSaveTest extends BaseApiTest {
             debugResult.setStatus("ERROR");
             debugResult.setErrorMessage("ConnectException: 连接拒绝");
 
-            Long historyId = debugHistoryService.save(debugResult, baseDto, 1L);
+            Long historyId = debugHistoryService.save(debugResult, baseDto);
 
             DebugHistoryEntity saved = debugHistoryMapper.selectById(historyId);
             assertNotNull(saved);
@@ -223,7 +223,7 @@ class DebugHistoryServiceSaveTest extends BaseApiTest {
             debugResult.setAssertionResults(null);
             debugResult.setAllAssertionsPassed(null);
 
-            Long historyId = debugHistoryService.save(debugResult, baseDto, 1L);
+            Long historyId = debugHistoryService.save(debugResult, baseDto);
 
             DebugHistoryEntity saved = debugHistoryMapper.selectById(historyId);
             assertNull(saved.getAssertionResults());
@@ -236,7 +236,7 @@ class DebugHistoryServiceSaveTest extends BaseApiTest {
             DebugResult debugResult = buildFullDebugResult();
             debugResult.setExtractedVariables(null);
 
-            Long historyId = debugHistoryService.save(debugResult, baseDto, 1L);
+            Long historyId = debugHistoryService.save(debugResult, baseDto);
 
             DebugHistoryEntity saved = debugHistoryMapper.selectById(historyId);
             assertNull(saved.getExtractedVariables());
@@ -251,7 +251,7 @@ class DebugHistoryServiceSaveTest extends BaseApiTest {
             debugResult.getRequest().setUrl(longUrl);
 
             baseDto.setUrl(longUrl);
-            Long historyId = debugHistoryService.save(debugResult, baseDto, 1L);
+            Long historyId = debugHistoryService.save(debugResult, baseDto);
 
             DebugHistoryEntity saved = debugHistoryMapper.selectById(historyId);
             assertNotNull(saved.getName());
@@ -264,8 +264,8 @@ class DebugHistoryServiceSaveTest extends BaseApiTest {
         void multipleSavesShouldGenerateDifferentRecords() {
             DebugResult debugResult = buildFullDebugResult();
 
-            Long id1 = debugHistoryService.save(debugResult, baseDto, 1L);
-            Long id2 = debugHistoryService.save(debugResult, baseDto, 1L);
+            Long id1 = debugHistoryService.save(debugResult, baseDto);
+            Long id2 = debugHistoryService.save(debugResult, baseDto);
 
             assertNotNull(id1);
             assertNotNull(id2);
@@ -297,7 +297,7 @@ class DebugHistoryServiceSaveTest extends BaseApiTest {
             debugResult.setAssertionResults(assertionResults);
             debugResult.setAllAssertionsPassed(false);
 
-            Long historyId = debugHistoryService.save(debugResult, baseDto, 1L);
+            Long historyId = debugHistoryService.save(debugResult, baseDto);
 
             DebugHistoryEntity saved = debugHistoryMapper.selectById(historyId);
             assertEquals("FAILURE", saved.getStatus());
@@ -314,7 +314,7 @@ class DebugHistoryServiceSaveTest extends BaseApiTest {
         @DisplayName("名称应为 \"METHOD URL\" 格式")
         void nameShouldBeMethodUrlFormat() {
             DebugResult debugResult = buildFullDebugResult();
-            Long historyId = debugHistoryService.save(debugResult, baseDto, 1L);
+            Long historyId = debugHistoryService.save(debugResult, baseDto);
 
             DebugHistoryEntity saved = debugHistoryMapper.selectById(historyId);
             assertEquals("GET http://test-api.example.com/api/users?page=1", saved.getName());
@@ -330,7 +330,7 @@ class DebugHistoryServiceSaveTest extends BaseApiTest {
             debugResult.setStatus("ERROR");
 
             // 使用 DTO 中的 method 和 url
-            Long historyId = debugHistoryService.save(debugResult, baseDto, 1L);
+            Long historyId = debugHistoryService.save(debugResult, baseDto);
 
             DebugHistoryEntity saved = debugHistoryMapper.selectById(historyId);
             assertTrue(saved.getName().contains("GET"));

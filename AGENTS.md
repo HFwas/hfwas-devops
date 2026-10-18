@@ -1,7 +1,7 @@
 # Agent instructions
 
 > 日期：2026-10-18
-> 版本：v0.22
+> 版本：v0.23
 
 ### 变更记录
 
@@ -29,6 +29,7 @@
 | v0.20 | 2026-10-18 | 提交门禁：CI 与 PR 必须执行测试，禁止 `-Dmaven.test.skip=true` / `-DskipTests` 跳过主流程测试 |
 | v0.21 | 2026-10-18 | 新增「前端原型先行」门禁：页面类需求必须先出高保真可点击原型与原型规格，评审冻结后才允许实现；规范见 `docs/frontend/prototype-first-standard.md` |
 | v0.22 | 2026-10-18 | 新增功能目录 `progress.md`：每轮 AI 协作必须追加进度记录，规范见 `docs/superpowers/features/README.md` |
+| v0.23 | 2026-10-18 | 迁移规范修正：external 执行器统一为 `migrate.py`；05 零 UPDATE；UPDATE 仅允许 16-*；下一编号 17；07-09 为历史跳号 |
 
 ---
 
@@ -325,21 +326,21 @@ Docker 容器访问宿主机代理用 `host.docker.internal:7890`，不要把 `1
 项目使用 SQLite，schema 初始化（`devops.schema.init`）分两种模式：
 
 - **`embedded`**（默认）：`SqliteSchemaInitializer` / `UserSchemaMigration` 进程内执行建表
-- **`external`**：Helm initContainer 用 `deploy/charts/backend/files/db/migrate.sh` 执行 SQL
+- **`external`**：Helm initContainer 用 `deploy/charts/backend/files/db/migrate.py` 执行 SQL（`migrate.sh` 仅保留为兼容包装）
 
 涉及 DDL / DML 变更时：
 
-1. **新增 SQL 文件，不修改已有文件。** 所有迁移脚本放在 `deploy/charts/backend/files/db/` 下，以 `.sql` 结尾。`migrate.sh` 按文件名顺序执行，并对已执行文件做 checksum 校验 —— 修改已有文件会导致 checksum 变化被检出（幂等 alter 除外），但应在新增文件中做增量变更。
+1. **新增 SQL 文件，不修改已有文件。** 所有迁移脚本放在 `deploy/charts/backend/files/db/` 下，以 `.sql` 结尾。`migrate.py` 按文件名顺序执行，并对已执行文件做 checksum 校验 —— 修改已有文件默认拒绝启动；`05-pipeline-schema.sql` 是零 UPDATE 基线，允许安全重跑；其它历史文件必须在新增文件中做增量变更。
 
 2. **文件命名：`<两位递增数字>-<简短描述>.sql`。**
-   - 继承当前最大编号（目前 `06-container-schema.sql`，下一个就是 `07-`）。
-   - 示例：`07-add-xx-column.sql`、`07-create-yy-table.sql`。
+   - 继承当前最大编号（目前 `16-upgrade-task-template-seeds.sql`，下一个就是 `17-`；`07-09` 为历史跳号，不回填）。
+   - 示例：`17-add-xx-column.sql`、`17-create-yy-table.sql`。
    - 编码（同一级的不同变更）使用相同数字，下一级新数字。
 
-3. **SQL 应幂等。** 使用 `CREATE TABLE IF NOT EXISTS`、`ALTER TABLE ADD COLUMN`（`migrate.sh` 会静默跳过重复列错误），确保重复执行安全。
+3. **SQL 应幂等。** 使用 `CREATE TABLE IF NOT EXISTS`、`ALTER TABLE ADD COLUMN`（`migrate.py` 会静默跳过重复列错误），确保重复执行安全。**UPDATE 仅允许在 `16-upgrade-task-template-seeds.sql`**，且必须精确匹配旧默认值；05 不得出现 UPDATE/DELETE/DROP。
 
 4. **同步更新 Java 侧建表逻辑（`embedded` 模式）。**
-   - 实体变更 → 更新 `SqliteSchemaInitializer` 中的 schema DDL 和 `schemaVersion`。
+   - 实体变更 → 更新 `SqliteSchemaInitializer` 中的 schema DDL；如存在版本常量，同步递增。
    - 确保两种模式建表结果一致。
 
 5. **当前仅有 SQLite。** 引入新数据库（如 MySQL、PostgreSQL）时再建立对应子目录，命名规范后续补充。

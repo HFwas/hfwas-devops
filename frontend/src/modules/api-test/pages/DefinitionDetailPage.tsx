@@ -22,7 +22,7 @@ export function DefinitionDetailPage() {
   const { definitionId = '' } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const userId = useAuthStore((s) => s.user?.id)
+  const isAuthenticated = useAuthStore((s) => Boolean(s.user))
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = searchParams.get('tab') || '概览'
 
@@ -45,7 +45,7 @@ export function DefinitionDetailPage() {
     await queryClient.invalidateQueries({ queryKey: ['api-definitions'] })
   }
   const publish = useMutation({
-    mutationFn: () => apiDefinitionApi.publish(definitionId, userId!),
+    mutationFn: () => apiDefinitionApi.publish(definitionId),
     onSuccess: async () => {
       toast.success('接口已发布')
       await refresh()
@@ -53,7 +53,7 @@ export function DefinitionDetailPage() {
     onError: (error: Error) => toast.error(error.message || '发布失败'),
   })
   const deprecate = useMutation({
-    mutationFn: () => apiDefinitionApi.deprecate(definitionId, userId!),
+    mutationFn: () => apiDefinitionApi.deprecate(definitionId),
     onSuccess: async () => {
       toast.success('接口已废弃')
       await refresh()
@@ -61,7 +61,7 @@ export function DefinitionDetailPage() {
     onError: (error: Error) => toast.error(error.message || '废弃失败'),
   })
   const revert = useMutation({
-    mutationFn: () => apiDefinitionApi.revertDraft(definitionId, userId!),
+    mutationFn: () => apiDefinitionApi.revertDraft(definitionId),
     onSuccess: async () => {
       toast.success('已恢复为草稿')
       await refresh()
@@ -79,7 +79,7 @@ export function DefinitionDetailPage() {
   })
 
   const busy = publish.isPending || deprecate.isPending || revert.isPending
-  const canMutate = userId != null && userId !== ''
+  const canMutate = isAuthenticated
 
   return (
     <DetailShell

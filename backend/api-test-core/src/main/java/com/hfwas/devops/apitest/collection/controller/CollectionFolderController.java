@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -37,18 +36,16 @@ public class CollectionFolderController {
     @Operation(summary = "创建文件夹")
     @PostMapping
     public BaseResult<CollectionFolderVO> create(@PathVariable Long collectionId,
-                                                  @Valid @RequestBody CollectionFolderCreateDTO dto,
-                                                  @RequestParam Long userId) {
-        return BaseResult.ok(folderService.create(collectionId, dto, userId));
+                                                  @Valid @RequestBody CollectionFolderCreateDTO dto) {
+        return BaseResult.ok(folderService.create(collectionId, dto));
     }
 
     @Operation(summary = "更新文件夹")
     @PutMapping("/{folderId}")
     public BaseResult<CollectionFolderVO> update(@PathVariable Long collectionId,
                                                   @PathVariable Long folderId,
-                                                  @Valid @RequestBody CollectionFolderUpdateDTO dto,
-                                                  @RequestParam Long userId) {
-        return BaseResult.ok(folderService.update(collectionId, folderId, dto, userId));
+                                                  @Valid @RequestBody CollectionFolderUpdateDTO dto) {
+        return BaseResult.ok(folderService.update(collectionId, folderId, dto));
     }
 
     @Operation(summary = "删除文件夹")

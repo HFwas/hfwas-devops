@@ -22,7 +22,7 @@ public class NodeController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.listNodes(clusterId, keyword, pageNo, pageSize, tenantId));
     }
 
@@ -30,7 +30,7 @@ public class NodeController {
     public BaseResult<NodeDetailVO> getNode(
             @PathVariable Long clusterId,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getNode(clusterId, name, tenantId));
     }
 }

@@ -1,7 +1,6 @@
 package com.hfwas.devops.pm.field.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.hfwas.devops.pm.common.IdUtils;
 import com.hfwas.devops.pm.field.DetailTabCatalog;
 import com.hfwas.devops.pm.field.FeatureCatalog;
 import com.hfwas.devops.pm.field.entity.PmTypeFieldLayout;
@@ -10,6 +9,7 @@ import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.field.model.TypeFieldLayoutConfig;
 import com.hfwas.devops.pm.field.model.TypeFeaturesConfig;
 import com.hfwas.devops.pm.field.model.WorkItemIoFeatureConfig;
+import com.hfwas.devops.pm.project.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,27 +27,19 @@ public class FieldLayoutService {
     private static final List<String> DEFAULT_SEARCH = List.of("title", "status", "priority");
 
     private final PmTypeFieldLayoutMapper layoutMapper;
+    private final ProjectService projectService;
 
     public TypeFieldLayoutConfig getLayout(Long projectId, String typeCode) {
+        projectService.assertProjectAccess(projectId);
         PmTypeFieldLayout saved = findLayoutRow(projectId, typeCode);
         return saved != null && saved.getLayoutConfig() != null ? copyConfig(saved.getLayoutConfig()) : null;
     }
 
+    /** Exact project + type match only; never fall back to another project's layout. */
     private PmTypeFieldLayout findLayoutRow(Long projectId, String typeCode) {
-        PmTypeFieldLayout exact = layoutMapper.selectOne(Wrappers.<PmTypeFieldLayout>lambdaQuery()
+        return layoutMapper.selectOne(Wrappers.<PmTypeFieldLayout>lambdaQuery()
                 .eq(PmTypeFieldLayout::getProjectId, projectId)
                 .eq(PmTypeFieldLayout::getTypeCode, typeCode));
-        if (exact != null) {
-            return exact;
-        }
-        List<PmTypeFieldLayout> byType = layoutMapper.selectList(Wrappers.<PmTypeFieldLayout>lambdaQuery()
-                .eq(PmTypeFieldLayout::getTypeCode, typeCode));
-        for (PmTypeFieldLayout row : byType) {
-            if (IdUtils.sameId(row.getProjectId(), projectId)) {
-                return row;
-            }
-        }
-        return byType.size() == 1 ? byType.get(0) : null;
     }
 
     private TypeFieldLayoutConfig copyConfig(TypeFieldLayoutConfig source) {
@@ -106,6 +98,7 @@ public class FieldLayoutService {
 
     @Transactional
     public void saveLayout(Long projectId, String typeCode, TypeFieldLayoutConfig config) {
+        projectService.assertProjectAccess(projectId);
         TypeFieldLayoutConfig toSave = config == null
                 ? defaultLayout(List.of())
                 : copyConfig(config);

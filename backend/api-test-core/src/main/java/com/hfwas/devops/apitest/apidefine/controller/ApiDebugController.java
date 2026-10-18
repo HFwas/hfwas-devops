@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -44,11 +43,10 @@ public class ApiDebugController {
      */
     @Operation(summary = "执行接口调试")
     @PostMapping("/execute")
-    public BaseResult<ApiDebugResultVO> execute(@Valid @RequestBody ApiDebugExecuteDTO dto,
-                                                @RequestParam(required = false) Long userId) {
-        log.info("执行调试: url={}, method={}, envId={}, userId={}",
-                dto.getUrl(), dto.getMethod(), dto.getEnvironmentId(), userId);
-        ApiDebugResultVO result = apiDebugService.execute(dto, userId);
+    public BaseResult<ApiDebugResultVO> execute(@Valid @RequestBody ApiDebugExecuteDTO dto) {
+        log.info("执行调试: url={}, method={}, envId={}",
+                dto.getUrl(), dto.getMethod(), dto.getEnvironmentId());
+        ApiDebugResultVO result = apiDebugService.execute(dto);
         return BaseResult.ok(result);
     }
 }

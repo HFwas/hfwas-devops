@@ -5,7 +5,6 @@ import type { HttpMethod } from '@/modules/api-test/define/types/definition'
 export interface CreateRequestInCollectionInput {
   projectId: number
   collectionId: number
-  userId: number
   folderId?: number | null
   name?: string
   method?: HttpMethod
@@ -27,26 +26,19 @@ export async function createRequestInCollection(
   const method = input.method ?? 'POST'
   const path = input.path ?? '/'
 
-  const def = await apiDefinitionApi.create(
-    {
-      projectId: input.projectId,
-      name,
-      method,
-      path,
-    },
-    input.userId,
-  )
+  const def = await apiDefinitionApi.create({
+    projectId: input.projectId,
+    name,
+    method,
+    path,
+  })
 
   try {
-    const item = await collectionApi.addItem(
-      input.collectionId,
-      {
-        folderId: input.folderId ?? null,
-        definitionId: def.id,
-        name,
-      },
-      input.userId,
-    )
+    const item = await collectionApi.addItem(input.collectionId, {
+      folderId: input.folderId ?? null,
+      definitionId: def.id,
+      name,
+    })
 
     return {
       definitionId: def.id,

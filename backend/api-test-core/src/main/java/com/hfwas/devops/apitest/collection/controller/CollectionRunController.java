@@ -32,9 +32,8 @@ public class CollectionRunController {
     @Operation(summary = "执行集合")
     @PostMapping("/{collectionId}/run")
     public BaseResult<CollectionRunVO> execute(@PathVariable Long collectionId,
-                                                @RequestParam(required = false) Long environmentId,
-                                                @RequestParam Long userId) {
-        return BaseResult.ok(runService.execute(collectionId, environmentId, userId));
+                                                @RequestParam(required = false) Long environmentId) {
+        return BaseResult.ok(runService.execute(collectionId, environmentId));
     }
 
     @Operation(summary = "运行历史列表")

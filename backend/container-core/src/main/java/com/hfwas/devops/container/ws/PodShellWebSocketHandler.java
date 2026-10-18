@@ -75,8 +75,12 @@ public class PodShellWebSocketHandler extends AbstractWebSocketHandler {
             long clusterId = Long.parseLong(clusterIdStr);
             String containerName = resolveContainerName(session);
 
-            // Verify cluster access
-            Long tenantId = SecurityHelper.currentTenantId();
+            // Verify cluster access (handshake attributes are populated by ContainerWsAuthInterceptor)
+            Long tenantId = session.getAttributes().get("tenantId") instanceof Long id ? id : null;
+            if (tenantId == null) {
+                sendErrorAndClose(session, "未认证或租户上下文缺失");
+                return;
+            }
             ClusterEntity cluster = clusterService.getById(clusterId, tenantId);
             KubernetesClient client = clientFactory.getConnectedClient(cluster);
 

@@ -33,7 +33,7 @@
 | 连接串 | `jdbc:sqlite:./data/hfwas-devops.db`（相对进程工作目录，`application.yml`） |
 | 本地文件 | `backend/server/data/hfwas-devops.db`、`backend/data/hfwas-devops.db`、根目录 `data/hfwas-devops.db`（不同启动方式落点不同） |
 | 表数量 | 56 张唯一表（schema 文件合计 57 个 `CREATE TABLE`，其中 `sys_user` 在 user 与 pm schema 各定义一次） |
-| 迁移记录表 | `_schema_migrations`（`migrate.sh`）与 `schema_migrations`（`migrate.py`）——两套命名，见第 7 节 |
+| 迁移记录表 | `_schema_migrations`（唯一权威；`migrate.sh` 是 `migrate.py` 的包装，旧 `schema_migrations` 自动合并） |
 | WAL | 未启用（默认 `journal_mode=delete`） |
 | 连接池 | 未显式配置 |
 
@@ -77,11 +77,11 @@
 |------|------|
 | `configmap-schema.yaml` | 将 `deploy/charts/backend/files/db/*` 挂载到 `/sql` |
 | initContainer | 执行 `python3 /sql/migrate.py`，`DB_PATH=/app/data/hfwas-devops.db` |
-| `migrate.py` | 按文件名顺序执行 SQL，记录 `schema_migrations`，对已执行文件做 checksum 校验 |
-| `migrate.sh` | bash + sqlite3 版本，记录 `_schema_migrations`；与 `migrate.py` 并存 |
+| `migrate.py` | 逐语句执行 SQL；记录 `_schema_migrations`；已应用文件 checksum 变化默认拒绝；`05-pipeline-schema.sql` 零 UPDATE，可安全重跑；`16-upgrade-task-template-seeds.sql` 是唯一允许 UPDATE 的文件；旧 `schema_migrations` 合并到 `_schema_migrations` |
+| `migrate.sh` | 薄包装，调用 `migrate.py`，不再单独维护记录表 |
 | 应用配置 | `DEVOPS_SCHEMA_INIT=external`，关闭进程内建表 |
 
-> 新增 DDL/DML 时遵守仓库「数据库变更」规范：新增编号 SQL（下一个编号从当前最大值递增）、语句幂等、同步更新 Java 侧建表逻辑与 `schemaVersion`。
+> 新增 DDL/DML 时遵守仓库「数据库变更」规范：新增编号 SQL（当前最大 16，下一个 17）、语句幂等、同步更新 Java 侧建表逻辑；05 零 UPDATE，UPDATE 仅允许在 16-*。
 
 ## 4. 公共字段约定
 
@@ -155,7 +155,7 @@ image_convert_history（独立）
 | 问题 | 影响 | 建议 |
 |------|------|------|
 | `pm-schema.sql` 重复定义 `sys_user` | embedded 模式下可能覆盖 user 模块表结构（缺少 `auth_source` 等列） | 移除 pm schema 中的 `sys_user` 定义，统一以 user 模块为准 |
-| `migrate.sh` 与 `migrate.py` 迁移表名不一致 | 两套执行器可能重复执行已迁移文件 | 统一为 `schema_migrations`，或只保留一个执行器 |
+| ~~`migrate.sh` 与 `migrate.py` 迁移表名不一致~~ | 已统一为 `_schema_migrations`；`migrate.sh` 仅包装 `migrate.py`，旧 `schema_migrations` 自动合并 | 已解决（2026-10-18） |
 | `deploy/.../05-pipeline-schema.sql` 与 classpath 版本存在差异 | external/embedded 建表结果可能漂移 | 以代码侧为权威，发布前做 schema diff |
 | 未启用 WAL | 并发读写可能 `database is locked` | 评估启用 `journal_mode=WAL` 与 `busy_timeout` |
 | 多个 DB 文件落点 | 本地调试可能读到不同库 | 统一启动脚本的 `DB_PATH` |

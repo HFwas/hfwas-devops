@@ -3,7 +3,10 @@ package com.hfwas.devops.apitest.apidefine;
 import com.hfwas.devops.apitest.apidefine.dto.ApiDebugAssertionDTO;
 import com.hfwas.devops.apitest.apidefine.dto.ApiDebugExecuteDTO;
 import com.hfwas.devops.apitest.apidefine.dto.ApiDebugExtractDTO;
+import com.hfwas.devops.apitest.apidefine.entity.ApiDefinitionEntity;
+import com.hfwas.devops.apitest.apidefine.mapper.ApiDefinitionMapper;
 import com.hfwas.devops.apitest.apidefine.service.ApiDebugService;
+import com.hfwas.devops.apitest.common.security.ApiTestAccessGuard;
 import com.hfwas.devops.apitest.apidefine.vo.ApiDebugResultVO;
 import com.hfwas.devops.apitest.debugger.assertion.AssertionExecutor;
 import com.hfwas.devops.apitest.debugger.engine.HttpDebugEngine;
@@ -15,8 +18,11 @@ import com.hfwas.devops.apitest.debugger.script.PostResponseScriptExecutor;
 import com.hfwas.devops.apitest.debugger.script.PreRequestScriptExecutor;
 import com.hfwas.devops.apitest.debugger.script.ScriptSandbox;
 import com.hfwas.devops.apitest.debugger.variable.VariableRenderer;
+import com.hfwas.devops.apitest.environment.entity.EnvironmentEntity;
 import com.hfwas.devops.apitest.environment.service.EnvironmentService;
 import com.hfwas.devops.apitest.history.service.DebugHistoryService;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -67,6 +73,10 @@ class ApiDebugServiceTest {
     private EnvironmentService environmentService;
     @Mock
     private DebugHistoryService debugHistoryService;
+    @Mock
+    private ApiDefinitionMapper definitionMapper;
+    @Mock
+    private ApiTestAccessGuard accessGuard;
 
     @Captor
     private ArgumentCaptor<DebugRequest> debugRequestCaptor;
@@ -78,8 +88,18 @@ class ApiDebugServiceTest {
         apiDebugService = new ApiDebugService(
                 httpDebugEngine, variableRenderer, preRequestScriptExecutor,
                 postResponseScriptExecutor, assertionExecutor, variableExtractor,
-                environmentService, debugHistoryService
+                environmentService, debugHistoryService, definitionMapper, accessGuard
         );
+
+        ApiDefinitionEntity definition = new ApiDefinitionEntity();
+        definition.setId(2001L);
+        definition.setProjectId(1001L);
+        lenient().when(definitionMapper.selectById(2001L)).thenReturn(definition);
+
+        EnvironmentEntity environment = new EnvironmentEntity();
+        environment.setId(TEST_ENV_ID);
+        environment.setProjectId(1001L);
+        lenient().when(environmentService.getById(TEST_ENV_ID)).thenReturn(environment);
     }
 
     /**
@@ -208,12 +228,12 @@ class ApiDebugServiceTest {
                     .thenReturn(extracted);
 
             // 准备：历史保存
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证结果
             assertNotNull(result);
@@ -231,7 +251,7 @@ class ApiDebugServiceTest {
             verify(postResponseScriptExecutor).execute(anyString(), any(), anyMap(), anyString(), anyMap());
             verify(assertionExecutor).execute(anyList(), any(), anyMap(), anyString(), anyLong());
             verify(variableExtractor).extract(anyList(), any(), anyMap(), anyString());
-            verify(debugHistoryService).save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), eq(TEST_USER_ID));
+            verify(debugHistoryService).save(any(DebugResult.class), any(ApiDebugExecuteDTO.class));
         }
 
         @Test
@@ -257,12 +277,12 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
-            apiDebugService.execute(dto, TEST_USER_ID);
+            apiDebugService.execute(dto);
 
             // 验证 HTTP 引擎收到正确的请求
             verify(httpDebugEngine).execute(debugRequestCaptor.capture());
@@ -294,13 +314,13 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
             dto.setEnvironmentId(null);
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证：未调用环境变量服务
             verify(environmentService, never()).getVariableMap(anyLong());
@@ -317,13 +337,13 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
             dto.setPreRequestScript(null);
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证：前置脚本执行器未被调用
             verify(preRequestScriptExecutor, never()).execute(anyString(), anyString(), anyString(), anyMap(), any(), anyMap());
@@ -349,13 +369,13 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
             dto.setPostResponseScript(null);
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证：后置脚本执行器未被调用
             verify(postResponseScriptExecutor, never()).execute(anyString(), any(), anyMap(), anyString(), anyMap());
@@ -381,13 +401,13 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
             dto.setAssertions(null);
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证：断言执行器未被调用，allAssertionsPassed 为 true
             verify(assertionExecutor, never()).execute(anyList(), any(), anyMap(), anyString(), anyLong());
@@ -413,13 +433,13 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
             dto.setExtracts(null);
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证：提取器未被调用，extractedVariables 应为空 Map
             verify(variableExtractor, never()).extract(anyList(), any(), anyMap(), anyString());
@@ -454,12 +474,12 @@ class ApiDebugServiceTest {
             errorResult.setRequest(errorRequest);
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(errorResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证
             assertEquals("ERROR", result.getStatus());
@@ -489,12 +509,12 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证：请求 URL 保留原始占位符
             assertNotNull(result);
@@ -537,12 +557,12 @@ class ApiDebugServiceTest {
             when(assertionExecutor.execute(anyList(), any(), anyMap(), anyString(), anyLong()))
                     .thenReturn(passedResults);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             assertTrue(result.getAllAssertionsPassed());
         }
@@ -579,12 +599,12 @@ class ApiDebugServiceTest {
             when(assertionExecutor.execute(anyList(), any(), anyMap(), anyString(), anyLong()))
                     .thenReturn(mixedResults);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             assertFalse(result.getAllAssertionsPassed());
         }
@@ -618,14 +638,14 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
             dto.setMethod("POST");
             dto.setBody("{\"name\":\"张三\",\"age\":30}");
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证
             assertNotNull(result);
@@ -668,14 +688,14 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
             dto.setMethod("POST");
             dto.setBody("{\"name\":\"{{name}}\"}");
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证
             assertNotNull(result);
@@ -705,7 +725,7 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
@@ -713,7 +733,7 @@ class ApiDebugServiceTest {
             dto.setMethod("POST");
             dto.setBody("{}");
             dto.setContentType("application/json");
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证
             assertNotNull(result);
@@ -748,12 +768,12 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证 HTTP 引擎收到前置脚本修改后的 URL
             verify(httpDebugEngine).execute(debugRequestCaptor.capture());
@@ -787,12 +807,12 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证 HTTP 引擎收到前置脚本修改后的 Headers
             verify(httpDebugEngine).execute(debugRequestCaptor.capture());
@@ -823,14 +843,14 @@ class ApiDebugServiceTest {
             DebugResult mockResult = buildMockDebugResult();
             when(httpDebugEngine.execute(any(DebugRequest.class))).thenReturn(mockResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 执行
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
             dto.setMethod("POST");
             dto.setBody("{\"original\":true}");
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证 HTTP 引擎收到前置脚本修改后的 Body
             verify(httpDebugEngine).execute(debugRequestCaptor.capture());
@@ -879,7 +899,7 @@ class ApiDebugServiceTest {
             when(assertionExecutor.execute(anyList(), any(), anyMap(), anyString(), anyLong()))
                     .thenReturn(assertionResults);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 构建多条断言
@@ -896,7 +916,7 @@ class ApiDebugServiceTest {
             dto.setAssertions(assertions);
 
             // 执行
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证：5 条断言全部通过
             assertNotNull(result);
@@ -936,7 +956,7 @@ class ApiDebugServiceTest {
             when(variableExtractor.extract(anyList(), any(), anyMap(), anyString()))
                     .thenReturn(extracted);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             // 构建多个提取规则
@@ -952,7 +972,7 @@ class ApiDebugServiceTest {
             dto.setExtracts(extracts);
 
             // 执行
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             // 验证：提取出 3 个变量
             assertNotNull(result);
@@ -993,7 +1013,7 @@ class ApiDebugServiceTest {
             when(assertionExecutor.execute(anyList(), any(), anyMap(), anyString(), anyLong()))
                     .thenReturn(assertionResults);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
@@ -1004,7 +1024,7 @@ class ApiDebugServiceTest {
             assertion.setExpectedValue("\\{\"code\":0");
             dto.setAssertions(List.of(assertion));
 
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             assertNotNull(result);
             assertTrue(result.getAllAssertionsPassed());
@@ -1042,7 +1062,7 @@ class ApiDebugServiceTest {
             when(assertionExecutor.execute(anyList(), any(), anyMap(), anyString(), anyLong()))
                     .thenReturn(assertionResults);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
@@ -1053,7 +1073,7 @@ class ApiDebugServiceTest {
             assertion.setExpectedValue("100");
             dto.setAssertions(List.of(assertion));
 
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             assertNotNull(result);
             assertTrue(result.getAllAssertionsPassed());
@@ -1091,14 +1111,47 @@ class ApiDebugServiceTest {
             when(postResponseScriptExecutor.execute(anyString(), any(), anyMap(), anyString(), anyMap()))
                     .thenReturn(emptyPostResult);
 
-            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class), anyLong()))
+            when(debugHistoryService.save(any(DebugResult.class), any(ApiDebugExecuteDTO.class)))
                     .thenReturn(TEST_HISTORY_ID);
 
             ApiDebugExecuteDTO dto = buildFullExecuteDTO();
-            ApiDebugResultVO result = apiDebugService.execute(dto, TEST_USER_ID);
+            ApiDebugResultVO result = apiDebugService.execute(dto);
 
             assertNotNull(result);
             assertEquals("SUCCESS", result.getStatus());
+        }
+    }
+
+    @Nested
+    @DisplayName("项目隔离")
+    class ProjectIsolation {
+
+        @Test
+        @DisplayName("environmentId 属于其他项目应返回 20002")
+        void environmentMustMatchProject() {
+            EnvironmentEntity foreignEnvironment = new EnvironmentEntity();
+            foreignEnvironment.setId(TEST_ENV_ID);
+            foreignEnvironment.setProjectId(2002L);
+            when(environmentService.getById(TEST_ENV_ID)).thenReturn(foreignEnvironment);
+
+            ApiDebugExecuteDTO dto = buildFullExecuteDTO();
+
+            BizException ex = assertThrows(BizException.class, () -> apiDebugService.execute(dto));
+            assertEquals(ResultCode.PROJECT_ACCESS_DENIED.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("definitionId 属于其他项目应返回 20002")
+        void definitionMustMatchProject() {
+            ApiDefinitionEntity foreignDefinition = new ApiDefinitionEntity();
+            foreignDefinition.setId(2001L);
+            foreignDefinition.setProjectId(2002L);
+            when(definitionMapper.selectById(2001L)).thenReturn(foreignDefinition);
+
+            ApiDebugExecuteDTO dto = buildFullExecuteDTO();
+
+            BizException ex = assertThrows(BizException.class, () -> apiDebugService.execute(dto));
+            assertEquals(ResultCode.PROJECT_ACCESS_DENIED.getCode(), ex.getCode());
         }
     }
 }

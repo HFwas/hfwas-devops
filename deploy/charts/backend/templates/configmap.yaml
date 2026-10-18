@@ -11,7 +11,7 @@ data:
   DOCGEN_SCRIPT_PATH: {{ .Values.config.docgenScriptPath | quote }}
   DOCGEN_PYTHON_PATH: {{ .Values.config.docgenPythonPath | quote }}
   DOCGEN_OUTPUT_DIR: {{ .Values.config.docgenOutputDir | quote }}
-  SPRING_DATASOURCE_URL: "jdbc:sqlite:{{ .Values.persistence.mountPath }}/hfwas-devops.db"
+  SPRING_DATASOURCE_URL: "jdbc:sqlite:{{ .Values.persistence.mountPath }}/hfwas-devops.db?busy_timeout=5000"
   LOGGING_CONFIG: "file:{{ .Values.config.logbackPath | default "/app/config/logback-spring.xml" }}"
   {{- if .Values.schema.init.enabled }}
   DEVOPS_SCHEMA_INIT: "external"

@@ -38,7 +38,7 @@ function formatTime(value?: string | null): string {
 }
 
 export function EnvironmentListPage() {
-  const userId = useAuthStore((s) => s.user?.id)
+  const isAuthenticated = useAuthStore((s) => Boolean(s.user))
   const queryClient = useQueryClient()
   const [projectId, setProjectId] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -69,7 +69,7 @@ export function EnvironmentListPage() {
     enabled: !!projectId,
   })
   const create = useMutation({
-    mutationFn: (values: FormValues) => environmentApi.create(values, projectId, userId!),
+    mutationFn: (values: FormValues) => environmentApi.create(values, projectId),
     onSuccess: async () => {
       toast.success('环境已创建')
       setOpen(false)
@@ -97,7 +97,7 @@ export function EnvironmentListPage() {
               aria-label="搜索环境"
               className="h-8 w-56"
             />
-            <Button disabled={!projectId || userId == null || userId === ''} onClick={() => setOpen(true)}>
+            <Button disabled={!projectId || !isAuthenticated} onClick={() => setOpen(true)}>
               <Plus />
               新建环境
             </Button>

@@ -37,17 +37,15 @@ public class ApiGroupController {
 
     @Operation(summary = "创建分组")
     @PostMapping
-    public BaseResult<ApiGroupVO> create(@Valid @RequestBody ApiGroupCreateDTO dto,
-                                         @RequestParam Long userId) {
-        return BaseResult.ok(apiGroupService.create(dto, userId));
+    public BaseResult<ApiGroupVO> create(@Valid @RequestBody ApiGroupCreateDTO dto) {
+        return BaseResult.ok(apiGroupService.create(dto));
     }
 
     @Operation(summary = "更新分组")
     @PutMapping("/{id}")
     public BaseResult<ApiGroupVO> update(@PathVariable Long id,
-                                         @Valid @RequestBody ApiGroupUpdateDTO dto,
-                                         @RequestParam Long userId) {
-        return BaseResult.ok(apiGroupService.update(id, dto, userId));
+                                         @Valid @RequestBody ApiGroupUpdateDTO dto) {
+        return BaseResult.ok(apiGroupService.update(id, dto));
     }
 
     @Operation(summary = "删除分组")
@@ -59,7 +57,7 @@ public class ApiGroupController {
 
     @Operation(summary = "获取分组树")
     @GetMapping("/tree")
-    public BaseResult<List<ApiGroupVO>> getTree(@RequestParam Long projectId) {
+    public BaseResult<List<ApiGroupVO>> getTree(@RequestParam(required = false) Long projectId) {
         return BaseResult.ok(apiGroupService.getGroupTree(projectId));
     }
 

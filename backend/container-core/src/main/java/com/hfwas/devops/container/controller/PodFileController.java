@@ -46,7 +46,7 @@ public class PodFileController {
             @RequestParam String container,
             @RequestParam(defaultValue = "/tmp") String destPath,
             @RequestParam("file") MultipartFile file) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         podFileService.uploadFile(clusterId, namespace, name, container, destPath, file, tenantId);
         return BaseResult.ok();
     }
@@ -68,7 +68,7 @@ public class PodFileController {
             @PathVariable String name,
             @RequestParam String container,
             @RequestParam String path) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         InputStream inputStream = podFileService.downloadFile(clusterId, namespace, name, container, path, tenantId);
 
         // Extract filename from path

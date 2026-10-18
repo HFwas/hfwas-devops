@@ -10,6 +10,10 @@ import com.hfwas.devops.apitest.apidefine.service.ApiDefinitionService;
 import com.hfwas.devops.apitest.apidefine.service.ApiGroupService;
 import com.hfwas.devops.apitest.apidefine.vo.ApiGroupVO;
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.support.TestProjectAccessValidator;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -40,6 +44,14 @@ class ApiGroupServiceTest extends BaseApiTest {
     @Autowired
     private ApiDefinitionService apiDefinitionService;
 
+    @Autowired
+    private TestProjectAccessValidator projectAccessValidator;
+
+    @AfterEach
+    void resetAccessContext() {
+        projectAccessValidator.reset();
+    }
+
     private ApiGroupCreateDTO rootCreateDTO;
     private ApiGroupCreateDTO childCreateDTO;
 
@@ -69,7 +81,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建根级分组应成功并返回完整 VO")
         void createRootGroupShouldSucceed() {
-            ApiGroupVO vo = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO vo = apiGroupService.create(rootCreateDTO);
 
             assertNotNull(vo);
             assertNotNull(vo.getId());
@@ -85,11 +97,11 @@ class ApiGroupServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建子级分组应正确关联父级 ID")
         void createChildGroupShouldLinkParent() {
-            ApiGroupVO parent = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO parent = apiGroupService.create(rootCreateDTO);
             assertNotNull(parent.getId());
 
             childCreateDTO.setParentId(parent.getId());
-            ApiGroupVO child = apiGroupService.create(childCreateDTO, testUserId());
+            ApiGroupVO child = apiGroupService.create(childCreateDTO);
 
             assertNotNull(child.getId());
             assertEquals(parent.getId(), child.getParentId());
@@ -99,7 +111,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @Test
         @DisplayName("同级同名分组创建应抛出 ApiTestException")
         void duplicateNameAtSameLevelShouldThrow() {
-            apiGroupService.create(rootCreateDTO, testUserId());
+            apiGroupService.create(rootCreateDTO);
 
             ApiGroupCreateDTO duplicate = new ApiGroupCreateDTO();
             duplicate.setProjectId(testProjectId());
@@ -107,30 +119,30 @@ class ApiGroupServiceTest extends BaseApiTest {
             duplicate.setSortOrder(2);
 
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> apiGroupService.create(duplicate, testUserId()));
+                    () -> apiGroupService.create(duplicate));
             assertTrue(ex.getMessage().contains("同名分组"));
         }
 
         @Test
         @DisplayName("不同父级下允许同名分组")
         void sameNameUnderDifferentParentsShouldBeAllowed() {
-            ApiGroupVO parent1 = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO parent1 = apiGroupService.create(rootCreateDTO);
 
             // 创建另一个根级分组
             ApiGroupCreateDTO anotherRoot = new ApiGroupCreateDTO();
             anotherRoot.setProjectId(testProjectId());
             anotherRoot.setName("订单管理");
             anotherRoot.setSortOrder(2);
-            ApiGroupVO parent2 = apiGroupService.create(anotherRoot, testUserId());
+            ApiGroupVO parent2 = apiGroupService.create(anotherRoot);
 
             // 在两个不同父级下创建同名子分组
             childCreateDTO.setParentId(parent1.getId());
             childCreateDTO.setName("列表查询");
-            apiGroupService.create(childCreateDTO, testUserId());
+            apiGroupService.create(childCreateDTO);
 
             childCreateDTO.setParentId(parent2.getId());
             childCreateDTO.setName("列表查询");
-            apiGroupService.create(childCreateDTO, testUserId());
+            apiGroupService.create(childCreateDTO);
 
             // 验证两个同名分组都存在
             List<ApiGroupEntity> all = apiGroupMapper.selectList(null);
@@ -141,13 +153,13 @@ class ApiGroupServiceTest extends BaseApiTest {
         @Test
         @DisplayName("不同项目下允许同名分组")
         void sameNameInDifferentProjectsShouldBeAllowed() {
-            apiGroupService.create(rootCreateDTO, testUserId());
+            apiGroupService.create(rootCreateDTO);
 
             ApiGroupCreateDTO otherProject = new ApiGroupCreateDTO();
             otherProject.setProjectId(2002L);
             otherProject.setName("用户管理");
             otherProject.setSortOrder(1);
-            ApiGroupVO vo = apiGroupService.create(otherProject, testUserId());
+            ApiGroupVO vo = apiGroupService.create(otherProject);
 
             assertNotNull(vo.getId());
         }
@@ -156,7 +168,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @DisplayName("sortOrder 为空时应自动填充默认值 0")
         void nullSortOrderShouldDefaultToZero() {
             rootCreateDTO.setSortOrder(null);
-            ApiGroupVO vo = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO vo = apiGroupService.create(rootCreateDTO);
 
             assertEquals(0, vo.getSortOrder());
         }
@@ -164,7 +176,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建后数据库应保存正确的记录")
         void createShouldPersistToDatabase() {
-            ApiGroupVO vo = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO vo = apiGroupService.create(rootCreateDTO);
 
             ApiGroupEntity saved = apiGroupMapper.selectById(vo.getId());
             assertNotNull(saved);
@@ -178,7 +190,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建后审计字段应自动填充")
         void createShouldAutoFillAuditFields() {
-            ApiGroupVO vo = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO vo = apiGroupService.create(rootCreateDTO);
 
             ApiGroupEntity saved = apiGroupMapper.selectById(vo.getId());
             assertNotNull(saved.getCreateTime());
@@ -200,7 +212,7 @@ class ApiGroupServiceTest extends BaseApiTest {
 
         @BeforeEach
         void insertGroup() {
-            ApiGroupVO vo = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO vo = apiGroupService.create(rootCreateDTO);
             groupId = vo.getId();
         }
 
@@ -216,7 +228,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @DisplayName("更新分组名称应成功")
         void updateNameShouldSucceed() {
             ApiGroupUpdateDTO dto = buildUpdateDTO("用户管理V2", 1, "用户相关接口分组");
-            ApiGroupVO vo = apiGroupService.update(groupId, dto, testUserId());
+            ApiGroupVO vo = apiGroupService.update(groupId, dto);
 
             assertEquals("用户管理V2", vo.getName());
 
@@ -228,7 +240,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @DisplayName("更新分组描述应成功")
         void updateDescriptionShouldSucceed() {
             ApiGroupUpdateDTO dto = buildUpdateDTO("用户管理", 1, "更新后的描述");
-            ApiGroupVO vo = apiGroupService.update(groupId, dto, testUserId());
+            ApiGroupVO vo = apiGroupService.update(groupId, dto);
 
             assertEquals("更新后的描述", vo.getDescription());
 
@@ -240,7 +252,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @DisplayName("更新分组排序应成功")
         void updateSortOrderShouldSucceed() {
             ApiGroupUpdateDTO dto = buildUpdateDTO("用户管理", 99, "用户相关接口分组");
-            ApiGroupVO vo = apiGroupService.update(groupId, dto, testUserId());
+            ApiGroupVO vo = apiGroupService.update(groupId, dto);
 
             assertEquals(99, vo.getSortOrder());
 
@@ -252,7 +264,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @DisplayName("sortOrder 为空时应保持原有值不变")
         void nullSortOrderShouldKeepOriginal() {
             ApiGroupUpdateDTO dto = buildUpdateDTO("用户管理", null, "用户相关接口分组");
-            ApiGroupVO vo = apiGroupService.update(groupId, dto, testUserId());
+            ApiGroupVO vo = apiGroupService.update(groupId, dto);
 
             assertEquals(1, vo.getSortOrder());
         }
@@ -265,12 +277,12 @@ class ApiGroupServiceTest extends BaseApiTest {
             another.setProjectId(testProjectId());
             another.setName("订单管理");
             another.setSortOrder(2);
-            apiGroupService.create(another, testUserId());
+            apiGroupService.create(another);
 
             // 尝试将第一个分组改名为"订单管理"
             ApiGroupUpdateDTO dto = buildUpdateDTO("订单管理", 1, null);
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> apiGroupService.update(groupId, dto, testUserId()));
+                    () -> apiGroupService.update(groupId, dto));
             assertTrue(ex.getMessage().contains("同名分组"));
         }
 
@@ -278,7 +290,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @DisplayName("更新自身名称为原名不应抛出异常")
         void updateToSameNameShouldSucceed() {
             ApiGroupUpdateDTO dto = buildUpdateDTO("用户管理", 2, "更新描述");
-            ApiGroupVO vo = apiGroupService.update(groupId, dto, testUserId());
+            ApiGroupVO vo = apiGroupService.update(groupId, dto);
 
             assertEquals("用户管理", vo.getName());
             assertEquals(2, vo.getSortOrder());
@@ -289,7 +301,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         void updateNonExistentGroupShouldThrow() {
             ApiGroupUpdateDTO dto = buildUpdateDTO("不存在", 1, null);
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> apiGroupService.update(99999L, dto, testUserId()));
+                    () -> apiGroupService.update(99999L, dto));
             assertTrue(ex.getMessage().contains("不存在"));
         }
 
@@ -297,7 +309,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @DisplayName("更新后 updateBy 和 updateTime 应自动填充")
         void updateShouldAutoFillAuditFields() {
             ApiGroupUpdateDTO dto = buildUpdateDTO("用户管理V2", 1, null);
-            apiGroupService.update(groupId, dto, testUserId());
+            apiGroupService.update(groupId, dto);
 
             ApiGroupEntity saved = apiGroupMapper.selectById(groupId);
             assertNotNull(saved.getUpdateTime());
@@ -317,7 +329,7 @@ class ApiGroupServiceTest extends BaseApiTest {
 
         @BeforeEach
         void insertRootGroup() {
-            ApiGroupVO vo = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO vo = apiGroupService.create(rootCreateDTO);
             rootId = vo.getId();
         }
 
@@ -334,7 +346,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @DisplayName("删除存在子分组的分组应抛出 ApiTestException")
         void deleteGroupWithChildrenShouldThrow() {
             childCreateDTO.setParentId(rootId);
-            apiGroupService.create(childCreateDTO, testUserId());
+            apiGroupService.create(childCreateDTO);
 
             ApiTestException ex = assertThrows(ApiTestException.class,
                     () -> apiGroupService.delete(rootId));
@@ -373,7 +385,7 @@ class ApiGroupServiceTest extends BaseApiTest {
             // 先删除无依赖的子分组
             childCreateDTO.setParentId(rootId);
             childCreateDTO.setName("可删除子分组");
-            ApiGroupVO child = apiGroupService.create(childCreateDTO, testUserId());
+            ApiGroupVO child = apiGroupService.create(childCreateDTO);
 
             // 删除子分组应成功
             assertDoesNotThrow(() -> apiGroupService.delete(child.getId()));
@@ -402,13 +414,13 @@ class ApiGroupServiceTest extends BaseApiTest {
         @Test
         @DisplayName("仅有根级分组时应返回扁平列表")
         void onlyRootGroupsShouldReturnFlatList() {
-            apiGroupService.create(rootCreateDTO, testUserId());
+            apiGroupService.create(rootCreateDTO);
 
             ApiGroupCreateDTO another = new ApiGroupCreateDTO();
             another.setProjectId(testProjectId());
             another.setName("订单管理");
             another.setSortOrder(2);
-            apiGroupService.create(another, testUserId());
+            apiGroupService.create(another);
 
             List<ApiGroupVO> tree = apiGroupService.getGroupTree(testProjectId());
             assertEquals(2, tree.size());
@@ -419,11 +431,11 @@ class ApiGroupServiceTest extends BaseApiTest {
         @DisplayName("多级分组应返回正确树形结构")
         void multiLevelGroupsShouldReturnTreeStructure() {
             // 创建根分组
-            ApiGroupVO root = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO root = apiGroupService.create(rootCreateDTO);
 
             // 创建子分组
             childCreateDTO.setParentId(root.getId());
-            ApiGroupVO child = apiGroupService.create(childCreateDTO, testUserId());
+            ApiGroupVO child = apiGroupService.create(childCreateDTO);
 
             // 创建孙分组
             ApiGroupCreateDTO grandChild = new ApiGroupCreateDTO();
@@ -431,7 +443,7 @@ class ApiGroupServiceTest extends BaseApiTest {
             grandChild.setParentId(child.getId());
             grandChild.setName("手机号登录");
             grandChild.setSortOrder(1);
-            apiGroupService.create(grandChild, testUserId());
+            apiGroupService.create(grandChild);
 
             // 获取树
             List<ApiGroupVO> tree = apiGroupService.getGroupTree(testProjectId());
@@ -456,19 +468,19 @@ class ApiGroupServiceTest extends BaseApiTest {
             g1.setProjectId(testProjectId());
             g1.setName("分组A");
             g1.setSortOrder(3);
-            apiGroupService.create(g1, testUserId());
+            apiGroupService.create(g1);
 
             ApiGroupCreateDTO g2 = new ApiGroupCreateDTO();
             g2.setProjectId(testProjectId());
             g2.setName("分组B");
             g2.setSortOrder(1);
-            apiGroupService.create(g2, testUserId());
+            apiGroupService.create(g2);
 
             ApiGroupCreateDTO g3 = new ApiGroupCreateDTO();
             g3.setProjectId(testProjectId());
             g3.setName("分组C");
             g3.setSortOrder(2);
-            apiGroupService.create(g3, testUserId());
+            apiGroupService.create(g3);
 
             List<ApiGroupVO> tree = apiGroupService.getGroupTree(testProjectId());
             assertEquals(3, tree.size());
@@ -480,13 +492,13 @@ class ApiGroupServiceTest extends BaseApiTest {
         @Test
         @DisplayName("不同项目应返回各自的树，互不干扰")
         void differentProjectsShouldReturnIndependentTrees() {
-            apiGroupService.create(rootCreateDTO, testUserId());
+            apiGroupService.create(rootCreateDTO);
 
             ApiGroupCreateDTO other = new ApiGroupCreateDTO();
             other.setProjectId(2002L);
             other.setName("其他项目分组");
             other.setSortOrder(1);
-            apiGroupService.create(other, testUserId());
+            apiGroupService.create(other);
 
             List<ApiGroupVO> tree1 = apiGroupService.getGroupTree(testProjectId());
             assertEquals(1, tree1.size());
@@ -500,7 +512,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @Test
         @DisplayName("分组树中应包含 apiCount 统计")
         void treeShouldIncludeApiCount() {
-            ApiGroupVO root = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO root = apiGroupService.create(rootCreateDTO);
 
             // 插入接口定义关联到该分组
             ApiDefinitionEntity apiDef1 = new ApiDefinitionEntity();
@@ -523,7 +535,7 @@ class ApiGroupServiceTest extends BaseApiTest {
 
             // 创建子分组，不关联接口
             childCreateDTO.setParentId(root.getId());
-            apiGroupService.create(childCreateDTO, testUserId());
+            apiGroupService.create(childCreateDTO);
 
             List<ApiGroupVO> tree = apiGroupService.getGroupTree(testProjectId());
             assertEquals(1, tree.size());
@@ -543,7 +555,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @Test
         @DisplayName("查询存在的分组应返回完整 VO")
         void getExistingGroupShouldReturnDetail() {
-            ApiGroupVO created = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO created = apiGroupService.create(rootCreateDTO);
 
             ApiGroupVO detail = apiGroupService.getDetail(created.getId());
             assertNotNull(detail);
@@ -567,9 +579,9 @@ class ApiGroupServiceTest extends BaseApiTest {
         @Test
         @DisplayName("查询子分组详情应正确返回父级 ID")
         void getChildGroupDetailShouldReturnParentId() {
-            ApiGroupVO parent = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO parent = apiGroupService.create(rootCreateDTO);
             childCreateDTO.setParentId(parent.getId());
-            ApiGroupVO child = apiGroupService.create(childCreateDTO, testUserId());
+            ApiGroupVO child = apiGroupService.create(childCreateDTO);
 
             ApiGroupVO detail = apiGroupService.getDetail(child.getId());
             assertEquals(parent.getId(), detail.getParentId());
@@ -578,7 +590,7 @@ class ApiGroupServiceTest extends BaseApiTest {
         @Test
         @DisplayName("多次查询同一分组应返回一致结果")
         void multipleQueriesShouldReturnConsistentResult() {
-            ApiGroupVO created = apiGroupService.create(rootCreateDTO, testUserId());
+            ApiGroupVO created = apiGroupService.create(rootCreateDTO);
 
             ApiGroupVO detail1 = apiGroupService.getDetail(created.getId());
             ApiGroupVO detail2 = apiGroupService.getDetail(created.getId());
@@ -587,5 +599,45 @@ class ApiGroupServiceTest extends BaseApiTest {
             assertEquals(detail1.getName(), detail2.getName());
             assertEquals(detail1.getSortOrder(), detail2.getSortOrder());
         }
+    }
+
+    // ========================================================================
+    // 项目隔离
+    // ========================================================================
+
+    @Nested
+    @DisplayName("项目隔离 — 跨项目读写")
+    class ProjectIsolation {
+
+        @Test
+        @DisplayName("getDetail/update/delete/tree 跨项目应全部 20002")
+        void getDetailCrossProjectForbidden() {
+            rootCreateDTO.setProjectId(2002L);
+            ApiGroupVO foreign = apiGroupService.create(rootCreateDTO);
+
+            projectAccessValidator.allow(testProjectId());
+
+            assertProjectDenied(() -> apiGroupService.getDetail(foreign.getId()));
+            assertProjectDenied(() -> apiGroupService.update(foreign.getId(), new ApiGroupUpdateDTO()));
+            assertProjectDenied(() -> apiGroupService.delete(foreign.getId()));
+            assertProjectDenied(() -> apiGroupService.getGroupTree(2002L));
+        }
+
+        @Test
+        @DisplayName("tree 不带 projectId 时只返回可见项目")
+        void treeScopedToAccessibleProjects() {
+            rootCreateDTO.setProjectId(2002L);
+            apiGroupService.create(rootCreateDTO);
+
+            projectAccessValidator.allow(testProjectId());
+            List<ApiGroupVO> tree = apiGroupService.getGroupTree(null);
+
+            assertTrue(tree.stream().allMatch(g -> testProjectId().equals(g.getProjectId())));
+        }
+    }
+
+    private void assertProjectDenied(org.junit.jupiter.api.function.Executable executable) {
+        BizException ex = assertThrows(BizException.class, executable);
+        assertEquals(ResultCode.PROJECT_ACCESS_DENIED.getCode(), ex.getCode());
     }
 }

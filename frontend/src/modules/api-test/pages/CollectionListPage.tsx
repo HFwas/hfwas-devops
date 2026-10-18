@@ -38,7 +38,7 @@ function formatTime(value?: string | null): string {
 }
 
 export function CollectionListPage() {
-  const userId = useAuthStore((s) => s.user?.id)
+  const isAuthenticated = useAuthStore((s) => Boolean(s.user))
   const queryClient = useQueryClient()
   const [projectId, setProjectId] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -69,7 +69,7 @@ export function CollectionListPage() {
     enabled: !!projectId,
   })
   const create = useMutation({
-    mutationFn: (values: FormValues) => collectionApi.create(values, projectId, userId!),
+    mutationFn: (values: FormValues) => collectionApi.create(values, projectId),
     onSuccess: async () => {
       toast.success('集合已创建')
       setOpen(false)
@@ -97,7 +97,7 @@ export function CollectionListPage() {
               aria-label="搜索集合"
               className="h-8 w-56"
             />
-            <Button disabled={!projectId || userId == null || userId === ''} onClick={() => setOpen(true)}>
+            <Button disabled={!projectId || !isAuthenticated} onClick={() => setOpen(true)}>
               <Plus />
               新建集合
             </Button>

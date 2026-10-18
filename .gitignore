@@ -54,6 +54,8 @@ logs/
 ### Python ###
 backend/scripts/.venv/
 backend/scripts/venv/
+__pycache__/
+*.pyc
 
 ### Superpowers brainstorm companion ###
 .superpowers/
@@ -62,3 +64,4 @@ backend/scripts/venv/
 files/
 !deploy/charts/**/files/
 !deploy/charts/**/files/**
+deploy/charts/**/files/**/__pycache__/

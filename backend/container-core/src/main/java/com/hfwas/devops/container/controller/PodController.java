@@ -26,7 +26,7 @@ public class PodController {
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize,
             @RequestParam(required = false) String labels) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.listPods(clusterId, namespace, keyword, pageNo, pageSize, tenantId, labels));
     }
 
@@ -35,7 +35,7 @@ public class PodController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getPod(clusterId, namespace, name, tenantId));
     }
 
@@ -44,7 +44,7 @@ public class PodController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getPodYaml(clusterId, namespace, name, tenantId));
     }
 
@@ -55,7 +55,7 @@ public class PodController {
             @PathVariable String name,
             @RequestParam(required = false) String container,
             @RequestParam(required = false) Integer tailLines) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getPodLogs(clusterId, namespace, name, container, tailLines, tenantId));
     }
 
@@ -64,7 +64,7 @@ public class PodController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.deletePod(clusterId, namespace, name, tenantId);
         return BaseResult.ok();
     }

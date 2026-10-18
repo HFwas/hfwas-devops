@@ -11,6 +11,9 @@ import com.hfwas.devops.apitest.collection.entity.CollectionItemEntity;
 import com.hfwas.devops.apitest.collection.mapper.CollectionItemMapper;
 import com.hfwas.devops.apitest.collection.vo.CollectionItemVO;
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.common.security.ApiTestAccessGuard;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,23 +34,21 @@ public class CollectionItemService extends ServiceImpl<CollectionItemMapper, Col
 
     private final CollectionService collectionService;
     private final ApiDefinitionMapper definitionMapper;
+    private final ApiTestAccessGuard accessGuard;
 
     /**
      * 添加集合项
      */
     @Transactional(rollbackFor = Exception.class)
-    public CollectionItemVO add(Long collectionId, CollectionItemAddDTO dto, Long userId) {
-        // 校验集合是否存在
-        CollectionEntity collection = collectionService.getById(collectionId);
-        if (collection == null) {
-            throw new ApiTestException("集合不存在");
-        }
+    public CollectionItemVO add(Long collectionId, CollectionItemAddDTO dto) {
+        CollectionEntity collection = requireCollectionAccess(collectionId);
 
-        // 校验接口定义是否存在
+        // 校验接口定义是否存在且属于同一项目
         ApiDefinitionEntity definition = definitionMapper.selectById(dto.getDefinitionId());
         if (definition == null) {
             throw new ApiTestException("接口定义不存在");
         }
+        assertDefinitionInProject(definition, collection.getProjectId());
 
         // 检查是否已添加（防重复）
         boolean exists = lambdaQuery()
@@ -69,6 +70,7 @@ public class CollectionItemService extends ServiceImpl<CollectionItemMapper, Col
         entity.setDescription(dto.getDescription());
         entity.setEnabled(dto.getEnabled() != null && dto.getEnabled() ? 1 : 0);
         entity.setSortOrder(maxSort + 1);
+        entity.setCreateBy(accessGuard.requireUserId());
         save(entity);
 
         log.info("添加集合项: id={}, definitionId={}, collectionId={}", entity.getId(), dto.getDefinitionId(), collectionId);
@@ -85,6 +87,7 @@ public class CollectionItemService extends ServiceImpl<CollectionItemMapper, Col
         if (entity == null || !entity.getCollectionId().equals(collectionId)) {
             throw new ApiTestException("集合项不存在");
         }
+        requireCollectionAccess(collectionId);
 
         if (dto.getName() != null) {
             entity.setName(dto.getName());
@@ -113,6 +116,7 @@ public class CollectionItemService extends ServiceImpl<CollectionItemMapper, Col
         if (entity == null || !entity.getCollectionId().equals(collectionId)) {
             throw new ApiTestException("集合项不存在");
         }
+        requireCollectionAccess(collectionId);
         removeById(itemId);
         log.info("删除集合项: id={}, definitionId={}", itemId, entity.getDefinitionId());
     }
@@ -122,6 +126,7 @@ public class CollectionItemService extends ServiceImpl<CollectionItemMapper, Col
      */
     @Transactional(rollbackFor = Exception.class)
     public void reorder(Long collectionId, List<Long> itemIds) {
+        requireCollectionAccess(collectionId);
         for (int i = 0; i < itemIds.size(); i++) {
             CollectionItemEntity entity = getById(itemIds.get(i));
             if (entity != null && entity.getCollectionId().equals(collectionId)) {
@@ -136,12 +141,8 @@ public class CollectionItemService extends ServiceImpl<CollectionItemMapper, Col
      * 批量添加
      */
     @Transactional(rollbackFor = Exception.class)
-    public void batchAdd(Long collectionId, CollectionItemBatchDTO dto, Long userId) {
-        // 校验集合是否存在
-        CollectionEntity collection = collectionService.getById(collectionId);
-        if (collection == null) {
-            throw new ApiTestException("集合不存在");
-        }
+    public void batchAdd(Long collectionId, CollectionItemBatchDTO dto) {
+        CollectionEntity collection = requireCollectionAccess(collectionId);
 
         // 获取当前最大排序序号
         Integer maxSort = getMaxSortOrder(collectionId, dto.getFolderId());
@@ -157,9 +158,10 @@ public class CollectionItemService extends ServiceImpl<CollectionItemMapper, Col
                 continue;
             }
 
-            // 校验接口定义是否存在
+            // 校验接口定义是否存在且属于同一项目，跨项目跳过
             ApiDefinitionEntity definition = definitionMapper.selectById(definitionId);
-            if (definition == null) {
+            if (definition == null || !java.util.Objects.equals(collection.getProjectId(), definition.getProjectId())) {
+                log.warn("跳过不属于当前集合项目的接口定义: collectionId={}, definitionId={}", collectionId, definitionId);
                 continue;
             }
 
@@ -169,11 +171,33 @@ public class CollectionItemService extends ServiceImpl<CollectionItemMapper, Col
             entity.setDefinitionId(definitionId);
             entity.setEnabled(1);
             entity.setSortOrder(maxSort + sortOffset + 1);
+            entity.setCreateBy(accessGuard.requireUserId());
             save(entity);
             sortOffset++;
         }
 
         log.info("批量添加集合项: collectionId={}, count={}", collectionId, dto.getDefinitionIds().size());
+    }
+
+    /**
+     * 校验集合存在并校验项目访问权限
+     */
+    private CollectionEntity requireCollectionAccess(Long collectionId) {
+        CollectionEntity collection = collectionService.getById(collectionId);
+        if (collection == null) {
+            throw new ApiTestException("集合不存在");
+        }
+        accessGuard.assertProject(collection.getProjectId());
+        return collection;
+    }
+
+    /**
+     * 集合项引用的接口定义必须属于集合所在项目
+     */
+    private void assertDefinitionInProject(ApiDefinitionEntity definition, Long projectId) {
+        if (!java.util.Objects.equals(projectId, definition.getProjectId())) {
+            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
+        }
     }
 
     /**

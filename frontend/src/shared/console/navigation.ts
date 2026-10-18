@@ -211,6 +211,7 @@ const MENUS: Record<string, ProductMenuGroup[]> = {
           icon: Workflow,
           to: '/argo/workflows',
           matches: [{ prefix: '/argo/workflows' }, { prefix: '/argo', end: true }],
+          adminOnly: true,
         },
         {
           key: 'templates',
@@ -218,6 +219,7 @@ const MENUS: Record<string, ProductMenuGroup[]> = {
           icon: Layers,
           to: '/argo/templates',
           matches: [{ prefix: '/argo/templates' }],
+          adminOnly: true,
         },
         {
           key: 'cron',
@@ -225,6 +227,7 @@ const MENUS: Record<string, ProductMenuGroup[]> = {
           icon: Clock,
           to: '/argo/cron',
           matches: [{ prefix: '/argo/cron' }],
+          adminOnly: true,
         },
       ],
     },

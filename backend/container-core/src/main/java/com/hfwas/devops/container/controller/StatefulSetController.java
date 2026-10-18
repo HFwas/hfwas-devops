@@ -29,7 +29,7 @@ public class StatefulSetController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.listStatefulSets(clusterId, namespace, keyword, pageNo, pageSize, tenantId));
     }
 
@@ -38,7 +38,7 @@ public class StatefulSetController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.listStatefulSetPods(clusterId, namespace, name, tenantId));
     }
 
@@ -47,7 +47,7 @@ public class StatefulSetController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getStatefulSetEnv(clusterId, namespace, name, tenantId));
     }
 
@@ -57,7 +57,7 @@ public class StatefulSetController {
             @PathVariable String namespace,
             @PathVariable String name,
             @RequestBody WorkloadEnvUpdateDTO body) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.updateStatefulSetEnv(clusterId, namespace, name, body, tenantId);
         return BaseResult.ok();
     }
@@ -67,7 +67,7 @@ public class StatefulSetController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getStatefulSetVolumes(clusterId, namespace, name, tenantId));
     }
 
@@ -77,7 +77,7 @@ public class StatefulSetController {
             @PathVariable String namespace,
             @PathVariable String name,
             @RequestBody WorkloadVolumeUpdateDTO body) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.updateStatefulSetVolumes(clusterId, namespace, name, body, tenantId);
         return BaseResult.ok();
     }
@@ -87,7 +87,7 @@ public class StatefulSetController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.getStatefulSetYaml(clusterId, namespace, name, tenantId));
     }
 
@@ -97,7 +97,7 @@ public class StatefulSetController {
             @PathVariable String namespace,
             @PathVariable String name,
             @RequestBody String yamlBody) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.updateStatefulSetYaml(clusterId, namespace, name, yamlBody, tenantId);
         return BaseResult.ok();
     }
@@ -107,7 +107,7 @@ public class StatefulSetController {
             @PathVariable Long clusterId,
             @PathVariable String namespace,
             @PathVariable String name) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         resourceService.deleteStatefulSet(clusterId, namespace, name, tenantId);
         return BaseResult.ok();
     }

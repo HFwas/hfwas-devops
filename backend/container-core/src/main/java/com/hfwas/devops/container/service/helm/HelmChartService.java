@@ -372,8 +372,7 @@ public class HelmChartService {
     }
 
     private static Long tenantId() {
-        Long current = SecurityHelper.currentTenantId();
-        return current == null ? PLATFORM_TENANT_ID : current;
+        return SecurityHelper.requireTenantId();
     }
 
     private static void assertTgzFilename(String original) {

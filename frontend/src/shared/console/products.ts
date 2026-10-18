@@ -14,6 +14,7 @@ export interface ConsoleProduct {
   path: string
   group: string
   comingSoon?: boolean
+  adminOnly?: boolean
 }
 
 export const CONSOLE_PRODUCTS: ConsoleProduct[] = [
@@ -98,6 +99,7 @@ export const CONSOLE_PRODUCTS: ConsoleProduct[] = [
     icon: GitGraph,
     path: '/argo/workflows',
     group: '基础设施',
+    adminOnly: true,
   },
 ]
 
@@ -120,10 +122,12 @@ export function resolveActiveProduct(path: string): ConsoleProduct | null {
   return key ? findProduct(key) : null
 }
 
-/** 按 group 聚合，供产品切换器分组渲染 */
-export function groupProducts(products: ConsoleProduct[] = CONSOLE_PRODUCTS) {
+/** 按 group 聚合，供产品切换器分组渲染；adminOnly 产品只对平台管理员可见。 */
+export function groupProducts(products: ConsoleProduct[] = CONSOLE_PRODUCTS, isAdmin = false) {
   const groups = new Map<string, ConsoleProduct[]>()
-  products.forEach((product) => {
+  products
+    .filter((product) => !product.adminOnly || isAdmin)
+    .forEach((product) => {
     const list = groups.get(product.group) ?? []
     list.push(product)
     groups.set(product.group, list)

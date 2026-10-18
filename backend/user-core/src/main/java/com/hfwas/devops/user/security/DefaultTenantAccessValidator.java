@@ -1,5 +1,7 @@
 package com.hfwas.devops.user.security;
 
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.user.service.TenantMemberService;
 import com.hfwas.devops.user.service.TenantService;
 import com.hfwas.devops.user.spi.TenantAccessValidator;
@@ -15,7 +17,7 @@ public class DefaultTenantAccessValidator implements TenantAccessValidator {
     public void assertAccess(Long userId, String role, Long tenantId) {
         tenantService.requireEnabled(tenantId);
         if (!"admin".equalsIgnoreCase(role) && !tenantMemberService.isActiveMember(tenantId, userId)) {
-            throw new IllegalArgumentException("无权访问该租户");
+            throw new BizException(ResultCode.TENANT_FORBIDDEN);
         }
     }
 }

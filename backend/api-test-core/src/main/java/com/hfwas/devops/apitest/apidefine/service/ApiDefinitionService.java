@@ -23,6 +23,7 @@ import com.hfwas.devops.apitest.apidefine.vo.ApiDefinitionParamVO;
 import com.hfwas.devops.apitest.apidefine.vo.ApiDefinitionResponseVO;
 import com.hfwas.devops.apitest.apidefine.vo.ApiDefinitionVO;
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.common.security.ApiTestAccessGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,6 +50,7 @@ public class ApiDefinitionService extends ServiceImpl<ApiDefinitionMapper, ApiDe
     private final ApiDefinitionResponseService responseService;
     private final ApiDefinitionVersionService versionService;
     private final ApiGroupService groupService;
+    private final ApiTestAccessGuard accessGuard;
 
     /**
      * 分页查询接口列表
@@ -57,9 +59,16 @@ public class ApiDefinitionService extends ServiceImpl<ApiDefinitionMapper, ApiDe
         Page<ApiDefinitionEntity> page = new Page<>(query.resolvePageNo(), query.resolvePageSize());
 
         LambdaQueryWrapper<ApiDefinitionEntity> wrapper = new LambdaQueryWrapper<>();
-        // 项目ID
+        // 项目ID：显式指定先校验；未指定时限定在当前租户可见项目内
         if (query.getProjectId() != null) {
+            accessGuard.assertProject(query.getProjectId());
             wrapper.eq(ApiDefinitionEntity::getProjectId, query.getProjectId());
+        } else {
+            List<Long> accessibleProjectIds = accessGuard.accessibleProjectIds();
+            if (accessibleProjectIds.isEmpty()) {
+                return page.convert(entity -> apiDefinitionConvert.toVO(entity));
+            }
+            wrapper.in(ApiDefinitionEntity::getProjectId, accessibleProjectIds);
         }
         // 分组筛选
         if (query.getGroupId() != null) {
@@ -124,22 +133,27 @@ public class ApiDefinitionService extends ServiceImpl<ApiDefinitionMapper, ApiDe
      * 创建接口定义
      */
     @Transactional(rollbackFor = Exception.class)
-    public ApiDefinitionDetailVO create(ApiDefinitionCreateDTO dto, Long userId) {
+    public ApiDefinitionDetailVO create(ApiDefinitionCreateDTO dto) {
+        // 项目访问校验
+        accessGuard.assertProject(dto.getProjectId());
+        Long userId = accessGuard.requireUserId();
+
         // 校验路径 + 方法唯一性
         checkPathMethodUnique(null, dto.getProjectId(), dto.getPath(), dto.getMethod());
 
         // 保存主表
         ApiDefinitionEntity entity = apiDefinitionConvert.toEntity(dto);
+        entity.setCreateBy(userId);
         save(entity);
 
         // 保存参数
         if (CollUtil.isNotEmpty(dto.getParams())) {
-            paramService.batchSave(entity.getId(), dto.getParams(), userId);
+            paramService.batchSave(entity.getId(), dto.getParams());
         }
 
         // 保存响应
         if (CollUtil.isNotEmpty(dto.getResponses())) {
-            responseService.batchSave(entity.getId(), dto.getResponses(), userId);
+            responseService.batchSave(entity.getId(), dto.getResponses());
         }
 
         log.info("创建接口定义: id={}, name={}, path={}, method={}",
@@ -152,12 +166,14 @@ public class ApiDefinitionService extends ServiceImpl<ApiDefinitionMapper, ApiDe
      * 更新接口定义
      */
     @Transactional(rollbackFor = Exception.class)
-    public ApiDefinitionDetailVO update(Long id, ApiDefinitionUpdateDTO dto, Long userId) {
+    public ApiDefinitionDetailVO update(Long id, ApiDefinitionUpdateDTO dto) {
         ApiDefinitionEntity entity = getById(id);
         if (entity == null) {
             throw new ApiTestException("接口不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
 
+        // 项目归属不可变：DTO 不提供 projectId，按实体 projectId 校验
         // 校验路径 + 方法唯一性
         checkPathMethodUnique(id, entity.getProjectId(), dto.getPath(), dto.getMethod());
 
@@ -168,13 +184,13 @@ public class ApiDefinitionService extends ServiceImpl<ApiDefinitionMapper, ApiDe
         // 更新参数（先删后插）
         paramService.lambdaUpdate().eq(ApiDefinitionParamEntity::getDefinitionId, id).remove();
         if (CollUtil.isNotEmpty(dto.getParams())) {
-            paramService.batchSave(id, dto.getParams(), userId);
+            paramService.batchSave(id, dto.getParams());
         }
 
         // 更新响应（先删后插）
         responseService.lambdaUpdate().eq(ApiDefinitionResponseEntity::getDefinitionId, id).remove();
         if (CollUtil.isNotEmpty(dto.getResponses())) {
-            responseService.batchSave(id, dto.getResponses(), userId);
+            responseService.batchSave(id, dto.getResponses());
         }
 
         log.info("更新接口定义: id={}, name={}", id, entity.getName());
@@ -190,6 +206,7 @@ public class ApiDefinitionService extends ServiceImpl<ApiDefinitionMapper, ApiDe
         if (entity == null) {
             throw new ApiTestException("接口不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
         return buildDetailVO(entity);
     }
 
@@ -202,6 +219,7 @@ public class ApiDefinitionService extends ServiceImpl<ApiDefinitionMapper, ApiDe
         if (entity == null) {
             throw new ApiTestException("接口不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
 
         // 删除参数
         paramService.lambdaUpdate().eq(ApiDefinitionParamEntity::getDefinitionId, id).remove();
@@ -217,11 +235,13 @@ public class ApiDefinitionService extends ServiceImpl<ApiDefinitionMapper, ApiDe
      * 发布接口（草稿→已发布）
      */
     @Transactional(rollbackFor = Exception.class)
-    public void publish(Long id, Long userId) {
+    public void publish(Long id) {
         ApiDefinitionEntity entity = getById(id);
         if (entity == null) {
             throw new ApiTestException("接口不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
+        Long userId = accessGuard.requireUserId();
         if (!"DRAFT".equals(entity.getStatus()) && !"PUBLISHED".equals(entity.getStatus())) {
             throw new ApiTestException("当前状态不允许发布");
         }
@@ -241,11 +261,12 @@ public class ApiDefinitionService extends ServiceImpl<ApiDefinitionMapper, ApiDe
      * 废弃接口（已发布→已废弃）
      */
     @Transactional(rollbackFor = Exception.class)
-    public void deprecate(Long id, Long userId) {
+    public void deprecate(Long id) {
         ApiDefinitionEntity entity = getById(id);
         if (entity == null) {
             throw new ApiTestException("接口不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
         if (!"PUBLISHED".equals(entity.getStatus())) {
             throw new ApiTestException("仅已发布状态可废弃");
         }
@@ -260,11 +281,12 @@ public class ApiDefinitionService extends ServiceImpl<ApiDefinitionMapper, ApiDe
      * 恢复编辑（已发布/已废弃→草稿）
      */
     @Transactional(rollbackFor = Exception.class)
-    public void revertToDraft(Long id, Long userId) {
+    public void revertToDraft(Long id) {
         ApiDefinitionEntity entity = getById(id);
         if (entity == null) {
             throw new ApiTestException("接口不存在");
         }
+        accessGuard.assertProject(entity.getProjectId());
 
         entity.setStatus("DRAFT");
         updateById(entity);

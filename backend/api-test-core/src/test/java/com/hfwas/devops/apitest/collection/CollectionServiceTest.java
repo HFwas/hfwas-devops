@@ -23,6 +23,10 @@ import com.hfwas.devops.apitest.collection.vo.CollectionFolderVO;
 import com.hfwas.devops.apitest.collection.vo.CollectionItemVO;
 import com.hfwas.devops.apitest.collection.vo.CollectionVO;
 import com.hfwas.devops.apitest.common.exception.ApiTestException;
+import com.hfwas.devops.apitest.support.TestProjectAccessValidator;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -69,6 +73,14 @@ class CollectionServiceTest extends BaseApiTest {
     @Autowired
     private CollectionItemService itemService;
 
+    @Autowired
+    private TestProjectAccessValidator projectAccessValidator;
+
+    @AfterEach
+    void resetAccessContext() {
+        projectAccessValidator.reset();
+    }
+
     private CollectionCreateDTO createDTO;
 
     @BeforeEach
@@ -90,7 +102,7 @@ class CollectionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建基本集合应成功并返回完整 VO")
         void createBasicCollectionShouldSucceed() {
-            CollectionVO vo = collectionService.create(createDTO, testProjectId(), testUserId());
+            CollectionVO vo = collectionService.create(createDTO, testProjectId());
 
             assertNotNull(vo);
             assertNotNull(vo.getId());
@@ -107,7 +119,7 @@ class CollectionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建后数据库应保存正确的记录")
         void createShouldPersistToDatabase() {
-            CollectionVO vo = collectionService.create(createDTO, testProjectId(), testUserId());
+            CollectionVO vo = collectionService.create(createDTO, testProjectId());
 
             CollectionEntity saved = collectionMapper.selectById(vo.getId());
             assertNotNull(saved);
@@ -121,7 +133,7 @@ class CollectionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("创建后审计字段应自动填充")
         void createShouldAutoFillAuditFields() {
-            CollectionVO vo = collectionService.create(createDTO, testProjectId(), testUserId());
+            CollectionVO vo = collectionService.create(createDTO, testProjectId());
 
             CollectionEntity saved = collectionMapper.selectById(vo.getId());
             assertNotNull(saved.getCreateTime());
@@ -135,7 +147,7 @@ class CollectionServiceTest extends BaseApiTest {
         void createWithNullDescriptionShouldSucceed() {
             createDTO.setDescription(null);
 
-            CollectionVO vo = collectionService.create(createDTO, testProjectId(), testUserId());
+            CollectionVO vo = collectionService.create(createDTO, testProjectId());
             assertNotNull(vo.getId());
             assertNull(vo.getDescription());
         }
@@ -145,7 +157,7 @@ class CollectionServiceTest extends BaseApiTest {
         void createWithNullSortOrderShouldUseDefault() {
             createDTO.setSortOrder(null);
 
-            CollectionVO vo = collectionService.create(createDTO, testProjectId(), testUserId());
+            CollectionVO vo = collectionService.create(createDTO, testProjectId());
             assertEquals(0, vo.getSortOrder());
 
             CollectionEntity saved = collectionMapper.selectById(vo.getId());
@@ -155,19 +167,19 @@ class CollectionServiceTest extends BaseApiTest {
         @Test
         @DisplayName("同一项目下同名集合创建应抛出 ApiTestException")
         void duplicateNameInSameProjectShouldThrow() {
-            collectionService.create(createDTO, testProjectId(), testUserId());
+            collectionService.create(createDTO, testProjectId());
 
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> collectionService.create(createDTO, testProjectId(), testUserId()));
+                    () -> collectionService.create(createDTO, testProjectId()));
             assertTrue(ex.getMessage().contains("同名集合"));
         }
 
         @Test
         @DisplayName("不同项目下同名集合应允许创建")
         void sameNameInDifferentProjectsShouldBeAllowed() {
-            collectionService.create(createDTO, testProjectId(), testUserId());
+            collectionService.create(createDTO, testProjectId());
 
-            CollectionVO vo = collectionService.create(createDTO, 2002L, testUserId());
+            CollectionVO vo = collectionService.create(createDTO, 2002L);
             assertNotNull(vo.getId());
             assertEquals("用户管理接口集合", vo.getName());
         }
@@ -177,7 +189,7 @@ class CollectionServiceTest extends BaseApiTest {
         void createWithEmptyDescriptionShouldSucceed() {
             createDTO.setDescription("");
 
-            CollectionVO vo = collectionService.create(createDTO, testProjectId(), testUserId());
+            CollectionVO vo = collectionService.create(createDTO, testProjectId());
             assertEquals("", vo.getDescription());
         }
 
@@ -186,7 +198,7 @@ class CollectionServiceTest extends BaseApiTest {
         void createWithNegativeSortOrderShouldSucceed() {
             createDTO.setSortOrder(-1);
 
-            CollectionVO vo = collectionService.create(createDTO, testProjectId(), testUserId());
+            CollectionVO vo = collectionService.create(createDTO, testProjectId());
             assertEquals(-1, vo.getSortOrder());
         }
 
@@ -195,7 +207,7 @@ class CollectionServiceTest extends BaseApiTest {
         void createWithMaxSortOrderShouldSucceed() {
             createDTO.setSortOrder(Integer.MAX_VALUE);
 
-            CollectionVO vo = collectionService.create(createDTO, testProjectId(), testUserId());
+            CollectionVO vo = collectionService.create(createDTO, testProjectId());
             assertEquals(Integer.MAX_VALUE, vo.getSortOrder());
         }
     }
@@ -212,7 +224,7 @@ class CollectionServiceTest extends BaseApiTest {
 
         @BeforeEach
         void insertCollection() {
-            CollectionVO vo = collectionService.create(createDTO, testProjectId(), testUserId());
+            CollectionVO vo = collectionService.create(createDTO, testProjectId());
             collectionId = vo.getId();
         }
 
@@ -228,7 +240,7 @@ class CollectionServiceTest extends BaseApiTest {
         @DisplayName("更新集合名称应成功")
         void updateNameShouldSucceed() {
             CollectionUpdateDTO dto = buildUpdateDTO("用户管理接口集合V2", null, null);
-            CollectionVO vo = collectionService.update(collectionId, dto, testUserId());
+            CollectionVO vo = collectionService.update(collectionId, dto);
 
             assertEquals("用户管理接口集合V2", vo.getName());
 
@@ -240,7 +252,7 @@ class CollectionServiceTest extends BaseApiTest {
         @DisplayName("更新集合描述应成功")
         void updateDescriptionShouldSucceed() {
             CollectionUpdateDTO dto = buildUpdateDTO(null, "更新后的描述信息", null);
-            CollectionVO vo = collectionService.update(collectionId, dto, testUserId());
+            CollectionVO vo = collectionService.update(collectionId, dto);
 
             assertEquals("更新后的描述信息", vo.getDescription());
 
@@ -252,7 +264,7 @@ class CollectionServiceTest extends BaseApiTest {
         @DisplayName("更新集合排序序号应成功")
         void updateSortOrderShouldSucceed() {
             CollectionUpdateDTO dto = buildUpdateDTO(null, null, 99);
-            CollectionVO vo = collectionService.update(collectionId, dto, testUserId());
+            CollectionVO vo = collectionService.update(collectionId, dto);
 
             assertEquals(99, vo.getSortOrder());
 
@@ -264,7 +276,7 @@ class CollectionServiceTest extends BaseApiTest {
         @DisplayName("同时更新多个字段应全部生效")
         void updateMultipleFieldsShouldSucceed() {
             CollectionUpdateDTO dto = buildUpdateDTO("新名称", "新描述", 50);
-            CollectionVO vo = collectionService.update(collectionId, dto, testUserId());
+            CollectionVO vo = collectionService.update(collectionId, dto);
 
             assertEquals("新名称", vo.getName());
             assertEquals("新描述", vo.getDescription());
@@ -275,7 +287,7 @@ class CollectionServiceTest extends BaseApiTest {
         @DisplayName("更新后 updateBy 和 updateTime 应自动填充")
         void updateShouldAutoFillAuditFields() {
             CollectionUpdateDTO dto = buildUpdateDTO("新名称", null, null);
-            collectionService.update(collectionId, dto, testUserId());
+            collectionService.update(collectionId, dto);
 
             CollectionEntity saved = collectionMapper.selectById(collectionId);
             assertNotNull(saved.getUpdateTime());
@@ -289,12 +301,12 @@ class CollectionServiceTest extends BaseApiTest {
             CollectionCreateDTO another = new CollectionCreateDTO();
             another.setName("订单管理接口集合");
             another.setSortOrder(2);
-            collectionService.create(another, testProjectId(), testUserId());
+            collectionService.create(another, testProjectId());
 
             // 尝试将第一个集合的名称改为和第二个相同
             CollectionUpdateDTO dto = buildUpdateDTO("订单管理接口集合", null, null);
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> collectionService.update(collectionId, dto, testUserId()));
+                    () -> collectionService.update(collectionId, dto));
             assertTrue(ex.getMessage().contains("同名集合"));
         }
 
@@ -302,7 +314,7 @@ class CollectionServiceTest extends BaseApiTest {
         @DisplayName("更新为自身原名应不抛出异常")
         void updateToSameNameShouldSucceed() {
             CollectionUpdateDTO dto = buildUpdateDTO("用户管理接口集合", "更新描述", null);
-            CollectionVO vo = collectionService.update(collectionId, dto, testUserId());
+            CollectionVO vo = collectionService.update(collectionId, dto);
             assertEquals("用户管理接口集合", vo.getName());
             assertEquals("更新描述", vo.getDescription());
         }
@@ -312,7 +324,7 @@ class CollectionServiceTest extends BaseApiTest {
         void updateNonExistentCollectionShouldThrow() {
             CollectionUpdateDTO dto = buildUpdateDTO("不存在", null, null);
             ApiTestException ex = assertThrows(ApiTestException.class,
-                    () -> collectionService.update(99999L, dto, testUserId()));
+                    () -> collectionService.update(99999L, dto));
             assertTrue(ex.getMessage().contains("集合不存在"));
         }
 
@@ -325,7 +337,7 @@ class CollectionServiceTest extends BaseApiTest {
 
             CollectionUpdateDTO dto = new CollectionUpdateDTO();
             dto.setDescription(null);
-            CollectionVO vo = collectionService.update(collectionId, dto, testUserId());
+            CollectionVO vo = collectionService.update(collectionId, dto);
             // 服务层仅更新非 null 字段，description 为 null 时不更新
             assertNotNull(vo.getDescription());
         }
@@ -335,7 +347,7 @@ class CollectionServiceTest extends BaseApiTest {
         void updateDescriptionToEmptyShouldSucceed() {
             CollectionUpdateDTO dto = new CollectionUpdateDTO();
             dto.setDescription("");
-            CollectionVO vo = collectionService.update(collectionId, dto, testUserId());
+            CollectionVO vo = collectionService.update(collectionId, dto);
             assertEquals("", vo.getDescription());
         }
 
@@ -343,11 +355,11 @@ class CollectionServiceTest extends BaseApiTest {
         @DisplayName("不同项目下同名集合更新应允许")
         void updateWithSameNameAcrossProjectsShouldBeAllowed() {
             // 在另一个项目下创建同名集合
-            collectionService.create(createDTO, 2002L, testUserId());
+            collectionService.create(createDTO, 2002L);
 
             // 更新第一个集合的名称，不应受另一个项目影响
             CollectionUpdateDTO dto = buildUpdateDTO("用户管理接口集合", null, null);
-            CollectionVO vo = collectionService.update(collectionId, dto, testUserId());
+            CollectionVO vo = collectionService.update(collectionId, dto);
             assertEquals("用户管理接口集合", vo.getName());
         }
     }
@@ -364,7 +376,7 @@ class CollectionServiceTest extends BaseApiTest {
 
         @BeforeEach
         void insertCollection() {
-            CollectionVO vo = collectionService.create(createDTO, testProjectId(), testUserId());
+            CollectionVO vo = collectionService.create(createDTO, testProjectId());
             collectionId = vo.getId();
         }
 
@@ -600,7 +612,7 @@ class CollectionServiceTest extends BaseApiTest {
 
         @BeforeEach
         void insertCollectionWithRelations() {
-            CollectionVO vo = collectionService.create(createDTO, testProjectId(), testUserId());
+            CollectionVO vo = collectionService.create(createDTO, testProjectId());
             collectionId = vo.getId();
 
             // 插入文件夹
@@ -668,7 +680,7 @@ class CollectionServiceTest extends BaseApiTest {
                         setName("空集合");
                         setSortOrder(2);
                     }},
-                    testProjectId(), testUserId());
+                    testProjectId());
 
             collectionService.delete(emptyVo.getId());
             assertNull(collectionMapper.selectById(emptyVo.getId()));
@@ -695,19 +707,19 @@ class CollectionServiceTest extends BaseApiTest {
 
         @BeforeEach
         void insertTestData() {
-            collectionService.create(createDTO, testProjectId(), testUserId());
+            collectionService.create(createDTO, testProjectId());
 
             CollectionCreateDTO orderApi = new CollectionCreateDTO();
             orderApi.setName("订单管理接口集合");
             orderApi.setDescription("包含订单管理模块的所有接口");
             orderApi.setSortOrder(2);
-            collectionService.create(orderApi, testProjectId(), testUserId());
+            collectionService.create(orderApi, testProjectId());
 
             CollectionCreateDTO productApi = new CollectionCreateDTO();
             productApi.setName("商品管理接口集合");
             productApi.setDescription("包含商品管理模块的所有接口");
             productApi.setSortOrder(3);
-            collectionService.create(productApi, testProjectId(), testUserId());
+            collectionService.create(productApi, testProjectId());
         }
 
         @Test
@@ -818,7 +830,7 @@ class CollectionServiceTest extends BaseApiTest {
         @DisplayName("projectId 为 null 时应查询所有项目的集合")
         void nullProjectIdShouldReturnAllProjects() {
             // 在其他项目下再创建一个集合
-            collectionService.create(createDTO, 2002L, testUserId());
+            collectionService.create(createDTO, 2002L);
 
             IPage<CollectionVO> result = collectionService.pageQuery(
                     null, null, 1, 20);
@@ -869,6 +881,52 @@ class CollectionServiceTest extends BaseApiTest {
 
             assertEquals(3, result.getTotal());
         }
+    }
+
+    // ========================================================================
+    // 项目隔离
+    // ========================================================================
+
+    @Nested
+    @DisplayName("项目隔离 — 跨项目读写")
+    class ProjectIsolation {
+
+        @Test
+        @DisplayName("跨项目 getDetail/update/delete/page 应全部 20002")
+        void crossProjectForbidden() {
+            CollectionVO foreign = collectionService.create(createDTO, 2002L);
+
+            projectAccessValidator.allow(testProjectId());
+
+            assertProjectDenied(() -> collectionService.getDetail(foreign.getId()));
+            assertProjectDenied(() -> collectionService.update(foreign.getId(), new CollectionUpdateDTO()));
+            assertProjectDenied(() -> collectionService.delete(foreign.getId()));
+            assertProjectDenied(() -> collectionService.pageQuery(2002L, null, 1, 20));
+        }
+
+        @Test
+        @DisplayName("不带 projectId 的列表只返回可见项目，空集返回空页")
+        void listScopedToAccessibleProjects() {
+            collectionService.create(createDTO, testProjectId());
+            CollectionCreateDTO foreignDTO = new CollectionCreateDTO();
+            foreignDTO.setName("外部集合");
+            collectionService.create(foreignDTO, 2002L);
+
+            projectAccessValidator.allow(testProjectId());
+            IPage<CollectionVO> page = collectionService.pageQuery(null, null, 1, 20);
+            assertEquals(1, page.getTotal());
+            assertTrue(page.getRecords().stream().allMatch(v -> testProjectId().equals(v.getProjectId())));
+
+            projectAccessValidator.denyAll();
+            IPage<CollectionVO> empty = collectionService.pageQuery(null, null, 1, 20);
+            assertEquals(0, empty.getTotal());
+            assertTrue(empty.getRecords().isEmpty());
+        }
+    }
+
+    private void assertProjectDenied(org.junit.jupiter.api.function.Executable executable) {
+        BizException ex = assertThrows(BizException.class, executable);
+        assertEquals(ResultCode.PROJECT_ACCESS_DENIED.getCode(), ex.getCode());
     }
 
     // ========================================================================

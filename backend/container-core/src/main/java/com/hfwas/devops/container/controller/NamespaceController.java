@@ -25,7 +25,7 @@ public class NamespaceController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize) {
-        Long tenantId = SecurityHelper.currentTenantId();
+        Long tenantId = SecurityHelper.requireTenantId();
         return BaseResult.ok(resourceService.listNamespaces(clusterId, keyword, pageNo, pageSize, tenantId));
     }
 }

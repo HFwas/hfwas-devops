@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -50,17 +49,15 @@ public class ApiDefinitionController {
 
     @Operation(summary = "创建接口定义")
     @PostMapping
-    public BaseResult<ApiDefinitionDetailVO> create(@Valid @RequestBody ApiDefinitionCreateDTO dto,
-                                                    @RequestParam Long userId) {
-        return BaseResult.ok(apiDefinitionService.create(dto, userId));
+    public BaseResult<ApiDefinitionDetailVO> create(@Valid @RequestBody ApiDefinitionCreateDTO dto) {
+        return BaseResult.ok(apiDefinitionService.create(dto));
     }
 
     @Operation(summary = "更新接口定义")
     @PutMapping("/{id}")
     public BaseResult<ApiDefinitionDetailVO> update(@PathVariable Long id,
-                                                    @Valid @RequestBody ApiDefinitionUpdateDTO dto,
-                                                    @RequestParam Long userId) {
-        return BaseResult.ok(apiDefinitionService.update(id, dto, userId));
+                                                    @Valid @RequestBody ApiDefinitionUpdateDTO dto) {
+        return BaseResult.ok(apiDefinitionService.update(id, dto));
     }
 
     @Operation(summary = "删除接口定义")
@@ -72,22 +69,22 @@ public class ApiDefinitionController {
 
     @Operation(summary = "发布接口（草稿→已发布）")
     @PostMapping("/{id}/publish")
-    public BaseResult<Void> publish(@PathVariable Long id, @RequestParam Long userId) {
-        apiDefinitionService.publish(id, userId);
+    public BaseResult<Void> publish(@PathVariable Long id) {
+        apiDefinitionService.publish(id);
         return BaseResult.ok();
     }
 
     @Operation(summary = "废弃接口（已发布→已废弃）")
     @PostMapping("/{id}/deprecate")
-    public BaseResult<Void> deprecate(@PathVariable Long id, @RequestParam Long userId) {
-        apiDefinitionService.deprecate(id, userId);
+    public BaseResult<Void> deprecate(@PathVariable Long id) {
+        apiDefinitionService.deprecate(id);
         return BaseResult.ok();
     }
 
     @Operation(summary = "恢复草稿（已发布/已废弃→草稿）")
     @PostMapping("/{id}/revert-draft")
-    public BaseResult<Void> revertToDraft(@PathVariable Long id, @RequestParam Long userId) {
-        apiDefinitionService.revertToDraft(id, userId);
+    public BaseResult<Void> revertToDraft(@PathVariable Long id) {
+        apiDefinitionService.revertToDraft(id);
         return BaseResult.ok();
     }
 }
