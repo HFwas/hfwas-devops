@@ -27,23 +27,13 @@ public class ProjectService {
     private final CurrentUserAccessor currentUserAccessor;
     private final TenantAccessValidator tenantAccessValidator;
     private final ProjectIssueTypeService projectIssueTypeService;
+    private final ProjectAccessGuard projectAccessGuard;
 
     /**
      * Resolves project tenant for deep links: does not require current tenant header to match.
      */
     public ProjectAccessContextVO resolveAccessContext(Long projectId) {
-        PmProject project = projectMapper.selectById(projectId);
-        if (project == null || project.getTenantId() == null) {
-            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
-        }
-        UserContext ctx = currentUserAccessor.current()
-                .orElseThrow(() -> new BizException(ResultCode.UNAUTHORIZED));
-        tenantAccessValidator.assertAccess(ctx.getUserId(), ctx.getRole(), project.getTenantId());
-        ProjectAccessContextVO vo = new ProjectAccessContextVO();
-        vo.setProjectId(project.getId());
-        vo.setProjectName(project.getName());
-        vo.setTenantId(project.getTenantId());
-        return vo;
+        return projectAccessGuard.resolve(projectId);
     }
 
     /**
@@ -51,7 +41,7 @@ public class ProjectService {
      * the user's membership, so deep links from another selected tenant work.
      */
     public void assertProjectAccess(Long projectId) {
-        resolveAccessContext(projectId);
+        projectAccessGuard.assertAccess(projectId);
     }
 
     /** Project ids visible in the given tenant, for cross-module list filtering. */

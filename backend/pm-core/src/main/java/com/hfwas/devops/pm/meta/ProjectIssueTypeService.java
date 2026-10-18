@@ -1,7 +1,7 @@
 package com.hfwas.devops.pm.meta;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.hfwas.devops.pm.project.service.ProjectService;
+import com.hfwas.devops.pm.project.service.ProjectAccessGuard;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -21,13 +21,13 @@ public class ProjectIssueTypeService {
 
     private final PmProjectIssueTypeMapper projectIssueTypeMapper;
     private final PmMetaService metaService;
-    private final ProjectService projectService;
+    private final ProjectAccessGuard projectAccessGuard;
 
     public List<PmWorkItemType> listForProject(Long projectId) {
         if (projectId == null) {
             throw new IllegalArgumentException("projectId 不能为空");
         }
-        projectService.assertProjectAccess(projectId);
+        projectAccessGuard.assertAccess(projectId);
         List<PmProjectIssueType> scheme = projectIssueTypeMapper.selectList(
                 Wrappers.<PmProjectIssueType>lambdaQuery()
                         .eq(PmProjectIssueType::getProjectId, projectId)
@@ -50,7 +50,7 @@ public class ProjectIssueTypeService {
 
     @Transactional
     public void saveScheme(Long projectId, List<String> typeCodes) {
-        projectService.assertProjectAccess(projectId);
+        projectAccessGuard.assertAccess(projectId);
         if (projectId == null) {
             throw new IllegalArgumentException("projectId 不能为空");
         }

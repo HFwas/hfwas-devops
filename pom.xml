@@ -55,7 +55,8 @@
         <!-- classic 与 core 必须同版本，否则 PatternLayout 会抛 AbstractMethodError -->
         <logback.version>1.6.5</logback.version>
         <knife4j.version>4.5.0</knife4j.version>
-        <spring-security.version>7.1.1</spring-security.version>
+        <!-- 必须与 spring-boot 3.5.x 管理的 6.5.x 保持一致；Security 7 需要 Boot 4 / Framework 7 -->
+        <spring-security.version>6.5.11</spring-security.version>
         <netty-handler.version>4.2.19.Final</netty-handler.version>
         <poi-ooxml.version>5.5.1</poi-ooxml.version>
         <aspectjrt.version>1.9.25.1</aspectjrt.version>

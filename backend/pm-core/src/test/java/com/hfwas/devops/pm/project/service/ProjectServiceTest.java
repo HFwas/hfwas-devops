@@ -1,12 +1,9 @@
 package com.hfwas.devops.pm.project.service;
 
-import com.hfwas.devops.common.error.BizException;
-import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.pm.meta.ProjectIssueTypeService;
-import com.hfwas.devops.pm.project.entity.PmProject;
 import com.hfwas.devops.pm.project.mapper.PmProjectMapper;
+import com.hfwas.devops.pm.project.model.ProjectAccessContextVO;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
-import com.hfwas.devops.user.context.UserContext;
 import com.hfwas.devops.user.spi.TenantAccessValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,12 +11,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.doThrow;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Access-check behaviour lives in {@link ProjectAccessGuardTest}; here we only
+ * verify that ProjectService keeps its public API delegating to the guard.
+ */
 @ExtendWith(MockitoExtension.class)
 class ProjectServiceTest {
 
@@ -31,62 +30,25 @@ class ProjectServiceTest {
     private TenantAccessValidator tenantAccessValidator;
     @Mock
     private ProjectIssueTypeService projectIssueTypeService;
+    @Mock
+    private ProjectAccessGuard projectAccessGuard;
 
     @InjectMocks
     private ProjectService projectService;
 
     @Test
-    void missingProjectIsForbidden() {
-        when(projectMapper.selectById(99L)).thenReturn(null);
-
-        assertThatThrownBy(() -> projectService.assertProjectAccess(99L))
-                .isInstanceOf(BizException.class)
-                .extracting("code")
-                .isEqualTo(ResultCode.PROJECT_ACCESS_DENIED.getCode());
-    }
-
-    @Test
-    void unauthenticatedIsUnauthorized() {
-        PmProject project = project(1L, 10L);
-        when(projectMapper.selectById(1L)).thenReturn(project);
-        when(currentUserAccessor.current()).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> projectService.assertProjectAccess(1L))
-                .isInstanceOf(BizException.class)
-                .extracting("code")
-                .isEqualTo(ResultCode.UNAUTHORIZED.getCode());
-    }
-
-    @Test
-    void nonMemberIsForbidden() {
-        PmProject project = project(1L, 10L);
-        UserContext user = UserContext.builder().userId(7L).role("user").tenantId(10L).build();
-        when(projectMapper.selectById(1L)).thenReturn(project);
-        when(currentUserAccessor.current()).thenReturn(Optional.of(user));
-        doThrow(new BizException(ResultCode.TENANT_FORBIDDEN))
-                .when(tenantAccessValidator).assertAccess(7L, "user", 10L);
-
-        assertThatThrownBy(() -> projectService.assertProjectAccess(1L))
-                .isInstanceOf(BizException.class)
-                .extracting("code")
-                .isEqualTo(ResultCode.TENANT_FORBIDDEN.getCode());
-    }
-
-    @Test
-    void memberIsAllowed() {
-        PmProject project = project(1L, 10L);
-        UserContext user = UserContext.builder().userId(7L).role("user").tenantId(10L).build();
-        when(projectMapper.selectById(1L)).thenReturn(project);
-        when(currentUserAccessor.current()).thenReturn(Optional.of(user));
-
+    void assertProjectAccessDelegatesToGuard() {
         projectService.assertProjectAccess(1L);
+
+        verify(projectAccessGuard).assertAccess(1L);
     }
 
-    private PmProject project(Long id, Long tenantId) {
-        PmProject project = new PmProject();
-        project.setId(id);
-        project.setTenantId(tenantId);
-        project.setName("项目");
-        return project;
+    @Test
+    void resolveAccessContextDelegatesToGuard() {
+        ProjectAccessContextVO expected = new ProjectAccessContextVO();
+        expected.setProjectId(1L);
+        when(projectAccessGuard.resolve(1L)).thenReturn(expected);
+
+        assertThat(projectService.resolveAccessContext(1L)).isSameAs(expected);
     }
 }
