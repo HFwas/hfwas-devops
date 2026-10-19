@@ -3,7 +3,7 @@
 #
 # 全部服务（推荐）:
 #   ./scripts/start-dev.sh
-#   docker compose up -d --build
+#   docker compose -f deploy/docker-compose.yml up -d --build
 #
 # 仅网关（宿主机另起前后端时）:
 #   ./scripts/start-kong.sh
@@ -21,8 +21,11 @@
 #
 # 流水线执行集群（可选）:
 #   ./scripts/start-pipeline-cluster.sh
-#   docker compose --profile pipeline up -d
+#   docker compose -f deploy/docker-compose.yml --profile pipeline up -d
 # ============================================================
+
+# 固定项目名，避免 compose 文件移入 deploy/ 后卷名前缀变成 deploy_
+name: hfwas-devops
 
 services:
   gateway-init:
@@ -30,14 +33,14 @@ services:
     container_name: devops-gateway-init
     restart: "no"
     volumes:
-      - ./logs/kong:/mnt/kong-logs
-      - ./logs/keycloak:/mnt/keycloak-logs
-      - ./logs/backend:/mnt/backend-logs
-      - ./logs/frontend:/mnt/frontend-logs
-      - ./logs/dumps:/mnt/dumps
-      - ./keycloak/providers:/mnt/providers
-      - ./artifacts/backend:/mnt/backend-artifacts
-      - ./artifacts/frontend:/mnt/frontend-artifacts
+      - ../logs/kong:/mnt/kong-logs
+      - ../logs/keycloak:/mnt/keycloak-logs
+      - ../logs/backend:/mnt/backend-logs
+      - ../logs/frontend:/mnt/frontend-logs
+      - ../logs/dumps:/mnt/dumps
+      - ../keycloak/providers:/mnt/providers
+      - ../artifacts/backend:/mnt/backend-artifacts
+      - ../artifacts/frontend:/mnt/frontend-artifacts
     command:
       [
         "sh",
@@ -47,28 +50,28 @@ services:
 
   backend-build:
     build:
-      context: .
+      context: ..
       dockerfile: deploy/docker/backend/Dockerfile
       target: export
     image: hfwas/devops-backend-export:latest
     container_name: devops-backend-build
     restart: "no"
     volumes:
-      - ./artifacts/backend:/host
+      - ../artifacts/backend:/host
     depends_on:
       gateway-init:
         condition: service_completed_successfully
 
   frontend-build:
     build:
-      context: ./frontend
+      context: ../frontend
       dockerfile: ../deploy/docker/frontend/Dockerfile
       target: export
     image: hfwas/devops-frontend-export:latest
     container_name: devops-frontend-build
     restart: "no"
     volumes:
-      - ./artifacts/frontend:/host
+      - ../artifacts/frontend:/host
     depends_on:
       gateway-init:
         condition: service_completed_successfully
@@ -82,7 +85,7 @@ services:
       DB_PATH: /app/data/hfwas-devops.db
     volumes:
       - devops-data:/app/data
-      - ./deploy/charts/backend/files/db:/sql:ro
+      - ./charts/backend/files/db:/sql:ro
     command:
       [
         "sh",
@@ -95,7 +98,7 @@ services:
 
   backend:
     build:
-      context: .
+      context: ..
       dockerfile: deploy/docker/backend/Dockerfile
     image: hfwas/devops-backend:latest
     container_name: devops-backend
@@ -126,9 +129,9 @@ services:
     volumes:
       - devops-data:/app/data
       - devops-files:/app/files
-      - ./logs/backend:/app/logs
-      - ./logs/dumps:/app/dumps
-      - ./data/pipeline:/app/pipeline:ro
+      - ../logs/backend:/app/logs
+      - ../logs/dumps:/app/dumps
+      - ../data/pipeline:/app/pipeline:ro
       # 挂载宿主机 kubeconfig 供 Argo Workflows 使用（Windows Docker Desktop 的默认路径）
       # 文件不存在时容器内自动创建空目录，不影响启动
       - ~/.kube:/app/kube:ro
@@ -149,15 +152,15 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ../frontend
       dockerfile: ../deploy/docker/frontend/Dockerfile
     image: hfwas/devops-frontend:latest
     container_name: devops-frontend
     ports:
       - "80:80"
     volumes:
-      - ./artifacts/frontend:/usr/share/nginx/html:ro
-      - ./logs/frontend:/var/log/nginx
+      - ../artifacts/frontend:/usr/share/nginx/html:ro
+      - ../logs/frontend:/var/log/nginx
     healthcheck:
       test: ["CMD-SHELL", "test -f /var/run/nginx.pid"]
       interval: 10s
@@ -173,13 +176,13 @@ services:
 
   keycloak-spi:
     build:
-      context: ./keycloak/http-event-listener
+      context: ../keycloak/http-event-listener
       dockerfile: ../../deploy/docker/keycloak-http-listener/Dockerfile
     image: hfwas/keycloak-http-listener:latest
     container_name: devops-keycloak-spi
     restart: "no"
     volumes:
-      - ./keycloak/providers:/out
+      - ../keycloak/providers:/out
     depends_on:
       gateway-init:
         condition: service_completed_successfully
@@ -211,7 +214,7 @@ services:
       KONG_LOG_LEVEL: debug
     volumes:
       - ./kong/kong.yml:/etc/kong/kong.yml:ro
-      - ./logs/kong:/usr/local/kong/logs
+      - ../logs/kong:/usr/local/kong/logs
     healthcheck:
       test: ["CMD", "kong", "health"]
       interval: 10s
@@ -249,10 +252,10 @@ services:
       KC_LOG_FILE: /opt/keycloak/data/log/keycloak.log
       KC_LOG_LEVEL: INFO
     volumes:
-      - ./keycloak/hfwas-devops-realm.json:/opt/keycloak/data/import/hfwas-devops-realm.json:ro
-      - ./keycloak/themes/hfwas:/opt/keycloak/themes/hfwas:ro
-      - ./keycloak/providers:/opt/keycloak/providers:ro
-      - ./logs/keycloak:/opt/keycloak/data/log
+      - ../keycloak/hfwas-devops-realm.json:/opt/keycloak/data/import/hfwas-devops-realm.json:ro
+      - ../keycloak/themes/hfwas:/opt/keycloak/themes/hfwas:ro
+      - ../keycloak/providers:/opt/keycloak/providers:ro
+      - ../logs/keycloak:/opt/keycloak/data/log
     healthcheck:
       test:
         [
@@ -288,9 +291,9 @@ services:
       - --tls-san=k3s
     volumes:
       - k3s-server:/var/lib/rancher/k3s
-      - ./data/pipeline:/output
-      - ./data/tekton-offline:/offline:ro
-      - ./deploy/tekton:/tekton:ro
+      - ../data/pipeline:/output
+      - ../data/tekton-offline:/offline:ro
+      - ./tekton:/tekton:ro
     ports:
       - "6443:6443"
       - "30880:30880"
@@ -311,9 +314,9 @@ services:
     restart: "no"
     entrypoint: ["/bin/sh", "/install-tekton.sh"]
     volumes:
-      - ./data/pipeline:/kube
-      - ./scripts/install-tekton.sh:/install-tekton.sh:ro
-      - ./deploy/tekton:/tekton:ro
+      - ../data/pipeline:/kube
+      - ../scripts/install-tekton.sh:/install-tekton.sh:ro
+      - ./tekton:/tekton:ro
     depends_on:
       k3s:
         condition: service_healthy

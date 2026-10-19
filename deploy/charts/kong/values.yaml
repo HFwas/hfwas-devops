@@ -1,5 +1,5 @@
 # =============================================================================
-# Kong — 默认值（DB-less，对齐 docker-compose + kong/kong.yml）
+# Kong — 默认值（DB-less，对齐 deploy/docker-compose.yml + deploy/kong/kong.yml）
 # =============================================================================
 
 global:

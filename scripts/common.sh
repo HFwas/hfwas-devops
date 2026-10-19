@@ -6,8 +6,8 @@ RUN_DIR="$ROOT_DIR/logs"
 BACKEND_PORT="${BACKEND_PORT:-8089}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 
-# Kong 网关（与 backend/frontend 同属 docker-compose.yml）
-COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
+# Kong 网关（与 backend/frontend 同属 deploy/docker-compose.yml）
+COMPOSE_FILE="$ROOT_DIR/deploy/docker-compose.yml"
 KONG_PORT="${KONG_PORT:-8000}"
 KONG_ADMIN_PORT="${KONG_ADMIN_PORT:-8001}"
 

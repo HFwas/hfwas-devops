@@ -1,15 +1,16 @@
 # 第三方集成清单
 
-> 日期：2026-10-17
-> 版本：v0.1
+> 日期：2026-10-19
+> 版本：v0.2
 > 状态：已完成
-> 数据来源：`docker-compose.yml`、`deploy/charts/`、`backend/`、`docs/devops/`、`docs/container-platform/`、`docs/pipeline/`
+> 数据来源：`deploy/docker-compose.yml`、`deploy/charts/`、`backend/`、`docs/devops/`、`docs/container-platform/`、`docs/pipeline/`
 
 ### 变更记录
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：认证、网关、K8s、CI、仓库、监控、分析等集成清单 |
+| v0.2 | 2026-10-19 | 编排文件迁入 `deploy/`：更新 `docker-compose.yml`、`kong/` 路径引用 |
 
 ---
 
@@ -17,9 +18,9 @@
 
 | 集成 | 用途 | 方向 | 配置/代码位置 | 状态 |
 |------|------|------|---------------|------|
-| Keycloak | 身份认证（OIDC/JWT） | 平台 → Keycloak | `docker-compose.yml`、`deploy/charts/keycloak`、`application.yml` | 已集成 |
+| Keycloak | 身份认证（OIDC/JWT） | 平台 → Keycloak | `deploy/docker-compose.yml`、`deploy/charts/keycloak`、`application.yml` | 已集成 |
 | Keycloak SPI | 登录事件回传 | Keycloak → 平台 | `keycloak/`、`deploy/charts`、`/internal/keycloak/events` | 已集成 |
-| Kong | API 网关（DB-less） | 浏览器 → 平台 | `kong/`、`deploy/charts/kong` | 已集成 |
+| Kong | API 网关（DB-less） | 浏览器 → 平台 | `deploy/kong/`、`deploy/charts/kong` | 已集成 |
 | Kubernetes | 容器平台、流水线执行 | 平台 → K8s | `container-core`、`cluster_info`、`PIPELINE_KUBECONFIG` | 已集成 |
 | Tekton | 流水线执行引擎 | 平台 → Tekton | `pipeline-core`、`scripts/install-tekton.sh` | 已集成 |
 | Helm | 应用发布 | 平台 → Helm | `container-core` HelmReleaseController | 已集成 |

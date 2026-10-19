@@ -1,7 +1,7 @@
 # k3s 容器重启导致 Prometheus Pod Pending 故障排查
 
-> 日期：2026-09-15
-> 版本：v0.2
+> 日期：2026-10-19
+> 版本：v0.3
 
 ### 变更记录
 
@@ -9,6 +9,7 @@
 |------|------|----------|
 | v0.1 | 2026-09-15 | 初版：k3s 重启后 Prometheus Pod Pending 的排查与修复 |
 | v0.2 | 2026-09-15 | docker-compose.yml 添加 hostname: k3s-server 作为预防措施 |
+| v0.3 | 2026-10-19 | 编排文件迁入 `deploy/`：更新 Compose 文件路径与命令 |
 
 ---
 
@@ -258,10 +259,10 @@ prometheus-prometheus-node-exporter-pn8s2              1/1     Running   0      
 
 ### 6.1 防止 k3s 容器重启导致 hostname 变化
 
-k3s 容器使用 `hostname` 固定主机名，使容器重启后节点名不变。**本仓库已应用此修复**（`docker-compose.yml` 的 k3s 服务中添加了 `hostname: k3s-server`）：
+k3s 容器使用 `hostname` 固定主机名，使容器重启后节点名不变。**本仓库已应用此修复**（`deploy/docker-compose.yml` 的 k3s 服务中添加了 `hostname: k3s-server`）：
 
 ```yaml
-# docker-compose.yml 中为 k3s 服务设置（已应用）
+# deploy/docker-compose.yml 中为 k3s 服务设置（已应用）
 services:
   k3s:
     hostname: k3s-server  # 固定 hostname，重启不变
@@ -269,7 +270,7 @@ services:
 
 > 注意：设置 hostname 只**预防新建 PV** 出现 nodeAffinity 冲突。对于已创建的 PV（旧 hostname），仍需要按 §5 修复。
 
-下次 `docker compose up -d k3s` 重建容器后，k8s 节点名将固定为 `k3s-server`，不再随容器 ID 变化。
+下次 `docker compose -f deploy/docker-compose.yml up -d k3s` 重建容器后，k8s 节点名将固定为 `k3s-server`，不再随容器 ID 变化。
 
 ### 6.2 使用支持跨节点迁移的存储
 

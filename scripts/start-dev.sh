@@ -83,13 +83,15 @@ docker_keycloak() {
 }
 
 detect_compose() {
+  local cmd
   if docker compose version >/dev/null 2>&1; then
-    echo "docker compose"
+    cmd="docker compose"
   elif docker-compose version >/dev/null 2>&1; then
-    echo "docker-compose"
+    cmd="docker-compose"
   else
     die "未找到 docker compose 命令"
   fi
+  echo "$cmd -f $ROOT_DIR/deploy/docker-compose.yml"
 }
 
 # ============================================================

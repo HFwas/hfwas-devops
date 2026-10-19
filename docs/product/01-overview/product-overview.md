@@ -1,7 +1,7 @@
 # 产品总览
 
-> 日期：2026-10-17
-> 版本：v0.1
+> 日期：2026-10-19
+> 版本：v0.2
 > 状态：已完成
 > 数据来源：`README.md`、`frontend/src/shared/console/products.ts`、`frontend/src/router.tsx`、`backend/*/controller`、`docs/`
 
@@ -10,6 +10,7 @@
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：产品定位、目标用户、子系统、核心链路、边界与技术栈 |
+| v0.2 | 2026-10-19 | 编排文件迁入 `deploy/`：更新 `docker-compose.yml` 路径引用 |
 
 ---
 
@@ -119,7 +120,7 @@ Image：上传/会话 → 元数据 → 格式转换 → 结果下载/历史
 
 | 形态 | 适用场景 | 入口 |
 |------|----------|------|
-| docker-compose | 本地一键启动（backend/frontend/Kong/Keycloak） | `docker-compose.yml`、`scripts/` |
+| docker-compose | 本地一键启动（backend/frontend/Kong/Keycloak） | `deploy/docker-compose.yml`、`scripts/` |
 | Helm + Kubernetes | 生产/测试环境 | `deploy/charts/` |
 | 宿主机进程 | 本地开发调试 | `scripts/start-backend.sh`、前端 `npm run dev` |
 

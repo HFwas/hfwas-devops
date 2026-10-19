@@ -1,15 +1,16 @@
 # 系统架构
 
-> 日期：2026-10-17
-> 版本：v0.1
+> 日期：2026-10-19
+> 版本：v0.2
 > 状态：已完成
-> 数据来源：`pom.xml`、`backend/*/pom.xml`、`frontend/src/`、`docker-compose.yml`、`deploy/charts/`、`docs/backend/module_arch.md`
+> 数据来源：`pom.xml`、`backend/*/pom.xml`、`frontend/src/`、`deploy/docker-compose.yml`、`deploy/charts/`、`docs/backend/module_arch.md`
 
 ### 变更记录
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：模块划分、部署拓扑、请求与数据流 |
+| v0.2 | 2026-10-19 | 编排文件迁入 `deploy/`：更新 `docker-compose.yml` 路径引用 |
 
 ---
 

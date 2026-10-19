@@ -1,15 +1,16 @@
 # 非功能需求与现状
 
-> 日期：2026-10-17
-> 版本：v0.1
+> 日期：2026-10-19
+> 版本：v0.2
 > 状态：骨架（仓库无可验证的 SLO/容量基线，缺失项标“待采集”）
-> 数据来源：`application.yml`、`SecurityConfig.java`、`docker-compose.yml`、`deploy/charts/`、模块设计文档
+> 数据来源：`application.yml`、`SecurityConfig.java`、`deploy/docker-compose.yml`、`deploy/charts/`、模块设计文档
 
 ### 变更记录
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：性能、可用性、安全、可观测性、兼容性现状与待采集指标 |
+| v0.2 | 2026-10-19 | 编排文件迁入 `deploy/`：更新 `docker-compose.yml` 路径引用 |
 
 ---
 

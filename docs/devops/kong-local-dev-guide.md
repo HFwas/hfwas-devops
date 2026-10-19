@@ -1,5 +1,17 @@
 # Kong 统一网关本地开发接入指南
 
+> 日期：2026-10-19
+> 版本：v0.2
+
+### 变更记录
+
+| 版本 | 日期 | 变更说明 |
+|------|------|----------|
+| v0.1 | 2026-09-12 | 初版：Kong 接入方案、配置、启动方式与踩坑记录 |
+| v0.2 | 2026-10-19 | 编排文件迁入 `deploy/`：更新 `docker-compose.yml`、`kong/kong.yml` 路径与 Compose 命令 |
+
+---
+
 > 本文档记录了在 hfwas-devops 项目中引入 Kong 作为统一入口网关的方案、配置、启动方式及踩坑记录。
 
 ---
@@ -82,8 +94,8 @@
 
 | 文件 | 用途 |
 |------|------|
-| `docker-compose.yml` | 后端 / 前端 / Kong / Keycloak 与构建产物导出 |
-| `kong/kong.yml` | Kong 声明式路由配置 |
+| `deploy/docker-compose.yml` | 后端 / 前端 / Kong / Keycloak 与构建产物导出 |
+| `deploy/kong/kong.yml` | Kong 声明式路由配置 |
 | `scripts/start-kong.sh` | 一键启动 Kong（独立使用） |
 | `scripts/stop-kong.sh` | 停止 Kong（独立使用） |
 
@@ -132,7 +144,7 @@ scripts/stop-dev.sh
 ```bash
 # Kong 日志
 tail -f logs/kong/error.log
-docker compose logs -f kong
+docker compose -f deploy/docker-compose.yml logs -f kong
 
 # 后端 / 前端日志
 tail -f logs/backend/devops.log logs/frontend/access.log
@@ -296,13 +308,13 @@ curl http://localhost:8000/ → 403 Forbidden
 ### 重启 Kong（修改 `kong.yml` 后）
 
 ```bash
-docker compose restart kong
+docker compose -f deploy/docker-compose.yml restart kong
 ```
 
 ### 重载配置（不重启容器）
 
 ```bash
-docker compose exec kong kong reload
+docker compose -f deploy/docker-compose.yml exec kong kong reload
 ```
 
 ### 停止全部服务

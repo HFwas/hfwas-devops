@@ -1,8 +1,20 @@
 # 迁移计划：自研 JWT 认证 → Keycloak OIDC 统一认证
 
+> 日期：2026-10-19
+> 版本：v0.2
+
+### 变更记录
+
+| 版本 | 日期 | 变更说明 |
+|------|------|----------|
+| v0.1 | 2026-09-12 | 初版：迁移背景、架构与改造计划 |
+| v0.2 | 2026-10-19 | 编排文件迁入 `deploy/`：更新 `docker-compose.yml` 路径引用 |
+
+---
+
 ## 背景
 
-当前项目使用自研 JWT（`JwtTokenService` + `JwtAuthFilter` + `UserAuthController`）。`docker-compose.yml` 已引入 Keycloak 26，代码尚未对接。本计划把**认证 / 会话 / 密码**全部交给 Keycloak，后端只做 OAuth2 Resource Server；本地库只保留用户资料、租户成员，以及从 Keycloak 事件写入的登录日志。
+当前项目使用自研 JWT（`JwtTokenService` + `JwtAuthFilter` + `UserAuthController`）。`deploy/docker-compose.yml` 已引入 Keycloak 26，代码尚未对接。本计划把**认证 / 会话 / 密码**全部交给 Keycloak，后端只做 OAuth2 Resource Server；本地库只保留用户资料、租户成员，以及从 Keycloak 事件写入的登录日志。
 
 **绿野、本地开发、无存量用户。** 直接改 schema / API / 前端类型；本地库可删可重建。不写旧 JWT 兼容，不迁旧登录日志行，不保留 `AuthService.login()` 写入路径。
 
@@ -102,7 +114,7 @@ LoginLogService.ingest → sys_login_log → 现有 LoginLogView
 
 ### Step 0: Keycloak 主机名与 realm
 
-**修改:** `docker-compose.yml`
+**修改:** `deploy/docker-compose.yml`
 
 - 删除 `KC_PROXY: edge`
 - 使用：

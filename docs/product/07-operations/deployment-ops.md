@@ -1,15 +1,16 @@
 # 部署与运维索引
 
-> 日期：2026-10-17
-> 版本：v0.1
+> 日期：2026-10-19
+> 版本：v0.2
 > 状态：已完成（索引级；具体步骤以引用文档为准）
-> 数据来源：`docker-compose.yml`、`scripts/`、`deploy/charts/`、`docs/devops/`、`docs/container-platform/`、`AGENTS.md`
+> 数据来源：`deploy/docker-compose.yml`、`scripts/`、`deploy/charts/`、`docs/devops/`、`docs/container-platform/`、`AGENTS.md`
 
 ### 变更记录
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：本地/集群部署入口、日志、数据、迁移与排障索引 |
+| v0.2 | 2026-10-19 | 编排文件迁入 `deploy/`：更新 Compose 文件路径与启动命令 |
 
 ---
 
@@ -19,7 +20,7 @@
 
 | 方式 | 适用 | 入口 |
 |------|------|------|
-| docker-compose 一键启动 | 本地开发/演示 | `docker compose up -d`；`scripts/start-dev.sh` |
+| docker-compose 一键启动 | 本地开发/演示 | `docker compose -f deploy/docker-compose.yml up -d`；`scripts/start-dev.sh` |
 | 宿主机进程 | 后端/前端调试 | `scripts/start-backend.sh`、`scripts/start-frontend.sh` |
 | Helm + Kubernetes | 测试/生产 | `deploy/charts/deploy-app.sh`（Windows 用 `.ps1`） |
 | 流水线执行集群 | Tekton 环境 | `scripts/start-pipeline-cluster.sh`、`docs/pipeline/` |
@@ -32,7 +33,7 @@
 | 前端（直连） | 5173 | Vite dev server |
 | 前端（容器） | 80 | Nginx |
 | Kong | 8000（代理）、8443（SSL）、8001（Admin） | DB-less |
-| Keycloak | 8081 | `admin` 引导账号见 `docker-compose.yml` |
+| Keycloak | 8081 | `admin` 引导账号见 `deploy/docker-compose.yml` |
 | k3s | 6443（API）、30880、30222 | 本地集群 |
 | Harbor | 见 `docs/container-platform/harbor-deployment.md` | NodePort/Ingress 以实际部署为准 |
 

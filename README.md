@@ -1,7 +1,7 @@
 # HFWAS DevOps
 
-> 日期：2026-10-18
-> 版本：v0.8
+> 日期：2026-10-19
+> 版本：v0.9
 
 ### 变更记录
 
@@ -15,6 +15,7 @@
 | v0.6 | 2026-10-07 | 文档索引补充 Helm 包上传推仓与安装/升级实施计划 |
 | v0.7 | 2026-10-17 | 新增 `docs/product/` 产品文档体系索引；修正前端技术栈（React 19）、认证说明与失效文档链接 |
 | v0.8 | 2026-10-18 | 文档索引新增流水线用户操作手册 |
+| v0.9 | 2026-10-19 | 本地编排文件收敛到 `deploy/`：`docker-compose.yml`、`kong/kong.yml` 迁移，更新项目结构与 Compose 命令 |
 
 ---
 
@@ -165,6 +166,9 @@ hfwas-devops/
 │   ├── docker/
 │   │   └── nginx.conf               # 生产环境 Nginx 配置
 │   └── .dockerignore                # 前端 Docker 构建忽略规则
+├── deploy/docker-compose.yml        # 本地 Docker Compose 编排（backend / frontend / Kong / Keycloak）
+├── deploy/kong/
+│   └── kong.yml                     # Kong 声明式路由配置
 ├── deploy/docker/                   # 各服务 Dockerfile，构建上下文仍是对应源码目录
 │   ├── backend/
 │   ├── frontend/
@@ -186,7 +190,6 @@ hfwas-devops/
 │   ├── gitlab/                      # Helm Chart（本机 GitLab 实例）
 │   ├── harbor/                      # Helm Chart（Harbor 镜像仓库）
 │   └── dependency-track/            # Helm Chart（Dependency-Track SBOM 分析）
-├── docker-compose.yml               # 本地 Docker Compose 编排（backend / frontend / Kong / Keycloak）
 ├── scripts/                         # 本地开发启动脚本
 ├── keycloak/                        # Keycloak SPI 自定义扩展
 │   └── http-event-listener/         # Keycloak 事件回写后端监听器
@@ -512,15 +515,15 @@ docker build -t hfwas/devops-frontend:latest -f deploy/docker/frontend/Dockerfil
 
 ```bash
 # 全部服务（backend / frontend / Kong / Keycloak）
-docker compose up -d --build
+docker compose -f deploy/docker-compose.yml up -d --build
 ./scripts/start-dev.sh --build
 
 # 只起应用容器
-docker compose up -d backend frontend
+docker compose -f deploy/docker-compose.yml up -d backend frontend
 ./scripts/start-dev.sh --no-kong
 
 # 查看日志
-docker compose logs -f
+docker compose -f deploy/docker-compose.yml logs -f
 tail -f logs/backend/devops.log logs/frontend/access.log logs/kong/error.log logs/keycloak/keycloak.log
 ```
 

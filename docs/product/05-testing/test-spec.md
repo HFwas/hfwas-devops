@@ -1,7 +1,7 @@
 # 测试规范
 
-> 日期：2026-10-17
-> 版本：v0.1
+> 日期：2026-10-19
+> 版本：v0.2
 > 状态：已完成
 > 数据来源：`docs/general/test_strategy.md`、各模块 `src/test`、前端 `*.test.tsx`、`docs/superpowers/features/20261017-pm-frontend-spec-cleanup/test-cases.md`
 
@@ -10,6 +10,7 @@
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：用例编号、优先级、环境、准入准出、自动化映射与执行方式 |
+| v0.2 | 2026-10-19 | 编排文件迁入 `deploy/`：更新 Compose 启动命令 |
 
 ---
 
@@ -116,7 +117,7 @@ mvn -q -pl backend/pipeline-core test
 cd frontend && npm test
 
 # 手工端到端
-docker compose up -d
+docker compose -f deploy/docker-compose.yml up -d
 # 或按 AGENTS.md 启动 k3s / docker-desktop
 ```
 

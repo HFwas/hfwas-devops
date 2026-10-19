@@ -7,7 +7,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
+COMPOSE_FILE="$ROOT_DIR/deploy/docker-compose.yml"
 
 if [ ! -f "$COMPOSE_FILE" ]; then
   echo "未找到 Compose 配置文件: $COMPOSE_FILE"

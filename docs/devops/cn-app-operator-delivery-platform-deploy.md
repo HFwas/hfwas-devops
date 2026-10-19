@@ -1,7 +1,7 @@
 # cn-app-operator 与 delivery-platform 部署到 k3s
 
-> 日期：2026-10-01
-> 版本：v0.4
+> 日期：2026-10-19
+> 版本：v0.5
 
 ### 变更记录
 
@@ -11,6 +11,7 @@
 | v0.2 | 2026-09-23 | 补完「本集群」注册：改用 `kubectl create token` 签发（legacy SA token Secret 被 k3s 判 401）；新增 §8 停掉 Harbor/Tekton/Prometheus 的操作与回滚，并修正 §7 遗留问题 |
 | v0.3 | 2026-09-23 | 新增 §9：停掉 compose 的 backend/keycloak/nacos，并把 Colima VM 由 4C/8GiB 扩到 6C/16GiB；据实测结果重写 §7（内存已不再是瓶颈） |
 | v0.4 | 2026-10-01 | 镜像构建改为 `deploy/docker/<服务名>/Dockerfile`，上下文仍是各服务源码目录 |
+| v0.5 | 2026-10-19 | 编排文件迁入 `deploy/`：更新 `docker-compose.yml` 路径引用 |
 
 ---
 
@@ -55,7 +56,7 @@
 
 ### 2.3 宿主机访问不到 NodePort
 
-`docker-compose.yml` 里 k3s 服务只 publish 了 `6443 / 30880 / 30222`，其它 NodePort 出不了容器。
+`deploy/docker-compose.yml` 里 k3s 服务只 publish 了 `6443 / 30880 / 30222`，其它 NodePort 出不了容器。
 Harbor 的 `30002`、既有后端的 `30889` 同样从宿主机不通，属同一原因。
 
 验证 NodePort 是否正常，要在容器内测：
@@ -234,11 +235,11 @@ Prometheus 的 `prometheus-kube-prometheus-admission` 两条规则 `failurePolic
 要单独 `docker stop`。
 
 ```bash
-docker compose -p hfwas-devops -f docker-compose.yml stop backend keycloak
+docker compose -p hfwas-devops -f deploy/docker-compose.yml stop backend keycloak
 docker stop nacos-standalone-derby
 ```
 
-恢复：`docker compose -p hfwas-devops start backend keycloak` + `docker start nacos-standalone-derby`。
+恢复：`docker compose -p hfwas-devops -f deploy/docker-compose.yml start backend keycloak` + `docker start nacos-standalone-derby`。
 
 ### 9.2 副作用：devops-frontend 会循环重启
 

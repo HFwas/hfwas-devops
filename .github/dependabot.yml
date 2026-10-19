@@ -226,10 +226,10 @@ updates:
           - "patch"
 
   # ===========================================================================
-  # Docker：根目录 docker-compose.yml 里的 image 标签
+  # Docker：deploy/docker-compose.yml 里的 image 标签
   # ===========================================================================
   - package-ecosystem: "docker"
-    directory: "/"
+    directory: "/deploy"
     target-branch: "dev"
     schedule:
       interval: "weekly"

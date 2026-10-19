@@ -1,9 +1,9 @@
 # 图片处理模块 — 技术设计方案
 
-> 版本：v1.2  
-> 日期：2026-10-01  
-> 状态：待评审  
-> 相关：`docs/file-parser-design.md`（文件解析 / OCR，职责不同，勿合并）  
+> 版本：v1.3
+> 日期：2026-10-19
+> 状态：待评审
+> 相关：`docs/file-parser-design.md`（文件解析 / OCR，职责不同，勿合并）
 
 ### 变更记录
 
@@ -11,6 +11,7 @@
 |------|------|----------|
 | v1.1 | 2026-09-07 | 本地 Docker 作为验收环境，运行时镜像必须预装 ImageMagick、libheif、Perl、ExifTool |
 | v1.2 | 2026-10-01 | 运行时镜像 Dockerfile 路径改为 `deploy/docker/backend/Dockerfile` |
+| v1.3 | 2026-10-19 | 编排文件迁入 `deploy/`：更新 `docker-compose.yml` 路径与验收命令 |
 
 ---
 
@@ -552,11 +553,11 @@ image-processor:
 ```
 
 上传大小需同时满足 Spring `multipart.max-file-size`。  
-`docker-compose.yml` 的 backend 使用 `SPRING_PROFILES_ACTIVE: prod`，与上述默认一致。
+`deploy/docker-compose.yml` 的 backend 使用 `SPRING_PROFILES_ACTIVE: prod`，与上述默认一致。
 
 ### 8.2 本地 Docker 验收（必装四件套）
 
-验收命令：仓库根目录 `docker compose up --build backend`（或全套 compose）。工具装在 **backend 运行时镜像**里，不另起 sidecar。
+验收命令：仓库根目录 `docker compose -f deploy/docker-compose.yml up --build backend`（或全套 compose）。工具装在 **backend 运行时镜像**里，不另起 sidecar。
 
 当前 `deploy/docker/backend/Dockerfile` 运行时是 `eclipse-temurin:21-jre-alpine`。Alpine 3.19+ 把 ImageMagick 格式拆成子包，只装 `imagemagick` **没有 HEIC**。运行时阶段应增加：
 

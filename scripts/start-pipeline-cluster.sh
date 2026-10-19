@@ -19,7 +19,7 @@ usage() {
   离线：先在有网机器执行 scripts/pack-tekton-offline.sh，
   把 data/tekton-offline/*.tar 放到本机同目录后再跑本脚本。
 
-  停止: docker compose --profile pipeline stop k3s
+  停止: docker compose -f deploy/docker-compose.yml --profile pipeline stop k3s
 EOF
 }
 

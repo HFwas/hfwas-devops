@@ -22,7 +22,6 @@
 /docs
 /charts
 /scripts
-/kong
 /keycloak
 *.db
 *.md
