@@ -47,7 +47,7 @@
         <commons-collections.version>3.2.2</commons-collections.version>
         <tomcat.version>10.1.55</tomcat.version>
         <tomcat-embed.version>10.1.55</tomcat-embed.version>
-        <protobuf-java.version>3.25.5</protobuf-java.version>
+        <protobuf-java.version>4.36.2</protobuf-java.version>
         <semver.version>0.10.2</semver.version>
         <jenkins-rest.version>1.0.2</jenkins-rest.version>
         <cpe-parser.version>3.0.1</cpe-parser.version>
