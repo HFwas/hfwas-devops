@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "vue": "^3.4.0",
-    "vue-router": "^4.3.0",
+    "vue-router": "^5.4.0",
     "pinia": "^4.1.0",
     "radix-vue": "^1.0.0",
     "tailwind-merge": "^3.7.0",
