@@ -1,7 +1,7 @@
 # 数据库总览与数据字典
 
 > 日期：2026-10-21
-> 版本：v0.4
+> 版本：v0.5
 > 状态：已完成（表级；MySQL 类型与迁移基线已更新）
 > 数据来源：`backend/db-migration/src/main/resources/db/migration/*.sql`、Flyway、`application.yml`
 
@@ -13,6 +13,7 @@
 | v0.2 | 2026-10-17 | 补充 `pipeline_run.status` 实际枚举 |
 | v0.3 | 2026-10-18 | 新增数据库文档规范入口；明确本目录文档必须遵循 10 列数据字典与四节结构 |
 | v0.4 | 2026-10-21 | 数据库切换 MySQL 8 + Flyway；更新连接串、迁移账本、类型映射与表来源 |
+| v0.5 | 2026-10-21 | V3 PM 基础迁移：新增 2 张表（关注者、批量动作配置），PM 表数 15→17，总表数 56→58；更新迁移基线到 V3 |
 
 ---
 
@@ -33,8 +34,8 @@
 | 数据库 | MySQL 8（InnoDB，utf8mb4） |
 | 连接串 | `jdbc:mysql://localhost:3306/hfwas_devops?...`（环境变量 `DB_URL`） |
 | 本地数据 | MySQL `mysql-data` 卷；不再生成 `data/hfwas-devops.db` |
-| 表数量 | 56 张业务表 + `flyway_schema_history` |
-| 迁移记录表 | `flyway_schema_history`（V1 基线、V2 种子；后续从 V3 递增） |
+| 表数量 | 58 张业务表 + `flyway_schema_history` |
+| 迁移记录表 | `flyway_schema_history`（V1 基线、V2 种子、V3 PM 基础迁移；后续从 V4 递增） |
 | 事务隔离 | MySQL 默认 REPEATABLE READ |
 | 连接池 | Hikari，默认 `maximum-pool-size=20` |
 
@@ -43,7 +44,7 @@
 | 模块 | 表数 | 权威 schema 文件 | 部署副本 | 字典 |
 |------|------|------------------|----------|------|
 | 用户 / 租户 | 8 | `backend/user-core/src/main/resources/db/user-schema.sql` | `deploy/.../01-user-schema.sql` | [tables/user.md](tables/user.md) |
-| 项目管理 | 15（+ 重复 `sys_user`） | `backend/server/src/main/resources/db/pm-schema.sql` | `deploy/.../02-pm-schema.sql` | [tables/pm.md](tables/pm.md) |
+| 项目管理 | 17 | `backend/db-migration/.../V1__initial_schema.sql`、`V3__pm_backend_shared_foundation.sql` | — | [tables/pm.md](tables/pm.md) |
 | API 测试 | 16 | `backend/server/src/main/resources/db/api-test-schema.sql` | `deploy/.../03-api-test-schema.sql` | [tables/api-test.md](tables/api-test.md) |
 | 图片处理 | 1 | `backend/server/src/main/resources/db/image-schema.sql` | `deploy/.../04-image-schema.sql` | [tables/image.md](tables/image.md) |
 | 流水线 | 12 | `backend/server/src/main/resources/db/pipeline-schema.sql` | `deploy/.../05-pipeline-schema.sql` | [tables/pipeline.md](tables/pipeline.md) |
@@ -68,13 +69,13 @@
 | 组件 | 说明 |
 |------|------|
 | 迁移目录 | `backend/db-migration/src/main/resources/db/migration/` |
-| 基线 | `V1__initial_schema.sql`（56 张表）、`V2__seed_system_data.sql`（系统种子） |
+| 基线 | `V1__initial_schema.sql`（56 张表）、`V2__seed_system_data.sql`（系统种子）、`V3__pm_backend_shared_foundation.sql`（PM 阶段 1） |
 | 账本 | `flyway_schema_history`，checksum 校验，禁止修改已执行文件 |
 | 本地/CI | 应用启动执行 Flyway；测试用 Testcontainers `mysql:8.0.40` |
 | 生产 | Helm pre-install/pre-upgrade Job 执行 Flyway；应用 `SPRING_FLYWAY_ENABLED=false` |
 | 重建 | `DROP DATABASE` 后重跑 Flyway；不迁移 SQLite 数据 |
 
-> 新增 DDL/DML 时遵守仓库「数据库变更」规范：新增 `V3__*.sql` 起的迁移文件，禁止 SQLite 语法，同步更新本目录与模块数据库文档。
+> 新增 DDL/DML 时遵守仓库「数据库变更」规范：新增 `V4__*.sql` 起的迁移文件，禁止 SQLite 语法，同步更新本目录与模块数据库文档。V3 已执行后禁止修改。
 
 ## 4. 公共字段约定
 
@@ -97,8 +98,10 @@ MySQL 类型映射：`id/外键 → BIGINT`、短文本 → `VARCHAR(n)`、长�
 sys_tenant ─┬─ sys_tenant_member ─ sys_user
             ├─ pm_project ─┬─ pm_work_item ─┬─ pm_work_item_comment
             │              │                ├─ pm_work_item_activity
-            │              │                └─ pm_work_item_link
+            │              │                ├─ pm_work_item_link
+            │              │                └─ pm_work_item_watcher
             │              ├─ pm_project_module
+            │              ├─ pm_batch_action_config
             │              ├─ pm_field_definition ─ pm_field_option
             │              ├─ pm_status_definition
             │              ├─ pm_saved_view

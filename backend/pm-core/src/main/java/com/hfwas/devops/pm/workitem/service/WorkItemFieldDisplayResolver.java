@@ -2,6 +2,7 @@ package com.hfwas.devops.pm.workitem.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hfwas.devops.pm.common.PmDateTimeUtils;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.field.model.ResolvedFieldOption;
 import com.hfwas.devops.pm.field.service.FieldDefinitionService;
@@ -14,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -91,6 +94,12 @@ public class WorkItemFieldDisplayResolver {
                 return null;
             }
             return text.length() > 80 ? text.substring(0, 80) + "…" : text;
+        }
+        if (value instanceof LocalDateTime dateTime) {
+            return PmDateTimeUtils.formatDateTime(dateTime);
+        }
+        if (value instanceof LocalDate date) {
+            return date.toString();
         }
         if (value instanceof Collection<?> collection) {
             return collection.stream().map(String::valueOf).collect(Collectors.joining(", "));

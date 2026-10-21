@@ -1,16 +1,31 @@
 {
   "info": {
-    "name": "HFWAS PM — P0 project isolation",
+    "name": "HFWAS PM — P0 project isolation & phase-1 workbench APIs",
     "_postman_id": "hfwas-pm-p0-isolation",
-    "description": "PM 模块 P0 项目归属校验。跨租户返回 403 + code=20002；update 禁止改 project_id。",
+    "description": "PM 模块接口集合。P0 项目归属校验；阶段 1 单字段更新、批量更新/流转、活动分页、批量动作配置与类型模板。跨租户返回 403 + code=20002。",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8089/api" },
-    { "key": "token", "value": "" },
-    { "key": "tenantId", "value": "" },
-    { "key": "projectId", "value": "9001" },
-    { "key": "workItemId", "value": "9101" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8089/api"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "tenantId",
+      "value": ""
+    },
+    {
+      "key": "projectId",
+      "value": "9001"
+    },
+    {
+      "key": "workItemId",
+      "value": "9101"
+    }
   ],
   "item": [
     {
@@ -21,20 +36,64 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/pm/projects/{{projectId}}", "host": ["{{baseUrl}}"], "path": ["pm", "projects", "{{projectId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/pm/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "projects",
+                "{{projectId}}"
+              ]
+            }
           },
           "response": [
             {
-              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/pm/projects/{{projectId}}" } },
-              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "name": "200 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/pm/projects/{{projectId}}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\"code\":0,\"msg\":null,\"data\":{\"id\":9001,\"name\":\"支付平台\"},\"requestId\":\"a1b2c3d4\"}"
             },
             {
-              "name": "403 跨租户", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/pm/projects/{{projectId}}" } },
-              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "name": "403 跨租户",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/pm/projects/{{projectId}}"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
             }
           ]
@@ -49,22 +108,72 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/pm/work-items/page", "host": ["{{baseUrl}}"], "path": ["pm", "work-items", "page"] },
-            "body": { "mode": "raw", "raw": "{\"projectId\": {{projectId}}, \"pageNo\": 1, \"pageSize\": 20}" }
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "page"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"projectId\": {{projectId}}, \"pageNo\": 1, \"pageSize\": 20}"
+            }
           },
           "response": [
             {
-              "name": "200 正常", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/page" } },
-              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "name": "200 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/pm/work-items/page"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\"code\":0,\"msg\":null,\"data\":{\"records\":[],\"total\":0},\"requestId\":\"a1b2c3d4\"}"
             },
             {
-              "name": "403 显式跨项目", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/page" } },
-              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "name": "403 显式跨项目",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/pm/work-items/page"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
             }
           ]
@@ -74,20 +183,64 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}", "host": ["{{baseUrl}}"], "path": ["pm", "work-items", "{{workItemId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "{{workItemId}}"
+              ]
+            }
           },
           "response": [
             {
-              "name": "200 正常", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}" } },
-              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "name": "200 正常",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\"code\":0,\"msg\":null,\"data\":{\"id\":9101,\"projectId\":9001,\"title\":\"支付回调超时\"},\"requestId\":\"a1b2c3d4\"}"
             },
             {
-              "name": "403 跨租户", "originalRequest": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}" } },
-              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "name": "403 跨租户",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
             }
           ]
@@ -97,22 +250,72 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/pm/work-items/save", "host": ["{{baseUrl}}"], "path": ["pm", "work-items", "save"] },
-            "body": { "mode": "raw", "raw": "{\"id\": {{workItemId}}, \"projectId\": {{projectId}}, \"typeCode\": \"TASK\", \"title\": \"支付回调超时\"}" }
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "save"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"id\": {{workItemId}}, \"projectId\": {{projectId}}, \"typeCode\": \"TASK\", \"title\": \"支付回调超时\"}"
+            }
           },
           "response": [
             {
-              "name": "200 正常", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/save" } },
-              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "name": "200 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/pm/work-items/save"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\"code\":0,\"msg\":null,\"data\":9101,\"requestId\":\"a1b2c3d4\"}"
             },
             {
-              "name": "403 改归属", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/save" } },
-              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "name": "403 改归属",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/pm/work-items/save"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
             }
           ]
@@ -122,20 +325,70 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "X-Tenant-Id", "value": "{{tenantId}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/pm/work-items/delete?id={{workItemId}}", "host": ["{{baseUrl}}"], "path": ["pm", "work-items", "delete"], "query": [{ "key": "id", "value": "{{workItemId}}" }] }
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/delete?id={{workItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "delete"
+              ],
+              "query": [
+                {
+                  "key": "id",
+                  "value": "{{workItemId}}"
+                }
+              ]
+            }
           },
           "response": [
             {
-              "name": "200 正常", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/delete" } },
-              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "name": "200 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/pm/work-items/delete"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\"code\":0,\"msg\":null,\"data\":null,\"requestId\":\"a1b2c3d4\"}"
             },
             {
-              "name": "403 跨租户", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/work-items/delete" } },
-              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "name": "403 跨租户",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/pm/work-items/delete"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
             }
           ]
@@ -150,23 +403,911 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{token}}" },
-              { "key": "X-Tenant-Id", "value": "{{tenantId}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/pm/board", "host": ["{{baseUrl}}"], "path": ["pm", "board"] },
-            "body": { "mode": "raw", "raw": "{\"projectId\": {{projectId}}, \"typeCode\": \"TASK\"}" }
+            "url": {
+              "raw": "{{baseUrl}}/pm/board",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "board"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"projectId\": {{projectId}}, \"typeCode\": \"TASK\"}"
+            }
           },
           "response": [
             {
-              "name": "200 正常", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/board" } },
-              "status": "OK", "code": 200, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "name": "200 正常",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/pm/board"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\"code\":0,\"msg\":null,\"data\":{\"open\":[]},\"requestId\":\"a1b2c3d4\"}"
             },
             {
-              "name": "403 跨租户", "originalRequest": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/pm/board" } },
-              "status": "Forbidden", "code": 403, "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "name": "403 跨租户",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/pm/board"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
               "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Work Item Fields & Batch",
+      "item": [
+        {
+          "name": "PATCH 单字段更新 — 成功",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}/fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "{{workItemId}}",
+                "fields"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field\": \"priority\",\n  \"value\": \"high\",\n  \"version\": 7\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "成功：更新优先级",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 0,\n  \"msg\": null,\n  \"data\": {\n    \"item\": {\n      \"id\": \"9101\",\n      \"typeCode\": \"task\",\n      \"priority\": \"high\",\n      \"version\": 8\n    },\n    \"fieldKey\": \"priority\",\n    \"oldValue\": \"medium\",\n    \"newValue\": \"high\",\n    \"oldLabel\": \"中\",\n    \"newLabel\": \"高\"\n  },\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "PATCH 单字段更新 — 版本冲突",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}/fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "{{workItemId}}",
+                "fields"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field\": \"priority\",\n  \"value\": \"high\",\n  \"version\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "失败：21033 版本冲突",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 21033,\n  \"msg\": \"数据已被修改，请刷新后重试\",\n  \"data\": null,\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "PATCH 状态 — 多流转需 transitionId",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}/fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "{{workItemId}}",
+                "fields"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"field\": \"status\",\n  \"value\": \"closed\",\n  \"version\": 7\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "失败：21012 需指定 transitionId",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 21012,\n  \"msg\": \"存在多个可达流转，请指定 transitionId: task-open-closed, task-open-cancel\",\n  \"data\": null,\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST 批量更新 — 部分失败",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/batch-update",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "batch-update"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\n    \"9101\",\n    \"9102\",\n    \"9103\"\n  ],\n  \"patch\": {\n    \"priority\": \"high\",\n    \"end_time\": \"2026-11-01 18:00:00\"\n  },\n  \"versions\": {\n    \"9101\": 7\n  },\n  \"dryRun\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "成功：1 成功 / 1 跳过 / 1 失败",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 0,\n  \"msg\": null,\n  \"data\": {\n    \"batchId\": \"5f0c2b7e-4a1d-4f0a-9c11-0d2e3a4b5c6d\",\n    \"dryRun\": false,\n    \"total\": 3,\n    \"success\": 1,\n    \"skipped\": 1,\n    \"failed\": 1,\n    \"items\": [\n      {\n        \"id\": \"9101\",\n        \"outcome\": \"SUCCESS\",\n        \"version\": 8,\n        \"changes\": [\n          {\n            \"fieldKey\": \"priority\",\n            \"oldValue\": \"medium\",\n            \"newValue\": \"high\"\n          }\n        ]\n      },\n      {\n        \"id\": \"9102\",\n        \"outcome\": \"SKIPPED\",\n        \"code\": 21036,\n        \"message\": \"字段不允许批量编辑: risk\"\n      },\n      {\n        \"id\": \"9103\",\n        \"outcome\": \"FAILED\",\n        \"code\": 21033,\n        \"message\": \"数据已被修改，请刷新后重试\"\n      }\n    ]\n  },\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST 批量更新 — 跨项目",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/batch-update",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "batch-update"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\n    \"9101\",\n    \"9201\"\n  ],\n  \"patch\": {\n    \"priority\": \"high\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "失败：21037 跨项目",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 21037,\n  \"msg\": \"批量操作不能跨项目\",\n  \"data\": null,\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST 批量流转 — 成功与跳过",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/batch-transition",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "batch-transition"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\n    \"9101\",\n    \"9102\"\n  ],\n  \"toStatus\": \"done\",\n  \"fields\": {\n    \"priority\": \"high\"\n  },\n  \"versions\": {\n    \"9101\": 7\n  },\n  \"dryRun\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "成功：1 成功 / 1 跳过",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 0,\n  \"msg\": null,\n  \"data\": {\n    \"batchId\": \"5f0c2b7e-4a1d-4f0a-9c11-0d2e3a4b5c6d\",\n    \"dryRun\": false,\n    \"total\": 2,\n    \"success\": 1,\n    \"skipped\": 1,\n    \"failed\": 0,\n    \"items\": [\n      {\n        \"id\": \"9101\",\n        \"outcome\": \"SUCCESS\",\n        \"fromStatus\": \"in_progress\",\n        \"toStatus\": \"done\",\n        \"version\": 8\n      },\n      {\n        \"id\": \"9102\",\n        \"outcome\": \"SKIPPED\",\n        \"fromStatus\": \"open\",\n        \"code\": 21012,\n        \"message\": \"当前状态不允许流转到 done\"\n      }\n    ]\n  },\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST 批量流转 — 缺少目标",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/batch-transition",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "batch-transition"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [\n    \"9101\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "失败：21014 缺少目标状态",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 21014,\n  \"msg\": \"目标状态不能为空\",\n  \"data\": null,\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET 活动分页",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}/activities/page?pageNo=1&pageSize=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "{{workItemId}}",
+                "activities",
+                "page"
+              ],
+              "query": [
+                {
+                  "key": "pageNo",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "成功：最新在前",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 0,\n  \"msg\": null,\n  \"data\": {\n    \"records\": [\n      {\n        \"id\": \"7001\",\n        \"workItemId\": \"9101\",\n        \"batchId\": \"5f0c2b7e-4a1d-4f0a-9c11-0d2e3a4b5c6d\",\n        \"eventType\": \"FIELD_CHANGE\",\n        \"actorId\": \"2\",\n        \"actorName\": \"张三\",\n        \"fieldKey\": \"priority\",\n        \"fieldName\": \"优先级\",\n        \"oldValue\": \"medium\",\n        \"newValue\": \"high\",\n        \"oldLabel\": \"中\",\n        \"newLabel\": \"高\",\n        \"createTime\": \"2026-10-21T10:00:00\"\n      }\n    ],\n    \"total\": 42,\n    \"size\": 10,\n    \"current\": 1,\n    \"pages\": 5\n  },\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET 活动分页 — 无权限",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/{{workItemId}}/activities/page?pageNo=1&pageSize=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "{{workItemId}}",
+                "activities",
+                "page"
+              ],
+              "query": [
+                {
+                  "key": "pageNo",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "失败：403 无权限",
+              "originalRequest": null,
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 20002,\n  \"msg\": \"项目不存在或无权访问\",\n  \"data\": null,\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Batch Action Config",
+      "item": [
+        {
+          "name": "GET 批量动作配置",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/projects/{{projectId}}/batch-action-configs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "projects",
+                "{{projectId}}",
+                "batch-action-configs"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "成功：默认值合并",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 0,\n  \"msg\": null,\n  \"data\": [\n    {\n      \"actionCode\": \"UPDATE_FIELDS\",\n      \"enabled\": true,\n      \"maxItems\": 100,\n      \"requireConfirm\": false,\n      \"allowedRoles\": [\n        \"admin\",\n        \"user\"\n      ],\n      \"fieldWhitelist\": [\n        \"priority\",\n        \"assignee_id\",\n        \"module_id\",\n        \"end_time\"\n      ],\n      \"configured\": false\n    },\n    {\n      \"actionCode\": \"DELETE\",\n      \"enabled\": false,\n      \"maxItems\": 100,\n      \"requireConfirm\": true,\n      \"allowedRoles\": [\n        \"admin\",\n        \"user\"\n      ],\n      \"fieldWhitelist\": null,\n      \"configured\": false\n    }\n  ],\n  \"requestId\": \"a1b2c3d4\"\n}"
+            },
+            {
+              "name": "失败：403 无权限",
+              "originalRequest": null,
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 20002,\n  \"msg\": \"项目不存在或无权访问\",\n  \"data\": null,\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST 保存批量动作配置",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/projects/{{projectId}}/batch-action-configs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "projects",
+                "{{projectId}}",
+                "batch-action-configs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actionCode\": \"UPDATE_FIELDS\",\n  \"enabled\": true,\n  \"maxItems\": 100,\n  \"requireConfirm\": true,\n  \"allowedRoles\": [\n    \"admin\",\n    \"user\"\n  ],\n  \"fieldWhitelist\": [\n    \"priority\",\n    \"assignee_id\",\n    \"end_time\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "成功：保存配置",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 0,\n  \"msg\": null,\n  \"data\": {\n    \"actionCode\": \"UPDATE_FIELDS\",\n    \"enabled\": true,\n    \"maxItems\": 100,\n    \"requireConfirm\": true,\n    \"allowedRoles\": [\n      \"admin\",\n      \"user\"\n    ],\n    \"fieldWhitelist\": [\n      \"priority\",\n      \"assignee_id\",\n      \"end_time\"\n    ],\n    \"configured\": true\n  },\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST 保存批量动作配置 — 非管理员",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/projects/{{projectId}}/batch-action-configs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "projects",
+                "{{projectId}}",
+                "batch-action-configs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actionCode\": \"DELETE\",\n  \"enabled\": true,\n  \"maxItems\": 100,\n  \"requireConfirm\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "失败：11003 需要管理员权限",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 11003,\n  \"msg\": \"需要管理员权限\",\n  \"data\": null,\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST 保存批量动作配置 — 字段不可批量",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/projects/{{projectId}}/batch-action-configs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "projects",
+                "{{projectId}}",
+                "batch-action-configs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"actionCode\": \"UPDATE_FIELDS\",\n  \"enabled\": true,\n  \"maxItems\": 100,\n  \"requireConfirm\": true,\n  \"fieldWhitelist\": [\n    \"risk\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "失败：21036 字段不可批量编辑",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 21036,\n  \"msg\": \"字段不允许批量编辑: risk\",\n  \"data\": null,\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Type Templates",
+      "item": [
+        {
+          "name": "GET 内置类型模板",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/meta/types/templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "meta",
+                "types",
+                "templates"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "成功：5 个内置模板",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 0,\n  \"msg\": null,\n  \"data\": [\n    {\n      \"code\": \"requirement\",\n      \"name\": \"需求\",\n      \"description\": \"业务需求与用户价值\",\n      \"icon\": null,\n      \"color\": \"#2080f0\",\n      \"workflowTemplateCode\": \"requirement\"\n    },\n    {\n      \"code\": \"iteration\",\n      \"name\": \"迭代\",\n      \"description\": \"按周期规划交付范围的工作项集合\",\n      \"icon\": \"IterationCw\",\n      \"color\": \"#7c3aed\",\n      \"workflowTemplateCode\": \"iteration\"\n    }\n  ],\n  \"requestId\": \"a1b2c3d4\"\n}"
+            },
+            {
+              "name": "失败：401 未登录",
+              "originalRequest": null,
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 11001,\n  \"msg\": \"未登录或登录已过期\",\n  \"data\": null,\n  \"requestId\": \"a1b2c3d4\"\n}"
             }
           ]
         }

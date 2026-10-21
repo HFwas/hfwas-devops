@@ -9,4 +9,9 @@ public class DateTimeFieldTypeHandler extends TextFieldTypeHandler {
     public FieldType type() {
         return FieldType.DATETIME;
     }
+
+    @Override
+    protected String comparisonCastType() {
+        return "DATETIME";
+    }
 }

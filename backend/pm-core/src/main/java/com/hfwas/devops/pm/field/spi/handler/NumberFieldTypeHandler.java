@@ -12,6 +12,11 @@ public class NumberFieldTypeHandler extends AbstractFieldTypeHandler {
     }
 
     @Override
+    protected String comparisonCastType() {
+        return "DECIMAL(30,10)";
+    }
+
+    @Override
     public void validate(FieldDefinition definition, Object value) {
         if (definition.getRequiredFlag() != null && definition.getRequiredFlag() == 1) {
             requireNonNull(value, definition);

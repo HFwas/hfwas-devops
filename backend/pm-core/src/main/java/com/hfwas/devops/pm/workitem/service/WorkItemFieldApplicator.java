@@ -1,5 +1,6 @@
 package com.hfwas.devops.pm.workitem.service;
 
+import com.hfwas.devops.pm.common.PmDateTimeUtils;
 import com.hfwas.devops.pm.field.engine.FieldTypeRegistry;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
@@ -66,6 +67,7 @@ public class WorkItemFieldApplicator {
             case "module_id" -> item.setModuleId(toLong(value));
             case "parent_id" -> item.setParentId(toLong(value));
             case "sprint_id" -> item.setSprintId(toLong(value));
+            case "end_time" -> item.setEndTime(PmDateTimeUtils.parseDateTime(value));
             default -> {
             }
         }
@@ -78,6 +80,7 @@ public class WorkItemFieldApplicator {
         return switch (fieldKey) {
             case "assignee_id", "reporter_id", "module_id", "parent_id", "sprint_id" -> toLong(rawValue);
             case "title", "description", "priority" -> String.valueOf(rawValue);
+            case "end_time" -> PmDateTimeUtils.parseDateTime(rawValue);
             default -> rawValue;
         };
     }

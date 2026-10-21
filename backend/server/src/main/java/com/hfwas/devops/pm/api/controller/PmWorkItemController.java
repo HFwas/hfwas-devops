@@ -2,11 +2,14 @@ package com.hfwas.devops.pm.api.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.hfwas.devops.common.core.base.BaseResult;
+import com.hfwas.devops.pm.api.dto.WorkItemFieldUpdateDto;
 import com.hfwas.devops.pm.api.dto.WorkItemLinkDto;
 import com.hfwas.devops.pm.api.dto.WorkItemTransitionDto;
 import com.hfwas.devops.pm.query.model.QuerySpec;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItemLink;
+import com.hfwas.devops.pm.workitem.model.WorkItemFieldUpdateVO;
+import com.hfwas.devops.pm.workitem.service.WorkItemFieldUpdateService;
 import com.hfwas.devops.pm.workitem.service.WorkItemService;
 import com.hfwas.devops.user.operlog.annotation.OperLog;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,7 @@ import java.util.List;
 public class PmWorkItemController {
 
     private final WorkItemService workItemService;
+    private final WorkItemFieldUpdateService fieldUpdateService;
 
     @PostMapping("/page")
     public BaseResult<IPage<PmWorkItem>> page(@RequestBody QuerySpec spec) {
@@ -42,6 +46,14 @@ public class PmWorkItemController {
     public BaseResult<Void> delete(@RequestParam("id") Long id) {
         workItemService.delete(id);
         return BaseResult.ok();
+    }
+
+    @OperLog(module = "pm", action = "update", bizType = "work_item", summary = "更新工作项字段", bizId = "#id")
+    @PatchMapping("/{id}/fields")
+    public BaseResult<WorkItemFieldUpdateVO> updateField(@PathVariable Long id,
+                                                         @RequestBody WorkItemFieldUpdateDto dto) {
+        return BaseResult.ok(fieldUpdateService.updateField(
+                id, dto.getField(), dto.getValue(), dto.getVersion(), dto.getTransitionId()));
     }
 
     @OperLog(module = "pm", action = "transition", bizType = "work_item", summary = "工作项状态流转", bizId = "#id")

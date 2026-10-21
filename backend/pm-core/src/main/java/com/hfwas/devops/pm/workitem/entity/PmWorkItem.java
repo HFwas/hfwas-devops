@@ -24,6 +24,7 @@ public class PmWorkItem {
     private Long parentId;
     private Long moduleId;
     private Long sprintId;
+    private LocalDateTime endTime;
     @TableField(typeHandler = JacksonTypeHandler.class)
     private Map<String, Object> customFields;
     @TableField(fill = FieldFill.INSERT)
@@ -34,6 +35,7 @@ public class PmWorkItem {
     private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
+    private Long version;
     @TableLogic
     private Integer delFlag;
 

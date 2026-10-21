@@ -1,6 +1,7 @@
 package com.hfwas.devops.pm.meta;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -16,4 +17,12 @@ public class PmWorkItemType {
     private String color;
     private Integer sortOrder;
     private Integer enabled;
+    private Integer builtIn;
+    private String description;
+    private String templateCode;
+
+    @TableField(exist = false)
+    private Long workItemCount;
+    @TableField(exist = false)
+    private Long fieldCount;
 }

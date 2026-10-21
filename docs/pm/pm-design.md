@@ -1,8 +1,8 @@
 # 项目管理模块设计文档
 
 > 日期：2026-10-21
-> 版本：v2.5
-> 状态：设计阶段 · 原型 v1.9 角色评审通过，待用户确认冻结提交；未进入实现
+> 版本：v2.6
+> 状态：原型 v1.11 已冻结于提交 6741712；阶段 1（后端增量 + 共享列表组件）已实施，页面改造待阶段 2
 > 视觉基线：[PM 模块总原型](../product/06-prototype/pm/README.md) v1.9
 > 接口基线：[pm-api.md](./pm-api.md) v1.4
 > 适用范围：hfwas-devops 项目管理（PM）子系统
@@ -18,6 +18,7 @@
 | v2.3 | 2026-10-20 | 第三次独立验证通过，4 个阻断项关闭；等待产品 / 前端 / 测试签字冻结 |
 | v2.4 | 2026-10-21 | 角色评审通过；数据库目标切换为 MySQL 8 + Flyway，更新数据迁移规则 |
 | v2.5 | 2026-10-21 | 移除项目监控入口；项目工作台左侧导航改由项目内菜单承载（全部项目、启用类型、看板、工作流） |
+| v2.6 | 2026-10-21 | 原型冻结；阶段 1 落地 V3 迁移、单字段/批量接口、活动分页、批量配置、类型元数据、查询修复与共享列表组件；更新缺口状态与下一步 |
 
 ---
 
@@ -119,7 +120,7 @@ PM 设计内容分散在多个目录。**本文件是模块级权威入口**，�
 | `requirement` | 需求 | 内置 | 产品/业务需求 |
 | `task` | 任务 | 内置 | 开发/执行项 |
 | `bug` | 缺陷 | 内置 | 问题跟踪 |
-| `iteration` | 迭代 | 内置 | 项目周期容器；已确认支持，schema 待补种子（§8.2 G-01） |
+| `iteration` | 迭代 | 内置 | 项目周期容器；V3 已补种子与默认工作流（§8.2 G-01） |
 | `test_case` | 测试用例 | 内置 | 测试项 |
 | `story` | 用户故事 | 自定义（示例） | 项目按需创建 |
 | `tech_debt` | 技术债 | 自定义（示例） | 项目按需创建 |
@@ -530,7 +531,7 @@ QuerySpec 映射：
 |------|------|------|
 | 详情 | `GET /pm/work-items/{id}` | 已有 |
 | 完整编辑保存 | `POST /pm/work-items/save` | 已有 |
-| 单字段更新 | `PATCH /pm/work-items/{id}/fields` | 待新增（A-01） |
+| 单字段更新 | `PATCH /pm/work-items/{id}/fields` | ✅ 已实现（A-01，含 version 乐观锁与 transitionId） |
 | 状态流转 | `POST /pm/work-items/{id}/transition` | 已有 |
 | 评论列表 / 发表 / 删除 | `/pm/work-items/{id}/comments`、`/pm/work-items/comments/save|delete` | 已有 |
 | 操作记录 | `GET /pm/work-items/{id}/activities` | 已有，分页参数待补（A-09） |
@@ -633,21 +634,21 @@ QuerySpec 映射：
 
 字段级定义、错误码与示例见 [pm-api.md](./pm-api.md) 与 [Postman collection](./pm-api.postman_collection.json)。
 
-### 7.2 增量接口（待后端确认）
+### 7.2 增量接口（阶段 1 已落地）
 
-| 编号 | 能力 | 建议接口 / 变更 | 影响 |
-|------|------|-----------------|------|
-| A-01 | 单字段更新 | `PATCH /pm/work-items/{id}/fields`，body `{ field, value, version }`；服务端复校验工作流与字段权限 | 详情内联更新 |
-| A-02 | 批量更新字段 | `POST /pm/work-items/batch-update`，body `{ ids, patch, dryRun, ignoreWorkflowErrors }`；返回 success/skipped/failed 明细 | 批量编辑 |
-| A-03 | 批量状态流转 | `POST /pm/work-items/batch-transition`，body `{ ids, toStatus, dryRun }`，逐条校验 | 批量流转 |
-| A-04 | 批量操作配置 | `GET/POST /pm/projects/{id}/batch-action-configs`，或写入项目 `settings` JSON | 批量配置页 |
-| A-05 | 字段批量属性 | 字段定义补 `batchEditable` / `batchOrder` | 白名单与顺序 |
-| A-06 | 视图持久化 | `pm_saved_view.columns` 扩展为 `{ listFields, searchFields, filterFields, density, sort }` | 视图配置 |
-| A-07 | 类型数量 | 类型列表补 `workItemCount`，或在列表接口按 `typeCode` 聚合 | 左侧导航 |
-| A-08 | 结果明细下载 | 批量/导入执行返回 `resultId`，提供明细下载 | 批量与导入结果页 |
-| A-09 | 活动分页 | `GET /pm/work-items/{id}/activities` 支持 `pageNo` / `pageSize`，默认时间倒序 | 操作记录 |
-| A-10 | 类型元数据 | 类型补 `builtIn` / `description` / `templateCode` / `fieldCount` | 类型管理页 |
-| A-11 | 内置迭代种子 | 新增 `iteration` 类型种子与默认工作流 | 5 个内置类型 |
+| 编号 | 能力 | 实现接口 / 变更 | 阶段 1 状态 |
+|------|------|-----------------|-------------|
+| A-01 | 单字段更新 | `PATCH /pm/work-items/{id}/fields`，body `{ field, value, version, transitionId? }` | ✅ 已实现 |
+| A-02 | 批量更新字段 | `POST /pm/work-items/batch-update`，逐条隔离、dryRun、success/skipped/failed 明细 | ✅ 已实现 |
+| A-03 | 批量状态流转 | `POST /pm/work-items/batch-transition`，逐条校验与 dryRun | ✅ 已实现 |
+| A-04 | 批量操作配置 | `GET/POST /pm/projects/{id}/batch-action-configs` + `pm_batch_action_config` | ✅ 已实现 |
+| A-05 | 字段批量属性 | `pm_field_definition.batch_editable` / `batch_order` | ✅ 已实现（API 字段待阶段 2 暴露） |
+| A-06 | 视图持久化 | `pm_saved_view.columns` 支持扩展 JSON | ⏳ 结构已支持，前端视图阶段接入 |
+| A-07 | 类型数量 | 项目类型列表补 `workItemCount` / `fieldCount` | ✅ 已实现 |
+| A-08 | 结果明细下载 | 批量接口返回逐条明细；文件下载待阶段 2 | ⏳ 部分实现 |
+| A-09 | 活动分页 | `GET /pm/work-items/{id}/activities/page`，旧全量接口保留兼容 | ✅ 已实现 |
+| A-10 | 类型元数据 | 类型补 `built_in` / `description` / `template_code`，列表补 `fieldCount`；新增模板接口 | ✅ 已实现 |
+| A-11 | 内置迭代种子 | V3 新增 `iteration` 类型与默认工作流 | ✅ 已实现 |
 
 ### 7.3 QuerySpec 协议
 
@@ -703,17 +704,17 @@ QuerySpec 映射：
 
 详细字段见 [PM 数据字典](../product/03-database/tables/pm.md)。
 
-### 8.2 缺口
+### 8.2 缺口（阶段 1 更新）
 
 | 编号 | 缺口 | 影响 | 处理方向 |
 |------|------|------|----------|
-| G-01 | `pm_work_item_type` 只种子 4 类，缺 `iteration` | 原型 5 个内置类型无法落地 | **已确认支持**：新增 Flyway 种子 + 默认工作流（D-02） |
-| G-02 | `pm_work_item` 无截止时间列 | 截止时间列、筛选、排序无系统字段 | **已确认**：新增系统列 `end_time`（D-03） |
-| G-03 | `pm_work_item` 无版本列 | 内联更新无法做乐观锁 | 新增 `version`（或复用 `update_time`） |
-| G-04 | 批量操作配置无存储 | 配置页无法持久化 | 项目 `settings` JSON 或新表 `pm_batch_action_config` |
-| G-05 | 关注者无存储 | 详情右栏"关注者"不可持久化 | 自定义字段或 `pm_work_item_watcher` 表 |
-| G-06 | `pm_saved_view.columns` 形状未定义 | 视图配置无法完整持久化 | JSON 扩展，无需 DDL |
-| G-07 | 操作记录分页无接口参数 | 详情分页不可用 | A-09 |
+| G-01 | 缺 `iteration` 类型 | 原型 5 个内置类型无法落地 | ✅ V3 已补种子与默认工作流 |
+| G-02 | 无截止时间列 | 筛选、排序、导入导出缺系统字段 | ✅ V3 已补 `end_time`，查询/排序/IO 已接入 |
+| G-03 | 无版本列 | 内联更新无法做乐观锁 | ✅ V3 已补 `version`，单字段/批量更新条件更新 |
+| G-04 | 批量操作配置无存储 | 配置页无法持久化 | ✅ 新表 `pm_batch_action_config` |
+| G-05 | 关注者无存储 | 详情右栏"关注者"不可持久化 | ⏳ V3 已建 `pm_work_item_watcher`，接口待阶段 2 |
+| G-06 | `pm_saved_view.columns` 形状未定义 | 视图配置无法完整持久化 | ⏳ JSON 扩展无需 DDL，阶段 2 定义并接入 |
+| G-07 | 操作记录分页无接口参数 | 详情分页不可用 | ✅ A-09 已实现 |
 
 ### 8.3 迁移规则
 
@@ -852,14 +853,14 @@ QuerySpec 映射：
 ## 14. 实施顺序与前置条件
 
 ```text
-1. 原型评审冻结（Q-01）
-2. 补 test-cases.md / changes.md（三个功能目录）
-3. 后端增量接口与数据迁移（A-01、A-02、A-03、A-09、A-11、G-01~G-04）
-4. 前端共享组件（ListPageShell、SearchInput、FilterBar、DataTable/Pagination 扩展）
-5. 列表工作台（类型导航、视图、视图配置、筛选构建器、选择与批量栏）
-6. 批量操作与导入导出、批量配置页
-7. 事项详情（双栏、页签、内联更新、Markdown、操作记录、评论）
-8. 事项类型管理页
+✅ 1. 原型评审冻结（Q-01，提交 6741712）
+✅ 2. 阶段 1 功能目录 docs/superpowers/features/20261021-pm-backend-shared-foundation/
+✅ 3. 后端增量接口与数据迁移（A-01、A-02、A-03、A-04、A-07、A-09、A-10、A-11、G-01~G-04）
+✅ 4. 前端共享组件（ListPageShell、SearchInput、FilterBar、BulkActionBar、DataTable/Pagination 扩展）
+5. 阶段 2：列表工作台（类型导航、视图、视图配置、筛选构建器、选择与批量栏）
+6. 阶段 2：批量操作 UI、导入导出、批量配置页
+7. 阶段 3：事项详情（双栏、页签、内联更新、Markdown、操作记录、评论）
+8. 阶段 3：事项类型管理页
 9. 逐页逐状态对照冻结原型，独立 agent 校验并写回 changes.md
 ```
 

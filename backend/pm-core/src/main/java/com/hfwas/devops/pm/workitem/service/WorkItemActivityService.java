@@ -1,6 +1,8 @@
 package com.hfwas.devops.pm.workitem.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hfwas.devops.common.error.BizException;
 import com.hfwas.devops.common.error.ResultCode;
@@ -14,6 +16,7 @@ import com.hfwas.devops.pm.workitem.model.WorkItemActivityVo;
 import com.hfwas.devops.pm.workitem.model.WorkItemFieldChange;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +53,21 @@ public class WorkItemActivityService {
                 .toList();
     }
 
+    public IPage<WorkItemActivityVo> pageByWorkItem(Long workItemId, int pageNo, int pageSize) {
+        ensureWorkItemExists(workItemId);
+        long safePageNo = Math.max(1, pageNo);
+        long safePageSize = Math.min(100, Math.max(1, pageSize));
+        Page<PmWorkItemActivity> page = new Page<>(safePageNo, safePageSize);
+        IPage<PmWorkItemActivity> rows = activityMapper.selectPage(page,
+                Wrappers.<PmWorkItemActivity>lambdaQuery()
+                        .eq(PmWorkItemActivity::getWorkItemId, workItemId)
+                        .orderByDesc(PmWorkItemActivity::getCreateTime)
+                        .orderByDesc(PmWorkItemActivity::getId));
+        Page<WorkItemActivityVo> result = new Page<>(rows.getCurrent(), rows.getSize(), rows.getTotal());
+        result.setRecords(rows.getRecords().stream().map(this::toVo).toList());
+        return result;
+    }
+
     @Transactional
     public void recordCreate(PmWorkItem item) {
         if (item == null || item.getId() == null) {
@@ -62,6 +80,12 @@ public class WorkItemActivityService {
 
     @Transactional
     public void recordChanges(PmWorkItem oldItem, PmWorkItem newItem, List<FieldDefinition> definitions) {
+        recordChanges(oldItem, newItem, definitions, UUID.randomUUID().toString());
+    }
+
+    @Transactional
+    public void recordChanges(PmWorkItem oldItem, PmWorkItem newItem,
+                              List<FieldDefinition> definitions, String batchId) {
         if (newItem == null || newItem.getId() == null) {
             return;
         }
@@ -69,7 +93,7 @@ public class WorkItemActivityService {
         if (changes.isEmpty()) {
             return;
         }
-        String batchId = UUID.randomUUID().toString();
+        String resolvedBatchId = StringUtils.isBlank(batchId) ? UUID.randomUUID().toString() : batchId;
         Map<String, FieldDefinition> defByKey = new HashMap<>();
         for (FieldDefinition def : definitions) {
             if (def.getFieldKey() != null) {
@@ -82,7 +106,7 @@ public class WorkItemActivityService {
                 continue;
             }
             PmWorkItemActivity row = baseRow(newItem.getId(), EVENT_FIELD_CHANGE);
-            row.setBatchId(batchId);
+            row.setBatchId(resolvedBatchId);
             row.setFieldKey(change.getFieldKey());
             row.setFieldName(change.getFieldName());
             row.setFieldType(change.getFieldType());

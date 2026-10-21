@@ -35,12 +35,24 @@ public abstract class AbstractFieldTypeHandler implements FieldTypeHandler {
             case IS_NOT_NULL -> JsonSqlDialect.isNotNull("custom_fields", fieldKey);
             case IN -> JsonSqlDialect.in("custom_fields", fieldKey, inList(value));
             case NOT_IN -> JsonSqlDialect.notIn("custom_fields", fieldKey, inList(value));
+            case GT, GTE, LT, LTE, BETWEEN -> {
+                String castType = comparisonCastType();
+                if (castType == null) {
+                    throw new IllegalArgumentException("Unsupported operator for custom field: " + op);
+                }
+                yield JsonSqlDialect.compare("custom_fields", fieldKey, op, value, castType);
+            }
             default -> throw new IllegalArgumentException("Unsupported operator for custom field: " + op);
         };
     }
 
     protected String escape(Object value) {
         return String.valueOf(value).replace("'", "''");
+    }
+
+    /** 支持大小比较的字段返回 SQL CAST 类型，其余返回 null。 */
+    protected String comparisonCastType() {
+        return null;
     }
 
     protected String inList(Object value) {

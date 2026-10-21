@@ -1,5 +1,6 @@
 package com.hfwas.devops.pm.workitem.service;
 
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.hfwas.devops.pm.field.engine.FieldValidator;
@@ -93,6 +94,7 @@ public class WorkItemService {
                 throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
             }
             item.setProjectId(old.getProjectId());
+            item.setVersion(nextVersion(old.getVersion()));
         }
 
         List<FieldDefinition> definitions = fieldDefinitionService.listByProjectAndType(
@@ -107,6 +109,7 @@ public class WorkItemService {
                 item.setStatus(statusDefinitionService.initialStatus(item.getProjectId(), item.getTypeCode()));
             }
             item.setItemNo(sequenceService.nextItemNo(item.getProjectId()));
+            item.setVersion(0L);
             workItemMapper.insert(item);
             notifyAssigneeIfChanged(new PmWorkItem(), item);
             activityService.recordCreate(item);
@@ -126,19 +129,21 @@ public class WorkItemService {
 
     @Transactional
     public void transition(Long id, String transitionId) {
-        transition(id, transitionId, null);
+        transitionWithVersion(id, transitionId, null, null);
     }
 
     @Transactional
     public void transition(Long id, String transitionId, Map<String, Object> fields) {
+        transitionWithVersion(id, transitionId, fields, null);
+    }
+
+    @Transactional
+    public TransitionVO transitionWithVersion(Long id, String transitionId, Map<String, Object> fields,
+                                              Long expectedVersion) {
         if (StringUtils.isBlank(transitionId)) {
             throw new IllegalArgumentException("transitionId 不能为空");
         }
-        PmWorkItem old = workItemMapper.selectById(id);
-        if (old == null) {
-            throw new BizException(ResultCode.PROJECT_ACCESS_DENIED);
-        }
-        projectService.assertProjectAccess(old.getProjectId());
+        PmWorkItem old = loadForWrite(id, expectedVersion);
         PmWorkItem before = snapshot(old);
         String fromStatus = before.getStatus();
         statusDefinitionService.validateTransition(
@@ -149,21 +154,81 @@ public class WorkItemService {
         String toStatus = transition.getToStatus();
         List<FieldDefinition> definitions = fieldDefinitionService.listByProjectAndType(
                 old.getProjectId(), old.getTypeCode());
-        if (fields != null && !fields.isEmpty()) {
-            for (Map.Entry<String, Object> entry : fields.entrySet()) {
-                if (entry.getKey() == null || "status".equals(entry.getKey())) {
-                    continue;
-                }
-                workItemFieldApplicator.apply(old, entry.getKey(), entry.getValue(), definitions);
-            }
-        }
+        applyTransitionFields(old, fields, definitions);
         transitionValidatorExecutor.validate(old, fromStatus, transitionId, definitions);
         old.setStatus(toStatus);
+        if (expectedVersion != null) {
+            // 先做一次带版本条件的原子递增，避免并发流转都通过前置校验后互相覆盖。
+            int guarded = workItemMapper.update(null, new UpdateWrapper<PmWorkItem>()
+                    .eq("id", id)
+                    .eq("version", expectedVersion)
+                    .eq("del_flag", 0)
+                    .setSql("version = version + 1"));
+            if (guarded == 0) {
+                throw new BizException(ResultCode.WORK_ITEM_VERSION_CONFLICT);
+            }
+            old.setVersion(expectedVersion + 1);
+        } else {
+            old.setVersion(nextVersion(old.getVersion()));
+        }
         workItemMapper.updateById(old);
         transitionPostFunctionExecutor.execute(old, fromStatus, transitionId, definitions);
         workItemMapper.updateById(old);
         keyEnricher.enrich(old);
         activityService.recordChanges(before, old, definitions);
+        return transition;
+    }
+
+    /**
+     * 批量 dry-run 使用：完整校验流转、字段与校验器，但不写库、不执行后置函数。
+     */
+    public TransitionVO previewTransition(Long id, String transitionId, Map<String, Object> fields,
+                                          Long expectedVersion) {
+        if (StringUtils.isBlank(transitionId)) {
+            throw new IllegalArgumentException("transitionId 不能为空");
+        }
+        PmWorkItem old = loadForWrite(id, expectedVersion);
+        String fromStatus = old.getStatus();
+        statusDefinitionService.validateTransition(
+                old.getProjectId(), old.getTypeCode(), fromStatus, transitionId);
+        TransitionVO transition = statusDefinitionService.findTransition(
+                old.getProjectId(), old.getTypeCode(), fromStatus, transitionId);
+        transitionConditionEvaluator.assertMatches(old, transition.getConditions());
+        List<FieldDefinition> definitions = fieldDefinitionService.listByProjectAndType(
+                old.getProjectId(), old.getTypeCode());
+        PmWorkItem copy = snapshot(old);
+        applyTransitionFields(copy, fields, definitions);
+        transitionValidatorExecutor.validate(copy, fromStatus, transitionId, definitions);
+        return transition;
+    }
+
+    private PmWorkItem loadForWrite(Long id, Long expectedVersion) {
+        PmWorkItem item = workItemMapper.selectById(id);
+        if (item == null) {
+            throw new BizException(ResultCode.WORK_ITEM_NOT_FOUND);
+        }
+        projectService.assertProjectAccess(item.getProjectId());
+        if (expectedVersion != null && !expectedVersion.equals(item.getVersion())) {
+            throw new BizException(ResultCode.WORK_ITEM_VERSION_CONFLICT);
+        }
+        return item;
+    }
+
+    private void applyTransitionFields(PmWorkItem item, Map<String, Object> fields,
+                                       List<FieldDefinition> definitions) {
+        if (fields == null || fields.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+            if (entry.getKey() == null || "status".equals(entry.getKey())) {
+                continue;
+            }
+            workItemFieldApplicator.apply(item, entry.getKey(), entry.getValue(), definitions);
+        }
+    }
+
+    static long nextVersion(Long current) {
+        return current == null ? 1L : current + 1;
     }
 
     public void delete(Long id) {
@@ -259,6 +324,8 @@ public class WorkItemService {
         copy.setModuleId(item.getModuleId());
         copy.setParentId(item.getParentId());
         copy.setSprintId(item.getSprintId());
+        copy.setEndTime(item.getEndTime());
+        copy.setVersion(item.getVersion());
         if (item.getCustomFields() != null) {
             copy.setCustomFields(new HashMap<>(item.getCustomFields()));
         }

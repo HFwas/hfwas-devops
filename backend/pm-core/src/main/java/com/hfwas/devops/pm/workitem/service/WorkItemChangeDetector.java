@@ -63,6 +63,7 @@ public class WorkItemChangeDetector {
             case "reporter_id" -> item.getReporterId();
             case "parent_id" -> item.getParentId();
             case "sprint_id" -> item.getSprintId();
+            case "end_time" -> item.getEndTime();
             default -> null;
         };
     }

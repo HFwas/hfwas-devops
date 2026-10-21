@@ -83,6 +83,7 @@ public class TransitionValidatorExecutor {
             case "module_id" -> item.getModuleId();
             case "parent_id" -> item.getParentId();
             case "sprint_id" -> item.getSprintId();
+            case "end_time" -> item.getEndTime();
             default -> item.getCustomFields() != null ? item.getCustomFields().get(fieldKey) : null;
         };
     }

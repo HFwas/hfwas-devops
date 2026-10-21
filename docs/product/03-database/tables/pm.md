@@ -1,19 +1,20 @@
 # 项目管理（PM）数据字典
 
-> 日期：2026-10-17
-> 版本：v0.1
+> 日期：2026-10-21
+> 版本：v0.2
 > 状态：已完成（表级）
-> 数据来源：`backend/server/src/main/resources/db/pm-schema.sql`、`backend/server/.../pm/`
+> 数据来源：`backend/db-migration/src/main/resources/db/migration/V1__initial_schema.sql`、`V2__seed_system_data.sql`、`V3__pm_backend_shared_foundation.sql`
 
 ### 变更记录
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：15 张 pm_* 表 + 重复 sys_user 说明 |
+| v0.2 | 2026-10-21 | V3：事项补 `end_time`/`version`；类型补内置/描述/模板；字段补批量属性；活动批次号改字符串并放宽值长度；新增关注者与批量动作配置表；补索引与迭代种子 |
 
 ---
 
-共 15 张 `pm_*` 表，另有 1 段重复的 `sys_user` 定义（见文末风险）。
+共 17 张 `pm_*` 表，另有 1 段重复的 `sys_user` 定义（见文末风险）。
 
 ## pm_project
 
@@ -51,9 +52,14 @@
 | 字段 | 说明 |
 |------|------|
 | `id` | 主键 |
-| `code` | 类型编码（如 requirement/task/bug） |
+| `code` | 类型编码（如 requirement/task/bug/iteration/test_case） |
 | `name` / `icon` / `color` / `sort_order` | 展示属性 |
 | `enabled` | 是否启用 |
+| `built_in` | 是否内置（1 = 内置，不可删除；名称/图标/颜色只读） |
+| `description` | 类型说明 |
+| `template_code` | 创建工作流时使用的内置模板编码 |
+
+种子：5 个内置类型 `requirement` / `task` / `bug` / `iteration` / `test_case`，均为 `built_in=1`。迭代默认工作流为 `open → in_progress → done → closed`。
 
 ## pm_project_issue_type
 
@@ -83,10 +89,12 @@
 | `parent_id` | 父事项 |
 | `module_id` | 所属模块 |
 | `sprint_id` | 迭代 |
+| `end_time` | 截止时间（UTC naive DATETIME，系统字段） |
 | `custom_fields` | 动态字段 JSON |
+| `version` | 乐观锁版本号，单字段/批量更新使用 `WHERE version=?` 条件更新 |
 | `create_by` / `update_by` / `create_time` / `update_time` / `del_flag` | 审计与逻辑删除 |
 
-索引：`idx_pm_work_item_project`、`idx_pm_work_item_status`、`idx_pm_work_item_module`。
+索引：`idx_pm_work_item_project`、`idx_pm_work_item_status`、`idx_pm_work_item_module`、`idx_pm_work_item_end_time (project_id, end_time)`。
 
 ## pm_project_sequence
 
@@ -123,6 +131,8 @@
 | `applicable_types` | 适用类型 |
 | `required_flag` | 是否必填 |
 | `sort_order` / `system_flag` | 排序与系统字段标记 |
+| `batch_editable` | 是否允许批量编辑（1 允许） |
+| `batch_order` | 批量编辑字段顺序 |
 | `create_time` / `update_time` / `del_flag` | 审计与逻辑删除 |
 
 ## pm_field_option
@@ -163,14 +173,15 @@
 
 | 字段 | 说明 |
 |------|------|
-| `id` / `work_item_id` / `batch_id` | 主键、事项、批次 |
+| `id` / `work_item_id` / `batch_id` | 主键、事项、批次（UUID 字符串 `VARCHAR(64)`） |
 | `event_type` | 事件类型（创建/更新/流转/评论等） |
 | `actor_id` / `actor_name` | 操作人 |
 | `field_key` / `field_name` / `field_type` | 变更字段 |
-| `old_value` / `new_value` / `old_label` / `new_label` | 变更前后值 |
+| `old_value` / `new_value` | 变更前后原始值（`MEDIUMTEXT`，支持长文本/JSON） |
+| `old_label` / `new_label` | 展示标签（`VARCHAR(1024)`） |
 | `extra_json` / `create_time` | 扩展与时间 |
 
-索引：`idx_pm_work_item_activity`。
+索引：`idx_pm_work_item_activity`、`idx_pm_work_item_activity_batch (batch_id)`。
 
 ## pm_status_definition
 
@@ -207,6 +218,63 @@
 | `layout_config` | 布局 JSON |
 | `create_time` / `update_time` | 时间 |
 
+## pm_work_item_watcher
+
+事项关注者。
+
+| 字段 | 说明 |
+|------|------|
+| `id` | 主键（自增） |
+| `work_item_id` / `user_id` | 事项与用户 |
+| `create_time` | 关注时间 |
+
+唯一键 `uk_pm_work_item_watcher_item_user (work_item_id, user_id)`；索引 `idx_pm_work_item_watcher_user (user_id)`。
+
+## pm_batch_action_config
+
+项目级批量动作配置；未保存的动作由服务端返回默认值。
+
+| 字段 | 说明 |
+|------|------|
+| `id` | 主键（自增） |
+| `project_id` | 项目 |
+| `action_code` | `UPDATE_FIELDS` / `TRANSITION` / `IMPORT` / `EXPORT` / `DELETE` / `COPY` |
+| `enabled` | 是否启用（删除默认关闭） |
+| `max_items` | 单次上限（普通 1–1000，导入/导出 1–5000） |
+| `require_confirm` | 是否需要二次确认 |
+| `allowed_roles` | JSON 数组，如 `["admin","user"]`；空数组表示不限制 |
+| `field_whitelist` | JSON 数组，批量编辑允许的字段 key；仅 `UPDATE_FIELDS` 使用 |
+| `create_time` / `update_time` | 时间 |
+
+唯一键 `uk_pm_batch_action_project_code (project_id, action_code)`。
+
+JSON 结构：
+
+```json
+{
+  "allowed_roles": ["admin", "user"],
+  "field_whitelist": ["priority", "assignee_id", "module_id", "end_time"]
+}
+```
+
+## 迁移与 DDL
+
+| 迁移 | 内容 |
+|------|------|
+| `V1__initial_schema.sql` | 56 张表基线，含 15 张 `pm_*` 表 |
+| `V2__seed_system_data.sql` | 系统种子：4 个事项类型、16 条状态定义 |
+| `V3__pm_backend_shared_foundation.sql` | 截止时间/乐观锁、类型元数据、字段批量属性、活动批次号、关注者、批量动作配置、迭代类型与索引 |
+
+V3 新增/修改：
+
+- `pm_work_item`：`end_time DATETIME NULL`、`version BIGINT NOT NULL DEFAULT 0`；索引 `idx_pm_work_item_end_time`。
+- `pm_work_item_type`：`built_in`、`description`、`template_code`；种子 `iteration`（排序 4），`test_case` 排序改 5。
+- `pm_field_definition`：`batch_editable`、`batch_order`。
+- `pm_work_item_activity`：`batch_id` 改 `VARCHAR(64)`；`old_value/new_value` 改 `MEDIUMTEXT`；label 放宽到 `VARCHAR(1024)`；新增批次索引。
+- 新表 `pm_work_item_watcher`、`pm_batch_action_config`。
+
+> 本文档为表级字典（历史格式）。完整 10 列字段字典按 `database-documentation-standard.md` 在后续数据库专项中补齐；本轮变更字段、表、索引与枚举已同步。
+
 ## 重复的 sys_user（已解决）
 
 原 SQLite 时代 PM schema 重复定义了 `sys_user`。MySQL 基线 V1 已删除该重复定义，只保留 user 模块的统一 `sys_user`。
@@ -216,7 +284,8 @@
 | 表 | 归属 |
 |----|------|
 | 项目/成员/类型/模块 | `PmProjectService`、`PmProjectModuleService`、`PmProjectIssueTypeService` |
-| 事项/关联/评论/活动 | `PmWorkItemService`、`PmWorkItemCommentService`、`PmWorkItemActivityService` |
+| 事项/关联/评论/活动 | `PmWorkItemService`、`PmWorkItemFieldUpdateService`、`PmWorkItemBatchService`、`PmWorkItemCommentService`、`PmWorkItemActivityService` |
+| 批量动作配置 | `BatchActionConfigService` |
 | 字段/布局/方案 | `PmFieldDefinitionService`、`PmFieldLayoutService`、`PmIssueTypeSchemeService` |
 | 状态工作流 | `PmStatusWorkflowService` |
 | 保存视图 | `PmSavedViewService` |

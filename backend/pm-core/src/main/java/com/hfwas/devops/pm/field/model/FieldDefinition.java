@@ -29,6 +29,8 @@ public class FieldDefinition {
     private Integer requiredFlag;
     private Integer sortOrder;
     private Integer systemFlag;
+    private Integer batchEditable;
+    private Integer batchOrder;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
     @TableLogic

@@ -124,6 +124,13 @@ public enum ResultCode implements ErrorCode {
     NUMBER_FORMAT_INVALID(21030, "数字格式错误"),
     STATUS_LOOKUP_FAILED(21031, "未找到状态"),
     DATE_FORMAT_INVALID(21032, "日期格式错误"),
+    WORK_ITEM_VERSION_CONFLICT(21033, "数据已被修改，请刷新后重试"),
+    BATCH_SIZE_EXCEEDED(21034, "批量操作条数超过上限"),
+    BATCH_ACTION_DISABLED(21035, "批量操作未启用"),
+    BATCH_FIELD_NOT_ALLOWED(21036, "字段不允许批量编辑"),
+    BATCH_PROJECT_MISMATCH(21037, "批量操作不能跨项目"),
+    BUILT_IN_TYPE_PROTECTED(21038, "内置事项类型不可删除"),
+    TYPE_TEMPLATE_INVALID(21039, "事项类型模板不存在或不可用"),
 
     // 22000 – field & scheme
     FIELD_CODE_NAME_REQUIRED(22001, "字段编码和名称不能为空"),

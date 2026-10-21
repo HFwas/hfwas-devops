@@ -46,13 +46,17 @@ class FlywayMigrationTest {
     @Test
     void schemaAndSeedAreComplete() throws Exception {
         try (Connection c = connect(); Statement s = c.createStatement()) {
-            assertEquals(56, count(s, "SELECT COUNT(*) FROM information_schema.tables " +
+            assertEquals(58, count(s, "SELECT COUNT(*) FROM information_schema.tables " +
                     "WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE' " +
                     "AND table_name <> 'flyway_schema_history'"));
-            assertEquals(2, count(s, "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1"));
+            assertEquals(3, count(s, "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1"));
             assertEquals(1, count(s, "SELECT COUNT(*) FROM sys_tenant"));
-            assertEquals(4, count(s, "SELECT COUNT(*) FROM pm_work_item_type"));
-            assertEquals(16, count(s, "SELECT COUNT(*) FROM pm_status_definition"));
+            assertEquals(5, count(s, "SELECT COUNT(*) FROM pm_work_item_type"));
+            assertEquals(20, count(s, "SELECT COUNT(*) FROM pm_status_definition"));
+            assertEquals(1, count(s, "SELECT COUNT(*) FROM pm_work_item_type WHERE code = 'iteration'"));
+            assertEquals(1, count(s, "SELECT COUNT(*) FROM pm_work_item_type " +
+                    "WHERE code = 'iteration' AND built_in = 1 AND sort_order = 4"));
+            assertEquals(4, count(s, "SELECT COUNT(*) FROM pm_status_definition WHERE type_code = 'iteration'"));
             assertEquals(19, count(s, "SELECT COUNT(*) FROM pipeline_task_kind"));
             assertEquals(23, count(s, "SELECT COUNT(*) FROM pipeline_task_kind_param"));
             assertEquals(19, count(s, "SELECT COUNT(DISTINCT id) FROM pipeline_task_kind"));
@@ -86,6 +90,49 @@ class FlywayMigrationTest {
                      """)) {
             assertTrue(!rs.next(), "indexed TEXT/BLOB column found");
         }
+    }
+
+    @Test
+    void pmFoundationColumnsExist() throws Exception {
+        try (Connection c = connect(); Statement s = c.createStatement()) {
+            assertEquals(1, columnCount(s, "pm_work_item", "end_time", "datetime"));
+            assertEquals(1, columnCount(s, "pm_work_item", "version", "bigint"));
+            assertEquals(0, count(s, "SELECT COUNT(*) FROM information_schema.columns " +
+                    "WHERE table_schema = DATABASE() AND table_name = 'pm_work_item' " +
+                    "AND column_name = 'version' AND is_nullable = 'YES'"));
+            assertEquals(1, columnCount(s, "pm_work_item_type", "built_in", "tinyint"));
+            assertEquals(1, columnCount(s, "pm_work_item_type", "description", "varchar"));
+            assertEquals(1, columnCount(s, "pm_work_item_type", "template_code", "varchar"));
+            assertEquals(1, columnCount(s, "pm_field_definition", "batch_editable", "tinyint"));
+            assertEquals(1, columnCount(s, "pm_field_definition", "batch_order", "int"));
+            assertEquals(1, columnCount(s, "pm_work_item_activity", "batch_id", "varchar"));
+            assertEquals(1, columnCount(s, "pm_work_item_activity", "old_value", "mediumtext"));
+            assertEquals(1, columnCount(s, "pm_work_item_activity", "new_value", "mediumtext"));
+        }
+    }
+
+    @Test
+    void pmFoundationSchemaObjectsExist() throws Exception {
+        try (Connection c = connect(); Statement s = c.createStatement()) {
+            assertEquals(1, count(s, "SELECT COUNT(*) FROM information_schema.tables " +
+                    "WHERE table_schema = DATABASE() AND table_name = 'pm_work_item_watcher'"));
+            assertEquals(1, count(s, "SELECT COUNT(*) FROM information_schema.tables " +
+                    "WHERE table_schema = DATABASE() AND table_name = 'pm_batch_action_config'"));
+            assertEquals(1, indexCount(s, "pm_work_item", "idx_pm_work_item_end_time"));
+            assertEquals(1, indexCount(s, "pm_work_item_activity", "idx_pm_work_item_activity_batch"));
+        }
+    }
+
+    private static long columnCount(Statement s, String table, String column, String dataType) throws Exception {
+        return count(s, "SELECT COUNT(*) FROM information_schema.columns " +
+                "WHERE table_schema = DATABASE() AND table_name = '" + table + "' " +
+                "AND column_name = '" + column + "' AND data_type = '" + dataType + "'");
+    }
+
+    private static long indexCount(Statement s, String table, String index) throws Exception {
+        return count(s, "SELECT COUNT(*) FROM information_schema.statistics " +
+                "WHERE table_schema = DATABASE() AND table_name = '" + table + "' " +
+                "AND index_name = '" + index + "'");
     }
 
     private static Connection connect() throws Exception {

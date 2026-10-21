@@ -1,6 +1,8 @@
 # PM 模块接口文档
 
-> 版本：1.4> 更新日期：2026-10-18> 适用范围：hfwas-devops 项目管理（PM）REST API
+> 版本：1.5
+> 更新日期：2026-10-21
+> 适用范围：hfwas-devops 项目管理（PM）REST API
 
 ### 变更记录
 
@@ -8,6 +10,7 @@
 |------|------|----------|
 | 1.3 | 2026-08-28 | 初版 |
 | 1.4 | 2026-10-18 | P0 隔离：全部按 id/projectId 入口校验项目归属；update 禁止改 project_id；board 前置校验；补 403/404 示例与 Postman |
+| 1.5 | 2026-10-21 | 新增单字段 PATCH、批量更新、批量流转、活动分页、批量动作配置、类型模板；类型列表补 builtIn/description/templateCode/workItemCount/fieldCount；补 21033–21039 错误码 |
 
 ---
 
@@ -446,6 +449,231 @@ Base path: `/pm/work-items`
 | oldValue / newValue | string | 原始值 / 新值 |
 | oldLabel / newLabel | string | 展示用标签（选项、用户等） |
 | createTime | string | 时间 |
+
+---
+
+### 4.9 事项活动日志（分页）
+
+**GET** `/pm/work-items/{id}/activities/page?pageNo=1&pageSize=10`
+
+- `pageNo` 默认 1，`pageSize` 默认 10，最大 100；按 `createTime DESC, id DESC` 排序。
+- 旧接口 `GET /pm/work-items/{id}/activities` 保留，返回全量列表，供尚未迁移的调用方使用。
+
+**正常响应：**
+
+```json
+{
+  "code": 0,
+  "msg": null,
+  "data": {
+    "records": [
+      {
+        "id": "7001",
+        "workItemId": "9101",
+        "batchId": "5f0c2b7e-4a1d-4f0a-9c11-0d2e3a4b5c6d",
+        "eventType": "FIELD_CHANGE",
+        "actorId": "2",
+        "actorName": "张三",
+        "fieldKey": "priority",
+        "fieldName": "优先级",
+        "oldValue": "medium",
+        "newValue": "high",
+        "oldLabel": "中",
+        "newLabel": "高",
+        "createTime": "2026-10-21T10:00:00"
+      }
+    ],
+    "total": 42,
+    "size": 10,
+    "current": 1,
+    "pages": 5
+  },
+  "requestId": "a1b2c3d4"
+}
+```
+
+**失败响应（无权限）：**
+
+```json
+{ "code": 20002, "msg": "项目不存在或无权访问", "data": null, "requestId": "a1b2c3d4" }
+```
+
+---
+
+### 4.10 单字段更新
+
+**PATCH** `/pm/work-items/{id}/fields`
+
+请求体：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| field | string | 是 | 系统字段或自定义字段 key；`status` 走工作流流转 |
+| value | any | 是 | 新值；传 `null` 表示清空（标题不可为空） |
+| version | integer | 是 | 当前版本号，用于乐观锁 |
+| transitionId | string | 否 | `field=status` 且存在多个可达流转时必填 |
+
+可更新系统字段：`title`、`description`、`priority`、`assignee_id`、`reporter_id`、`parent_id`、`module_id`、`sprint_id`、`end_time`。自定义字段必须已定义在当前项目/类型下。
+
+**正常响应：**
+
+```json
+{
+  "code": 0,
+  "msg": null,
+  "data": {
+    "item": {
+      "id": "9101",
+      "projectId": "9001",
+      "typeCode": "task",
+      "itemKey": "DEMO-23",
+      "title": "修复登录超时",
+      "status": "in_progress",
+      "priority": "high",
+      "endTime": "2026-11-01T18:00:00",
+      "version": 8
+    },
+    "fieldKey": "priority",
+    "oldValue": "medium",
+    "newValue": "high",
+    "oldLabel": "中",
+    "newLabel": "高"
+  },
+  "requestId": "a1b2c3d4"
+}
+```
+
+**失败响应（版本冲突）：**
+
+```json
+{
+  "code": 21033,
+  "msg": "数据已被修改，请刷新后重试",
+  "data": null,
+  "requestId": "a1b2c3d4"
+}
+```
+
+**失败响应（状态流转非法）：**
+
+```json
+{
+  "code": 21012,
+  "msg": "存在多个可达流转，请指定 transitionId: task-open-closed, task-open-cancel",
+  "data": null,
+  "requestId": "a1b2c3d4"
+}
+```
+
+**失败响应（未知字段）：**
+
+```json
+{ "code": 22018, "msg": "未知字段: risk", "data": null, "requestId": "a1b2c3d4" }
+```
+
+---
+
+### 4.11 批量更新
+
+**POST** `/pm/work-items/batch-update`
+
+请求体：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| ids | string[] | 是 | 事项 ID，不能跨项目 |
+| patch | object | 是 | 字段 key → 新值；不允许包含 `status` |
+| versions | object | 否 | `{ "<id>": version }`，用于乐观锁 |
+| dryRun | boolean | 否 | 仅校验，不写库、不记活动、不发通知 |
+
+- 逐条独立事务：单条失败不回滚已成功项。
+- 字段必须在该项目批量动作配置的 `fieldWhitelist` 中。
+- `SKIPPED`：字段不在白名单；`FAILED`：版本冲突、字段值非法、必填校验失败。
+
+**正常响应（部分失败）：**
+
+```json
+{
+  "code": 0,
+  "msg": null,
+  "data": {
+    "batchId": "5f0c2b7e-4a1d-4f0a-9c11-0d2e3a4b5c6d",
+    "dryRun": false,
+    "total": 3,
+    "success": 1,
+    "skipped": 1,
+    "failed": 1,
+    "items": [
+      {
+        "id": "9101",
+        "outcome": "SUCCESS",
+        "version": 8,
+        "changes": [{ "fieldKey": "priority", "oldValue": "medium", "newValue": "high" }]
+      },
+      { "id": "9102", "outcome": "SKIPPED", "code": 21036, "message": "字段不允许批量编辑: risk" },
+      { "id": "9103", "outcome": "FAILED", "code": 21033, "message": "数据已被修改，请刷新后重试" }
+    ]
+  },
+  "requestId": "a1b2c3d4"
+}
+```
+
+**失败响应（跨项目 / 动作禁用）：**
+
+```json
+{ "code": 21037, "msg": "批量操作不能跨项目", "data": null, "requestId": "a1b2c3d4" }
+```
+
+```json
+{ "code": 21035, "msg": "批量操作未启用", "data": null, "requestId": "a1b2c3d4" }
+```
+
+---
+
+### 4.12 批量流转
+
+**POST** `/pm/work-items/batch-transition`
+
+请求体：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| ids | string[] | 是 | 事项 ID，不能跨项目 |
+| toStatus | string | 否* | 目标状态；与 `transitionId` 至少提供一个 |
+| transitionId | string | 否* | 指定流转；对当前状态不合法时该条 `SKIPPED` |
+| fields | object | 否 | 流转同时更新的字段 |
+| versions | object | 否 | `{ "<id>": version }` |
+| dryRun | boolean | 否 | 仅校验，不执行后置函数 |
+
+\* `toStatus` 与 `transitionId` 至少提供一个；仅给 `toStatus` 且存在多个可达流转时该条 `SKIPPED`，需改用 `transitionId`。
+
+**正常响应：**
+
+```json
+{
+  "code": 0,
+  "msg": null,
+  "data": {
+    "batchId": "5f0c2b7e-4a1d-4f0a-9c11-0d2e3a4b5c6d",
+    "dryRun": false,
+    "total": 2,
+    "success": 1,
+    "skipped": 1,
+    "failed": 0,
+    "items": [
+      { "id": "9101", "outcome": "SUCCESS", "fromStatus": "in_progress", "toStatus": "done", "version": 8 },
+      { "id": "9102", "outcome": "SKIPPED", "fromStatus": "open", "code": 21012, "message": "当前状态不允许流转到 done" }
+    ]
+  },
+  "requestId": "a1b2c3d4"
+}
+```
+
+**失败响应（缺少目标）：**
+
+```json
+{ "code": 21014, "msg": "目标状态不能为空", "data": null, "requestId": "a1b2c3d4" }
+```
 
 ---
 
@@ -1124,9 +1352,18 @@ Base path: `/pm`
 |------|------|
 | includeDisabled | 可选；`true` 时含停用类型（管理页用） |
 
-**响应 data：** `PmWorkItemType[]`（含 `code` / `name` / `color` / `icon` / `sortOrder` / `enabled`）
+**响应 data：** `PmWorkItemType[]`
 
-种子类型示例：`requirement` / `task` / `bug` / `test_case`（可增删）。
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| code / name / color / icon / sortOrder / enabled | — | 展示与启停 |
+| builtIn | integer | `1` 内置类型；内置类型不可删除，名称/图标/颜色只读 |
+| description | string | 类型说明 |
+| templateCode | string | 创建该类型时使用的工作流模板 |
+| workItemCount | integer | 项目启用类型列表返回：该类型事项数（项目级聚合） |
+| fieldCount | integer | 项目启用类型列表返回：系统字段 + 该类型适用自定义字段数 |
+
+种子类型：`requirement` / `task` / `bug` / `iteration` / `test_case`（5 个内置类型）；自定义类型可增删。
 
 ---
 
@@ -1134,11 +1371,11 @@ Base path: `/pm`
 
 **POST** `/pm/meta/types/save`
 
-**请求体：** `code`（新建后不可改）、`name`、`color`、`icon`、`sortOrder`、`enabled`；更新时带 `id`。
+**请求体：** `code`（新建后不可改）、`name`、`color`、`icon`、`sortOrder`、`enabled`、`description`、`templateCode`；更新时带 `id`。
 
-新建成功后自动复制 `task` 的系统默认工作流到该 `typeCode`。
+新建成功后按 `templateCode` 复制对应内置类型的工作流到新 `typeCode`；未传时默认 `task`。模板不存在返回 `21039`。
 
-`code` 须匹配 `^[a-z][a-z0-9_]{1,31}$`，禁止 `__any__` 等保留字。
+`code` 须匹配 `^[a-z][a-z0-9_]{1,31}$`，禁止 `__any__` 等保留字。内置类型的 `name`/`icon`/`color` 由系统维护，更新请求中的对应值会被忽略。
 
 ---
 
@@ -1148,7 +1385,7 @@ Base path: `/pm`
 
 **请求体：** `{ "code": "story" }`
 
-有事项引用时不可删；可先停用。删除时同步移除各项目 scheme 行与系统默认工作流。
+有事项引用时不可删；可先停用。删除时同步移除各项目 scheme 行与系统默认工作流。内置类型删除返回 `21038`。
 
 ---
 
@@ -1158,11 +1395,48 @@ Base path: `/pm`
 
 **请求体：** `{ "projectId": "..." }`
 
-**响应 data：** 项目启用的 `PmWorkItemType[]`（按 scheme `sortOrder`）。项目无任何 scheme 行时，返回全部全局 `enabled=1` 类型。
+**响应 data：** 项目启用的 `PmWorkItemType[]`（按 scheme `sortOrder`）。项目无任何 scheme 行时，返回全部全局 `enabled=1` 类型。每项附 `builtIn`、`description`、`templateCode`、`workItemCount`、`fieldCount`。
 
 **POST** `/pm/projects/issue-types/save`
 
 **请求体：** `{ "projectId": "...", "typeCodes": ["task", "bug"] }` — 全量替换项目 scheme。新建项目时自动写入当前全部启用类型。
+
+---
+
+### 12.1.4 内置类型模板
+
+**GET** `/pm/meta/types/templates`
+
+**响应 data：**
+
+```json
+[
+  {
+    "code": "requirement",
+    "name": "需求",
+    "description": "业务需求与用户价值",
+    "icon": null,
+    "color": "#2080f0",
+    "workflowTemplateCode": "requirement"
+  },
+  {
+    "code": "iteration",
+    "name": "迭代",
+    "description": "按周期规划交付范围的工作项集合",
+    "icon": "IterationCw",
+    "color": "#7c3aed",
+    "workflowTemplateCode": "iteration"
+  }
+]
+```
+
+只返回 `builtIn=1` 且 `enabled=1` 的类型。新建自定义类型时把 `workflowTemplateCode` 作为 `templateCode` 提交。
+
+**失败响应（未登录）：**
+
+```json
+{ "code": 11001, "msg": "未登录或登录已过期", "data": null, "requestId": "a1b2c3d4" }
+```
 
 ---
 
@@ -1182,6 +1456,87 @@ Base path: `/pm`
 **响应 data：** `Map<string, PmWorkItem[]>`
 
 Key 为 **工作流中的 statusCode**（按 `sortOrder` 排序），Value 为该状态下的事项列表。非固定 `open/in_progress/done` 四列，而是跟随项目类型的状态配置动态生成。
+
+---
+
+### 12.4 批量动作配置
+
+Base path: `/pm/projects/{projectId}/batch-action-configs`
+
+#### 12.4.1 配置列表
+
+**GET** `/pm/projects/{projectId}/batch-action-configs`
+
+返回已保存配置与默认值合并结果。动作编码：`UPDATE_FIELDS`、`TRANSITION`、`IMPORT`、`EXPORT`、`DELETE`、`COPY`。
+
+**正常响应：**
+
+```json
+{
+  "code": 0,
+  "msg": null,
+  "data": [
+    {
+      "actionCode": "UPDATE_FIELDS",
+      "enabled": true,
+      "maxItems": 100,
+      "requireConfirm": false,
+      "allowedRoles": ["admin", "user"],
+      "fieldWhitelist": ["priority", "assignee_id", "module_id", "end_time"],
+      "configured": false
+    },
+    {
+      "actionCode": "DELETE",
+      "enabled": false,
+      "maxItems": 100,
+      "requireConfirm": true,
+      "allowedRoles": ["admin", "user"],
+      "fieldWhitelist": null,
+      "configured": false
+    }
+  ],
+  "requestId": "a1b2c3d4"
+}
+```
+
+**失败响应（无权限）：**
+
+```json
+{ "code": 20002, "msg": "项目不存在或无权访问", "data": null, "requestId": "a1b2c3d4" }
+```
+
+#### 12.4.2 保存配置
+
+**POST** `/pm/projects/{projectId}/batch-action-configs`
+
+仅平台管理员。请求体为单个配置对象：
+
+```json
+{
+  "actionCode": "UPDATE_FIELDS",
+  "enabled": true,
+  "maxItems": 100,
+  "requireConfirm": true,
+  "allowedRoles": ["admin", "user"],
+  "fieldWhitelist": ["priority", "assignee_id", "end_time"]
+}
+```
+
+- `maxItems`：普通动作 1–1000，导入/导出 1–5000。
+- `fieldWhitelist`：字段必须存在且 `batchEditable=1`。
+- `allowedRoles`：仅支持 `admin` / `user`（项目级成员角色尚未建模）。
+
+**失败响应（非管理员）：**
+
+```json
+{ "code": 11003, "msg": "需要管理员权限", "data": null, "requestId": "a1b2c3d4" }
+```
+
+**失败响应（字段不可批量编辑）：**
+
+```json
+{ "code": 21036, "msg": "字段不允许批量编辑: risk", "data": null, "requestId": "a1b2c3d4" }
+```
 
 ---
 
@@ -1206,7 +1561,11 @@ Key 为 **工作流中的 statusCode**（按 `sortOrder` 排序），Value 为�
 | 事项 | POST | `/pm/work-items/{id}/transition` | 状态流转 |
 | 事项 | POST | `/pm/work-items/links/save` | 添加关联 |
 | 事项 | GET | `/pm/work-items/{id}/links` | 查询关联 |
-| 事项 | GET | `/pm/work-items/{id}/activities` | 活动日志 |
+| 事项 | GET | `/pm/work-items/{id}/activities` | 活动日志（全量，兼容） |
+| 事项 | GET | `/pm/work-items/{id}/activities/page` | 活动日志分页 |
+| 事项 | PATCH | `/pm/work-items/{id}/fields` | 单字段更新（乐观锁） |
+| 事项 | POST | `/pm/work-items/batch-update` | 批量更新字段 |
+| 事项 | POST | `/pm/work-items/batch-transition` | 批量状态流转 |
 | 评论 | GET | `/pm/work-items/{id}/comments` | 评论列表 |
 | 评论 | GET | `/pm/work-items/{id}/comments/count` | 评论数 |
 | 评论 | POST | `/pm/work-items/comments/counts` | 批量评论数 |
@@ -1248,6 +1607,9 @@ Key 为 **工作流中的 statusCode**（按 `sortOrder` 排序），Value 为�
 | 元数据 | POST | `/pm/meta/types` | 事项类型列表 |
 | 元数据 | POST | `/pm/meta/types/save` | 新建/更新事项类型 |
 | 元数据 | POST | `/pm/meta/types/delete` | 删除事项类型 |
+| 元数据 | GET | `/pm/meta/types/templates` | 内置类型模板 |
+| 批量配置 | GET | `/pm/projects/{projectId}/batch-action-configs` | 批量动作配置列表 |
+| 批量配置 | POST | `/pm/projects/{projectId}/batch-action-configs` | 保存批量动作配置 |
 | 元数据 | POST | `/pm/meta/detail-tabs` | 详情 Tab 目录 |
 | 元数据 | POST | `/pm/meta/features` | 事项类型功能目录 |
 | 项目 | POST | `/pm/projects/issue-types/list` | 项目启用类型 |
@@ -1279,6 +1641,16 @@ Key 为 **工作流中的 statusCode**（按 `sortOrder` 排序），Value 为�
 | 20004 | 项目编码重复 |
 | 21001 | 事项不存在 |
 | 21012 | 状态流转不允许 |
+| 21032 | 日期格式错误 |
+| 21033 | 数据已被修改（版本冲突） |
+| 21034 | 批量操作条数超过上限 |
+| 21035 | 批量操作未启用 |
+| 21036 | 字段不允许批量编辑 |
+| 21037 | 批量操作不能跨项目 |
+| 21038 | 内置事项类型不可删除 |
+| 21039 | 事项类型模板不存在或不可用 |
+| 22018 | 未知字段 |
+| 22019 | 不支持的操作符 |
 
 完整错误码定义见 [error-code-design.md](./error-code-design.md)。
 

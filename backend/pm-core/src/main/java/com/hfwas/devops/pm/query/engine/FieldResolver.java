@@ -1,6 +1,8 @@
 package com.hfwas.devops.pm.query.engine;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.pm.field.engine.FieldTypeRegistry;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.query.model.*;
@@ -17,7 +19,8 @@ public class FieldResolver {
 
     private static final Set<String> SYSTEM_FIELDS = Set.of(
             "title", "description", "status", "type_code", "priority", "assignee_id", "reporter_id",
-            "parent_id", "project_id", "item_no", "create_time", "update_time", "sprint_id", "module_id"
+            "parent_id", "project_id", "item_no", "create_time", "update_time", "sprint_id", "module_id",
+            "end_time"
     );
 
     private static final Map<String, String> COLUMN_MAP = Map.ofEntries(
@@ -31,7 +34,8 @@ public class FieldResolver {
             Map.entry("sprint_id", "sprint_id"),
             Map.entry("module_id", "module_id"),
             Map.entry("create_time", "create_time"),
-            Map.entry("update_time", "update_time")
+            Map.entry("update_time", "update_time"),
+            Map.entry("end_time", "end_time")
     );
 
     private final FieldTypeRegistry fieldTypeRegistry;
@@ -45,9 +49,14 @@ public class FieldResolver {
         }
         if (field.startsWith("custom.")) {
             String key = field.substring("custom.".length());
+            try {
+                JsonSqlDialect.validateFieldKey(key);
+            } catch (IllegalArgumentException e) {
+                throw new BizException(ResultCode.FIELD_UNKNOWN, e.getMessage());
+            }
             FieldDefinition def = customFieldMap.get(key);
             if (def == null) {
-                throw new IllegalArgumentException("Unknown custom field: " + key);
+                throw new BizException(ResultCode.FIELD_UNKNOWN, "Unknown custom field: " + key);
             }
             String sql = fieldTypeRegistry.get(def.getFieldType()).buildQuerySql(def, condition);
             wrapper.apply(sql);
@@ -62,7 +71,7 @@ public class FieldResolver {
     private void applySystemCondition(QueryWrapper<PmWorkItem> wrapper, String field, QueryCondition condition) {
         String column = COLUMN_MAP.getOrDefault(field, field);
         QueryOperator op = condition.getOperator();
-        Object value = condition.getValue();
+        Object value = "end_time".equals(field) ? normalizeTemporal(condition.getValue()) : condition.getValue();
         switch (op) {
             case EQ -> wrapper.eq(column, value);
             case NE -> wrapper.ne(column, value);
@@ -84,6 +93,25 @@ public class FieldResolver {
                 }
             }
             default -> throw new IllegalArgumentException("Unsupported operator: " + op);
+        }
+    }
+
+    private Object normalizeTemporal(Object value) {
+        if (value instanceof Collection<?> collection) {
+            return collection.stream().map(this::normalizeTemporalSingle).toList();
+        }
+        return normalizeTemporalSingle(value);
+    }
+
+    private Object normalizeTemporalSingle(Object value) {
+        if (!(value instanceof String text)) {
+            return value;
+        }
+        try {
+            return com.hfwas.devops.pm.common.PmDateTimeUtils.formatDateTime(
+                    com.hfwas.devops.pm.common.PmDateTimeUtils.parseDateTime(text));
+        } catch (RuntimeException ignored) {
+            return text;
         }
     }
 

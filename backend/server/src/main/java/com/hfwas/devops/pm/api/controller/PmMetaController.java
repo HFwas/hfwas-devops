@@ -58,6 +58,11 @@ public class PmMetaController {
         return BaseResult.ok(null);
     }
 
+    @GetMapping("/meta/types/templates")
+    public BaseResult<List<com.hfwas.devops.pm.meta.PmWorkItemTypeTemplateVO>> typeTemplates() {
+        return BaseResult.ok(metaService.listTemplates());
+    }
+
     @PostMapping("/meta/detail-tabs")
     public BaseResult<List<DetailTabDefinition>> detailTabs() {
         return BaseResult.ok(DetailTabCatalog.implemented());

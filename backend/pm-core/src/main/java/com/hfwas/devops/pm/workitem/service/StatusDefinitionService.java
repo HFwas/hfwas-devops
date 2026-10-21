@@ -50,7 +50,8 @@ public class StatusDefinitionService {
 
     private static final Set<String> CONDITION_SYSTEM_FIELDS = Set.of(
             "title", "description", "status", "type_code", "priority", "assignee_id", "reporter_id",
-            "parent_id", "project_id", "item_no", "create_time", "update_time", "sprint_id", "module_id"
+            "parent_id", "project_id", "item_no", "create_time", "update_time", "sprint_id", "module_id",
+            "end_time"
     );
 
     private final PmStatusDefinitionMapper statusDefinitionMapper;

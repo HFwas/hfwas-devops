@@ -1,7 +1,11 @@
 package com.hfwas.devops.pm.meta;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.hfwas.devops.pm.field.mapper.FieldDefinitionMapper;
+import com.hfwas.devops.pm.field.model.FieldDefinition;
+import com.hfwas.devops.pm.field.service.FieldDefinitionService;
 import com.hfwas.devops.pm.project.service.ProjectAccessGuard;
+import com.hfwas.devops.pm.workitem.mapper.PmWorkItemMapper;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -22,6 +26,8 @@ public class ProjectIssueTypeService {
     private final PmProjectIssueTypeMapper projectIssueTypeMapper;
     private final PmMetaService metaService;
     private final ProjectAccessGuard projectAccessGuard;
+    private final PmWorkItemMapper workItemMapper;
+    private final FieldDefinitionMapper fieldDefinitionMapper;
 
     public List<PmWorkItemType> listForProject(Long projectId) {
         if (projectId == null) {
@@ -33,19 +39,45 @@ public class ProjectIssueTypeService {
                         .eq(PmProjectIssueType::getProjectId, projectId)
                         .orderByAsc(PmProjectIssueType::getSortOrder));
         List<PmWorkItemType> enabled = metaService.listTypes(false);
+        List<PmWorkItemType> result;
         if (scheme.isEmpty()) {
-            return enabled;
-        }
-        Map<String, PmWorkItemType> byCode = enabled.stream()
-                .collect(Collectors.toMap(PmWorkItemType::getCode, t -> t, (a, b) -> a));
-        List<PmWorkItemType> result = new ArrayList<>();
-        for (PmProjectIssueType row : scheme) {
-            PmWorkItemType type = byCode.get(row.getTypeCode());
-            if (type != null) {
-                result.add(type);
+            result = new ArrayList<>(enabled);
+        } else {
+            Map<String, PmWorkItemType> byCode = enabled.stream()
+                    .collect(Collectors.toMap(PmWorkItemType::getCode, t -> t, (a, b) -> a));
+            result = new ArrayList<>();
+            for (PmProjectIssueType row : scheme) {
+                PmWorkItemType type = byCode.get(row.getTypeCode());
+                if (type != null) {
+                    result.add(type);
+                }
             }
         }
+        enrichCounts(projectId, result);
         return result;
+    }
+
+    private void enrichCounts(Long projectId, List<PmWorkItemType> types) {
+        if (types.isEmpty()) {
+            return;
+        }
+        Map<String, Long> itemCounts = workItemMapper.countByType(projectId).stream()
+                .collect(Collectors.toMap(
+                        row -> String.valueOf(row.get("typeCode")),
+                        row -> ((Number) row.get("cnt")).longValue(),
+                        (a, b) -> a));
+        List<FieldDefinition> customFields = fieldDefinitionMapper.selectList(
+                Wrappers.<FieldDefinition>lambdaQuery()
+                        .eq(FieldDefinition::getProjectId, projectId)
+                        .eq(FieldDefinition::getDelFlag, 0));
+        for (PmWorkItemType type : types) {
+            type.setWorkItemCount(itemCounts.getOrDefault(type.getCode(), 0L));
+            long applicable = customFields.stream()
+                    .filter(def -> def.getApplicableTypes() != null
+                            && def.getApplicableTypes().contains(type.getCode()))
+                    .count();
+            type.setFieldCount((long) FieldDefinitionService.SYSTEM_FIELD_COUNT + applicable);
+        }
     }
 
     @Transactional

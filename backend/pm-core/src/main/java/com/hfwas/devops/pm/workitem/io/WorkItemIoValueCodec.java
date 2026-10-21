@@ -1,6 +1,7 @@
 package com.hfwas.devops.pm.workitem.io;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.hfwas.devops.pm.common.PmDateTimeUtils;
 import com.hfwas.devops.pm.field.model.FieldDefinition;
 import com.hfwas.devops.pm.field.model.ResolvedFieldOption;
 import com.hfwas.devops.pm.field.service.FieldDefinitionService;
@@ -43,6 +44,9 @@ public class WorkItemIoValueCodec {
             return "";
         }
         String fieldType = column.getFieldType();
+        if ("end_time".equals(column.getFieldKey())) {
+            return raw instanceof java.time.LocalDateTime dateTime ? PmDateTimeUtils.formatDateTime(dateTime) : raw;
+        }
         if ("USER".equals(fieldType) || "assignee_id".equals(column.getFieldKey()) || "reporter_id".equals(column.getFieldKey())) {
             Long userId = toLong(raw);
             return userId == null ? raw : StringUtils.defaultString(userIdentityResolver.resolveUsername(userId));
@@ -80,6 +84,9 @@ public class WorkItemIoValueCodec {
             return trimmed;
         }
         String fieldType = column.getFieldType();
+        if ("end_time".equals(column.getFieldKey())) {
+            return PmDateTimeUtils.parseDateTime(trimmed);
+        }
         if ("USER".equals(fieldType) || "assignee_id".equals(column.getFieldKey()) || "reporter_id".equals(column.getFieldKey())) {
             Long id = userIdentityResolver.resolveByUsername(trimmed);
             if (id == null) {
@@ -156,6 +163,7 @@ public class WorkItemIoValueCodec {
             case "assignee_id" -> item.setAssigneeId(toLong(value));
             case "reporter_id" -> item.setReporterId(toLong(value));
             case "module_id" -> item.setModuleId(toLong(value));
+            case "end_time" -> item.setEndTime(PmDateTimeUtils.parseDateTime(value));
             default -> {
             }
         }
@@ -171,6 +179,7 @@ public class WorkItemIoValueCodec {
                 case "assignee_id" -> item.getAssigneeId();
                 case "reporter_id" -> item.getReporterId();
                 case "module_id" -> item.getModuleId();
+                case "end_time" -> item.getEndTime();
                 default -> null;
             };
         }

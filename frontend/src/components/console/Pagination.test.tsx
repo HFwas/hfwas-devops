@@ -2,6 +2,7 @@ import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pagination } from '@/components/console/Pagination'
+import { setInputValue } from '@/test-utils/pipeline'
 
 function mount(node: ReactNode) {
   const container = document.createElement('div')
@@ -57,6 +58,60 @@ describe('Pagination', () => {
 
     expect(container.querySelectorAll('[aria-label^="第"]').length).toBeLessThan(10)
     expect(container.textContent).toContain('…')
+  })
+
+  it('derivesPageCountAndSizeOptions', () => {
+    const onPageSizeChange = vi.fn()
+    const view = mount(
+      <Pagination
+        page={1}
+        pageCount={1}
+        total={128}
+        pageSize={10}
+        showJump={false}
+        onPageChange={() => {}}
+        onPageSizeChange={onPageSizeChange}
+      />,
+    )
+    root = view.root
+    container = view.container
+
+    expect(container.textContent).toContain('共 128 条 · 第 1 / 13 页')
+    expect(container.querySelector('[aria-label="每页条数"]')?.textContent).toContain('每页 10 条')
+    expect(container.textContent).not.toContain('跳至')
+  })
+
+  it('clampsJumpInput', () => {
+    const onPageChange = vi.fn()
+    const view = mount(
+      <Pagination
+        page={1}
+        pageCount={20}
+        total={200}
+        pageSize={10}
+        showJump
+        onPageChange={onPageChange}
+      />,
+    )
+    root = view.root
+    container = view.container
+
+    const input = container.querySelector('[aria-label="跳至页码"]') as HTMLInputElement
+    expect(input).not.toBeNull()
+
+    setInputValue(input, '999')
+    act(() => {
+      input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
+    })
+    expect(onPageChange).toHaveBeenCalledWith(20)
+
+    onPageChange.mockClear()
+    setInputValue(input, 'abc')
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+    expect(onPageChange).not.toHaveBeenCalled()
+    expect(input.value).toBe('1')
   })
 
   it('hides the pager and keeps a custom summary when there is a single page', () => {

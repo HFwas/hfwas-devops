@@ -30,7 +30,7 @@ public class QueryEngine {
     private static final Set<String> SYSTEM_SORT_FIELDS = Set.of(
             "id", "item_no", "title", "status", "priority", "assignee_id", "reporter_id",
             "project_id", "type_code", "create_time", "update_time", "module_id",
-            "sprint_id", "parent_id"
+            "sprint_id", "parent_id", "end_time"
     );
 
     public IPage<PmWorkItem> execute(QuerySpec spec, Long tenantId) {
@@ -50,15 +50,48 @@ public class QueryEngine {
         if (StringUtils.isNotBlank(spec.getTypeCode())) {
             wrapper.eq("type_code", spec.getTypeCode());
         }
-        for (QueryCondition condition : spec.getConditions()) {
-            fieldResolver.applyCondition(wrapper, condition, customFieldMap);
-        }
-        for (QueryConditionGroup group : spec.getGroups()) {
-            fieldResolver.applyGroup(wrapper, group, customFieldMap);
-        }
+        applyConditions(wrapper, spec, customFieldMap);
         applySort(wrapper, spec.getSort(), customFieldMap);
         Page<PmWorkItem> page = new Page<>(spec.resolvePageNo(), spec.resolvePageSize());
         return workItemMapper.selectPage(page, wrapper);
+    }
+
+    /** 项目/类型等基础过滤始终 AND；顶层 conditions 与 groups 按 spec.logic 组合。 */
+    private void applyConditions(QueryWrapper<PmWorkItem> wrapper, QuerySpec spec,
+                                 Map<String, FieldDefinition> customFieldMap) {
+        List<QueryCondition> conditions = spec.getConditions() != null ? spec.getConditions() : List.of();
+        List<QueryConditionGroup> groups = spec.getGroups() != null ? spec.getGroups() : List.of();
+        if (conditions.isEmpty() && groups.isEmpty()) {
+            return;
+        }
+        if (spec.getLogic() != QueryLogic.OR) {
+            for (QueryCondition condition : conditions) {
+                fieldResolver.applyCondition(wrapper, condition, customFieldMap);
+            }
+            for (QueryConditionGroup group : groups) {
+                fieldResolver.applyGroup(wrapper, group, customFieldMap);
+            }
+            return;
+        }
+        wrapper.and(w -> {
+            boolean first = true;
+            for (QueryCondition condition : conditions) {
+                if (first) {
+                    fieldResolver.applyCondition(w, condition, customFieldMap);
+                    first = false;
+                } else {
+                    w.or(sub -> fieldResolver.applyCondition(sub, condition, customFieldMap));
+                }
+            }
+            for (QueryConditionGroup group : groups) {
+                if (first) {
+                    fieldResolver.applyGroup(w, group, customFieldMap);
+                    first = false;
+                } else {
+                    w.or(sub -> fieldResolver.applyGroup(sub, group, customFieldMap));
+                }
+            }
+        });
     }
 
     private Map<String, FieldDefinition> loadCustomFields(Long projectId, String typeCode) {
@@ -86,6 +119,7 @@ public class QueryEngine {
             boolean asc = "ASC".equalsIgnoreCase(sort.getOrder());
             if (field.startsWith("custom.")) {
                 String key = field.substring("custom.".length());
+                JsonSqlDialect.validateFieldKey(key);
                 if (!customFieldMap.containsKey(key)) {
                     throw new BizException(ResultCode.BAD_REQUEST, "不支持的自定义排序字段: " + key);
                 }

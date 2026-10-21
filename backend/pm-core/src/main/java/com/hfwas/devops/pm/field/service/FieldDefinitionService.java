@@ -31,6 +31,9 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class FieldDefinitionService {
 
+    /** title/description/status/priority/assignee_id/module_id/type_code/end_time */
+    public static final int SYSTEM_FIELD_COUNT = 8;
+
     private final FieldDefinitionMapper fieldDefinitionMapper;
     private final FieldOptionMapper fieldOptionMapper;
     private final FieldLayoutService fieldLayoutService;
@@ -106,6 +109,11 @@ public class FieldDefinitionService {
         }
         if (StringUtils.isBlank(definition.getFieldKey()) || StringUtils.isBlank(definition.getFieldName())) {
             throw new IllegalArgumentException("字段编码和名称不能为空");
+        }
+        try {
+            com.hfwas.devops.pm.query.engine.JsonSqlDialect.validateFieldKey(definition.getFieldKey());
+        } catch (IllegalArgumentException e) {
+            throw new BizException(ResultCode.BAD_REQUEST, e.getMessage());
         }
         if (definition.getProjectId() != null
                 && (definition.getApplicableTypes() == null || definition.getApplicableTypes().isEmpty())) {
@@ -329,17 +337,18 @@ public class FieldDefinitionService {
 
     private List<FieldDefinition> systemFieldDefinitions() {
         List<FieldDefinition> list = new ArrayList<>();
-        list.add(system("title", "标题", "TEXT", 1));
-        list.add(system("description", "描述", "MARKDOWN", 2));
-        list.add(system("status", "状态", "STATUS", 3));
-        list.add(system("priority", "优先级", "PRIORITY", 4));
-        list.add(system("assignee_id", "负责人", "USER", 5));
-        list.add(system("module_id", "功能模块", "MODULE", 6));
-        list.add(system("type_code", "类型", "SELECT", 7));
+        list.add(system("title", "标题", "TEXT", 1, false));
+        list.add(system("description", "描述", "MARKDOWN", 2, false));
+        list.add(system("status", "状态", "STATUS", 3, false));
+        list.add(system("priority", "优先级", "PRIORITY", 4, true));
+        list.add(system("assignee_id", "负责人", "USER", 5, true));
+        list.add(system("module_id", "功能模块", "MODULE", 6, true));
+        list.add(system("type_code", "类型", "SELECT", 7, false));
+        list.add(system("end_time", "截止时间", "DATETIME", 8, true));
         return list;
     }
 
-    private FieldDefinition system(String key, String name, String type, int order) {
+    private FieldDefinition system(String key, String name, String type, int order, boolean batchEditable) {
         FieldDefinition def = new FieldDefinition();
         def.setFieldKey(key);
         def.setFieldName(name);
@@ -347,6 +356,8 @@ public class FieldDefinitionService {
         def.setSortOrder(order);
         def.setSystemFlag(1);
         def.setScope("system");
+        def.setBatchEditable(batchEditable ? 1 : 0);
+        def.setBatchOrder(order);
         return def;
     }
 }

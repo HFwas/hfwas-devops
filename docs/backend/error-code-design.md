@@ -428,7 +428,7 @@ resolveErrorMessage(code, serverMsg):
 | 21007 | EXCEL_FILE_REQUIRED | 请上传 Excel 文件 |
 | 21008–21011 | COMMENT_* | 评论相关 |
 | 21012–21021 | STATUS_* | 状态 / 流转相关 |
-| 21022–21032 | TYPE_* / IMPORT_* / 格式错误 | 类型、导入、编码相关 |
+| 21022–21039 | TYPE_* / IMPORT_* / 格式错误 / BATCH_* | 类型、导入、编码、批量与乐观锁相关 |
 
 ### 8.8 字段 / 方案（22000–22999）
 

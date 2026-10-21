@@ -1,6 +1,8 @@
 package com.hfwas.devops.pm.meta;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.hfwas.devops.common.error.BizException;
+import com.hfwas.devops.common.error.ResultCode;
 import com.hfwas.devops.pm.workitem.entity.PmWorkItem;
 import com.hfwas.devops.pm.workitem.mapper.PmWorkItemMapper;
 import com.hfwas.devops.pm.workitem.service.StatusDefinitionService;
@@ -34,6 +36,26 @@ public class PmMetaService {
                 .orderByAsc(PmWorkItemType::getSortOrder));
     }
 
+    public List<PmWorkItemTypeTemplateVO> listTemplates() {
+        return workItemTypeMapper.selectList(Wrappers.<PmWorkItemType>lambdaQuery()
+                        .eq(PmWorkItemType::getBuiltIn, 1)
+                        .eq(PmWorkItemType::getEnabled, 1)
+                        .orderByAsc(PmWorkItemType::getSortOrder))
+                .stream()
+                .map(type -> {
+                    PmWorkItemTypeTemplateVO vo = new PmWorkItemTypeTemplateVO();
+                    vo.setCode(type.getCode());
+                    vo.setName(type.getName());
+                    vo.setDescription(type.getDescription());
+                    vo.setIcon(type.getIcon());
+                    vo.setColor(type.getColor());
+                    vo.setWorkflowTemplateCode(StringUtils.defaultIfBlank(
+                            type.getTemplateCode(), type.getCode()));
+                    return vo;
+                })
+                .toList();
+    }
+
     public PmWorkItemType getByCode(String code) {
         if (StringUtils.isBlank(code)) {
             return null;
@@ -57,6 +79,14 @@ public class PmMetaService {
             if (getByCode(code) != null) {
                 throw new IllegalArgumentException("类型编码已存在: " + code);
             }
+            String templateCode = StringUtils.defaultIfBlank(
+                    StringUtils.trimToNull(input.getTemplateCode()), TEMPLATE_TYPE);
+            PmWorkItemType template = getByCode(templateCode);
+            if (template == null || template.getBuiltIn() == null || template.getBuiltIn() != 1
+                    || template.getEnabled() == null || template.getEnabled() != 1) {
+                throw new BizException(ResultCode.TYPE_TEMPLATE_INVALID,
+                        "事项类型模板不存在或不可用: " + templateCode);
+            }
             PmWorkItemType row = new PmWorkItemType();
             row.setCode(code);
             row.setName(name);
@@ -64,17 +94,26 @@ public class PmMetaService {
             row.setColor(normalizeColor(input.getColor()));
             row.setSortOrder(input.getSortOrder() != null ? input.getSortOrder() : nextSortOrder());
             row.setEnabled(input.getEnabled() != null ? input.getEnabled() : 1);
+            row.setBuiltIn(0);
+            row.setDescription(StringUtils.trimToNull(input.getDescription()));
+            row.setTemplateCode(templateCode);
             workItemTypeMapper.insert(row);
-            statusDefinitionService.cloneSystemWorkflow(TEMPLATE_TYPE, code);
+            statusDefinitionService.cloneSystemWorkflow(templateCode, code);
             return row.getId();
         }
         PmWorkItemType existing = workItemTypeMapper.selectById(input.getId());
         if (existing == null) {
             throw new IllegalArgumentException("类型不存在");
         }
-        existing.setName(name);
-        existing.setIcon(StringUtils.trimToNull(input.getIcon()));
-        existing.setColor(normalizeColor(input.getColor() != null ? input.getColor() : existing.getColor()));
+        boolean builtIn = existing.getBuiltIn() != null && existing.getBuiltIn() == 1;
+        if (!builtIn) {
+            existing.setName(name);
+            existing.setIcon(StringUtils.trimToNull(input.getIcon()));
+            existing.setColor(normalizeColor(input.getColor() != null ? input.getColor() : existing.getColor()));
+        }
+        if (input.getDescription() != null) {
+            existing.setDescription(StringUtils.trimToNull(input.getDescription()));
+        }
         if (input.getSortOrder() != null) {
             existing.setSortOrder(input.getSortOrder());
         }
@@ -94,6 +133,9 @@ public class PmMetaService {
         PmWorkItemType existing = getByCode(typeCode);
         if (existing == null) {
             throw new IllegalArgumentException("类型不存在: " + typeCode);
+        }
+        if (existing.getBuiltIn() != null && existing.getBuiltIn() == 1) {
+            throw new BizException(ResultCode.BUILT_IN_TYPE_PROTECTED);
         }
         Long count = workItemMapper.selectCount(Wrappers.<PmWorkItem>lambdaQuery()
                 .eq(PmWorkItem::getTypeCode, typeCode));
