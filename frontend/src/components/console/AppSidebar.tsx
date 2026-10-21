@@ -1,4 +1,5 @@
-import { ChevronDown } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { ChevronDown, FolderKanban, Loader2, SquareKanban, Workflow } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { ProductSwitcher } from '@/components/console/ProductSwitcher'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -21,6 +22,15 @@ import {
   isContainerNavActive,
 } from '@/modules/container/nav'
 import { useContainerCluster } from '@/modules/container/clusterStore'
+import { pmProjectApi, pmProjectIssueTypeApi } from '@/modules/pm/api'
+import {
+  isProjectItemActive,
+  projectBoardPath,
+  projectContextFromPath,
+  projectItemsPath,
+  projectTypeIcon,
+  projectWorkflowPath,
+} from '@/modules/pm/nav'
 import { isMenuItemActive, menuForScope, resolveShellScope } from '@/shared/console/navigation'
 
 const groupLabelClass = 'font-semibold uppercase tracking-wide text-muted-foreground'
@@ -29,6 +39,7 @@ const activeIconClass = 'data-[active=true]:[&_svg]:text-sidebar-primary'
 export function AppSidebar({ isAdmin }: { isAdmin: boolean }) {
   const { pathname } = useLocation()
   const scope = resolveShellScope(pathname)
+  const project = scope === 'pm' ? projectContextFromPath(pathname) : null
 
   return (
     <Sidebar variant="inset" collapsible="icon">
@@ -38,6 +49,8 @@ export function AppSidebar({ isAdmin }: { isAdmin: boolean }) {
       <SidebarContent>
         {scope === 'container' ? (
           <ContainerMenu pathname={pathname} />
+        ) : project ? (
+          <ProjectMenu projectId={project.projectId} pathname={pathname} />
         ) : (
           menuForScope(scope, { isAdmin }).map((group) => (
             <SidebarGroup key={group.key}>
@@ -70,6 +83,116 @@ export function AppSidebar({ isAdmin }: { isAdmin: boolean }) {
       </SidebarContent>
       <SidebarRail />
     </Sidebar>
+  )
+}
+
+/** 进入项目后，侧栏切换为项目内菜单：项目切换、启用的事项类型、看板与工作流。 */
+function ProjectMenu({ projectId, pathname }: { projectId: string; pathname: string }) {
+  const projectQuery = useQuery({
+    queryKey: ['pm-project', projectId],
+    queryFn: () => pmProjectApi.getById(projectId),
+    staleTime: 60_000,
+  })
+  const typesQuery = useQuery({
+    queryKey: ['pm-issue-types', projectId],
+    queryFn: () => pmProjectIssueTypeApi.list(projectId),
+    staleTime: 60_000,
+  })
+
+  const types = (typesQuery.data ?? []).filter((type) => type.enabled !== 0)
+  const routeType = projectContextFromPath(pathname)?.typeCode
+  const typeCode = routeType ?? types[0]?.code ?? 'task'
+  const projectName = projectQuery.data?.name?.trim() || '工作项'
+
+  return (
+    <>
+      <SidebarGroup>
+        <SidebarGroupLabel className={groupLabelClass}>项目</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="全部项目">
+                <Link to="/pm/projects">
+                  <FolderKanban />
+                  <span>全部项目</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup>
+        <SidebarGroupLabel className={`${groupLabelClass} truncate`} title={projectName}>
+          {projectName}
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {types.map((type) => {
+              const Icon = projectTypeIcon(type.code)
+              const label = type.name || type.code
+              return (
+                <SidebarMenuItem key={type.code}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isProjectItemActive(pathname, projectId, type.code)}
+                    tooltip={label}
+                    className={activeIconClass}
+                  >
+                    <Link to={projectItemsPath(projectId, type.code)}>
+                      <Icon />
+                      <span>{label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )
+            })}
+            {typesQuery.isLoading && (
+              <SidebarMenuItem>
+                <SidebarMenuButton disabled tooltip="正在加载事项类型">
+                  <Loader2 className="animate-spin" />
+                  <span>加载类型…</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      <SidebarGroup>
+        <SidebarGroupLabel className={groupLabelClass}>视图</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname.startsWith(`/pm/projects/${projectId}/board/`)}
+                tooltip="看板"
+                className={activeIconClass}
+              >
+                <Link to={projectBoardPath(projectId, typeCode)}>
+                  <SquareKanban />
+                  <span>看板</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname.startsWith(`/pm/projects/${projectId}/settings/workflow/`)}
+                tooltip="工作流"
+                className={activeIconClass}
+              >
+                <Link to={projectWorkflowPath(projectId, typeCode)}>
+                  <Workflow />
+                  <span>工作流</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    </>
   )
 }
 

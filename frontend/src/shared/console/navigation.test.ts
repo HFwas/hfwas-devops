@@ -25,7 +25,6 @@ describe('menuForScope', () => {
   it('shows only the current product menu', () => {
     expect(menuForScope('pm', { isAdmin: true }).flatMap((group) => group.items.map((item) => item.label))).toEqual([
       '项目',
-      '项目监控',
     ])
     expect(menuForScope('pipeline', { isAdmin: true }).flatMap((group) => group.items.map((item) => item.label))).toEqual([
       '流水线',
@@ -72,7 +71,6 @@ describe('isMenuItemActive', () => {
     expect(isMenuItemActive('/pipeline/credentials', item('pipeline', 'credentials'))).toBe(true)
     expect(isMenuItemActive('/pipeline/credentials', item('pipeline', 'pipelines'))).toBe(false)
     expect(isMenuItemActive('/pm/projects/12/items/task', item('pm', 'projects'))).toBe(true)
-    expect(isMenuItemActive('/pm/projects/12/items/task', item('pm', 'monitor'))).toBe(false)
     expect(isMenuItemActive('/api-test', item('api-test', 'definitions'))).toBe(true)
     expect(isMenuItemActive('/api-test/collections/1', item('api-test', 'definitions'))).toBe(false)
     expect(isMenuItemActive('/api-test/collections/1', item('api-test', 'collections'))).toBe(true)

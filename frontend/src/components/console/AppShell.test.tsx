@@ -1,14 +1,30 @@
 import { act } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createRoot, type Root } from 'react-dom/client'
 import { createMemoryRouter, RouterProvider } from 'react-router'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppShell } from '@/components/console/AppShell'
 import { useAuthStore } from '@/stores/auth'
+
+vi.mock('@/modules/pm/api', () => ({
+  pmProjectApi: {
+    getById: vi.fn(async (id: string) => ({ id, code: 'DEVOPS', name: '云原生交付平台' })),
+  },
+  pmProjectIssueTypeApi: {
+    list: vi.fn(async () => [
+      { code: 'requirement', name: '需求', enabled: 1 },
+      { code: 'task', name: '任务', enabled: 1 },
+      { code: 'bug', name: '缺陷', enabled: 1 },
+      { code: 'epic', name: '史诗', enabled: 0 },
+    ]),
+  },
+}))
 
 function mount(path: string) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const router = createMemoryRouter(
     [
       {
@@ -17,6 +33,8 @@ function mount(path: string) {
         children: [
           { path: 'workbench', element: <div>工作台内容</div> },
           { path: 'pm/projects', element: <div>项目内容</div> },
+          { path: 'pm/projects/:projectId/items/:typeCode', element: <div>事项内容</div> },
+          { path: 'pm/projects/:projectId/board/:typeCode', element: <div>看板内容</div> },
           { path: 'pipeline/pipelines', element: <div>流水线内容</div> },
           { path: 'container/clusters', element: <div>集群内容</div> },
           { path: 'api-test', element: <div>接口内容</div> },
@@ -27,9 +45,19 @@ function mount(path: string) {
     { initialEntries: [path] },
   )
   act(() => {
-    root.render(<RouterProvider router={router} />)
+    root.render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    )
   })
   return { container, root, router }
+}
+
+async function flush() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  })
 }
 
 describe('AppShell', () => {
@@ -91,11 +119,37 @@ describe('AppShell', () => {
     const sidebar = () => container?.querySelector('[data-sidebar="sidebar"]')?.textContent ?? ''
     expect(sidebar()).toContain('项目管理')
     expect(sidebar()).toContain('项目')
-    expect(sidebar()).toContain('项目监控')
+    expect(sidebar()).not.toContain('项目监控')
     expect(sidebar()).not.toContain('流水线')
     expect(sidebar()).not.toContain('接口测试')
     expect(sidebar()).not.toContain('容器管理')
     expect(container.textContent).toContain('项目内容')
+
+    await act(async () => {
+      await mounted.router.navigate('/pm/projects/12/items/task')
+    })
+    await flush()
+    expect(sidebar()).toContain('云原生交付平台')
+    expect(sidebar()).toContain('全部项目')
+    expect(sidebar()).toContain('需求')
+    expect(sidebar()).toContain('任务')
+    expect(sidebar()).toContain('缺陷')
+    expect(sidebar()).toContain('看板')
+    expect(sidebar()).toContain('工作流')
+    expect(sidebar()).not.toContain('史诗')
+    expect(sidebar()).not.toContain('项目监控')
+    expect(container.textContent).toContain('事项内容')
+    expect(activeHref(container)).toBe('/pm/projects/12/items/task')
+    expect(container.querySelector('a[href="/pm/projects/12/board/task"]')).toBeTruthy()
+    expect(container.querySelector('a[href="/pm/projects/12/settings/workflow/task"]')).toBeTruthy()
+
+    await act(async () => {
+      await mounted.router.navigate('/pm/projects/12/board/bug')
+    })
+    await flush()
+    expect(container.textContent).toContain('看板内容')
+    expect(activeHref(container)).toBe('/pm/projects/12/board/bug')
+    expect(container.querySelector('a[href="/pm/projects/12/settings/workflow/bug"]')).toBeTruthy()
 
     await act(async () => {
       await mounted.router.navigate('/pipeline/pipelines')
@@ -180,6 +234,12 @@ describe('AppShell', () => {
     expect(mounted.router.state.location.search).toBe('')
   })
 })
+
+function activeHref(container: HTMLElement) {
+  return container
+    .querySelector('[data-sidebar="menu-button"][data-active="true"]')
+    ?.getAttribute('href')
+}
 
 async function submitSearch(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set

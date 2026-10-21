@@ -1,7 +1,7 @@
 # HFWAS DevOps
 
 > 日期：2026-10-21
-> 版本：v0.10
+> 版本：v0.11
 
 ### 变更记录
 
@@ -17,6 +17,7 @@
 | v0.8 | 2026-10-18 | 文档索引新增流水线用户操作手册 |
 | v0.9 | 2026-10-19 | 本地编排文件收敛到 `deploy/`：`docker-compose.yml`、`kong/kong.yml` 迁移，更新项目结构与 Compose 命令 |
 | v0.10 | 2026-10-21 | 数据库切换为 MySQL 8 + Flyway；更新本地启动、连接串与 Compose/Helm 说明 |
+| v0.11 | 2026-10-21 | 移除 `/pm/monitor` 路由；项目内菜单改由左侧栏承载 |
 
 ---
 
@@ -605,7 +606,6 @@ helm uninstall dependency-track
 | `/pm/projects/:id/items/:type` | 事项列表 |
 | `/pm/projects/:id/board/:type` | 看板 |
 | `/pm/projects/:id/settings/*` | 项目设置（模块、字段、类型、工作流） |
-| `/pm/monitor` | PM 监控仪表盘 |
 | `/user/*` | 用户中心（admin） |
 | `/messages` | 站内信收件箱 |
 | `/pipeline/pipelines` | 流水线列表与新建 |

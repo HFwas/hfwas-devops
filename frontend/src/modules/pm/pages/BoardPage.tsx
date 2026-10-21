@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
 import { PageHeader } from '@/components/console/PageHeader'
 import { StatusIcon } from '@/components/console/StatusIcon'
-import { Button } from '@/components/ui/button'
 import { pmMetaApi, pmProjectApi, pmProjectIssueTypeApi, pmStatusApi } from '@/modules/pm/api'
 import { workflowStatusTone } from '@/modules/pm/statusTone'
 import { typeLabel, type PmWorkItem, type StatusDefinition } from '@/modules/pm/types'
@@ -54,21 +53,7 @@ export function BoardPage() {
       <PageHeader
         title={projectQuery.data?.name ? `${projectQuery.data.name} · 看板` : '看板'}
         description={boardQuery.isSuccess ? `${typeLabel(typeCode, types)} · ${total} 条事项` : '按状态分列查看事项'}
-        actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link to={`/pm/projects/${projectId}/items/${typeCode}`}>列表</Link>
-          </Button>
-        }
       />
-      {types.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {types.map((type) => (
-            <Button key={type.code} variant={type.code === typeCode ? 'secondary' : 'ghost'} size="sm" asChild>
-              <Link to={`/pm/projects/${projectId}/board/${type.code}`}>{type.name || type.code}</Link>
-            </Button>
-          ))}
-        </div>
-      )}
       {boardQuery.isError && <p className="text-sm text-destructive">看板加载失败</p>}
       {boardQuery.isLoading && <p className="text-sm text-muted-foreground">加载中…</p>}
       <div className="flex gap-3 overflow-x-auto pb-2">

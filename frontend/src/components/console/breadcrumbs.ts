@@ -5,7 +5,6 @@ export type { PathCrumb }
 
 const SECTION_LABELS: Record<string, string> = {
   projects: '项目',
-  monitor: '项目监控',
   pipelines: '流水线',
   credentials: '凭证',
   'task-kinds': '任务市场',

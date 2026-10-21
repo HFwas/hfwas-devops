@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
 import { DataTable } from '@/components/console/DataTable'
 import { PageHeader } from '@/components/console/PageHeader'
 import { StatusIcon } from '@/components/console/StatusIcon'
-import { Button } from '@/components/ui/button'
 import { pmProjectApi, pmProjectIssueTypeApi, pmStatusApi } from '@/modules/pm/api'
 import { workflowStatusTone } from '@/modules/pm/statusTone'
 import { typeLabel, type StatusDefinition } from '@/modules/pm/types'
@@ -58,26 +57,7 @@ export function WorkflowPage() {
       <PageHeader
         title={projectQuery.data?.name ? `${projectQuery.data.name} · 工作流` : '工作流'}
         description={`${typeLabel(typeCode, types)} 的状态与流转。画布编辑留到后续，这里只列表。`}
-        actions={
-          <>
-            <Button variant="outline" size="sm" asChild>
-              <Link to={`/pm/projects/${projectId}/items/${typeCode}`}>事项</Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to={`/pm/projects/${projectId}/board/${typeCode}`}>看板</Link>
-            </Button>
-          </>
-        }
       />
-      {types.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {types.map((type) => (
-            <Button key={type.code} variant={type.code === typeCode ? 'secondary' : 'ghost'} size="sm" asChild>
-              <Link to={`/pm/projects/${projectId}/settings/workflow/${type.code}`}>{type.name || type.code}</Link>
-            </Button>
-          ))}
-        </div>
-      )}
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">状态</h2>
         <DataTable<StatusDefinition>

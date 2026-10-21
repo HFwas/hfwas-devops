@@ -51,7 +51,6 @@ import { PipelineDetailPage } from '@/modules/pipeline/pages/PipelineDetailPage'
 import { TaskKindDetailPage } from '@/modules/pipeline/pages/TaskKindDetailPage'
 import { TaskKindListPage } from '@/modules/pipeline/pages/TaskKindListPage'
 import { BoardPage } from '@/modules/pm/pages/BoardPage'
-import { ProjectMonitorPage } from '@/modules/pm/pages/ProjectMonitorPage'
 import { WorkItemDetailPage } from '@/modules/pm/pages/WorkItemDetailPage'
 import { WorkItemListPage } from '@/modules/pm/pages/WorkItemListPage'
 import { WorkflowPage } from '@/modules/pm/pages/WorkflowPage'
@@ -92,7 +91,6 @@ export const router = createBrowserRouter([
           { path: 'user/accounts', element: <UserListPage /> },
           { path: 'user/settings', element: <UserSettingsPage /> },
           { path: 'pm/projects', element: <ProjectListPage /> },
-          { path: 'pm/monitor', element: <ProjectMonitorPage /> },
           { path: 'pm/projects/:projectId/items/:typeCode', element: <WorkItemListPage /> },
           { path: 'pm/projects/:projectId/items/:typeCode/:itemId', element: <WorkItemDetailPage /> },
           { path: 'pm/projects/:projectId/board/:typeCode', element: <BoardPage /> },

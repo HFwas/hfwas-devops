@@ -1,7 +1,7 @@
 # 共享界面模式
 
-> 日期：2026-10-13
-> 版本：v0.11
+> 日期：2026-10-21
+> 版本：v0.12
 > 关联：[kite-frontend-style-guide.md](./kite-frontend-style-guide.md) v0.8、[frontend-style-unification-plan.md](./frontend-style-unification-plan.md) v0.10
 
 ### 变更记录
@@ -19,6 +19,7 @@
 | v0.9 | 2026-10-12 | Phase 6：指标卡与字段名改为 text-xs，数值与 DataTable 补 tabular-nums；新增 UsageBar。画布、行内编辑和趋势图仍延期 |
 | v0.10 | 2026-10-13 | 新增 `Pagination` 分页组件与 `pageCountOf` 工具；容器、PM、用户、接口测试、流水线的列表页统一改用它做服务端分页 |
 | v0.11 | 2026-10-13 | 新增 `AsyncSelect`（可检索、下拉到底加载下一页）；实体下拉（项目、命名空间、集群、调试环境、Helm 仓库、流水线凭证）统一改用它；节点/StorageClass/命名空间列表与集群/Registry/凭证/Helm 仓库接口补服务端分页与检索；分页默认每页 10 条 |
+| v0.12 | 2026-10-21 | 移除项目监控页面登记；项目内导航改由左侧菜单承载 |
 
 ---
 
@@ -103,7 +104,6 @@ PM 自定义工作流码不在字典里时，给 `StatusIcon` 传 `tone`，不�
 | API 测试 | 接口详情「调试」 | 紧凑表单（`h-8`）+ `LogPanel` 响应 + 历史 `DataTable` |
 | PM | `/pm/projects/:id/board/:type` | `PageHeader`；列本身是卡片，不进 `DataTable` |
 | PM | 工作流状态与流转 | `PageHeader`、`DataTable`、`StatusIcon`。画布不在此页 |
-| PM | 项目监控 | 项目 `DataTable`，链到看板 |
 | 文件解析 / 文档生成 / 图片 | 工具页 | `PageHeader`、`StatusIcon`；图片记录与解析分页、生成结果用 `DataTable` |
 
 环境变量和挂载卷仍是详情里的行内表单。图片裁剪、文档批量规格、Argo 画布、流水线 DAG、监控趋势图在 Phase 6 **没有改业务**，仍按原页面保留。
@@ -117,4 +117,4 @@ Phase 6 已把指标卡、数字列和用量条收进本章组件，并写了视
 - PM 工作流画布、流水线 DAG、Argo 工作流画布
 - 环境变量与挂载卷的行内编辑
 - 图片裁剪、文档批量规格、文件解析历史
-- 项目监控与集群监控的趋势图
+- 集群监控的趋势图

@@ -1,6 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
 import {
-  Activity,
   Clock,
   FileCode,
   FileDown,
@@ -89,13 +88,6 @@ const MENUS: Record<string, ProductMenuGroup[]> = {
           icon: FolderKanban,
           to: '/pm/projects',
           matches: [{ prefix: '/pm/projects' }],
-        },
-        {
-          key: 'monitor',
-          label: '项目监控',
-          icon: Activity,
-          to: '/pm/monitor',
-          matches: [{ prefix: '/pm/monitor' }],
         },
       ],
     },

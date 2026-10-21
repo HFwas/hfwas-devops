@@ -1,7 +1,7 @@
 # 功能清单
 
-> 日期：2026-10-17
-> 版本：v0.2
+> 日期：2026-10-21
+> 版本：v0.3
 > 状态：骨架（能力清单已完成，逐功能验收标准待细化）
 > 数据来源：`README.md`、`frontend/src/router.tsx`、`frontend/src/shared/console/products.ts`、`backend/*/controller`、各模块设计文档
 
@@ -11,6 +11,7 @@
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：8 个子系统功能项、状态、页面与主要 API |
 | v0.2 | 2026-10-17 | 修正流水线“运行日志与终端”“运行产物”状态为部分可用（后端可用、前端未接入） |
+| v0.3 | 2026-10-21 | 移除项目监控功能项与 `/pm/monitor` 入口；项目内导航改由左侧菜单承载 |
 
 ---
 
@@ -25,12 +26,12 @@
 
 ## 2. 项目管理（PM）
 
-页面入口：`/pm/projects`、`/pm/monitor`、`/pm/projects/:projectId/items/:typeCode`、`.../board/:typeCode`、`.../settings/workflow/:typeCode`
+页面入口：`/pm/projects`、`/pm/projects/:projectId/items/:typeCode`、`.../board/:typeCode`、`.../settings/workflow/:typeCode`
 
 | 功能项 | 说明 | 状态 | 主要 API |
 |--------|------|------|----------|
 | 项目 CRUD | 项目列表、创建、编辑、删除、访问上下文 | 可用 | `/pm/projects/*` |
-| 项目监控 | 项目级指标总览 | 可用 | `/pm/meta/board` 等 |
+| 项目内导航 | 进入项目后左侧展示全部项目、启用类型、看板与工作流 | 可用 | `/pm/projects/issue-types/list` |
 | 事项类型 | 类型定义、项目启用类型 | 可用 | `/pm/meta/types`、`/pm/projects/issue-types/*` |
 | 统一事项 | 需求/任务/缺陷等统一 CRUD、分页、流转 | 可用 | `/pm/work-items/*` |
 | 动态字段 | 字段定义、选项、类型绑定、布局 | 可用 | `/pm/fields/definitions/*`、`/pm/fields/layout/*` |
