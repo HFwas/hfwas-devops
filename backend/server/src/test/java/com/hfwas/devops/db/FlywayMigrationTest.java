@@ -130,7 +130,8 @@ class FlywayMigrationTest {
     }
 
     private static long indexCount(Statement s, String table, String index) throws Exception {
-        return count(s, "SELECT COUNT(*) FROM information_schema.statistics " +
+        // A composite index has one row per indexed column; count the index itself.
+        return count(s, "SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics " +
                 "WHERE table_schema = DATABASE() AND table_name = '" + table + "' " +
                 "AND index_name = '" + index + "'");
     }
