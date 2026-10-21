@@ -1,7 +1,6 @@
 -- MySQL 8 baseline schema for hfwas-devops
 -- Generated from the SQLite module schemas; rebuild-only, no data migration.
 SET NAMES utf8mb4;
-SET SESSION sql_mode = CONCAT(@@sql_mode, ',NO_BACKSLASH_ESCAPES');
 
 CREATE TABLE sys_tenant (
 

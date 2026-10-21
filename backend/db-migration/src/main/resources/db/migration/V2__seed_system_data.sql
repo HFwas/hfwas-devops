@@ -1,6 +1,5 @@
 -- MySQL seed data (rebuild only)
 SET NAMES utf8mb4;
-SET SESSION sql_mode = CONCAT(@@sql_mode, ',NO_BACKSLASH_ESCAPES');
 
 INSERT INTO sys_tenant (id, code, name, status, remark)
 VALUES (1, 'default', '默认租户', 1, '系统内置默认租户');
@@ -172,7 +171,7 @@ if [ -n "${API_ENDPOINT:-}" ] && [ -n "${RUN_ID:-}" ]; then
     if [ -f "$f" ]; then SBOM_FILE="$f"; break; fi
   done
   if [ -z "$SBOM_FILE" ]; then
-    SBOM_FILE=$(find . \( -path ''*/target/sbom.json'' -o -path ''*/target/bom.json'' \) 2>/dev/null | head -n 1 || true)
+    SBOM_FILE=$(find . \\( -path ''*/target/sbom.json'' -o -path ''*/target/bom.json'' \\) 2>/dev/null | head -n 1 || true)
   fi
   if [ -n "$SBOM_FILE" ]; then
     if ! command -v curl >/dev/null 2>&1; then
@@ -180,9 +179,9 @@ if [ -n "${API_ENDPOINT:-}" ] && [ -n "${RUN_ID:-}" ]; then
     fi
     size=$(stat -f%z "$SBOM_FILE" 2>/dev/null || stat -c%s "$SBOM_FILE" 2>/dev/null || echo 0)
     echo "uploading SBOM (${size} bytes) from ${SBOM_FILE}"
-    curl -fsS -X POST "${API_ENDPOINT}/pipeline/runs/${RUN_ID}/artifacts" \
-      -F "type=sbom" -F "file=@${SBOM_FILE};filename=sbom.json" \
-      --connect-timeout 10 --max-time 60 \
+    curl -fsS -X POST "${API_ENDPOINT}/pipeline/runs/${RUN_ID}/artifacts" \\
+      -F "type=sbom" -F "file=@${SBOM_FILE};filename=sbom.json" \\
+      --connect-timeout 10 --max-time 60 \\
       && echo " SBOM uploaded" || echo " SBOM upload failed (non-fatal)"
   else
     echo "target/sbom.json not found, skip upload"
@@ -236,8 +235,8 @@ fi
 API_BASE="${DT_HOST_URL%/}/api/v1"
 AUTH="-H X-Api-Key: ${DT_API_KEY}"
 
-PROJECT_INFO=$(curl -sfG "${API_BASE}/project" ${AUTH} \
-  --data-urlencode "name=${DT_PROJECT_NAME}" \
+PROJECT_INFO=$(curl -sfG "${API_BASE}/project" ${AUTH} \\
+  --data-urlencode "name=${DT_PROJECT_NAME}" \\
   --data-urlencode "version=${DT_PROJECT_VERSION}" || echo "")
 PROJECT_UUID=$(echo "${PROJECT_INFO}" | grep -o ''"uuid":"[^"]*"'' | head -1 | cut -d''"'' -f4)
 
@@ -247,7 +246,7 @@ if [ -z "${PROJECT_UUID}" ]; then
 {"name":"${DT_PROJECT_NAME}","version":"${DT_PROJECT_VERSION}"}
 ENDJSON
 )
-  CREATE_RESP=$(curl -sfX PUT "${API_BASE}/project" ${AUTH} \
+  CREATE_RESP=$(curl -sfX PUT "${API_BASE}/project" ${AUTH} \\
     -H "Content-Type: application/json" -d "${BODY}" || echo "{}")
   PROJECT_UUID=$(echo "${CREATE_RESP}" | grep -o ''"uuid":"[^"]*"'' | head -1 | cut -d''"'' -f4)
   echo "Created project UUID: ${PROJECT_UUID}"
@@ -266,7 +265,7 @@ UPLOAD_BODY=$(cat <<ENDJSON
 {"project":"${PROJECT_UUID}","bom":${SBOM_CONTENT}}
 ENDJSON
 )
-UPLOAD_RESP=$(curl -sfX POST "${API_BASE}/bom" ${AUTH} \
+UPLOAD_RESP=$(curl -sfX POST "${API_BASE}/bom" ${AUTH} \\
   -H "Content-Type: application/json" -d "${UPLOAD_BODY}" || echo "{}")
 TOKEN=$(echo "${UPLOAD_RESP}" | grep -o ''"token":"[^"]*"'' | cut -d''"'' -f4)
 echo "Upload token: ${TOKEN}"
