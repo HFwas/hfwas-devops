@@ -2,6 +2,7 @@ package com.hfwas.devops.apitest;
 
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hfwas.devops.apitest.support.MySqlTestCondition;
 import com.hfwas.devops.apitest.support.TestCurrentUserAccessor;
 import com.hfwas.devops.apitest.support.TestProjectAccessValidator;
 import com.hfwas.devops.user.context.CurrentUserAccessor;
@@ -19,9 +20,8 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDateTime;
 
@@ -44,12 +44,15 @@ import java.time.LocalDateTime;
 @Rollback
 @AutoConfigureMockMvc
 @Import({BaseApiTest.TestConfig.class})
-@Testcontainers(disabledWithoutDocker = true)
+@ExtendWith(MySqlTestCondition.class)
 public abstract class BaseApiTest {
 
     private static final String EXTERNAL_URL = System.getProperty("test.mysql.url");
 
-    @Container
+    /**
+     * JVM 级单例：不能使用 {@code @Container}，否则每个测试类结束都会停掉 MySQL，
+     * 而 Spring TestContext 会缓存并复用 DataSource，后续测试将连到已停止的库。
+     */
     static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.0.40")
             .withDatabaseName("hfwas_test")
             .withUsername("test")
@@ -60,12 +63,15 @@ public abstract class BaseApiTest {
 
     @DynamicPropertySource
     static void mysqlProperties(DynamicPropertyRegistry registry) {
-        String url = EXTERNAL_URL != null && !EXTERNAL_URL.isBlank()
-                ? EXTERNAL_URL : MYSQL.getJdbcUrl();
-        String username = EXTERNAL_URL != null && !EXTERNAL_URL.isBlank()
+        boolean external = EXTERNAL_URL != null && !EXTERNAL_URL.isBlank();
+        if (!external && !MYSQL.isRunning()) {
+            MYSQL.start();
+        }
+        String url = external ? EXTERNAL_URL : MYSQL.getJdbcUrl();
+        String username = external
                 ? System.getProperty("test.mysql.username", "root")
                 : MYSQL.getUsername();
-        String password = EXTERNAL_URL != null && !EXTERNAL_URL.isBlank()
+        String password = external
                 ? System.getProperty("test.mysql.password", "")
                 : MYSQL.getPassword();
         registry.add("spring.datasource.url", () -> url);
