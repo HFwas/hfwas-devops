@@ -90,10 +90,10 @@ public class ApiDefinitionService extends ServiceImpl<ApiDefinitionMapper, ApiDe
         }
         // 标签（交集查询，需所有标签匹配）
         // tags 字段使用 JacksonTypeHandler，直接 like 会把参数序列化为 JSON 字符串（带引号），
-        // 导致中文标签匹配不到；这里用 SQLite JSON1 对数组元素做精确匹配。
+        // 导致中文标签匹配不到；这里用 MySQL JSON 函数对数组元素做精确匹配。
         if (CollUtil.isNotEmpty(query.getTags())) {
             for (String tag : query.getTags()) {
-                wrapper.apply("json_valid(tags) AND EXISTS (SELECT 1 FROM json_each(tags) WHERE value = {0})", tag);
+                wrapper.apply("CASE WHEN JSON_VALID(tags) THEN JSON_CONTAINS(tags, JSON_QUOTE({0})) ELSE 0 END", tag);
             }
         }
 

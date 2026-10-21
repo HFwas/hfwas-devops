@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * ApiDefinitionMapper 数据访问层测试
  * <p>
- * 继承 BaseApiTest 以使用 SQLite 内存数据库、事务自动回滚和自动填充。
+ * 继承 BaseApiTest 以使用 MySQL 测试数据库、事务自动回滚和自动填充。
  * 覆盖 MyBatis-Plus BaseMapper 提供的所有常用 CRUD 方法，
  * 以及接口定义特有的业务语义（分组、方法、状态、标签、版本）。
  *

@@ -21,9 +21,6 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
-        {{- if .Values.schema.init.enabled }}
-        checksum/schema: {{ include (print $.Template.BasePath "/configmap-schema.yaml") . | sha256sum }}
-        {{- end }}
         {{- if .Values.otel.enabled }}
         prometheus.io/scrape: "true"
         prometheus.io/port: {{ .Values.otel.metricsPort | quote }}
@@ -42,34 +39,8 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{- if or .Values.schema.init.enabled .Values.otel.enabled }}
+      {{- if .Values.otel.enabled }}
       initContainers:
-        {{- if .Values.schema.init.enabled }}
-        - name: schema-migrate
-          image: {{ .Values.schema.init.image | quote }}
-          imagePullPolicy: {{ .Values.schema.init.imagePullPolicy }}
-          command: ["python3", "/sql/migrate.py"]
-          env:
-            - name: SQL_DIR
-              value: /sql
-            - name: DB_PATH
-              value: {{ printf "%s/%s" .Values.persistence.mountPath .Values.schema.init.dbFile | quote }}
-          securityContext:
-            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
-          resources:
-            requests:
-              cpu: 50m
-              memory: 64Mi
-            limits:
-              cpu: 200m
-              memory: 128Mi
-          volumeMounts:
-            - name: data
-              mountPath: {{ .Values.persistence.mountPath }}
-            - name: schema
-              mountPath: /sql
-              readOnly: true
-        {{- end }}
         {{- if .Values.otel.enabled }}
         - name: otel-agent-copy
           image: {{ .Values.otel.image | quote }}
@@ -125,11 +96,23 @@ spec:
             - name: DOCGEN_OUTPUT_DIR
               value: {{ .Values.config.docgenOutputDir | quote }}
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:sqlite:{{ .Values.persistence.mountPath }}/hfwas-devops.db?busy_timeout=5000"
+              value: "jdbc:mysql://{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}?{{ .Values.database.params }}"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "backend.fullname" . }}
+                  key: database-username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "backend.fullname" . }}
+                  key: database-password
+            - name: SPRING_FLYWAY_ENABLED
+              value: "false"
+            - name: JAVA_TOOL_OPTIONS
+              value: "{{ if .Values.otel.enabled }}-javaagent:/otel-agent/opentelemetry-javaagent.jar {{ end }}{{ .Values.javaToolOptions }} -Duser.timezone=UTC"
             - name: LOGGING_CONFIG
               value: "file:{{ .Values.config.logbackPath | default "/app/config/logback-spring.xml" }}"
-            - name: JAVA_TOOL_OPTIONS
-              value: "{{ if .Values.otel.enabled }}-javaagent:/otel-agent/opentelemetry-javaagent.jar {{ end }}{{ .Values.javaToolOptions }}"
             {{- if .Values.otel.enabled }}
             - name: OTEL_SERVICE_NAME
               value: {{ .Values.otel.serviceName | quote }}
@@ -231,12 +214,6 @@ spec:
         - name: config
           configMap:
             name: {{ include "backend.fullname" . }}-logback
-        {{- if .Values.schema.init.enabled }}
-        - name: schema
-          configMap:
-            name: {{ include "backend.fullname" . }}-schema
-            defaultMode: 0444
-        {{- end }}
         {{- if .Values.pipelineKubeconfig.enabled }}
         - name: pipeline-kubeconfig
           secret:

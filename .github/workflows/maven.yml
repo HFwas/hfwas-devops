@@ -28,11 +28,8 @@ jobs:
         # 后端测试是提交门禁：不得再用 -Dmaven.test.skip / -DskipTests
         run: mvn -B -f backend/pom.xml clean verify
 
-      - name: Check migration safety
-        run: bash scripts/check-migrations.sh
-
-      - name: Run migration tests
-        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+      - name: Check Flyway migrations
+        run: bash scripts/check-flyway-migrations.sh
 
       - name: Update dependency graph
         uses: advanced-security/maven-dependency-submission-action@v6.0.1

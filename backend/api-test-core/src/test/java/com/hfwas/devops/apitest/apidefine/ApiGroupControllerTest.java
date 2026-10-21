@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * ApiGroupController REST API 测试
  * <p>
- * 继承 BaseApiTest 以使用 SQLite 内存数据库、事务自动回滚、MockMvc 注入。
+ * 继承 BaseApiTest 以使用 MySQL 测试数据库、事务自动回滚、MockMvc 注入。
  * 覆盖所有 REST 端点：创建、更新、删除、获取树、获取详情。
  * 使用 MockMvc 模拟 HTTP 请求，验证状态码、响应结构、业务数据。
  *

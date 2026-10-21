@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * ApiDefinitionService 业务逻辑测试
  * <p>
- * 继承 BaseApiTest 以使用 SQLite 内存数据库、事务自动回滚和自动填充。
+ * 继承 BaseApiTest 以使用 MySQL 测试数据库、事务自动回滚和自动填充。
  * 覆盖接口定义 CRUD、分页查询、状态流转（发布/废弃/恢复草稿）、
  * 路径+方法唯一性校验、参数/响应关联保存等核心逻辑。
  *

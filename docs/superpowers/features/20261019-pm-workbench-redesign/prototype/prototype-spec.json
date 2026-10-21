@@ -1,0 +1,127 @@
+{
+  "meta": {
+    "name": "pm-workbench-redesign",
+    "version": "1.0",
+    "date": "2026-10-19",
+    "viewport": { "width": 1440, "height": 900, "scale": 2 },
+    "source": ["docs/superpowers/features/20261019-pm-workbench-redesign/design.md"],
+    "status": "review",
+    "tech": "React 19 + TypeScript + Vite + Tailwind CSS v4 + shadcn/ui"
+  },
+  "tokens": {
+    "color": {
+      "background": "oklch(1 0 0)",
+      "foreground": "oklch(0.141 0.005 285.823)",
+      "card": "oklch(1 0 0)",
+      "primary": "oklch(0.55 0.22 235)",
+      "primaryForeground": "oklch(0.98 0.01 235)",
+      "muted": "oklch(0.967 0.001 286.375)",
+      "mutedForeground": "oklch(0.552 0.016 285.938)",
+      "border": "oklch(0.92 0.004 286.32)",
+      "destructive": "oklch(0.577 0.245 27.325)",
+      "success": "oklch(0.55 0.16 150)",
+      "warning": "oklch(0.68 0.15 75)"
+    },
+    "radius": { "sm": "0.25rem", "md": "0.375rem", "lg": "0.5rem" },
+    "font": { "sans": "system-ui", "mono": "Maple Mono" },
+    "layout": { "sidebarWidth": "16rem", "headerHeight": "3.5rem", "contentMax": "none", "rowHeightCompact": "36px", "rowHeightStandard": "44px" }
+  },
+  "shell": {
+    "sidebar": { "width": "16rem", "variant": "inset", "collapsible": "icon" },
+    "header": { "height": "3.5rem", "items": ["productSwitcher", "globalSearch", "help", "notifications", "avatar"] },
+    "projectNav": ["概览", "工作项", "看板", "设置"]
+  },
+  "pages": [
+    {
+      "id": "P01",
+      "name": "工作项列表",
+      "route": "/pm/projects/:projectId/items/:typeCode",
+      "routeStatus": "existing",
+      "hash": "#/list",
+      "states": ["default", "filtered", "selected", "dense", "long"]
+    },
+    { "id": "P02", "name": "工作项列表 · 空态", "route": "/pm/projects/:projectId/items/:typeCode", "hash": "#/list?state=empty", "states": ["empty"] },
+    { "id": "P03", "name": "工作项列表 · 加载", "route": "/pm/projects/:projectId/items/:typeCode", "hash": "#/list?state=loading", "states": ["loading"] },
+    { "id": "P04", "name": "工作项列表 · 失败", "route": "/pm/projects/:projectId/items/:typeCode", "hash": "#/list?state=error", "states": ["error"] },
+    { "id": "P05", "name": "工作项列表 · 无权限", "route": "/pm/projects/:projectId/items/:typeCode", "hash": "#/list?state=permission", "states": ["permission"] },
+    { "id": "P06", "name": "工作项列表 · 大数据量", "route": "/pm/projects/:projectId/items/:typeCode", "hash": "#/list?state=dense", "states": ["dense"] },
+    { "id": "P07", "name": "工作项列表 · 长文本", "route": "/pm/projects/:projectId/items/:typeCode", "hash": "#/list?state=long", "states": ["long"] },
+    { "id": "P08", "name": "项目列表", "route": "/pm/projects", "routeStatus": "existing", "hash": "#/projects", "states": ["default"] }
+  ],
+  "overlays": [
+    { "id": "O01", "name": "筛选面板", "trigger": "P01.筛选", "hash": "#/list?overlay=filter", "states": ["default", "empty"] },
+    { "id": "O02", "name": "展示设置", "trigger": "P01.显示", "hash": "#/list?overlay=columns", "states": ["default"] },
+    { "id": "O03", "name": "批量删除确认", "trigger": "P01.批量删除", "hash": "#/list?state=selected&overlay=delete", "states": ["default"] },
+    { "id": "O04", "name": "快速预览抽屉", "trigger": "P01.预览", "hash": "#/list?overlay=detail", "states": ["default"] },
+    { "id": "O05", "name": "新建工作项", "trigger": "P01.新建", "hash": "#/list?overlay=create", "states": ["default", "invalid"] }
+  ],
+  "components": [
+    { "name": "ListPageShell", "shared": "components/console/ListPageShell", "usage": ["P01", "P08"] },
+    { "name": "SearchInput", "shared": "components/console/SearchInput", "usage": ["P01", "P08"] },
+    { "name": "FilterBar", "shared": "components/console/FilterBar", "usage": ["P01", "P08"] },
+    { "name": "FilterBuilder", "shared": "modules/pm/components/FilterBuilder", "usage": ["O01"] },
+    { "name": "ViewTabs", "shared": "modules/pm/components/ViewTabs", "usage": ["P01"] },
+    { "name": "DisplayMenu", "shared": "modules/pm/components/DisplayMenu", "usage": ["O02"] },
+    { "name": "DataTable", "shared": "components/console/DataTable", "usage": ["P01", "P08"] },
+    { "name": "BulkActionBar", "shared": "components/console/BulkActionBar", "usage": ["P01"] },
+    { "name": "Pagination", "shared": "components/console/Pagination", "usage": ["P01", "P08"] },
+    { "name": "QuickViewDrawer", "shared": "components/console/QuickViewDrawer", "usage": ["O04"] },
+    { "name": "StatusPill", "shared": "modules/pm/components/StatusPill", "usage": ["P01", "O04"] },
+    { "name": "PriorityIcon", "shared": "modules/pm/components/PriorityIcon", "usage": ["P01", "O04"] },
+    { "name": "UserAvatar", "shared": "components/console/UserAvatar", "usage": ["P01", "O04"] },
+    { "name": "EmptyState", "shared": "components/console/EmptyState", "usage": ["P02"] },
+    { "name": "ErrorState", "shared": "components/console/ErrorState", "usage": ["P04"] },
+    { "name": "SkeletonRows", "shared": "components/console/SkeletonRows", "usage": ["P03"] },
+    { "name": "NoPermissionState", "shared": "components/console/NoPermissionState", "usage": ["P05"] },
+    { "name": "useListUrlState", "shared": "modules/pm/utils/useListUrlState", "usage": ["P01", "P08"] }
+  ],
+  "navigation": [
+    { "from": "P08", "action": "打开项目", "to": "P01" },
+    { "from": "P01", "action": "点击标题", "to": "P09 工作项详情（本版不改）" },
+    { "from": "P01", "action": "预览", "to": "O04" },
+    { "from": "P01", "action": "新建工作项", "to": "O05" },
+    { "from": "O05", "action": "创建成功", "to": "P01" }
+  ],
+  "statusDictionary": {
+    "workflowStatus": [
+      { "code": "todo", "label": "待办", "tone": "neutral" },
+      { "code": "in_progress", "label": "进行中", "tone": "primary" },
+      { "code": "blocked", "label": "已阻塞", "tone": "danger" },
+      { "code": "review", "label": "待验证", "tone": "warning" },
+      { "code": "done", "label": "已完成", "tone": "success" }
+    ],
+    "priority": [
+      { "code": "highest", "label": "最高" },
+      { "code": "high", "label": "高" },
+      { "code": "medium", "label": "中" },
+      { "code": "low", "label": "低" }
+    ],
+    "type": [
+      { "code": "requirement", "label": "需求" },
+      { "code": "task", "label": "任务" },
+      { "code": "bug", "label": "缺陷" },
+      { "code": "test_case", "label": "测试用例" }
+    ]
+  },
+  "contract": {
+    "alignmentLevel": "A2",
+    "referenceViewport": { "width": 1440, "height": 900, "scale": 2 },
+    "mustMatch": ["layout", "spacing", "typography", "component", "copy", "state"],
+    "mayDiffer": ["dynamicData", "conditionalVisibility", "responsive", "fontRendering"],
+    "dataProfile": "pm-workbench-fixtures-v1"
+  },
+  "acceptance": [
+    { "id": "AC-01", "page": "P01", "state": "default", "criterion": "一屏可见编号、类型、标题、状态、优先级、负责人、截止、更新时间；分页显示总数与每页条数" },
+    { "id": "AC-02", "page": "P01", "state": "empty", "criterion": "搜索无结果展示空态、清空搜索入口，保留筛选条件" },
+    { "id": "AC-03", "page": "O01", "state": "default", "criterion": "筛选面板可选择字段、运算符、值；应用后生成可删除 chip" },
+    { "id": "AC-04", "page": "P01", "state": "dirty", "criterion": "修改查询后视图页签显示脏标记与保存入口" },
+    { "id": "AC-05", "page": "O02", "state": "default", "criterion": "列可隐藏、调整顺序、恢复默认；密度可切换" },
+    { "id": "AC-06", "page": "P01", "state": "sorted", "criterion": "点击表头切换升降序并显示箭头" },
+    { "id": "AC-07", "page": "P01", "state": "default", "criterion": "分页支持每页条数、页码、跳页" },
+    { "id": "AC-08", "page": "O03", "state": "default", "criterion": "批量删除二次确认写明数量与后果" },
+    { "id": "AC-09", "page": "O04", "state": "default", "criterion": "快速预览抽屉展示关键字段，关闭后列表状态不丢" },
+    { "id": "AC-10", "page": "P02-P05", "state": "empty/loading/error/permission", "criterion": "空态、加载、失败、无权限均可直达且文案完整" },
+    { "id": "AC-11", "page": "P07", "state": "long", "criterion": "1440×900 无横向滚动，长标题省略不撑破列宽" },
+    { "id": "AC-12", "page": "P05", "state": "permission", "criterion": "无权限隐藏新建、筛选应用与批量操作" }
+  ]
+}

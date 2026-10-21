@@ -89,7 +89,7 @@ API 测试平台提供类 Postman 的接口定义、调试与集合运行能力�
 | Secret 变量 | `api_environment_variable.is_secret` 标记，返回时是否脱敏待确认 |
 | 集合项 | 引用 `api_definition`，支持 `enabled` 与排序 |
 | 断言 | `source` + `compare_type` + `expression` + `expected_value` |
-| 标签过滤 | `tags` 为 JSON 数组，按数组元素精确匹配；多标签为交集（SQLite `json_each`） |
+| 标签过滤 | `tags` 为 JSON 数组，按数组元素精确匹配；多标签为交集（MySQL `JSON_CONTAINS`） |
 
 ## 6. 异常与边界
 

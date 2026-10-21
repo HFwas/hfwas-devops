@@ -207,9 +207,9 @@
 | `layout_config` | 布局 JSON |
 | `create_time` / `update_time` | 时间 |
 
-## 风险：重复的 sys_user
+## 重复的 sys_user（已解决）
 
-`pm-schema.sql` 第 224 行再次 `CREATE TABLE IF NOT EXISTS sys_user`，列集合比 user 模块少（缺 `auth_source`、`external_id`、`connector_id`）。embedded 模式下 `SqliteSchemaInitializer` 在 `UserSchemaMigration` 之后执行，`IF NOT EXISTS` 不会覆盖已有表，但两处定义漂移会导致新环境/迁移场景行为不一致。建议移除 PM schema 中的 `sys_user` 定义。
+原 SQLite 时代 PM schema 重复定义了 `sys_user`。MySQL 基线 V1 已删除该重复定义，只保留 user 模块的统一 `sys_user`。
 
 ## 写入方
 

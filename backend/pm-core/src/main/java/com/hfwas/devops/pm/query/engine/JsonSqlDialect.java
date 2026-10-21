@@ -1,7 +1,7 @@
 package com.hfwas.devops.pm.query.engine;
 
 /**
- * SQLite JSON 字段 SQL 片段（custom_fields 存 TEXT JSON）
+ * MySQL JSON 字段 SQL 片段（custom_fields 存 TEXT JSON）
  */
 public final class JsonSqlDialect {
 
@@ -9,11 +9,12 @@ public final class JsonSqlDialect {
     }
 
     public static String jsonExtractText(String column, String fieldKey) {
-        return "json_extract(" + column + ", '$." + fieldKey + "')";
+        return "CASE WHEN JSON_VALID(" + column + ") THEN JSON_EXTRACT(" + column + ", '$." + fieldKey + "') ELSE NULL END";
     }
 
     public static String jsonExtractUnquoted(String column, String fieldKey) {
-        return "json_extract(" + column + ", '$." + fieldKey + "')";
+        return "CASE WHEN JSON_VALID(" + column + ") THEN JSON_UNQUOTE(JSON_EXTRACT("
+                + column + ", '$." + fieldKey + "')) ELSE NULL END";
     }
 
     public static String eq(String column, String fieldKey, String escapedValue) {

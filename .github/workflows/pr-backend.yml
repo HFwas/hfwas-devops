@@ -35,7 +35,7 @@ jobs:
           distribution: "temurin"
           cache: maven
 
-      # 与 maven.yml 保持一致：编译 + 全量单元/集成测试
+      # 与 maven.yml 保持一致：编译 + 全量单元/集成测试（Testcontainers 使用 runner 自带的 Docker）
       - name: Build and test backend modules
         run: mvn -B -f backend/pom.xml clean verify
 
@@ -60,8 +60,5 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Check migration safety
-        run: bash scripts/check-migrations.sh
-
-      - name: Run migration tests
-        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+      - name: Check Flyway migrations
+        run: bash scripts/check-flyway-migrations.sh

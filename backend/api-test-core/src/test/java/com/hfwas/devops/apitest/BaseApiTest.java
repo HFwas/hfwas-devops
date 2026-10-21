@@ -15,8 +15,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDateTime;
 
@@ -24,7 +29,8 @@ import java.time.LocalDateTime;
  * 接口测试平台 — 基础测试父类
  * <p>
  * 所有测试类应继承此类，统一管理：
- * - SQLite 内存数据库初始化
+ * - MySQL 8 测试库（Testcontainers，或 -Dtest.mysql.url 指向外部库）
+ * - Flyway 迁移（classpath:db/migration）
  * - 事务管理（每个测试方法独立事务，自动回滚）
  * - MockMvc 注入
  * - Jackson ObjectMapper 注入
@@ -38,7 +44,34 @@ import java.time.LocalDateTime;
 @Rollback
 @AutoConfigureMockMvc
 @Import({BaseApiTest.TestConfig.class})
+@Testcontainers(disabledWithoutDocker = true)
 public abstract class BaseApiTest {
+
+    private static final String EXTERNAL_URL = System.getProperty("test.mysql.url");
+
+    @Container
+    static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.0.40")
+            .withDatabaseName("hfwas_test")
+            .withUsername("test")
+            .withPassword("test")
+            .withCommand("--character-set-server=utf8mb4",
+                    "--collation-server=utf8mb4_0900_ai_ci",
+                    "--default-time-zone=+00:00");
+
+    @DynamicPropertySource
+    static void mysqlProperties(DynamicPropertyRegistry registry) {
+        String url = EXTERNAL_URL != null && !EXTERNAL_URL.isBlank()
+                ? EXTERNAL_URL : MYSQL.getJdbcUrl();
+        String username = EXTERNAL_URL != null && !EXTERNAL_URL.isBlank()
+                ? System.getProperty("test.mysql.username", "root")
+                : MYSQL.getUsername();
+        String password = EXTERNAL_URL != null && !EXTERNAL_URL.isBlank()
+                ? System.getProperty("test.mysql.password", "")
+                : MYSQL.getPassword();
+        registry.add("spring.datasource.url", () -> url);
+        registry.add("spring.datasource.username", () -> username);
+        registry.add("spring.datasource.password", () -> password);
+    }
 
     @Autowired
     protected MockMvc mockMvc;

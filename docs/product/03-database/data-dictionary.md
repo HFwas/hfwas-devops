@@ -1,9 +1,9 @@
 # 数据库总览与数据字典
 
-> 日期：2026-10-18
-> 版本：v0.3
-> 状态：已完成（表级；字段枚举与默认值明细后续补充）
-> 数据来源：`backend/*/src/main/resources/db/*.sql`、`deploy/charts/backend/files/db/*.sql`、`SqliteSchemaInitializer.java`、`UserSchemaMigration.java`、`migrate.py`、`migrate.sh`
+> 日期：2026-10-21
+> 版本：v0.4
+> 状态：已完成（表级；MySQL 类型与迁移基线已更新）
+> 数据来源：`backend/db-migration/src/main/resources/db/migration/*.sql`、Flyway、`application.yml`
 
 ### 变更记录
 
@@ -12,6 +12,7 @@
 | v0.1 | 2026-10-17 | 初版：56 张表总览、初始化机制、公共约定、模块索引与已知问题 |
 | v0.2 | 2026-10-17 | 补充 `pipeline_run.status` 实际枚举 |
 | v0.3 | 2026-10-18 | 新增数据库文档规范入口；明确本目录文档必须遵循 10 列数据字典与四节结构 |
+| v0.4 | 2026-10-21 | 数据库切换 MySQL 8 + Flyway；更新连接串、迁移账本、类型映射与表来源 |
 
 ---
 
@@ -29,13 +30,13 @@
 
 | 项目 | 说明 |
 |------|------|
-| 数据库 | SQLite 3 |
-| 连接串 | `jdbc:sqlite:./data/hfwas-devops.db`（相对进程工作目录，`application.yml`） |
-| 本地文件 | `backend/server/data/hfwas-devops.db`、`backend/data/hfwas-devops.db`、根目录 `data/hfwas-devops.db`（不同启动方式落点不同） |
-| 表数量 | 56 张唯一表（schema 文件合计 57 个 `CREATE TABLE`，其中 `sys_user` 在 user 与 pm schema 各定义一次） |
-| 迁移记录表 | `_schema_migrations`（唯一权威；`migrate.sh` 是 `migrate.py` 的包装，旧 `schema_migrations` 自动合并） |
-| WAL | 未启用（默认 `journal_mode=delete`） |
-| 连接池 | 未显式配置 |
+| 数据库 | MySQL 8（InnoDB，utf8mb4） |
+| 连接串 | `jdbc:mysql://localhost:3306/hfwas_devops?...`（环境变量 `DB_URL`） |
+| 本地数据 | MySQL `mysql-data` 卷；不再生成 `data/hfwas-devops.db` |
+| 表数量 | 56 张业务表 + `flyway_schema_history` |
+| 迁移记录表 | `flyway_schema_history`（V1 基线、V2 种子；后续从 V3 递增） |
+| 事务隔离 | MySQL 默认 REPEATABLE READ |
+| 连接池 | Hikari，默认 `maximum-pool-size=20` |
 
 ## 2. 表归属与数量
 
@@ -62,41 +63,33 @@
 
 ## 3. 初始化机制
 
-`devops.schema.init`（环境变量 `DEVOPS_SCHEMA_INIT`）控制：
-
-### 3.1 embedded（默认）
-
-| 执行者 | 文件 | 内容 |
-|--------|------|------|
-| `UserSchemaMigration`（`@Order(0)`） | `backend/user-core/.../config/UserSchemaMigration.java` | 用 JdbcTemplate 建 8 张 `sys_*` 表，执行加列/重建 `sys_user`/seed 默认租户与管理员；**不读取** `user-schema.sql` |
-| `SqliteSchemaInitializer`（`@Order(1)`） | `backend/server/.../config/SqliteSchemaInitializer.java` | 创建 `./data`，执行兼容性 ALTER，再按顺序执行 `pm`、`api-test`、`image`、`pipeline`、`container`、`helm` 六个 classpath SQL（**不含 user**） |
-
-### 3.2 external（Helm）
+数据库为 MySQL 8，统一由 **Flyway** 管理：
 
 | 组件 | 说明 |
 |------|------|
-| `configmap-schema.yaml` | 将 `deploy/charts/backend/files/db/*` 挂载到 `/sql` |
-| initContainer | 执行 `python3 /sql/migrate.py`，`DB_PATH=/app/data/hfwas-devops.db` |
-| `migrate.py` | 逐语句执行 SQL；记录 `_schema_migrations`；已应用文件 checksum 变化默认拒绝；`05-pipeline-schema.sql` 零 UPDATE，可安全重跑；`16-upgrade-task-template-seeds.sql` 是唯一允许 UPDATE 的文件；旧 `schema_migrations` 合并到 `_schema_migrations` |
-| `migrate.sh` | 薄包装，调用 `migrate.py`，不再单独维护记录表 |
-| 应用配置 | `DEVOPS_SCHEMA_INIT=external`，关闭进程内建表 |
+| 迁移目录 | `backend/db-migration/src/main/resources/db/migration/` |
+| 基线 | `V1__initial_schema.sql`（56 张表）、`V2__seed_system_data.sql`（系统种子） |
+| 账本 | `flyway_schema_history`，checksum 校验，禁止修改已执行文件 |
+| 本地/CI | 应用启动执行 Flyway；测试用 Testcontainers `mysql:8.0.40` |
+| 生产 | Helm pre-install/pre-upgrade Job 执行 Flyway；应用 `SPRING_FLYWAY_ENABLED=false` |
+| 重建 | `DROP DATABASE` 后重跑 Flyway；不迁移 SQLite 数据 |
 
-> 新增 DDL/DML 时遵守仓库「数据库变更」规范：新增编号 SQL（当前最大 16，下一个 17）、语句幂等、同步更新 Java 侧建表逻辑；05 零 UPDATE，UPDATE 仅允许在 16-*。
+> 新增 DDL/DML 时遵守仓库「数据库变更」规范：新增 `V3__*.sql` 起的迁移文件，禁止 SQLite 语法，同步更新本目录与模块数据库文档。
 
 ## 4. 公共字段约定
 
 | 约定 | user | pm | api-test | pipeline | image | container | helm |
 |------|------|----|----------|----------|-------|-----------|------|
-| 主键 | `id INTEGER PK AUTOINCREMENT` | `id INTEGER PK`（雪花） | 同左 | 同左 | 同左 | `AUTOINCREMENT` | `AUTOINCREMENT` |
+| 主键 | `id BIGINT AUTO_INCREMENT` | `id INTEGER PK`（雪花） | 同左 | 同左 | 同左 | `AUTO_INCREMENT` | `AUTO_INCREMENT` |
 | 创建时间 | `create_time` | `create_time` | `create_time` | `create_time` | `create_time` | `created_at` | `created_at` |
 | 更新时间 | `update_time` | `update_time` | `update_time` | `update_time` | 无 | `updated_at` | 无 |
 | 创建人 | 无（用 `user_id`/`sender_id`） | 部分 `create_by`/`update_by` | 全量 `create_by`/`update_by` | 部分 | `create_by` | 无 | `uploaded_by` |
 | 逻辑删除 | `del_flag` | `del_flag` | `deleted` | `deleted` | `deleted` | 无 | 无 |
 | 租户隔离 | `tenant_id` | `tenant_id` + `project_id` | `project_id`（无 tenant） | `tenant_id` | `tenant_id` + `user_id` | `tenant_id` | `tenant_id` |
-| 时间类型 | TEXT | TEXT | TEXT | TEXT | TEXT | TEXT | TEXT |
+| 时间类型 | DATETIME | DATETIME | DATETIME | DATETIME | DATETIME | DATETIME | DATETIME |
 | 布尔 | 0/1 | 0/1 | 0/1 | 0/1 | 0/1 | 0/1 | 0/1 |
 
-SQLite 类型映射：`BIGINT → INTEGER`、`VARCHAR(n) → TEXT`、`JSON → TEXT`、`DATETIME → TEXT`。
+MySQL 类型映射：`id/外键 → BIGINT`、短文本 → `VARCHAR(n)`、长文本/JSON → `TEXT/MEDIUMTEXT`、时间 → `DATETIME`、布尔 → `TINYINT`、浮点 → `DOUBLE`。JSON 字段以文本存储，SQL 使用 `JSON_EXTRACT` / `JSON_UNQUOTE` / `JSON_CONTAINS`。
 
 ## 5. 模块 ER 概览
 

@@ -1,0 +1,814 @@
+{
+  "meta": {
+    "name": "pm-module-prototype",
+    "version": "1.9",
+    "date": "2026-10-20",
+    "viewport": {
+      "width": 1440,
+      "height": 900,
+      "scale": 2
+    },
+    "source": [
+      "docs/superpowers/features/20261019-pm-list-config-bulk/design.md",
+      "docs/pm/pm-design.md",
+      "docs/pm/pm-api.md"
+    ],
+    "status": "review",
+    "tech": "React 19 + TypeScript + Vite + Tailwind CSS v4 + shadcn/ui"
+  },
+  "tokens": {
+    "color": {
+      "background": "oklch(1 0 0)",
+      "foreground": "oklch(0.141 0.005 285.823)",
+      "card": "oklch(1 0 0)",
+      "primary": "oklch(0.55 0.22 235)",
+      "primaryForeground": "oklch(0.98 0.01 235)",
+      "muted": "oklch(0.967 0.001 286.375)",
+      "mutedForeground": "oklch(0.552 0.016 285.938)",
+      "border": "oklch(0.92 0.004 286.32)",
+      "destructive": "oklch(0.577 0.245 27.325)"
+    },
+    "radius": {
+      "sm": "0.25rem",
+      "md": "0.375rem",
+      "lg": "0.5rem"
+    },
+    "font": {
+      "sans": "system-ui",
+      "mono": "Maple Mono"
+    },
+    "layout": {
+      "sidebarWidth": "16rem",
+      "headerHeight": "3.5rem",
+      "tableRowHeight": "44px",
+      "settingsRowHeight": "48px"
+    }
+  },
+  "shell": {
+    "sidebar": {
+      "width": "16rem",
+      "variant": "inset",
+      "collapsible": "icon"
+    },
+    "header": {
+      "height": "3.5rem",
+      "items": [
+        "globalSearch",
+        "help",
+        "notifications",
+        "avatar"
+      ]
+    },
+    "projectNav": [
+      "原型总览",
+      "工作项类型",
+      "看板",
+      "迭代看板",
+      "报表"
+    ],
+    "settingsNav": [
+      "字段配置",
+      "视图与搜索",
+      "批量操作",
+      "成员与权限"
+    ]
+  },
+  "pages": [
+    {
+      "id": "P00",
+      "name": "PM 模块总原型",
+      "route": "/pm/overview",
+      "hash": "#/overview",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "P01",
+      "name": "项目工作项列表",
+      "route": "/pm/projects/:projectId/items/:typeCode",
+      "hash": "#/workbench",
+      "states": [
+        "default",
+        "type",
+        "empty",
+        "loading",
+        "error",
+        "permission",
+        "dense",
+        "long",
+        "selected"
+      ]
+    },
+    {
+      "id": "P02",
+      "name": "项目类型筛选",
+      "route": "/pm/projects/:projectId/items/:typeCode",
+      "hash": "#/workbench?type=bug",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "P03",
+      "name": "事项类型管理",
+      "route": "/pm/projects/:projectId/settings/types",
+      "hash": "../../../superpowers/features/20261019-pm-work-item-types/prototype/index.html",
+      "external": true,
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "P04",
+      "name": "视图与搜索设置",
+      "route": "/pm/projects/:projectId/settings/views",
+      "hash": "#/settings/views",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "P05",
+      "name": "批量操作配置",
+      "route": "/pm/projects/:projectId/settings/bulk-actions",
+      "hash": "#/settings/bulk-actions",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "P06",
+      "name": "事项详情",
+      "route": "/pm/projects/:projectId/items/:typeCode/:itemId",
+      "hash": "#/items/1",
+      "states": [
+        "default",
+        "activity",
+        "comments",
+        "edit",
+        "invalid",
+        "permission",
+        "loading",
+        "error",
+        "inline"
+      ]
+    }
+  ],
+  "overlays": [
+    {
+      "id": "O01",
+      "name": "视图配置",
+      "trigger": "P01.显示",
+      "hash": "#/workbench?overlay=view-config",
+      "states": [
+        "columns",
+        "search",
+        "filter"
+      ]
+    },
+    {
+      "id": "O02",
+      "name": "批量编辑",
+      "trigger": "P01.批量编辑",
+      "hash": "#/workbench?state=selected&overlay=bulk-edit",
+      "states": [
+        "default",
+        "invalid"
+      ]
+    },
+    {
+      "id": "O03",
+      "name": "导入事项",
+      "trigger": "P01.导入",
+      "hash": "#/workbench?overlay=import&step=upload",
+      "states": [
+        "upload",
+        "mapping",
+        "result",
+        "invalid"
+      ]
+    },
+    {
+      "id": "O04",
+      "name": "导出事项",
+      "trigger": "P01.导出",
+      "hash": "#/workbench?overlay=export",
+      "states": [
+        "query",
+        "selected",
+        "all"
+      ]
+    },
+    {
+      "id": "O05",
+      "name": "保存视图",
+      "trigger": "P01.保存视图",
+      "hash": "#/workbench?overlay=save-view",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "O06",
+      "name": "批量动作编辑",
+      "trigger": "P05.配置",
+      "hash": "#/settings/bulk-actions?overlay=action-edit&code=bulk-edit",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "O07",
+      "name": "筛选",
+      "trigger": "P01.筛选",
+      "hash": "#/workbench?overlay=filter",
+      "states": [
+        "default",
+        "invalid"
+      ]
+    },
+    {
+      "id": "O08",
+      "name": "批量删除确认",
+      "trigger": "P01.删除",
+      "hash": "#/workbench?state=selected&overlay=delete&enabledActions=delete",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "O09",
+      "name": "事项快速预览",
+      "trigger": "P01.标题/预览",
+      "hash": "#/workbench?overlay=preview&id=1",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "O10",
+      "name": "状态流转",
+      "trigger": "P06.状态流转",
+      "hash": "#/items/1?overlay=transition",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "O11",
+      "name": "放弃修改",
+      "trigger": "P06.返回/取消",
+      "hash": "#/items/1?edit=1&overlay=discard",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "O12",
+      "name": "删除事项",
+      "trigger": "P06.删除",
+      "hash": "#/items/1?overlay=delete&enabledActions=delete",
+      "states": [
+        "default"
+      ]
+    }
+  ],
+  "components": [
+    {
+      "name": "ProjectTypeNav",
+      "shared": "modules/pm/components/ProjectTypeNav",
+      "usage": [
+        "P01",
+        "P02"
+      ]
+    },
+    {
+      "name": "ListPageShell",
+      "shared": "components/console/ListPageShell",
+      "usage": [
+        "P01"
+      ]
+    },
+    {
+      "name": "DataTable",
+      "shared": "components/console/DataTable",
+      "usage": [
+        "P01",
+        "P04",
+        "P05"
+      ]
+    },
+    {
+      "name": "Pagination",
+      "shared": "components/console/Pagination",
+      "usage": [
+        "P01"
+      ]
+    },
+    {
+      "name": "SearchInput",
+      "shared": "components/console/SearchInput",
+      "usage": [
+        "P01"
+      ]
+    },
+    {
+      "name": "FilterBar",
+      "shared": "components/console/FilterBar",
+      "usage": [
+        "P01"
+      ]
+    },
+    {
+      "name": "ViewConfigDrawer",
+      "shared": "modules/pm/components/ViewConfigDrawer",
+      "usage": [
+        "O01"
+      ]
+    },
+    {
+      "name": "BulkActionBar",
+      "shared": "components/console/BulkActionBar",
+      "usage": [
+        "P01"
+      ]
+    },
+    {
+      "name": "BulkEditDialog",
+      "shared": "modules/pm/components/BulkEditDialog",
+      "usage": [
+        "O02"
+      ]
+    },
+    {
+      "name": "ImportWizard",
+      "shared": "modules/pm/components/ImportWizard",
+      "usage": [
+        "O03"
+      ]
+    },
+    {
+      "name": "ExportDialog",
+      "shared": "modules/pm/components/ExportDialog",
+      "usage": [
+        "O04"
+      ]
+    },
+    {
+      "name": "BatchActionSettingsTable",
+      "shared": "modules/pm/components/BatchActionSettingsTable",
+      "usage": [
+        "P05"
+      ]
+    },
+    {
+      "name": "ActionEditDialog",
+      "shared": "modules/pm/components/ActionEditDialog",
+      "usage": [
+        "O06"
+      ]
+    },
+    {
+      "name": "useListUrlState",
+      "shared": "modules/pm/utils/useListUrlState",
+      "usage": [
+        "P01",
+        "P04"
+      ]
+    },
+    {
+      "name": "FilterBuilder",
+      "shared": "modules/pm/components/FilterBuilder",
+      "usage": [
+        "O07"
+      ]
+    },
+    {
+      "name": "DetailPageShell",
+      "shared": "modules/pm/components/DetailPageShell",
+      "usage": [
+        "P06"
+      ]
+    },
+    {
+      "name": "InlinePropertyEditor",
+      "shared": "modules/pm/components/InlinePropertyEditor",
+      "usage": [
+        "P06"
+      ]
+    },
+    {
+      "name": "ActivityTimeline",
+      "shared": "modules/pm/components/ActivityTimeline",
+      "usage": [
+        "P06"
+      ]
+    },
+    {
+      "name": "CommentThread",
+      "shared": "modules/pm/components/CommentThread",
+      "usage": [
+        "P06"
+      ]
+    },
+    {
+      "name": "MarkdownRenderer",
+      "shared": "modules/pm/components/MarkdownRenderer",
+      "usage": [
+        "P06"
+      ]
+    },
+    {
+      "name": "MarkdownEditor",
+      "shared": "modules/pm/components/MarkdownEditor",
+      "usage": [
+        "P06"
+      ]
+    }
+  ],
+  "navigation": [
+    {
+      "from": "P00",
+      "action": "工作项列表",
+      "to": "P01"
+    },
+    {
+      "from": "P00",
+      "action": "视图配置",
+      "to": "O01"
+    },
+    {
+      "from": "P00",
+      "action": "批量编辑",
+      "to": "O02"
+    },
+    {
+      "from": "P00",
+      "action": "导入",
+      "to": "O03"
+    },
+    {
+      "from": "P00",
+      "action": "批量操作配置",
+      "to": "P05"
+    },
+    {
+      "from": "P01",
+      "action": "左侧类型",
+      "to": "P02"
+    },
+    {
+      "from": "P01",
+      "action": "显示",
+      "to": "O01"
+    },
+    {
+      "from": "P01",
+      "action": "选中后批量编辑",
+      "to": "O02"
+    },
+    {
+      "from": "P01",
+      "action": "导入",
+      "to": "O03"
+    },
+    {
+      "from": "P01",
+      "action": "导出",
+      "to": "O04"
+    },
+    {
+      "from": "P05",
+      "action": "配置动作",
+      "to": "O06"
+    },
+    {
+      "from": "P01",
+      "action": "点击标题",
+      "to": "P06"
+    },
+    {
+      "from": "P06",
+      "action": "状态流转",
+      "to": "O10"
+    },
+    {
+      "from": "P06",
+      "action": "返回/取消（编辑态）",
+      "to": "O11"
+    },
+    {
+      "from": "P06",
+      "action": "删除",
+      "to": "O12"
+    }
+  ],
+  "statusDictionary": {
+    "types": [
+      {
+        "code": "requirement",
+        "name": "需求",
+        "count": 24,
+        "builtin": true
+      },
+      {
+        "code": "task",
+        "name": "任务",
+        "count": 52,
+        "builtin": true
+      },
+      {
+        "code": "bug",
+        "name": "缺陷",
+        "count": 18,
+        "builtin": true
+      },
+      {
+        "code": "iteration",
+        "name": "迭代",
+        "count": 6,
+        "builtin": true
+      },
+      {
+        "code": "test_case",
+        "name": "测试用例",
+        "count": 14,
+        "builtin": true
+      },
+      {
+        "code": "story",
+        "name": "用户故事",
+        "count": 9,
+        "custom": true
+      },
+      {
+        "code": "tech_debt",
+        "name": "技术债",
+        "count": 5,
+        "custom": true
+      }
+    ],
+    "bulkActions": [
+      {
+        "code": "bulk-edit",
+        "name": "批量编辑字段",
+        "enabled": true,
+        "max": 100,
+        "confirm": true
+      },
+      {
+        "code": "transition",
+        "name": "批量状态流转",
+        "enabled": true,
+        "max": 100,
+        "confirm": true
+      },
+      {
+        "code": "clone",
+        "name": "复制事项",
+        "enabled": true,
+        "max": 50,
+        "confirm": false
+      },
+      {
+        "code": "export",
+        "name": "导出所选",
+        "enabled": true,
+        "max": 5000,
+        "confirm": false
+      },
+      {
+        "code": "import",
+        "name": "导入事项",
+        "enabled": true,
+        "max": 5000,
+        "confirm": false
+      },
+      {
+        "code": "delete",
+        "name": "删除事项",
+        "enabled": false,
+        "max": 50,
+        "confirm": true
+      }
+    ]
+  },
+  "contract": {
+    "alignmentLevel": "A2",
+    "referenceViewport": {
+      "width": 1440,
+      "height": 900,
+      "scale": 2
+    },
+    "mustMatch": [
+      "layout",
+      "spacing",
+      "typography",
+      "component",
+      "copy",
+      "state"
+    ],
+    "mayDiffer": [
+      "dynamicData",
+      "conditionalVisibility",
+      "responsive",
+      "fontRendering"
+    ],
+    "dataProfile": "pm-module-fixtures-v1"
+  },
+  "acceptance": [
+    {
+      "id": "AC-01",
+      "page": "P01",
+      "state": "default",
+      "criterion": "左侧工作项分组展示项目启用的全部类型与数量，合计等于全部工作项"
+    },
+    {
+      "id": "AC-02",
+      "page": "P01",
+      "state": "type",
+      "criterion": "点击类型只展示该类型事项，页头与查询同步"
+    },
+    {
+      "id": "AC-03",
+      "page": "O01",
+      "state": "columns",
+      "criterion": "显示列可勾选、排序、恢复默认，表格立即变化"
+    },
+    {
+      "id": "AC-04",
+      "page": "O01",
+      "state": "search",
+      "criterion": "搜索字段可配置，搜索框提示与匹配范围同步"
+    },
+    {
+      "id": "AC-05",
+      "page": "O01",
+      "state": "filter",
+      "criterion": "筛选字段可配置，筛选面板只展示勾选字段"
+    },
+    {
+      "id": "AC-06",
+      "page": "P01",
+      "state": "dirty",
+      "criterion": "视图配置修改后页签出现脏标记，可保存视图"
+    },
+    {
+      "id": "AC-07",
+      "page": "O02",
+      "state": "default",
+      "criterion": "批量编辑展示字段白名单、影响预览与跳过提示"
+    },
+    {
+      "id": "AC-08",
+      "page": "O03",
+      "state": "mapping",
+      "criterion": "导入走上传、字段映射、校验与执行三步；不会直接写库"
+    },
+    {
+      "id": "AC-09",
+      "page": "O04",
+      "state": "default",
+      "criterion": "导出支持选中/查询/全部与字段选择，显示条数上限"
+    },
+    {
+      "id": "AC-10",
+      "page": "P05",
+      "state": "default",
+      "criterion": "批量操作配置可启停动作、设置角色、上限、确认与字段白名单"
+    },
+    {
+      "id": "AC-11",
+      "page": "P01",
+      "state": "permission",
+      "criterion": "无权限隐藏新建、导入、批量编辑、删除与配置保存"
+    },
+    {
+      "id": "AC-12",
+      "page": "P01",
+      "state": "empty/loading/error/dense/long",
+      "criterion": "异常与极端数据状态可直达且不破坏布局"
+    },
+    {
+      "id": "AC-13",
+      "page": "O07",
+      "state": "default",
+      "criterion": "筛选支持字段、操作符、值与 AND/OR，并支持嵌套条件组"
+    },
+    {
+      "id": "AC-14",
+      "page": "O07",
+      "state": "default",
+      "criterion": "操作符随字段类型变化，无需值的操作符不显示值编辑器"
+    },
+    {
+      "id": "AC-15",
+      "page": "O07",
+      "state": "invalid",
+      "criterion": "缺值条件阻止应用并显示汇总，修正后错误消失"
+    },
+    {
+      "id": "AC-16",
+      "page": "P06",
+      "state": "default/edit",
+      "criterion": "标题、描述与右栏高频字段可直接编辑并保存"
+    },
+    {
+      "id": "AC-17",
+      "page": "O10",
+      "state": "default",
+      "criterion": "状态流转只展示允许的目标状态并记录活动"
+    },
+    {
+      "id": "AC-18",
+      "page": "P06",
+      "state": "comments",
+      "criterion": "评论可发表并追加到评论列表，活动与评论分页签"
+    },
+    {
+      "id": "AC-19",
+      "page": "P06",
+      "state": "invalid",
+      "criterion": "空标题、故事点≤0 阻止保存并显示字段错误"
+    },
+    {
+      "id": "AC-20",
+      "page": "P06",
+      "state": "permission/discard",
+      "criterion": "未保存修改返回/取消二次确认；只读成员无编辑入口"
+    },
+    {
+      "id": "AC-21",
+      "page": "P06",
+      "state": "edit/preview",
+      "criterion": "描述支持 Markdown 渲染与编辑/预览页签，工具栏可插入语法，HTML 被转义且链接限白名单"
+    },
+    {
+      "id": "AC-22",
+      "page": "P06",
+      "state": "detail/activity/comments",
+      "criterion": "页签为详情/操作记录/评论且位于内容区上方，默认详情，右栏属性跨页签常驻；编辑态禁止切页签"
+    },
+    {
+      "id": "AC-23",
+      "page": "P06",
+      "state": "inline",
+      "criterion": "状态/优先级等字段点击即可内联更新，状态仅允许合法流转；日期/数字/标签行内保存"
+    },
+    {
+      "id": "AC-24",
+      "page": "P06",
+      "state": "inline/activity",
+      "criterion": "全部业务字段支持单字段更新，每次变更追加操作记录；非法状态置灰"
+    },
+    {
+      "id": "AC-25",
+      "page": "P06",
+      "state": "activity",
+      "criterion": "操作记录默认最新在前并分页，支持每页5/10/20条与页码切换，新增记录出现在第一页顶部"
+    },
+    {
+      "id": "AC-26",
+      "page": "P01",
+      "state": "default",
+      "criterion": "列表分页支持每页 10/20/50/100，默认 10；页码、跳页与每页条数写入 URL；翻页清空选择；页头、工具栏与分页使用同一总数"
+    },
+    {
+      "id": "AC-27",
+      "page": "O04",
+      "state": "query/selected/all",
+      "criterion": "导出范围三选一可交互；字段勾选参与条数与摘要；全部=项目总数、当前查询=筛选后数量、已选=选中数量"
+    },
+    {
+      "id": "AC-28",
+      "page": "P01/P06",
+      "state": "default/inline",
+      "criterion": "截止时间字段 key 统一为 end_time，覆盖显示列、筛选、排序、批量、导入导出与详情内联"
+    },
+    {
+      "id": "AC-29",
+      "page": "P01",
+      "state": "default",
+      "criterion": "Shift+点击表头追加多列排序，URL 形如 sort=priority:ASC,updated:DESC"
+    },
+    {
+      "id": "AC-30",
+      "page": "P01/P06",
+      "state": "permission",
+      "criterion": "只读状态下视图配置、保存视图、批量编辑、导入、删除、完整编辑与内联编辑均不可用；直接构造 URL 也只显示只读提示"
+    }
+  ],
+  "pagination": {
+    "sizes": [
+      10,
+      20,
+      50,
+      100
+    ],
+    "defaultSize": 10,
+    "urlParam": "size",
+    "resetPageOnChange": true,
+    "clearSelectionOnPageChange": true
+  }
+}

@@ -35,7 +35,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/health/check").permitAll()
+                        .requestMatchers("/health/check", "/health/ready").permitAll()
                         .requestMatchers("/internal/keycloak/events").permitAll()
                         // Tekton 任务回传 SBOM 等产物（集群内无用户 JWT）
                         .requestMatchers(HttpMethod.POST, "/pipeline/runs/*/artifacts").permitAll()

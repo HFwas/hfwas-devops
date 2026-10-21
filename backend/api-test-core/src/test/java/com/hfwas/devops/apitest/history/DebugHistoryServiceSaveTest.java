@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * DebugHistoryService — 调试历史业务层单元测试
  * <p>
- * 继承 BaseApiTest 以使用 SQLite 内存数据库、事务自动回滚和自动填充。
+ * 继承 BaseApiTest 以使用 MySQL 测试数据库、事务自动回滚和自动填充。
  * 重点测试新增的 save() 方法：
  * - 完整字段映射
  * - 边界条件（无响应、无断言、无提取变量）

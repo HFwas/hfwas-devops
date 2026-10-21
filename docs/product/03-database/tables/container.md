@@ -58,7 +58,7 @@
 
 ## 公共约定
 
-- 主键使用 `AUTOINCREMENT`（MyBatis-Plus `IdType.AUTO`）。
+- 主键使用 `AUTO_INCREMENT`（MyBatis-Plus `IdType.AUTO`）。
 - 时间字段为 `created_at` / `updated_at`，无 `update_time`。
 - **无逻辑删除字段**，删除即物理删除。
 - 无 `create_by` / `update_by`，操作审计依赖 `sys_oper_log`（如已接入）。

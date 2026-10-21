@@ -1,0 +1,123 @@
+{
+  "meta": {
+    "name": "pm-work-item-types",
+    "version": "1.0",
+    "date": "2026-10-19",
+    "viewport": { "width": 1440, "height": 900, "scale": 2 },
+    "source": ["docs/superpowers/features/20261019-pm-work-item-types/design.md"],
+    "status": "review",
+    "tech": "React 19 + TypeScript + Vite + Tailwind CSS v4 + shadcn/ui"
+  },
+  "tokens": {
+    "color": {
+      "background": "oklch(1 0 0)",
+      "foreground": "oklch(0.141 0.005 285.823)",
+      "card": "oklch(1 0 0)",
+      "primary": "oklch(0.55 0.22 235)",
+      "primaryForeground": "oklch(0.98 0.01 235)",
+      "muted": "oklch(0.967 0.001 286.375)",
+      "mutedForeground": "oklch(0.552 0.016 285.938)",
+      "border": "oklch(0.92 0.004 286.32)",
+      "destructive": "oklch(0.577 0.245 27.325)",
+      "typeGreen": "oklch(0.53 0.14 150)",
+      "typeBlue": "oklch(0.55 0.2 235)",
+      "typeRed": "oklch(0.58 0.23 27)",
+      "typePurple": "oklch(0.55 0.18 300)",
+      "typeAmber": "oklch(0.6 0.14 75)"
+    },
+    "radius": { "sm": "0.25rem", "md": "0.375rem", "lg": "0.5rem" },
+    "font": { "sans": "system-ui", "mono": "Maple Mono" },
+    "layout": { "sidebarWidth": "16rem", "headerHeight": "3.5rem", "tableRowHeight": "52px", "editorColumns": "176px minmax(0,1fr) 268px" }
+  },
+  "shell": {
+    "sidebar": { "width": "16rem", "variant": "inset", "collapsible": "icon" },
+    "header": { "height": "3.5rem", "items": ["productSwitcher", "globalSearch", "help", "notifications", "avatar"] },
+    "settingsNav": ["事项类型", "字段配置", "工作流", "成员与权限"]
+  },
+  "pages": [
+    { "id": "P01", "name": "事项类型列表", "route": "/pm/projects/:projectId/settings/types", "routeStatus": "planned", "hash": "#/types", "states": ["default", "disabled-filter"] },
+    { "id": "P02", "name": "事项类型列表 · 空态", "route": "/pm/projects/:projectId/settings/types", "hash": "#/types?state=empty", "states": ["empty"] },
+    { "id": "P03", "name": "事项类型列表 · 加载", "route": "/pm/projects/:projectId/settings/types", "hash": "#/types?state=loading", "states": ["loading"] },
+    { "id": "P04", "name": "事项类型列表 · 失败", "route": "/pm/projects/:projectId/settings/types", "hash": "#/types?state=error", "states": ["error"] },
+    { "id": "P05", "name": "事项类型列表 · 无权限", "route": "/pm/projects/:projectId/settings/types", "hash": "#/types?state=permission", "states": ["permission"] },
+    { "id": "P06", "name": "事项类型列表 · 大数据量", "route": "/pm/projects/:projectId/settings/types", "hash": "#/types?state=dense", "states": ["dense"] },
+    { "id": "P07", "name": "新建类型 · 基本信息", "route": "/pm/projects/:projectId/settings/types/new", "routeStatus": "planned", "hash": "#/types/new?step=basic", "states": ["default", "invalid"] },
+    { "id": "P08", "name": "新建类型 · 字段与布局", "route": "/pm/projects/:projectId/settings/types/new", "hash": "#/types/new?step=fields", "states": ["default"] },
+    { "id": "P09", "name": "新建类型 · 工作流", "route": "/pm/projects/:projectId/settings/types/new", "hash": "#/types/new?step=workflow", "states": ["default"] },
+    { "id": "P10", "name": "新建类型 · 预览", "route": "/pm/projects/:projectId/settings/types/new", "hash": "#/types/new?step=preview", "states": ["default"] },
+    { "id": "P11", "name": "编辑类型", "route": "/pm/projects/:projectId/settings/types/:code", "routeStatus": "planned", "hash": "#/types/edit?code=story&step=basic", "states": ["default"] }
+  ],
+  "overlays": [
+    { "id": "O01", "name": "复制事项类型", "trigger": "P01.复制 / 从模板创建", "hash": "#/types?overlay=duplicate&code=story", "states": ["default"] },
+    { "id": "O02", "name": "删除被阻止", "trigger": "P01.删除（有引用）", "hash": "#/types?overlay=delete&code=story&blocked=1", "states": ["blocked"] },
+    { "id": "O03", "name": "删除确认", "trigger": "P01.删除（无引用）", "hash": "#/types?overlay=delete&code=research&blocked=0", "states": ["default"] },
+    { "id": "O04", "name": "停用/启用确认", "trigger": "P01.停用", "hash": "#/types?overlay=disable&code=story", "states": ["default"] },
+    { "id": "O05", "name": "项目启用范围", "trigger": "P01.项目启用范围", "hash": "#/types?overlay=scheme", "states": ["default"] },
+    { "id": "O06", "name": "模板切换确认", "trigger": "P07.切换模板", "hash": "#/types/new?step=basic&overlay=template-reset", "states": ["default"] }
+  ],
+  "components": [
+    { "name": "TypeIcon", "shared": "modules/pm/components/TypeIcon", "usage": ["P01", "P07", "P10"] },
+    { "name": "BuiltinBadge", "shared": "modules/pm/components/BuiltinBadge", "usage": ["P01"] },
+    { "name": "SummaryStrip", "shared": "components/console/OverviewMetricCards", "usage": ["P01"] },
+    { "name": "DataTable", "shared": "components/console/DataTable", "usage": ["P01"] },
+    { "name": "Switch", "shared": "components/ui/switch", "usage": ["P01", "P07"] },
+    { "name": "TypeEditorShell", "shared": "modules/pm/components/TypeEditorShell", "usage": ["P07", "P08", "P09", "P10"] },
+    { "name": "FieldLayoutTable", "shared": "modules/pm/components/FieldLayoutTable", "usage": ["P08"] },
+    { "name": "WorkflowPreview", "shared": "modules/pm/components/WorkflowPreview", "usage": ["P09", "P10"] },
+    { "name": "Sheet", "shared": "components/ui/sheet", "usage": ["O05"] },
+    { "name": "AlertDialog", "shared": "components/ui/alert-dialog", "usage": ["O02", "O03", "O04", "O06"] },
+    { "name": "EmptyState", "shared": "components/console/EmptyState", "usage": ["P02"] },
+    { "name": "ErrorState", "shared": "components/console/ErrorState", "usage": ["P04"] },
+    { "name": "NoPermissionState", "shared": "components/console/NoPermissionState", "usage": ["P05"] }
+  ],
+  "navigation": [
+    { "from": "P01", "action": "新建自定义类型", "to": "P07" },
+    { "from": "P01", "action": "配置类型", "to": "P11" },
+    { "from": "P01", "action": "复制", "to": "O01" },
+    { "from": "P01", "action": "删除", "to": "O02 / O03" },
+    { "from": "P01", "action": "停用", "to": "O04" },
+    { "from": "P01", "action": "项目启用范围", "to": "O05" },
+    { "from": "P07", "action": "下一步", "to": "P08" },
+    { "from": "P08", "action": "下一步", "to": "P09" },
+    { "from": "P09", "action": "下一步", "to": "P10" },
+    { "from": "P10", "action": "创建并启用", "to": "P01" }
+  ],
+  "statusDictionary": {
+    "builtinTypes": [
+      { "code": "requirement", "name": "需求", "icon": "bookmark", "color": "green" },
+      { "code": "task", "name": "任务", "icon": "check", "color": "blue" },
+      { "code": "bug", "name": "缺陷", "icon": "bug", "color": "red" },
+      { "code": "iteration", "name": "迭代", "icon": "sprint", "color": "purple" },
+      { "code": "test_case", "name": "测试用例", "icon": "flask", "color": "amber" }
+    ],
+    "workflowTemplates": [
+      { "code": "task", "name": "任务默认流", "states": 4 },
+      { "code": "requirement", "name": "需求评审流", "states": 5 },
+      { "code": "bug", "name": "缺陷修复流", "states": 4 },
+      { "code": "iteration", "name": "迭代流", "states": 3 },
+      { "code": "blank", "name": "空白工作流", "states": 3 }
+    ],
+    "fieldLayouts": ["列表", "创建", "必填"]
+  },
+  "contract": {
+    "alignmentLevel": "A2",
+    "referenceViewport": { "width": 1440, "height": 900, "scale": 2 },
+    "mustMatch": ["layout", "spacing", "typography", "component", "copy", "state"],
+    "mayDiffer": ["dynamicData", "conditionalVisibility", "responsive", "fontRendering"],
+    "dataProfile": "pm-item-types-fixtures-v1"
+  },
+  "acceptance": [
+    { "id": "AC-01", "page": "P01", "state": "default", "criterion": "内置 5 类全部展示并标注来源，无删除入口" },
+    { "id": "AC-02", "page": "P01", "state": "default", "criterion": "自定义类型可配置、复制、停用、删除" },
+    { "id": "AC-03", "page": "O02", "state": "blocked", "criterion": "有引用的类型删除时展示事项数与停用替代动作" },
+    { "id": "AC-04", "page": "P07-P10", "state": "default", "criterion": "四步向导可前进后退，摘要随名称、模板、字段更新" },
+    { "id": "AC-05", "page": "P11", "state": "invalid", "criterion": "名称与编码校验给出字段级错误与顶部汇总" },
+    { "id": "AC-06", "page": "P07", "state": "default", "criterion": "模板选择更新图标、颜色、字段与工作流" },
+    { "id": "AC-07", "page": "P08", "state": "default", "criterion": "字段显示位置与顺序可调整，预览同步" },
+    { "id": "AC-08", "page": "O05", "state": "default", "criterion": "项目启用范围可勾选与排序并保存" },
+    { "id": "AC-09", "page": "O04", "state": "default", "criterion": "停用说明历史事项保留且可恢复" },
+    { "id": "AC-10", "page": "P02-P05", "state": "empty/loading/error/permission", "criterion": "空态、加载、失败、无权限均可直达" },
+    { "id": "AC-11", "page": "P06", "state": "dense", "criterion": "18 个类型时表格可滚动且列宽稳定" },
+    { "id": "AC-12", "page": "P05", "state": "permission", "criterion": "无权限隐藏新建、启停、删除与配置保存" }
+  ]
+}

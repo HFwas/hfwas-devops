@@ -69,9 +69,9 @@
 |------|------|
 | 数据库文件 | `data/hfwas-devops.db`（compose 使用 `devops-data` 卷） |
 | 上传/生成文件 | `devops-files` 卷（`/app/files`）、`data/uploads` |
-| 备份 | 升级前执行 `sqlite3 <db> ".backup '<version>-<timestamp>.db'"`，并用 `PRAGMA integrity_check` 校验；生产建议定期快照卷 |
+| 备份 | 升级前执行 `mysqldump --single-transaction --quick ... \| gzip`；恢复时导入空库后运行 Flyway `validate` |
 | 恢复 | 停止写入 → 恢复备份 → 回退镜像 → 再执行迁移检查 |
-| 迁移 | embedded：应用启动建表；external：`migrate.py` initContainer。禁止修改已执行 SQL；禁止 rollback 到含旧 05 DROP 的版本 |
+| 迁移 | Flyway `Vn__*.sql`；生产由 pre-upgrade Job 执行，禁止修改已执行文件 |
 | 并发 | Helm `strategy.type: Recreate`；应用与迁移 URL 使用 `busy_timeout=5000` |
 
 ## 6. 配置
@@ -79,7 +79,7 @@
 | 配置 | 位置/变量 |
 |------|-----------|
 | 端口 | `BACKEND_PORT`、`FRONTEND_PORT` |
-| schema 模式 | `DEVOPS_SCHEMA_INIT=embedded|external` |
+| 数据库 | MySQL 8；应用 `SPRING_DATASOURCE_*`，Flyway 迁移 |
 | JWT | `SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI`、`OAUTH2_ISSUER_URI` |
 | Docgen 输出 | `DOCGEN_OUTPUT_DIR` |
 | 流水线集群 | `PIPELINE_KUBECONFIG`、`PIPELINE_NAMESPACE` |

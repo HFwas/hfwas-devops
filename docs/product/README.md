@@ -1,7 +1,7 @@
 # HFWAS DevOps 产品文档总索引
 
-> 日期：2026-10-18
-> 版本：v0.8
+> 日期：2026-10-20
+> 版本：v0.9
 > 状态：首批（骨架 + 核心内容）
 > 适用范围：HFWAS DevOps 全部 8 个已上线子系统
 > 数据来源：`README.md`、`frontend/src/router.tsx`、`frontend/src/shared/console/products.ts`、`backend/*/controller`、`backend/*/src/main/resources/db/*.sql`
@@ -18,6 +18,7 @@
 | v0.6 | 2026-10-18 | 新增流水线产品五年规划、行业对标与页面习惯审计入口 |
 | v0.7 | 2026-10-18 | 新增流水线用户操作手册入口 `docs/pipeline/pipeline-user-manual.md` |
 | v0.8 | 2026-10-18 | 新增 AI 用户走查标准与首份流水线原型走查报告入口 |
+| v0.9 | 2026-10-20 | PM 详细设计入口补充模块文档索引，指向按原型 v1.7 重构的 pm-design v2.0 |
 
 ---
 
@@ -116,7 +117,7 @@
 | 主题 | 现有文档 |
 |------|----------|
 | 错误码规范与清单 | [../backend/error-code-design.md](../backend/error-code-design.md) |
-| PM 详细设计 | [../pm/pm-design.md](../pm/pm-design.md)、[../pm/pm-api.md](../pm/pm-api.md) |
+| PM 详细设计 | [../pm/README.md](../pm/README.md)（文档索引）、[../pm/pm-design.md](../pm/pm-design.md)、[../pm/pm-api.md](../pm/pm-api.md) |
 | 流水线详细设计与 API | [../pipeline/](../pipeline/)、[../pipeline/pipeline-core-api.md](../pipeline/pipeline-core-api.md) |
 | 流水线五年规划 | [pipeline-5year-roadmap.md](../pipeline/pipeline-5year-roadmap.md) |
 | 流水线行业对标 | [pipeline-industry-benchmark.md](../pipeline/pipeline-industry-benchmark.md) |

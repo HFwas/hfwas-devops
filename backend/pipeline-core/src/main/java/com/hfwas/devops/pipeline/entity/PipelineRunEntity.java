@@ -17,6 +17,7 @@ public class PipelineRunEntity {
     private Long pipelineId;
     private Long tenantId;
     private String status;
+    @TableField("trigger_type")
     private String trigger;
     private String gitRef;
     private String commitSha;

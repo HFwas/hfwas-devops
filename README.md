@@ -1,7 +1,7 @@
 # HFWAS DevOps
 
-> 日期：2026-10-19
-> 版本：v0.9
+> 日期：2026-10-21
+> 版本：v0.10
 
 ### 变更记录
 
@@ -16,10 +16,11 @@
 | v0.7 | 2026-10-17 | 新增 `docs/product/` 产品文档体系索引；修正前端技术栈（React 19）、认证说明与失效文档链接 |
 | v0.8 | 2026-10-18 | 文档索引新增流水线用户操作手册 |
 | v0.9 | 2026-10-19 | 本地编排文件收敛到 `deploy/`：`docker-compose.yml`、`kong/kong.yml` 迁移，更新项目结构与 Compose 命令 |
+| v0.10 | 2026-10-21 | 数据库切换为 MySQL 8 + Flyway；更新本地启动、连接串与 Compose/Helm 说明 |
 
 ---
 
-可扩展的 DevOps 平台，当前包含 **项目管理（PM）**、**用户/租户中心**、**流水线/CI**、**容器平台**、**API 测试平台**、**文档生成（Docgen）**、**文件解析（File Parser）** 与 **图片处理** 八大子系统。后端为单体 Spring Boot 服务，前端为 React 19 SPA，本地开发使用 SQLite，零外部依赖即可启动。产品级文档（总览、功能、数据库、接口、测试、原型、运维）见 [docs/product/README.md](docs/product/README.md)。
+可扩展的 DevOps 平台，当前包含 **项目管理（PM）**、**用户/租户中心**、**流水线/CI**、**容器平台**、**API 测试平台**、**文档生成（Docgen）**、**文件解析（File Parser）** 与 **图片处理** 八大子系统。后端为单体 Spring Boot 服务，前端为 React 19 SPA，本地开发使用 MySQL 8（Compose 提供），Flyway 自动迁移。产品级文档（总览、功能、数据库、接口、测试、原型、运维）见 [docs/product/README.md](docs/product/README.md)。
 
 ---
 
@@ -129,7 +130,7 @@
 | 后端 | Java 21、Spring Boot 3.4、Spring Security、MyBatis-Plus |
 | 前端 | React 19、TypeScript、Vite 6、React Router 8、Tailwind CSS v4、shadcn/ui、TanStack Query、Zustand |
 | 脚本 | Python 3（python-docx、openpyxl、python-pptx、matplotlib、fpdf） |
-| 数据库 | SQLite（Compose / Helm 由 `schema-migrate` 容器执行 SQL；宿主机 `start-backend.sh` 仍进程内建表） |
+| 数据库 | MySQL 8（Flyway 迁移；本地/CI/生产统一） |
 | 构建 | Maven 3.8+、npm |
 | CI/CD | Tekton（自定义 CRD + Tekton Compiler + Task 模板化） |
 | 容器 | Docker、Kubernetes（k3s / Docker Desktop）、Helm |
@@ -435,7 +436,7 @@ BACKEND_PORT=8089 FRONTEND_PORT=5173 ./scripts/start-dev.sh
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
 | `server.port` | `8089` | HTTP 端口 |
-| `spring.datasource.url` | `jdbc:sqlite:./data/hfwas-devops.db` | SQLite 路径（相对 server 工作目录） |
+| `spring.datasource.url` | `jdbc:mysql://localhost:3306/hfwas_devops?...` | MySQL 连接串（环境变量 `DB_URL`） |
 | `user.jwt.secret` | 内置 dev 值 | **生产必须修改** |
 | `user.jwt.expire-seconds` | `86400` | Token 有效期（秒） |
 | `docgen.script-path` | `../scripts/generate_doc.py` | 文档生成 Python 脚本路径 |

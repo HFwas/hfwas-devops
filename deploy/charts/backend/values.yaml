@@ -15,8 +15,11 @@ image:
 replicaCount: 1
 
 strategy:
-  # SQLite 单写 + RWO 卷：重建而不是滚动，避免两个 Pod 并发迁移/写库。
-  type: Recreate
+  # MySQL 支持多副本；迁移由 pre-upgrade Job 串行执行。
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0
+    maxSurge: 1
 
 service:
   type: ClusterIP
@@ -37,13 +40,22 @@ config:
 # JVM 参数（OTel 启用时会自动前置 -javaagent）
 javaToolOptions: "-Xms512m -Xmx1g -XX:MaxDirectMemorySize=512m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/dumps"
 
-# SQL 变更：initContainer 专职执行 files/db/*.sql，应用不再建表
-schema:
-  init:
-    enabled: true
-    image: python:3.12-alpine
-    imagePullPolicy: IfNotPresent
-    dbFile: hfwas-devops.db
+# MySQL 连接（生产建议使用外部 RDS/独立 MySQL，Secret 单独管理）
+database:
+  host: mysql
+  port: 3306
+  name: hfwas_devops
+  username: devops
+  password: devops
+  params: "useUnicode=true&characterEncoding=UTF-8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true"
+
+# Flyway 迁移（pre-install/pre-upgrade Job）
+migration:
+  enabled: true
+  image: hfwas/devops-db-migrate:latest
+  imagePullPolicy: IfNotPresent
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 600
 
 # OpenTelemetry Java Agent（initContainer 拷 jar，Prometheus 拉 /metrics）
 otel:
@@ -95,7 +107,7 @@ livenessProbe:
 # readinessProbe
 readinessProbe:
   enabled: true
-  path: /health/check
+  path: /health/ready
   initialDelaySeconds: 30
   periodSeconds: 10
   timeoutSeconds: 5
@@ -110,7 +122,7 @@ resources:
     cpu: 2
     memory: 2Gi
 
-# 持久化（SQLite 数据）
+# 应用数据卷（上传/临时文件；数据库在 MySQL，不在该卷）
 persistence:
   enabled: true
   storageClass: ""

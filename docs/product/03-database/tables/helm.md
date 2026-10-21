@@ -55,7 +55,7 @@ chart 制品/版本。
 
 ## 公共约定
 
-- 主键 `AUTOINCREMENT`。
+- 主键 `AUTO_INCREMENT`。
 - 时间字段 `created_at`，无 `updated_at`。
 - 无逻辑删除字段。
 - 无 `create_by`，上传人使用 `uploaded_by`。

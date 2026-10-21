@@ -1,20 +1,16 @@
 spring:
   datasource:
-    url: jdbc:sqlite::memory:?foreign_keys=on
-    driver-class-name: org.sqlite.JDBC
-    # SQLite 无需用户名密码
-    username: ''
-    password: ''
-
-  # SQLite 不支持某些 JPA/MyBatis-Plus 特性，需关闭
-  sql:
-    init:
-      mode: always
-      schema-locations: classpath:sql/init.sql
+    # 实际值由 BaseApiTest 的 @DynamicPropertySource 注入：
+    # 默认 Testcontainers mysql:8.0.40，可用 -Dtest.mysql.url 指向外部 MySQL。
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    clean-disabled: true
+    placeholder-replacement: false
 
 mybatis-plus:
   configuration:
-    # SQLite 不支持某些 MySQL 函数，使用标准 SQL
     map-underscore-to-camel-case: true
     # 开启 SQL 日志便于调试
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
@@ -22,11 +18,9 @@ mybatis-plus:
     default-enum-type-handler: org.apache.ibatis.type.EnumTypeHandler
   global-config:
     db-config:
-      # SQLite 不支持逻辑删除的默认值，但 MyBatis-Plus 支持
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
-      # 主键类型：SQLite 使用自增主键
       id-type: ASSIGN_ID
   # 开启 XML 映射
   mapper-locations: classpath*:mapper/**/*.xml

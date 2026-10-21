@@ -1,8 +1,8 @@
 # 接口测试平台 — 单元测试策略
 
 > 项目：hfwas-devops · api-test-core
-> 测试框架：JUnit 5 + AssertJ + Mockito + SQLite
-> 更新日期：2026-08-13
+> 测试框架：JUnit 5 + AssertJ + Mockito + MySQL 8 (Testcontainers)
+> 更新日期：2026-10-21
 
 ---
 
@@ -15,7 +15,7 @@
 | 测试框架 | JUnit 5 (Jupiter) | `@Test`, `@ParameterizedTest` |
 | 断言库 | AssertJ 3.x | 流式断言，`assertThat().isEqualTo().hasSize()` |
 | Mock 框架 | Mockito 5.x | `@Mock`, `@InjectMocks`, `@Spy` |
-| 内存数据库 | SQLite (xerial JDBC) | `jdbc:sqlite::memory:`，cache=shared |
+| 测试数据库 | MySQL 8 (Testcontainers) | `mysql:8.0.40`；无 Docker 时用 `-Dtest.mysql.url` 指向外部库 |
 | ORM 测试 | MyBatis-Plus Spring Boot Test | Mapper 集成测试 |
 | Web 层测试 | Spring MockMvc | Controller 接口测试 |
 | JSON 处理 | Jackson | 序列化/反序列化 |
@@ -26,9 +26,9 @@
 ┌─────────────────────────────────────────────┐
 │          Controller 层 (MockMvc)             │  ← 接口校验、参数校验、异常包装
 ├─────────────────────────────────────────────┤
-│          Service 层 (Mock/SQLite)            │  ← 业务规则、状态流转、事务边界
+│          Service 层 (Mock/MySQL)            │  ← 业务规则、状态流转、事务边界
 ├─────────────────────────────────────────────┤
-│          Mapper 层 (SQLite)                  │  ← SQL、索引、约束、审计字段
+│          Mapper 层 (MySQL)                  │  ← SQL、索引、约束、审计字段
 ├─────────────────────────────────────────────┤
 │          Entity / Converter 层               │  ← 实体构造、转换、JSON序列化
 ├─────────────────────────────────────────────┤
@@ -39,9 +39,9 @@
 ### 1.3 测试隔离策略
 
 - 每个测试类使用 `@Transactional` + `@Rollback` 确保方法间隔离
-- Mapper 测试使用 SQLite 内存数据库，每次测试方法独立事务
+- Mapper 测试使用 MySQL 测试库，每次测试方法独立事务
 - 测试数据通过 `@BeforeEach` 统一初始化，或通过 `@Sql` 脚本加载
-- Service 测试中，依赖 Mapper 的用 SQLite 真实数据库，依赖外部组件的用 Mockito
+- Service 测试中，依赖 Mapper 的用 MySQL 真实数据库，依赖外部组件的用 Mockito
 
 ---
 
@@ -160,9 +160,9 @@
 
 ## 四、测试数据准备
 
-### 4.1 SQLite 内存数据库
+### 4.1 MySQL 测试数据库
 
-- 测试数据库：`jdbc:sqlite::memory:?cache=shared&foreign_keys=on`
+- 测试数据库：Testcontainers `mysql:8.0.40`（库名 `hfwas_test`，Flyway 建表）
 - 建表脚本：`src/test/resources/sql/init.sql`
 - 每个测试类执行前自动建表，结束后自动销毁
 - 使用 `@Transactional` 确保方法间数据隔离

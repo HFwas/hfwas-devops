@@ -86,7 +86,7 @@
 
 ### 4.1 表命名
 
-本仓库以 SQLite 为主，统一使用**小写 snake_case + 单数名词**：
+本仓库以 MySQL 8 为主，统一使用**小写 snake_case + 单数名词**：
 
 | 规则 | 示例 |
 |------|------|
@@ -121,7 +121,7 @@
 | 普通索引 | `idx_<表名>_<字段>` | `idx_pipeline_run_pipeline` |
 | 唯一索引 | `uk_<表名>_<字段>` | `uk_dep_comp_pipeline_identity` |
 | 联合索引 | `idx_<表名>_<字段1>_<字段2>` | `idx_collection_item_collection` |
-| 主键 | SQLite 隐式 `pk` | `id INTEGER PRIMARY KEY` |
+| 主键 | MySQL 自增/雪花 | `id BIGINT AUTO_INCREMENT` 或 `id BIGINT PRIMARY KEY` |
 
 ## 5. 表级元数据（每表必填）
 
@@ -168,7 +168,7 @@
 | 2 | `pipeline_id` | 流水线 ID | FK | 是 | bigint | - | N | - | 关联 `pipeline.id` |
 | 3 | `status` | 运行状态 | - | 是 | varchar | 32 | N | `QUEUED` | 见状态枚举 |
 | 4 | `runtime_params` | 运行时参数 | - | 否 | json | - | Y | - | JSON，见 8.2 |
-| 5 | `create_time` | 创建时间 | - | 否 | datetime | - | N | `datetime('now')` | 系统字段 |
+| 5 | `create_time` | 创建时间 | - | 否 | datetime | - | N | `CURRENT_TIMESTAMP` | 系统字段 |
 
 ### 6.1 列填写规则
 
@@ -185,14 +185,14 @@
 | 默认值 | SQL 默认值或应用层默认值；无则 `-` |
 | 说明 | 必填：取值范围/枚举、关联表、单位、敏感标记、业务规则 |
 
-### 6.2 SQLite 类型映射
+### 6.2 MySQL 类型映射
 
-| 逻辑类型 | SQLite 物理类型 | 说明 |
+| 逻辑类型 | MySQL 物理类型 | 说明 |
 |----------|-----------------|------|
 | bigint / int | `INTEGER` | 雪花 ID、外键、计数 |
 | varchar / text | `TEXT` | 长度由应用层校验 |
 | decimal | `REAL` 或 `TEXT` | 金额建议 `TEXT` 或整数分 |
-| datetime / date | `TEXT` | ISO-8601 或 `datetime('now')` |
+| datetime / date | `TEXT` | ISO-8601 或 `CURRENT_TIMESTAMP` |
 | boolean | `INTEGER` | 0/1 |
 | json | `TEXT` | 文档必须给出 JSON Schema 与示例 |
 | blob | `BLOB` | 文件内容（当前少用） |
@@ -218,7 +218,7 @@
 | 15 | `started_at` | 开始时间 | - | - | datetime | - | Y | - | 创建时写入 |
 | 16 | `finished_at` | 结束时间 | - | - | datetime | - | Y | - | 终态写入 |
 | 17 | `create_by` | 创建人 | - | - | bigint | - | Y | - | 用户 ID |
-| 18 | `create_time` | 创建时间 | - | - | datetime | - | N | `datetime('now')` | 系统字段 |
+| 18 | `create_time` | 创建时间 | - | - | datetime | - | N | `CURRENT_TIMESTAMP` | 系统字段 |
 
 ## 7. 索引与约束
 
@@ -436,8 +436,8 @@ JSON：……
 
 ### 14.1 本规范的取舍
 
-- **文档字段用 snake_case**：与仓库 SQLite schema 和代码一致，避免 camelCase/snake_case 双写；接口 camelCase 映射在 API 文档注明。
-- **保留 10 列数据字典**：但把“长度”扩展为“长度/精度”，适配 SQLite 与 decimal。
+- **文档字段用 snake_case**：与仓库 MySQL schema 和代码一致，避免 camelCase/snake_case 双写；接口 camelCase 映射在 API 文档注明。
+- **保留 10 列数据字典**：但把“长度”扩展为“长度/精度”，适配 MySQL 与 decimal。
 - **不强制复制 DDL**：schema SQL 是事实来源，文档只引用文件与差异，降低漂移。
 - **ER 图用 Mermaid**：GitHub/GitLab/IDE 原生渲染；DBML 作为可选增强。
 - **承认历史差异**：现有逻辑删除有 `del_flag`/`deleted` 两套、时间有 `_time`/`_at` 两套，文档必须如实说明，新表统一选择一套。

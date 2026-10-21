@@ -21,6 +21,7 @@ COPY backend/file-parser/pom.xml backend/file-parser/
 COPY backend/image-core/pom.xml backend/image-core/
 COPY backend/pipeline-core/pom.xml backend/pipeline-core/
 COPY backend/container-core/pom.xml backend/container-core/
+COPY backend/db-migration/pom.xml backend/db-migration/
 COPY backend/server/pom.xml backend/server/
 
 # 预拉依赖（失败不阻断：个别 optional 解析失败时仍可用缓存继续 package）

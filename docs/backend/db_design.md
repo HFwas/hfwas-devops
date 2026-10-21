@@ -1,16 +1,20 @@
 # 接口测试平台 — 数据库设计
 
 > 模块：api-test-core（接口测试核心）
-> 技术栈：SQLite 3 + MyBatis Plus + Redisson (本地开发) / MySQL 8.3 (生产)
-> 日期：2026-08-28
+> 技术栈：MySQL 8 + MyBatis Plus + Redisson
+> 日期：2026-10-21
+> 版本：v2.0
+
+### 变更记录
+
+| 版本 | 日期 | 变更说明 |
+|------|------|----------|
+| v1.0 | 2026-08-28 | 初版：api-test 16 张表设计 |
+| v2.0 | 2026-10-21 | 全平台切换 MySQL 8，删除 SQLite 本地差异说明；迁移由 Flyway V1 承载 |
 
 ---
 
-> **说明：** 本设计文档以 MySQL 为基准描述表结构，实际本地开发使用 SQLite（`backend/server/src/main/resources/db/api-test-schema.sql`）。差异如下：
-> - 字段类型：`BIGINT` → `INTEGER`、`VARCHAR(n)` → `TEXT`、`TINYINT` → `INTEGER`、`JSON` → `TEXT`、`DATETIME` → `TEXT`
-> - 默认值：`CURRENT_TIMESTAMP` → `datetime('now')`、`ON UPDATE CURRENT_TIMESTAMP` → 由应用层维护 `update_time`
-> - 字段名：`created_by` → `create_by`、`updated_by` → `update_by`
-> - 生产环境可切换为 MySQL，SQL 需做对应转换。
+> **说明：** 本文档以 MySQL 8 为唯一目标数据库；实际 DDL 以 `backend/db-migration/src/main/resources/db/migration/V1__initial_schema.sql` 为准，本文档保留设计与字段说明。
 >
 > ---
 

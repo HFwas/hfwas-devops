@@ -22,6 +22,7 @@
         <module>image-core</module>
         <module>pipeline-core</module>
         <module>container-core</module>
+        <module>db-migration</module>
         <module>server</module>
     </modules>
 

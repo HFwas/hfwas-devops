@@ -149,7 +149,7 @@ api_environment 1 ── N api_environment_variable
 |------|------|
 | 表前缀 | `sys_`（用户/租户）、`pm_`、`api_`、`pipeline_`、`cluster_`、`registry_`、`helm_`、`image_`、`dependency_` |
 | 主键 | 统一 `INTEGER PRIMARY KEY`；user/container/helm 使用自增，其余由 MyBatis-Plus 雪花 ID 生成 |
-| 时间字段 | 多数表用 `create_time` / `update_time`（TEXT，`datetime('now')`）；container/helm 用 `created_at` / `updated_at` |
+| 时间字段 | 多数表用 `create_time` / `update_time`（`DATETIME`，默认 `CURRENT_TIMESTAMP`）；container/helm 用 `created_at` / `updated_at` |
 | 逻辑删除 | PM/user 用 `del_flag`（0/1）；api-test/pipeline/image 用 `deleted`（0/1）；container/helm 无逻辑删除 |
 | 租户字段 | `tenant_id`；api-test 使用 `project_id` 而**没有** `tenant_id` |
 | 状态值 | 统一使用小写英文/下划线，如 `draft`、`published`、`deprecated`、`succeeded`、`failed` |

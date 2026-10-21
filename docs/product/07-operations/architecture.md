@@ -1,7 +1,7 @@
 # 系统架构
 
-> 日期：2026-10-19
-> 版本：v0.2
+> 日期：2026-10-21
+> 版本：v0.3
 > 状态：已完成
 > 数据来源：`pom.xml`、`backend/*/pom.xml`、`frontend/src/`、`deploy/docker-compose.yml`、`deploy/charts/`、`docs/backend/module_arch.md`
 
@@ -10,6 +10,7 @@
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | v0.1 | 2026-10-17 | 初版：模块划分、部署拓扑、请求与数据流 |
+| v0.3 | 2026-10-21 | 数据库由 SQLite 切换为 MySQL 8 + Flyway，更新拓扑与数据流 |
 | v0.2 | 2026-10-19 | 编排文件迁入 `deploy/`：更新 `docker-compose.yml` 路径引用 |
 
 ---
@@ -39,7 +40,7 @@
 └───────┬───────────────┬───────────────┬───────────────┬───────┘
         │               │               │               │
    ┌────▼────┐     ┌────▼────┐     ┌────▼─────┐    ┌────▼─────┐
-   │ SQLite  │     │ Keycloak│     │ Kubernetes│    │ Harbor / │
+   │ MySQL 8 │     │ Keycloak│     │ Kubernetes│    │ Harbor / │
    │ 单文件   │     │  JWT    │     │ + Tekton  │    │ Prometheus│
    └─────────┘     └─────────┘     └───────────┘    └──────────┘
 ```
@@ -97,7 +98,7 @@ frontend/src/
   → RequestIdFilter（MDC + 响应头）
   → TenantContextFilter（解析租户）
   → Controller → Service → Mapper
-  → SQLite / 外部服务
+  → MySQL / 外部服务
   → BaseResult（注入 requestId）
 ```
 
@@ -105,7 +106,7 @@ frontend/src/
 
 | 数据 | 存储位置 | 说明 |
 |------|----------|------|
-| 业务数据 | SQLite `data/hfwas-devops.db` | 用户、PM、流水线、容器连接信息、API 测试、图片历史 |
+| 业务数据 | MySQL 8 `hfwas_devops` | 用户、PM、流水线、容器连接信息、API 测试、图片历史 |
 | 上传/生成文件 | `data/uploads`、`files/`、Pod 文件系统 | 通过卷挂载持久化 |
 | 流水线日志 | `pipeline_run_job.log_text` + 日志文件 | `logs/` |
 | K8s 资源 | 集群 API（实时） | 不落库 |
@@ -118,7 +119,7 @@ frontend/src/
 ### 6.1 docker-compose（本地/单机）
 
 ```text
-frontend(80) ── backend(8089) ── SQLite(volume)
+frontend(80) ── backend(8089) ── MySQL 8(volume/RDS)
       │              │
       └── Kong(8000/8443/8001)
                      │
@@ -127,7 +128,7 @@ frontend(80) ── backend(8089) ── SQLite(volume)
           k3s(6443/30880/30222) + Tekton
 ```
 
-辅助一次性容器：`gateway-init`、`backend-build`、`frontend-build`、`schema-migrate`、`keycloak-spi`、`tekton-install`。
+辅助一次性容器：`gateway-init`、`backend-build`、`frontend-build`、`keycloak-spi`、`tekton-install`。
 
 ### 6.2 Kubernetes / Helm
 
@@ -157,6 +158,6 @@ frontend(80) ── backend(8089) ── SQLite(volume)
 ## 8. 已知架构风险
 
 1. PM/user Controller 与领域模块分离，依赖关系不够清晰。
-2. 单体 + SQLite，写入并发能力有限，未启用 WAL。
+2. 单体 + MySQL，写入并发由数据库与索引支撑；迁移由 Flyway 管理。
 3. 流水线/容器与 K8s 强耦合，本地未启动集群时相关功能降级。
 4. 部分模块（api-test）缺少 `tenant_id`，隔离依赖 `project_id`。

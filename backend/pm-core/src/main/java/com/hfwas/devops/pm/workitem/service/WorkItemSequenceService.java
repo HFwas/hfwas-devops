@@ -18,13 +18,18 @@ public class WorkItemSequenceService {
 
     @Transactional
     public int nextItemNo(Long projectId) {
-        PmProjectSequence sequence = sequenceMapper.selectById(projectId);
+        PmProjectSequence sequence = sequenceMapper.selectForUpdate(projectId);
         if (sequence == null) {
             int start = resolveStartItemNo(projectId);
             sequence = new PmProjectSequence();
             sequence.setProjectId(projectId);
             sequence.setNextItemNo(start);
-            sequenceMapper.insert(sequence);
+            try {
+                sequenceMapper.insert(sequence);
+            } catch (org.springframework.dao.DuplicateKeyException duplicate) {
+                // Another transaction created the row first; lock and continue with it.
+                sequence = sequenceMapper.selectForUpdate(projectId);
+            }
         }
         int itemNo = sequence.getNextItemNo();
         sequence.setNextItemNo(itemNo + 1);

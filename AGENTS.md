@@ -1,7 +1,7 @@
 # Agent instructions
 
-> 日期：2026-10-18
-> 版本：v0.24
+> 日期：2026-10-21
+> 版本：v0.26
 
 ### 变更记录
 
@@ -31,6 +31,8 @@
 | v0.22 | 2026-10-18 | 新增功能目录 `progress.md`：每轮 AI 协作必须追加进度记录，规范见 `docs/superpowers/features/README.md` |
 | v0.23 | 2026-10-18 | 迁移规范修正：external 执行器统一为 `migrate.py`；05 零 UPDATE；UPDATE 仅允许 16-*；下一编号 17；07-09 为历史跳号 |
 | v0.24 | 2026-10-18 | 原型先行补契约：每个功能填写 `prototype-contract.md`；默认 A2 对齐，共享组件先对账，视觉差异按分类登记并做真实应用截图校验 |
+| v0.25 | 2026-10-20 | 迁移编号修正：目录已用到 `17-clone-job-config.sql`，下一个编号为 `18`；补充分支内新增迁移前先复核目录最大编号 |
+| v0.26 | 2026-10-21 | 数据库切换为 MySQL 8 + Flyway：删除 SQLite/embedded/external 双模式，迁移文件改为 `backend/db-migration` 下的 `Vn__*.sql`，重建库不迁旧数据 |
 
 ---
 
@@ -327,27 +329,29 @@ Docker 容器访问宿主机代理用 `host.docker.internal:7890`，不要把 `1
 
 ## 数据库变更
 
-项目使用 SQLite，schema 初始化（`devops.schema.init`）分两种模式：
+项目使用 **MySQL 8**，迁移由 **Flyway** 执行；本地、CI、生产统一，不再维护 SQLite。
 
-- **`embedded`**（默认）：`SqliteSchemaInitializer` / `UserSchemaMigration` 进程内执行建表
-- **`external`**：Helm initContainer 用 `deploy/charts/backend/files/db/migrate.py` 执行 SQL（`migrate.sh` 仅保留为兼容包装）
+- 迁移文件：`backend/db-migration/src/main/resources/db/migration/`
+- 账本：`flyway_schema_history`
+- 开发/测试：Testcontainers `mysql:8.0.40`；无 Docker 时用 `-Dtest.mysql.url` 指向外部库
+- 生产：Helm pre-install/pre-upgrade Job 执行 Flyway，应用 `SPRING_FLYWAY_ENABLED=false`
 
 涉及 DDL / DML 变更时：
 
-1. **新增 SQL 文件，不修改已有文件。** 所有迁移脚本放在 `deploy/charts/backend/files/db/` 下，以 `.sql` 结尾。`migrate.py` 按文件名顺序执行，并对已执行文件做 checksum 校验 —— 修改已有文件默认拒绝启动；`05-pipeline-schema.sql` 是零 UPDATE 基线，允许安全重跑；其它历史文件必须在新增文件中做增量变更。
+1. **新增迁移文件，不修改已执行文件。** 文件名 `V<递增数字>__<snake_case>.sql`，例如 `V3__add_pm_end_time.sql`；Flyway 对已执行文件做 checksum 校验，修改会导致启动失败。
 
-2. **文件命名：`<两位递增数字>-<简短描述>.sql`。**
-   - 继承当前最大编号（目前 `16-upgrade-task-template-seeds.sql`，下一个就是 `17-`；`07-09` 为历史跳号，不回填）。
-   - 示例：`17-add-xx-column.sql`、`17-create-yy-table.sql`。
-   - 编码（同一级的不同变更）使用相同数字，下一级新数字。
+2. **禁止 SQLite 语法。** 不得出现 `AUTOINCREMENT`、`datetime('now')`、`INSERT OR IGNORE`、`PRAGMA`、`sqlite_master`、`json_each`、`CREATE INDEX IF NOT EXISTS`。CI 运行 `scripts/check-flyway-migrations.sh` 拦截。
 
-3. **SQL 应幂等。** 使用 `CREATE TABLE IF NOT EXISTS`、`ALTER TABLE ADD COLUMN`（`migrate.py` 会静默跳过重复列错误），确保重复执行安全。**UPDATE 仅允许在 `16-upgrade-task-template-seeds.sql`**，且必须精确匹配旧默认值；05 不得出现 UPDATE/DELETE/DROP。
+3. **MySQL 类型规则。**
+   - 主键、`*_id`、`tenant_id`、`create_by/update_by` 一律 `BIGINT`（雪花 ID 64 位）。
+   - 索引/唯一列必须是 `VARCHAR`，不得对 `TEXT` 建完整索引。
+   - JSON 字段继续存 `TEXT/MEDIUMTEXT`，SQL 用 `JSON_EXTRACT` / `JSON_UNQUOTE` / `JSON_CONTAINS`。
+   - `TIMESTAMP` 仅用于特殊场景；业务时间用 `DATETIME`，统一 UTC。
+   - `TRIGGER` 等保留字不得直接作为列名（`pipeline_run.trigger_type`）。
 
-4. **同步更新 Java 侧建表逻辑（`embedded` 模式）。**
-   - 实体变更 → 更新 `SqliteSchemaInitializer` 中的 schema DDL；如存在版本常量，同步递增。
-   - 确保两种模式建表结果一致。
+4. **重建库，不做旧兼容。** 本项目不迁移 SQLite 数据，也不为旧表结构写兼容分支；需要重置时 `DROP DATABASE` 后重跑 Flyway。
 
-5. **当前仅有 SQLite。** 引入新数据库（如 MySQL、PostgreSQL）时再建立对应子目录，命名规范后续补充。
+5. **更新文档。** 表、字段、索引、枚举变更时同步更新 `docs/product/03-database/` 与模块数据库设计；新的迁移编号写入 `docs/product/03-database/data-dictionary.md`。
 
 ## 数据库文档
 

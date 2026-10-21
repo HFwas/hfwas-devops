@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * EnvironmentService 业务逻辑测试
  * <p>
- * 继承 BaseApiTest 以使用 SQLite 内存数据库、事务自动回滚和自动填充。
+ * 继承 BaseApiTest 以使用 MySQL 测试数据库、事务自动回滚和自动填充。
  * 覆盖环境 CRUD、分页查询、变量管理、环境名唯一性校验、敏感变量掩码等核心逻辑。
  *
  * @author hfwas

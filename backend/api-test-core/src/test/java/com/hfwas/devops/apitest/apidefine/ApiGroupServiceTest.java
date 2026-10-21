@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * ApiGroupService 业务逻辑测试
  * <p>
- * 继承 BaseApiTest 以使用 SQLite 内存数据库、事务自动回滚和自动填充。
+ * 继承 BaseApiTest 以使用 MySQL 测试数据库、事务自动回滚和自动填充。
  * 覆盖分组 CRUD、树形结构构建、业务校验（同名、存在子分组/接口约束）等核心逻辑。
  *
  * @author hfwas

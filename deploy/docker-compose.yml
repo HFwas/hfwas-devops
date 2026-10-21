@@ -76,22 +76,30 @@ services:
       gateway-init:
         condition: service_completed_successfully
 
-  schema-migrate:
-    image: python:3.12-alpine
-    container_name: devops-schema-migrate
-    restart: "no"
-    environment:
-      SQL_DIR: /sql
-      DB_PATH: /app/data/hfwas-devops.db
-    volumes:
-      - devops-data:/app/data
-      - ./charts/backend/files/db:/sql:ro
+  mysql:
+    image: mysql:8.0.40
+    container_name: devops-mysql
+    restart: unless-stopped
     command:
-      [
-        "sh",
-        "-c",
-        "python3 /sql/migrate.py && chown -R 1000:1000 /app/data",
-      ]
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+00:00
+      - --max-connections=300
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: hfwas_devops
+      MYSQL_USER: devops
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-devops}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
     depends_on:
       gateway-init:
         condition: service_completed_successfully
@@ -110,9 +118,11 @@ services:
       USER_JWT_EXPIRE_SECONDS: "86400"
       DOCGEN_OUTPUT_DIR: /app/files
       MALLOC_ARENA_MAX: "2"
-      JAVA_TOOL_OPTIONS: "-DLOG_DIR=/app/logs"
-      # SQL 由 schema-migrate 专职执行，应用不再建表
-      DEVOPS_SCHEMA_INIT: external
+      JAVA_TOOL_OPTIONS: "-DLOG_DIR=/app/logs -Duser.timezone=UTC"
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/hfwas_devops?useUnicode=true&characterEncoding=UTF-8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+      SPRING_DATASOURCE_USERNAME: devops
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-devops}
+      SPRING_FLYWAY_ENABLED: "true"
       # 容器内 localhost:8000 是 backend 自己；JWT 公钥直接打 Keycloak
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/auth/realms/hfwas-devops/protocol/openid-connect/certs
       # issuer-uri 需与 JWT token 的 iss 字段一致，生产由 Helm values 注入
@@ -142,8 +152,8 @@ services:
       retries: 3
       start_period: 60s
     depends_on:
-      schema-migrate:
-        condition: service_completed_successfully
+      mysql:
+        condition: service_healthy
       backend-build:
         condition: service_completed_successfully
       keycloak:
@@ -325,6 +335,8 @@ volumes:
   devops-data:
     driver: local
   devops-files:
+    driver: local
+  mysql-data:
     driver: local
   k3s-server:
     driver: local
