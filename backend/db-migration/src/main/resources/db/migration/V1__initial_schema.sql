@@ -4,6 +4,7 @@ SET NAMES utf8mb4;
 SET SESSION sql_mode = CONCAT(@@sql_mode, ',NO_BACKSLASH_ESCAPES');
 
 CREATE TABLE sys_tenant (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     code VARCHAR(64) COLLATE utf8mb4_bin NOT NULL,
     name VARCHAR(128) NOT NULL,
@@ -14,10 +15,12 @@ CREATE TABLE sys_tenant (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     del_flag TINYINT DEFAULT 0,
-    UNIQUE KEY uk_sys_tenant_code (code)
+    UNIQUE KEY uk_sys_tenant_code (code),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE sys_user (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     username VARCHAR(100) COLLATE utf8mb4_bin NOT NULL,
     password VARCHAR(255),
@@ -32,20 +35,24 @@ CREATE TABLE sys_user (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     del_flag TINYINT DEFAULT 0,
-    UNIQUE KEY uk_sys_user_username (username)
+    UNIQUE KEY uk_sys_user_username (username),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE sys_tenant_member (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
     tenant_role VARCHAR(64) NOT NULL DEFAULT 'member',
     status TINYINT DEFAULT 1,
     join_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    del_flag TINYINT DEFAULT 0
+    del_flag TINYINT DEFAULT 0,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE sys_login_log (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     kc_event_id VARCHAR(64) COLLATE utf8mb4_bin NOT NULL,
     user_id BIGINT,
@@ -58,10 +65,12 @@ CREATE TABLE sys_login_log (
     client_info MEDIUMTEXT,
     fail_reason MEDIUMTEXT,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_sys_login_log_kc_event_id (kc_event_id)
+    UNIQUE KEY uk_sys_login_log_kc_event_id (kc_event_id),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE sys_oper_log (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT,
     username VARCHAR(100),
@@ -77,10 +86,12 @@ CREATE TABLE sys_oper_log (
     user_agent MEDIUMTEXT,
     client_info MEDIUMTEXT,
     extra_json MEDIUMTEXT,
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE sys_identity_connector (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     name VARCHAR(128) NOT NULL,
     type VARCHAR(64) NOT NULL,
@@ -94,10 +105,12 @@ CREATE TABLE sys_identity_connector (
     last_sync_count INT,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    del_flag TINYINT DEFAULT 0
+    del_flag TINYINT DEFAULT 0,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE sys_user_message (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     tenant_id BIGINT,
@@ -112,10 +125,12 @@ CREATE TABLE sys_user_message (
     link_url MEDIUMTEXT,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     read_time DATETIME,
-    del_flag TINYINT DEFAULT 0
+    del_flag TINYINT DEFAULT 0,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE sys_notify_channel (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     channel VARCHAR(64) COLLATE utf8mb4_bin NOT NULL,
     enabled TINYINT DEFAULT 0,
@@ -124,10 +139,12 @@ CREATE TABLE sys_notify_channel (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     del_flag TINYINT DEFAULT 0,
-    UNIQUE KEY uk_sys_notify_channel_channel (channel)
+    UNIQUE KEY uk_sys_notify_channel_channel (channel),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_project (
+
     id BIGINT NOT NULL,
     tenant_id BIGINT NOT NULL DEFAULT 1,
     code VARCHAR(64) COLLATE utf8mb4_bin NOT NULL,
@@ -138,18 +155,22 @@ CREATE TABLE pm_project (
     update_by BIGINT,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    del_flag TINYINT DEFAULT 0
+    del_flag TINYINT DEFAULT 0,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_project_member (
+
     id BIGINT NOT NULL,
     project_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
     role VARCHAR(64) NOT NULL DEFAULT 'member',
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_work_item_type (
+
     id BIGINT NOT NULL,
     code VARCHAR(64) COLLATE utf8mb4_bin NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -157,18 +178,22 @@ CREATE TABLE pm_work_item_type (
     color VARCHAR(255),
     sort_order INT DEFAULT 0,
     enabled TINYINT DEFAULT 1,
-    UNIQUE KEY uk_pm_work_item_type_code (code)
+    UNIQUE KEY uk_pm_work_item_type_code (code),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_project_issue_type (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     project_id BIGINT NOT NULL,
     type_code VARCHAR(255) COLLATE utf8mb4_bin NOT NULL,
     sort_order INT DEFAULT 0,
-    UNIQUE KEY uk_pm_project_issue_type_project_id_type_code (project_id, type_code)
+    UNIQUE KEY uk_pm_project_issue_type_project_id_type_code (project_id, type_code),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_work_item (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     project_id BIGINT NOT NULL,
     item_no INT NOT NULL,
@@ -188,15 +213,19 @@ CREATE TABLE pm_work_item (
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     del_flag TINYINT DEFAULT 0,
-    UNIQUE KEY uk_pm_work_item_project_id_item_no (project_id, item_no)
+    UNIQUE KEY uk_pm_work_item_project_id_item_no (project_id, item_no),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_project_sequence (
+
     project_id BIGINT NOT NULL,
-    next_item_no INT NOT NULL DEFAULT 1
+    next_item_no INT NOT NULL DEFAULT 1,
+    PRIMARY KEY (project_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_project_module (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     project_id BIGINT NOT NULL,
     parent_id BIGINT,
@@ -206,10 +235,12 @@ CREATE TABLE pm_project_module (
     enabled TINYINT DEFAULT 1,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    del_flag TINYINT DEFAULT 0
+    del_flag TINYINT DEFAULT 0,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_field_definition (
+
     id BIGINT NOT NULL,
     project_id BIGINT,
     scope VARCHAR(255) NOT NULL DEFAULT 'project',
@@ -223,26 +254,32 @@ CREATE TABLE pm_field_definition (
     system_flag TINYINT DEFAULT 0,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    del_flag TINYINT DEFAULT 0
+    del_flag TINYINT DEFAULT 0,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_field_option (
+
     id BIGINT NOT NULL,
     field_id BIGINT NOT NULL,
     option_key VARCHAR(255) NOT NULL,
     option_label VARCHAR(255) NOT NULL,
-    sort_order INT DEFAULT 0
+    sort_order INT DEFAULT 0,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_work_item_link (
+
     id BIGINT NOT NULL,
     source_id BIGINT NOT NULL,
     target_id BIGINT NOT NULL,
     link_type VARCHAR(255) NOT NULL,
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_work_item_comment (
+
     id BIGINT NOT NULL,
     work_item_id BIGINT NOT NULL,
     parent_id BIGINT,
@@ -250,10 +287,12 @@ CREATE TABLE pm_work_item_comment (
     author_name VARCHAR(255) NOT NULL,
     create_by BIGINT,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    del_flag TINYINT DEFAULT 0
+    del_flag TINYINT DEFAULT 0,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_work_item_activity (
+
     id BIGINT NOT NULL,
     work_item_id BIGINT NOT NULL,
     batch_id BIGINT,
@@ -268,10 +307,12 @@ CREATE TABLE pm_work_item_activity (
     old_label VARCHAR(255),
     new_label VARCHAR(255),
     extra_json MEDIUMTEXT,
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_status_definition (
+
     id BIGINT NOT NULL,
     project_id BIGINT,
     type_code VARCHAR(255) NOT NULL,
@@ -282,10 +323,12 @@ CREATE TABLE pm_status_definition (
     is_final TINYINT DEFAULT 0,
     layout_x DOUBLE,
     layout_y DOUBLE,
-    transitions MEDIUMTEXT
+    transitions MEDIUMTEXT,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_saved_view (
+
     id BIGINT NOT NULL,
     project_id BIGINT NOT NULL,
     user_id BIGINT,
@@ -295,20 +338,24 @@ CREATE TABLE pm_saved_view (
     columns MEDIUMTEXT,
     is_default TINYINT DEFAULT 0,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pm_type_field_layout (
+
     id BIGINT NOT NULL,
     project_id BIGINT NOT NULL,
     type_code VARCHAR(255) COLLATE utf8mb4_bin NOT NULL,
     layout_config MEDIUMTEXT NOT NULL,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_pm_type_field_layout_project_id_type_code (project_id, type_code)
+    UNIQUE KEY uk_pm_type_field_layout_project_id_type_code (project_id, type_code),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_group (
+
     id BIGINT NOT NULL,
     project_id BIGINT NOT NULL,
     parent_id BIGINT,
@@ -319,10 +366,12 @@ CREATE TABLE api_group (
     create_by BIGINT NOT NULL,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_definition (
+
     id BIGINT NOT NULL,
     project_id BIGINT NOT NULL,
     group_id BIGINT,
@@ -340,10 +389,12 @@ CREATE TABLE api_definition (
     create_by BIGINT NOT NULL,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_definition_param (
+
     id BIGINT NOT NULL,
     definition_id BIGINT NOT NULL,
     param_type VARCHAR(255) NOT NULL,
@@ -359,10 +410,12 @@ CREATE TABLE api_definition_param (
     create_by BIGINT NOT NULL,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_definition_response (
+
     id BIGINT NOT NULL,
     definition_id BIGINT NOT NULL,
     status_code INT NOT NULL,
@@ -374,10 +427,12 @@ CREATE TABLE api_definition_response (
     create_by BIGINT NOT NULL,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_definition_version (
+
     id BIGINT NOT NULL,
     definition_id BIGINT NOT NULL,
     version VARCHAR(64) NOT NULL,
@@ -390,10 +445,12 @@ CREATE TABLE api_definition_version (
     snapshot_description VARCHAR(255),
     deleted TINYINT NOT NULL DEFAULT 0,
     create_by BIGINT NOT NULL,
-    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_definition_script (
+
     id BIGINT NOT NULL,
     definition_id BIGINT NOT NULL,
     script_type VARCHAR(255) NOT NULL,
@@ -404,10 +461,12 @@ CREATE TABLE api_definition_script (
     create_by BIGINT NOT NULL,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_definition_assertion (
+
     id BIGINT NOT NULL,
     definition_id BIGINT NOT NULL,
     name VARCHAR(128),
@@ -420,10 +479,12 @@ CREATE TABLE api_definition_assertion (
     create_by BIGINT NOT NULL,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_definition_extract (
+
     id BIGINT NOT NULL,
     definition_id BIGINT NOT NULL,
     variable_name VARCHAR(255) NOT NULL,
@@ -434,10 +495,12 @@ CREATE TABLE api_definition_extract (
     create_by BIGINT NOT NULL,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_environment (
+
     id BIGINT NOT NULL,
     project_id BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
@@ -447,10 +510,12 @@ CREATE TABLE api_environment (
     create_by BIGINT NOT NULL,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_environment_variable (
+
     id BIGINT NOT NULL,
     environment_id BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
@@ -462,10 +527,12 @@ CREATE TABLE api_environment_variable (
     create_by BIGINT NOT NULL,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_debug_history (
+
     id BIGINT NOT NULL,
     project_id BIGINT NOT NULL,
     definition_id BIGINT,
@@ -492,10 +559,12 @@ CREATE TABLE api_debug_history (
     extracted_variables VARCHAR(255),
     deleted TINYINT NOT NULL DEFAULT 0,
     create_by BIGINT NOT NULL,
-    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_collection (
+
     id BIGINT NOT NULL,
     project_id BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
@@ -505,10 +574,12 @@ CREATE TABLE api_collection (
     create_by BIGINT NOT NULL,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_collection_folder (
+
     id BIGINT NOT NULL,
     collection_id BIGINT NOT NULL,
     parent_id BIGINT,
@@ -519,10 +590,12 @@ CREATE TABLE api_collection_folder (
     create_by BIGINT NOT NULL,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_collection_item (
+
     id BIGINT NOT NULL,
     collection_id BIGINT NOT NULL,
     folder_id BIGINT,
@@ -535,10 +608,12 @@ CREATE TABLE api_collection_item (
     create_by BIGINT NOT NULL,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_collection_run (
+
     id BIGINT NOT NULL,
     collection_id BIGINT NOT NULL,
     project_id BIGINT NOT NULL,
@@ -553,10 +628,12 @@ CREATE TABLE api_collection_run (
     trigger_mode VARCHAR(255) NOT NULL DEFAULT 'MANUAL',
     deleted TINYINT NOT NULL DEFAULT 0,
     create_by BIGINT NOT NULL,
-    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE api_collection_run_item (
+
     id BIGINT NOT NULL,
     run_id BIGINT NOT NULL,
     collection_item_id BIGINT,
@@ -578,10 +655,12 @@ CREATE TABLE api_collection_run_item (
     extracted_variables VARCHAR(255),
     sort_order INT NOT NULL DEFAULT 0,
     deleted TINYINT NOT NULL DEFAULT 0,
-    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE image_convert_history (
+
     id BIGINT NOT NULL,
     session_id BIGINT NOT NULL,
     user_id BIGINT,
@@ -598,10 +677,12 @@ CREATE TABLE image_convert_history (
     error_message MEDIUMTEXT,
     deleted TINYINT NOT NULL DEFAULT 0,
     create_by BIGINT,
-    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pipeline_credential (
+
     id BIGINT NOT NULL,
     tenant_id BIGINT NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -612,10 +693,12 @@ CREATE TABLE pipeline_credential (
     create_by BIGINT,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pipeline (
+
     id BIGINT NOT NULL,
     tenant_id BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
@@ -626,17 +709,21 @@ CREATE TABLE pipeline (
     create_by BIGINT,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pipeline_stage (
+
     id BIGINT NOT NULL,
     pipeline_id BIGINT NOT NULL,
     name VARCHAR(255) NOT NULL,
-    sort_order INT NOT NULL DEFAULT 0
+    sort_order INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pipeline_job (
+
     id BIGINT NOT NULL,
     pipeline_id BIGINT NOT NULL,
     stage_id BIGINT NOT NULL,
@@ -647,10 +734,12 @@ CREATE TABLE pipeline_job (
     runtime_version VARCHAR(255),
     tool_version VARCHAR(255),
     sort_order INT NOT NULL DEFAULT 0,
-    param_bindings MEDIUMTEXT NOT NULL DEFAULT ('{}')
+    param_bindings MEDIUMTEXT NOT NULL DEFAULT ('{}'),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pipeline_run (
+
     id BIGINT NOT NULL,
     pipeline_id BIGINT NOT NULL,
     tenant_id BIGINT NOT NULL,
@@ -670,10 +759,12 @@ CREATE TABLE pipeline_run (
     started_at DATETIME,
     finished_at DATETIME,
     create_by BIGINT,
-    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pipeline_run_job (
+
     id BIGINT NOT NULL,
     run_id BIGINT NOT NULL,
     job_id BIGINT,
@@ -687,10 +778,12 @@ CREATE TABLE pipeline_run_job (
     finished_at DATETIME,
     pod_name VARCHAR(255),
     namespace VARCHAR(255),
-    containers MEDIUMTEXT
+    containers MEDIUMTEXT,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pipeline_job_param (
+
     id BIGINT NOT NULL,
     pipeline_id BIGINT NOT NULL,
     job_id BIGINT NOT NULL,
@@ -711,10 +804,12 @@ CREATE TABLE pipeline_job_param (
     create_by BIGINT,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pipeline_task_kind_param (
+
     id BIGINT NOT NULL,
     kind_value VARCHAR(64) NOT NULL,
     param_key VARCHAR(128) NOT NULL,
@@ -734,10 +829,12 @@ CREATE TABLE pipeline_task_kind_param (
     create_by BIGINT,
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pipeline_task_kind (
+
     id BIGINT NOT NULL,
     tenant_id BIGINT NOT NULL DEFAULT 0,
     kind_value VARCHAR(64) COLLATE utf8mb4_bin NOT NULL,
@@ -762,20 +859,24 @@ CREATE TABLE pipeline_task_kind (
     update_by BIGINT,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_pipeline_task_kind_kind_value (kind_value)
+    UNIQUE KEY uk_pipeline_task_kind_kind_value (kind_value),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pipeline_task_kind_version (
+
     id BIGINT NOT NULL,
     kind_value VARCHAR(64) COLLATE utf8mb4_bin NOT NULL,
     version VARCHAR(64) COLLATE utf8mb4_bin NOT NULL,
     note MEDIUMTEXT NOT NULL DEFAULT (''),
     snapshot_json MEDIUMTEXT NOT NULL,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_pipeline_task_kind_version_kind_value_version (kind_value, version)
+    UNIQUE KEY uk_pipeline_task_kind_version_kind_value_version (kind_value, version),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE pipeline_run_artifact (
+
     id BIGINT NOT NULL,
     run_id BIGINT NOT NULL,
     job_id BIGINT,
@@ -786,10 +887,12 @@ CREATE TABLE pipeline_run_artifact (
     content_type VARCHAR(255) NOT NULL DEFAULT 'application/json',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_pipeline_run_artifact_run_id FOREIGN KEY (run_id) REFERENCES pipeline_run(id),
-    CONSTRAINT fk_pipeline_run_artifact_job_id FOREIGN KEY (job_id) REFERENCES pipeline_run_job(id)
+    CONSTRAINT fk_pipeline_run_artifact_job_id FOREIGN KEY (job_id) REFERENCES pipeline_run_job(id),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE dependency_component (
+
     id BIGINT NOT NULL,
     artifact_id BIGINT NOT NULL,
     run_id BIGINT NOT NULL,
@@ -805,10 +908,12 @@ CREATE TABLE dependency_component (
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_dependency_component_artifact_id FOREIGN KEY (artifact_id) REFERENCES pipeline_run_artifact(id),
     CONSTRAINT fk_dependency_component_run_id FOREIGN KEY (run_id) REFERENCES pipeline_run(id),
-    CONSTRAINT fk_dependency_component_pipeline_id FOREIGN KEY (pipeline_id) REFERENCES pipeline(id)
+    CONSTRAINT fk_dependency_component_pipeline_id FOREIGN KEY (pipeline_id) REFERENCES pipeline(id),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE cluster_info (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     name VARCHAR(128) COLLATE utf8mb4_bin NOT NULL,
@@ -821,10 +926,12 @@ CREATE TABLE cluster_info (
     labels MEDIUMTEXT DEFAULT ('{}'),
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_cluster_info_tenant_id_name (tenant_id, name)
+    UNIQUE KEY uk_cluster_info_tenant_id_name (tenant_id, name),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE registry_info (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     name VARCHAR(128) COLLATE utf8mb4_bin NOT NULL,
@@ -842,10 +949,12 @@ CREATE TABLE registry_info (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_registry_info_tenant_id_name (tenant_id, name),
-    CONSTRAINT fk_registry_info_cluster_id FOREIGN KEY (cluster_id) REFERENCES cluster_info(id) ON DELETE SET NULL
+    CONSTRAINT fk_registry_info_cluster_id FOREIGN KEY (cluster_id) REFERENCES cluster_info(id) ON DELETE SET NULL,
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE helm_chart_repository (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     name VARCHAR(128) COLLATE utf8mb4_bin NOT NULL,
@@ -854,10 +963,12 @@ CREATE TABLE helm_chart_repository (
     insecure TINYINT NOT NULL DEFAULT 0,
     credential_id BIGINT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_helm_chart_repository_tenant_id_name (tenant_id, name)
+    UNIQUE KEY uk_helm_chart_repository_tenant_id_name (tenant_id, name),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE helm_chart_artifact (
+
     id BIGINT NOT NULL AUTO_INCREMENT,
     repository_id BIGINT NOT NULL,
     tenant_id BIGINT NOT NULL,
@@ -875,7 +986,8 @@ CREATE TABLE helm_chart_artifact (
     uploaded_by BIGINT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_helm_chart_artifact_repository_id_chart_name_version (repository_id, chart_name, version),
-    CONSTRAINT fk_helm_chart_artifact_repository_id FOREIGN KEY (repository_id) REFERENCES helm_chart_repository(id)
+    CONSTRAINT fk_helm_chart_artifact_repository_id FOREIGN KEY (repository_id) REFERENCES helm_chart_repository(id),
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
 
 CREATE INDEX idx_sys_tenant_code ON sys_tenant (code);
