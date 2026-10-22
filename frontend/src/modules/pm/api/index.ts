@@ -1,7 +1,7 @@
 import { get, post, postBlob, postFormData } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
 import type { EntityId } from '@/modules/pm/utils/id'
-import type { AllowedTransitions, DetailTabDefinition, FeatureDefinition, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, IssueTypeSchemeExport, IssueTypeSchemeImportPreview, IssueTypeSchemeImportResult, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemActivity, PmWorkItemComment, PmWorkItemType, ProjectAccessContext, ProjectFieldSchemeExport, ProjectIssueTypeSchemeExport, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, SchemeImportMode, StatusDefinition, StatusWorkflow, TransitionMeta, TransitionPostFunctionMeta, TypeFieldLayoutConfig, TypeFieldSchemeExport, WorkItemImportMode, WorkItemImportPreview, WorkItemImportResult } from '@/modules/pm/types'
+import type { AllowedTransitions, BatchActionConfig, BatchOperationResult, DetailTabDefinition, FeatureDefinition, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, IssueTypeSchemeExport, IssueTypeSchemeImportPreview, IssueTypeSchemeImportResult, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemActivity, PmWorkItemComment, PmWorkItemType, ProjectAccessContext, ProjectFieldSchemeExport, ProjectIssueTypeSchemeExport, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, SchemeImportMode, StatusDefinition, StatusWorkflow, TransitionMeta, TransitionPostFunctionMeta, TypeFieldLayoutConfig, TypeFieldSchemeExport, WorkItemImportMode, WorkItemImportPreview, WorkItemImportResult, WorkItemIoColumn } from '@/modules/pm/types'
 import { asId } from '@/modules/pm/utils/id'
 
 export const pmModuleApi = {
@@ -39,9 +39,47 @@ export const pmWorkItemApi = {
     post<number>('/pm/work-items/comments/save', data),
   deleteComment: (id: EntityId) => post<void>(`/pm/work-items/comments/delete?id=${asId(id)}`, {}),
   listActivities: (id: EntityId) => get<PmWorkItemActivity[]>(`/pm/work-items/${asId(id)}/activities`),
+  listActivitiesPage: (id: EntityId, pageNo = 1, pageSize = 10) =>
+    get<PageResult<PmWorkItemActivity>>(
+      `/pm/work-items/${asId(id)}/activities/page?pageNo=${pageNo}&pageSize=${pageSize}`,
+    ),
+  batchUpdate: (payload: {
+    ids: EntityId[]
+    patch: Record<string, unknown>
+    versions?: Record<string, number>
+    dryRun?: boolean
+  }) =>
+    post<BatchOperationResult>('/pm/work-items/batch-update', {
+      ...payload,
+      ids: payload.ids.map(asId),
+    }),
+  batchTransition: (payload: {
+    ids: EntityId[]
+    transitionId?: string
+    toStatus?: string
+    fields?: Record<string, unknown>
+    versions?: Record<string, number>
+    dryRun?: boolean
+  }) =>
+    post<BatchOperationResult>('/pm/work-items/batch-transition', {
+      ...payload,
+      ids: payload.ids.map(asId),
+    }),
+}
+
+export const pmBatchActionConfigApi = {
+  list: (projectId: EntityId) =>
+    get<BatchActionConfig[]>(`/pm/projects/${asId(projectId)}/batch-action-configs`),
+  save: (projectId: EntityId, config: BatchActionConfig) =>
+    post<BatchActionConfig>(`/pm/projects/${asId(projectId)}/batch-action-configs`, config),
 }
 
 export const pmWorkItemIoApi = {
+  columns: (projectId: EntityId, typeCode?: string) => {
+    const params = new URLSearchParams({ projectId: asId(projectId) })
+    if (typeCode) params.set('typeCode', typeCode)
+    return get<WorkItemIoColumn[]>(`/pm/work-items/io/columns?${params.toString()}`)
+  },
   exportExcel: async (payload: {
     projectId: EntityId
     typeCode: string
@@ -185,10 +223,10 @@ export const pmStatusApi = {
 }
 
 export const pmViewApi = {
-  list: (projectId: number, typeCode?: string) =>
+  list: (projectId: EntityId, typeCode?: string) =>
     post<PmSavedView[]>('/pm/views/list', { projectId, typeCode }),
   save: (view: PmSavedView) => post<number>('/pm/views/save', view),
-  delete: (id: number) => post<void>(`/pm/views/delete?id=${id}`, {}),
+  delete: (id: EntityId) => post<void>(`/pm/views/delete?id=${asId(id)}`, {}),
 }
 
 export const pmMetaApi = {

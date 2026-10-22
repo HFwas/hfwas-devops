@@ -1,5 +1,12 @@
 import type { LucideIcon } from 'lucide-react'
-import { BookOpen, Bug, CircleDot, FlaskConical, ListTodo } from 'lucide-react'
+import { BookOpen, Bug, CircleDot, FlaskConical, IterationCw, Layers, ListTodo } from 'lucide-react'
+
+/** 全部工作项哨兵：路由使用 all，查询时必须省略 typeCode。 */
+export const ALL_ITEMS_CODE = 'all'
+
+export function isAllItemsType(typeCode?: string) {
+  return typeCode === ALL_ITEMS_CODE
+}
 
 export interface ProjectRouteContext {
   projectId: string
@@ -50,6 +57,10 @@ export function projectTypeIcon(code: string): LucideIcon {
       return Bug
     case 'test_case':
       return FlaskConical
+    case 'iteration':
+      return IterationCw
+    case 'all':
+      return Layers
     default:
       return CircleDot
   }

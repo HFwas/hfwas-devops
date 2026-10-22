@@ -12,9 +12,9 @@ vi.mock('@/modules/pm/api', () => ({
   },
   pmProjectIssueTypeApi: {
     list: vi.fn(async () => [
-      { code: 'requirement', name: '需求', enabled: 1 },
-      { code: 'task', name: '任务', enabled: 1 },
-      { code: 'bug', name: '缺陷', enabled: 1 },
+      { code: 'requirement', name: '需求', enabled: 1, workItemCount: 4, builtIn: 1 },
+      { code: 'task', name: '任务', enabled: 1, workItemCount: 6, builtIn: 1 },
+      { code: 'bug', name: '缺陷', enabled: 1, workItemCount: 2, builtIn: 1 },
       { code: 'epic', name: '史诗', enabled: 0 },
     ]),
   },
@@ -131,6 +131,10 @@ describe('AppShell', () => {
     await flush()
     expect(sidebar()).toContain('云原生交付平台')
     expect(sidebar()).toContain('全部项目')
+    expect(sidebar()).toContain('全部工作项')
+    const sidebarLinks = Array.from(container?.querySelectorAll('a') ?? []).map((link) => link.getAttribute('href'))
+    expect(sidebarLinks).toContain('/pm/projects/12/items/all')
+    expect(sidebar()).toContain('12')
     expect(sidebar()).toContain('需求')
     expect(sidebar()).toContain('任务')
     expect(sidebar()).toContain('缺陷')

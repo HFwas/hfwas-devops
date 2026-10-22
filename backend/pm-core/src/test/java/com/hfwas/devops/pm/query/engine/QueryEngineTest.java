@@ -106,6 +106,26 @@ class QueryEngineTest {
     }
 
     @Test
+    void topLevelOrSupportsNotLike() {
+        FieldResolver resolver = new FieldResolver(new FieldTypeRegistry(List.of(new TextFieldTypeHandler())));
+        QueryEngine engine = new QueryEngine(workItemMapper, fieldDefinitionService, resolver);
+        QuerySpec spec = new QuerySpec();
+        spec.setProjectId(1L);
+        spec.setLogic(QueryLogic.OR);
+        spec.setConditions(List.of(
+                condition("title", QueryOperator.NOT_LIKE, "草稿"),
+                condition("status", QueryOperator.EQ, "open")));
+        when(fieldDefinitionService.listByProjectAndType(1L, null)).thenReturn(List.of());
+        when(workItemMapper.selectPage(any(), any())).thenReturn(new Page<>());
+
+        engine.execute(spec, 10L);
+
+        ArgumentCaptor<QueryWrapper<PmWorkItem>> captor = ArgumentCaptor.forClass(QueryWrapper.class);
+        verify(workItemMapper).selectPage(any(), captor.capture());
+        assertThat(captor.getValue().getSqlSegment()).contains("NOT LIKE").containsPattern("\\bOR\\b");
+    }
+
+    @Test
     void topLevelAndKeepsConditions() {
         FieldResolver resolver = new FieldResolver(new FieldTypeRegistry(List.of(new TextFieldTypeHandler())));
         QueryEngine engine = new QueryEngine(workItemMapper, fieldDefinitionService, resolver);

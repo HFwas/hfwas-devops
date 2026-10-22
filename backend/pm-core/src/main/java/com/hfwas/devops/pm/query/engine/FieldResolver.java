@@ -80,6 +80,7 @@ public class FieldResolver {
             case LT -> wrapper.lt(column, value);
             case LTE -> wrapper.le(column, value);
             case LIKE -> wrapper.like(column, value);
+            case NOT_LIKE -> wrapper.notLike(column, value);
             case IN -> wrapper.in(column, toCollection(value));
             case NOT_IN -> wrapper.notIn(column, toCollection(value));
             case IS_NULL -> wrapper.isNull(column);

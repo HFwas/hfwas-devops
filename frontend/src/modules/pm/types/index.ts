@@ -6,6 +6,7 @@ export type QueryOperator =
   | 'LT'
   | 'LTE'
   | 'LIKE'
+  | 'NOT_LIKE'
   | 'IN'
   | 'NOT_IN'
   | 'BETWEEN'
@@ -54,6 +55,8 @@ export interface FieldDefinition {
   requiredFlag?: number
   sortOrder?: number
   systemFlag?: number
+  batchEditable?: number
+  batchOrder?: number
   showInList?: boolean
   searchable?: boolean
   showInCreate?: boolean
@@ -393,6 +396,10 @@ export interface PmWorkItem {
   reporterId?: number
   parentId?: number
   moduleId?: number | null
+  sprintId?: number | null
+  endTime?: string
+  version?: number | string
+  createTime?: string
   customFields?: Record<string, unknown>
   updateTime?: string
 }
@@ -478,21 +485,117 @@ export interface PmWorkItemType {
   color?: string
   sortOrder?: number
   enabled?: number
+  builtIn?: number
+  description?: string
+  templateCode?: string
+  workItemCount?: number
+  fieldCount?: number
 }
 
 export interface PmSavedView {
-  id?: number
-  projectId: number
+  id?: number | string
+  projectId: number | string
   name: string
   typeCode?: string
   querySpec: QuerySpec
   columns?: Array<Record<string, unknown>>
+  isDefault?: number
+  userId?: number | string
+  createTime?: string
+  updateTime?: string
+}
+
+export type FilterFieldType = 'text' | 'enum' | 'user' | 'date' | 'number'
+
+export type FilterOperator =
+  | 'CONTAINS'
+  | 'NOT_CONTAINS'
+  | 'EQ'
+  | 'NE'
+  | 'IN'
+  | 'NOT_IN'
+  | 'EMPTY'
+  | 'NOT_EMPTY'
+  | 'BEFORE'
+  | 'AFTER'
+  | 'BETWEEN'
+  | 'TODAY'
+  | 'THIS_WEEK'
+  | 'GT'
+  | 'LT'
+  | 'GTE'
+  | 'LTE'
+  | 'ON'
+
+export interface FilterCondition {
+  id: string
+  field: string
+  operator: FilterOperator
+  value: unknown
+}
+
+export interface FilterGroup {
+  id: string
+  logic: QueryLogic
+  conditions: FilterCondition[]
+}
+
+export interface FilterTree {
+  logic: QueryLogic
+  conditions: FilterCondition[]
+  groups: FilterGroup[]
+}
+
+export interface PmViewConfig {
+  listFields: string[]
+  searchFields: string[]
+  filterFields: string[]
+  density: 'compact' | 'standard'
+  sort: SortSpec[]
+}
+
+export interface BatchFieldChange {
+  fieldKey: string
+  oldValue: unknown
+  newValue: unknown
+}
+
+export interface BatchOperationItem {
+  id: string
+  outcome: 'SUCCESS' | 'SKIPPED' | 'FAILED'
+  code?: number
+  message?: string
+  version?: number
+  fromStatus?: string
+  toStatus?: string
+  changes?: BatchFieldChange[]
+}
+
+export interface BatchOperationResult {
+  batchId: string
+  dryRun: boolean
+  total: number
+  success: number
+  skipped: number
+  failed: number
+  items: BatchOperationItem[]
+}
+
+export interface BatchActionConfig {
+  actionCode: string
+  enabled: boolean
+  maxItems: number
+  requireConfirm: boolean
+  allowedRoles?: string[] | null
+  fieldWhitelist?: string[] | null
+  configured?: boolean
 }
 
 export const OPERATORS: { label: string; value: QueryOperator }[] = [
   { label: '等于', value: 'EQ' },
   { label: '不等于', value: 'NE' },
   { label: '包含', value: 'LIKE' },
+  { label: '不包含', value: 'NOT_LIKE' },
   { label: '在列表中', value: 'IN' },
   { label: '不在列表中', value: 'NOT_IN' },
   { label: '为空', value: 'IS_NULL' },

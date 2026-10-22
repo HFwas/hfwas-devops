@@ -14,6 +14,7 @@ export function ListPageShell({
   title,
   description,
   actions,
+  tabs,
   toolbar,
   filters,
   summary,
@@ -24,6 +25,7 @@ export function ListPageShell({
   onRetry,
   forbidden,
   empty = false,
+  emptyTitle,
   emptyContent,
   children,
   className,
@@ -31,6 +33,7 @@ export function ListPageShell({
   title: ReactNode
   description?: ReactNode
   actions?: ReactNode
+  tabs?: ReactNode
   toolbar?: ReactNode
   filters?: ReactNode
   summary?: ReactNode
@@ -41,6 +44,7 @@ export function ListPageShell({
   onRetry?: () => void
   forbidden?: ReactNode
   empty?: boolean
+  emptyTitle?: string
   emptyContent?: ReactNode
   children?: ReactNode
   className?: string
@@ -59,7 +63,7 @@ export function ListPageShell({
       </div>
     )
   } else if (empty) {
-    body = <EmptyState description={emptyContent} />
+    body = <EmptyState title={emptyTitle} description={emptyContent} variant={emptyTitle ? "no-result" : "empty"} />
   } else {
     body = children
   }
@@ -67,6 +71,7 @@ export function ListPageShell({
   return (
     <div data-slot="list-page-shell" className={cn('flex w-full flex-col gap-4 md:gap-6', className)}>
       <PageHeader title={title} description={description} actions={actions} />
+      {tabs}
       {toolbar ? <div className="flex flex-wrap items-center gap-2">{toolbar}</div> : null}
       {filters}
       {summary ? <div className="flex items-center justify-between text-sm text-muted-foreground">{summary}</div> : null}

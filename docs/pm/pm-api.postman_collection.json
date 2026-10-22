@@ -392,6 +392,78 @@
               "body": "{\"code\":20002,\"msg\":\"项目不存在或无权访问\",\"data\":null,\"requestId\":\"a1b2c3d4\"}"
             }
           ]
+        },
+        {
+          "name": "POST 事项查询 — 文本不包含",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{tenantId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pm/work-items/page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pm",
+                "work-items",
+                "page"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"typeCode\": \"task\",\n  \"logic\": \"AND\",\n  \"conditions\": [\n    {\n      \"field\": \"title\",\n      \"operator\": \"NOT_LIKE\",\n      \"value\": \"草稿\"\n    }\n  ],\n  \"sort\": [\n    {\n      \"field\": \"update_time\",\n      \"order\": \"DESC\"\n    }\n  ],\n  \"pageNo\": 1,\n  \"pageSize\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "成功：排除标题包含“草稿”的事项",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 0,\n  \"msg\": null,\n  \"data\": {\n    \"records\": [],\n    \"total\": 0,\n    \"size\": 10,\n    \"current\": 1,\n    \"pages\": 0\n  },\n  \"requestId\": \"a1b2c3d4\"\n}"
+            },
+            {
+              "name": "失败：403 无权访问",
+              "originalRequest": null,
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"code\": 20002,\n  \"msg\": \"项目不存在或无权访问\",\n  \"data\": null,\n  \"requestId\": \"a1b2c3d4\"\n}"
+            }
+          ]
         }
       ]
     },

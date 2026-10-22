@@ -49,6 +49,10 @@ public final class JsonSqlDialect {
         return jsonExtractUnquoted(column, fieldKey) + " LIKE '%" + escapedValue + "%'";
     }
 
+    public static String notLike(String column, String fieldKey, String escapedValue) {
+        return jsonExtractUnquoted(column, fieldKey) + " NOT LIKE '%" + escapedValue + "%'";
+    }
+
     public static String isNull(String column, String fieldKey) {
         return jsonExtractUnquoted(column, fieldKey) + " IS NULL";
     }

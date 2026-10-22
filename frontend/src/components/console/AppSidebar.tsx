@@ -24,6 +24,7 @@ import {
 import { useContainerCluster } from '@/modules/container/clusterStore'
 import { pmProjectApi, pmProjectIssueTypeApi } from '@/modules/pm/api'
 import {
+  ALL_ITEMS_CODE,
   isProjectItemActive,
   projectBoardPath,
   projectContextFromPath,
@@ -100,8 +101,9 @@ function ProjectMenu({ projectId, pathname }: { projectId: string; pathname: str
   })
 
   const types = (typesQuery.data ?? []).filter((type) => type.enabled !== 0)
+  const allItemsCount = types.reduce((sum, type) => sum + (type.workItemCount ?? 0), 0)
   const routeType = projectContextFromPath(pathname)?.typeCode
-  const typeCode = routeType ?? types[0]?.code ?? 'task'
+  const typeCode = routeType && routeType !== ALL_ITEMS_CODE ? routeType : types[0]?.code ?? 'task'
   const projectName = projectQuery.data?.name?.trim() || '工作项'
 
   return (
@@ -128,6 +130,21 @@ function ProjectMenu({ projectId, pathname }: { projectId: string; pathname: str
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === projectItemsPath(projectId, ALL_ITEMS_CODE)
+                  || pathname.startsWith(`${projectItemsPath(projectId, ALL_ITEMS_CODE)}/`)}
+                tooltip="全部工作项"
+                className={activeIconClass}
+              >
+                <Link to={projectItemsPath(projectId, ALL_ITEMS_CODE)}>
+                  {(() => { const Icon = projectTypeIcon('all'); return <Icon /> })()}
+                  <span>全部工作项</span>
+                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">{allItemsCount}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
             {types.map((type) => {
               const Icon = projectTypeIcon(type.code)
               const label = type.name || type.code
@@ -142,6 +159,8 @@ function ProjectMenu({ projectId, pathname }: { projectId: string; pathname: str
                     <Link to={projectItemsPath(projectId, type.code)}>
                       <Icon />
                       <span>{label}</span>
+                      <span className="ml-auto text-xs tabular-nums text-muted-foreground">{type.workItemCount ?? 0}</span>
+                      {type.builtIn === 0 ? <span className="text-[10px] text-muted-foreground">自</span> : null}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -105,7 +105,7 @@ export function ProjectListPage() {
             cell: (project) => (
               <Link
                 className="font-medium text-primary hover:underline"
-                to={`/pm/projects/${asId(project.id)}/items/task`}
+                to={`/pm/projects/${asId(project.id)}/items/all`}
               >
                 {project.name}
               </Link>
@@ -132,7 +132,7 @@ export function ProjectListPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => void navigate(`/pm/projects/${asId(project.id)}/items/task`)}
+                  onClick={() => void navigate(`/pm/projects/${asId(project.id)}/items/all`)}
                 >
                   进入
                 </Button>

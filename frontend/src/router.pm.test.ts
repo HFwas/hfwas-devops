@@ -21,6 +21,10 @@ describe('pm routes', () => {
       path: 'pm/projects/:projectId/items/:typeCode',
       name: 'WorkItemListPage',
     })
+    expect(leafName('/pm/projects/12/items/all')).toEqual({
+      path: 'pm/projects/:projectId/items/:typeCode',
+      name: 'WorkItemListPage',
+    })
     expect(leafName('/pm/projects/12/board/task')).toEqual({
       path: 'pm/projects/:projectId/board/:typeCode',
       name: 'BoardPage',

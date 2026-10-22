@@ -64,6 +64,23 @@ class FieldResolverTest {
     }
 
     @Test
+    void systemFieldSupportsNotLike() {
+        QueryWrapper<PmWorkItem> wrapper = new QueryWrapper<>();
+        resolver.applyCondition(wrapper, condition("title", QueryOperator.NOT_LIKE, "草稿"), Map.of());
+
+        assertThat(wrapper.getSqlSegment()).contains("NOT LIKE");
+    }
+
+    @Test
+    void customFieldSupportsNotLike() {
+        QueryWrapper<PmWorkItem> wrapper = new QueryWrapper<>();
+        resolver.applyCondition(wrapper, condition("custom.note", QueryOperator.NOT_LIKE, "草稿"),
+                Map.of("note", definition("note", "TEXT")));
+
+        assertThat(wrapper.getSqlSegment()).contains("NOT LIKE");
+    }
+
+    @Test
     void rejectsInvalidCustomFieldKey() {
         QueryWrapper<PmWorkItem> wrapper = new QueryWrapper<>();
         assertThatThrownBy(() -> resolver.applyCondition(wrapper,

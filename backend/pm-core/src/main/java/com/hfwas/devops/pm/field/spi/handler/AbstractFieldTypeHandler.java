@@ -31,6 +31,7 @@ public abstract class AbstractFieldTypeHandler implements FieldTypeHandler {
             case EQ -> JsonSqlDialect.eq("custom_fields", fieldKey, escape(value));
             case NE -> JsonSqlDialect.ne("custom_fields", fieldKey, escape(value));
             case LIKE -> JsonSqlDialect.like("custom_fields", fieldKey, escape(value));
+            case NOT_LIKE -> JsonSqlDialect.notLike("custom_fields", fieldKey, escape(value));
             case IS_NULL -> JsonSqlDialect.isNull("custom_fields", fieldKey);
             case IS_NOT_NULL -> JsonSqlDialect.isNotNull("custom_fields", fieldKey);
             case IN -> JsonSqlDialect.in("custom_fields", fieldKey, inList(value));

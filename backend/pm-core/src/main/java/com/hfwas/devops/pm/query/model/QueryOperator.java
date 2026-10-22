@@ -8,6 +8,7 @@ public enum QueryOperator {
     LT,
     LTE,
     LIKE,
+    NOT_LIKE,
     IN,
     NOT_IN,
     BETWEEN,

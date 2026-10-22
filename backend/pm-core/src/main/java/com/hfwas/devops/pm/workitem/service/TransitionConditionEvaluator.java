@@ -1,5 +1,6 @@
 package com.hfwas.devops.pm.workitem.service;
 
+import com.hfwas.devops.pm.common.PmDateTimeUtils;
 import com.hfwas.devops.pm.query.model.QueryCondition;
 import com.hfwas.devops.pm.query.model.QueryConditionGroup;
 import com.hfwas.devops.pm.query.model.QueryLogic;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 对单条事项内存评估 Transition Condition（QuerySpec 同形）。
@@ -28,9 +30,13 @@ public class TransitionConditionEvaluator {
 
     public static final String CURRENT_USER = "__current_user__";
 
+    private static final Pattern TEMPORAL_PATTERN =
+            Pattern.compile("^\\d{4}-\\d{2}-\\d{2}([ T]\\d{2}:\\d{2}(:\\d{2})?)?$");
+
     private static final Set<String> SYSTEM_FIELDS = Set.of(
             "title", "description", "status", "type_code", "priority", "assignee_id", "reporter_id",
-            "parent_id", "project_id", "item_no", "create_time", "update_time", "sprint_id", "module_id"
+            "parent_id", "project_id", "item_no", "create_time", "update_time", "sprint_id", "module_id",
+            "end_time"
     );
 
     private final CurrentUserAccessor currentUserAccessor;
@@ -155,6 +161,7 @@ public class TransitionConditionEvaluator {
             case "update_time" -> item.getUpdateTime();
             case "sprint_id" -> item.getSprintId();
             case "module_id" -> item.getModuleId();
+            case "end_time" -> item.getEndTime();
             default -> null;
         };
     }
@@ -163,12 +170,14 @@ public class TransitionConditionEvaluator {
         return switch (op) {
             case EQ -> equalsLoose(actual, expected);
             case NE -> !equalsLoose(actual, expected);
-            case GT -> compareNumbers(actual, expected) > 0;
-            case GTE -> compareNumbers(actual, expected) >= 0;
-            case LT -> compareNumbers(actual, expected) < 0;
-            case LTE -> compareNumbers(actual, expected) <= 0;
+            case GT -> compareValues(actual, expected) > 0;
+            case GTE -> compareValues(actual, expected) >= 0;
+            case LT -> compareValues(actual, expected) < 0;
+            case LTE -> compareValues(actual, expected) <= 0;
             case LIKE -> actual != null && expected != null
                     && String.valueOf(actual).toLowerCase().contains(String.valueOf(expected).toLowerCase());
+            case NOT_LIKE -> actual != null && expected != null
+                    && !String.valueOf(actual).toLowerCase().contains(String.valueOf(expected).toLowerCase());
             case IN -> collectionOf(expected).stream().anyMatch(v -> equalsLoose(actual, v));
             case NOT_IN -> collectionOf(expected).stream().noneMatch(v -> equalsLoose(actual, v));
             case IS_NULL -> isBlank(actual);
@@ -178,7 +187,7 @@ public class TransitionConditionEvaluator {
                 if (range.size() < 2) {
                     yield false;
                 }
-                yield compareNumbers(actual, range.get(0)) >= 0 && compareNumbers(actual, range.get(1)) <= 0;
+                yield compareValues(actual, range.get(0)) >= 0 && compareValues(actual, range.get(1)) <= 0;
             }
         };
     }
@@ -190,6 +199,13 @@ public class TransitionConditionEvaluator {
         if (a == null || b == null) {
             return false;
         }
+        if (isTemporal(a) || isTemporal(b)) {
+            try {
+                return PmDateTimeUtils.parseDateTime(a).compareTo(PmDateTimeUtils.parseDateTime(b)) == 0;
+            } catch (RuntimeException ignored) {
+                // fall through
+            }
+        }
         if (a instanceof Number || b instanceof Number) {
             try {
                 return Double.compare(toDouble(a), toDouble(b)) == 0;
@@ -198,6 +214,23 @@ public class TransitionConditionEvaluator {
             }
         }
         return Objects.equals(String.valueOf(a), String.valueOf(b));
+    }
+
+    private boolean isTemporal(Object value) {
+        if (value instanceof java.time.LocalDateTime || value instanceof java.time.LocalDate) {
+            return true;
+        }
+        return value instanceof String text && TEMPORAL_PATTERN.matcher(text.trim()).matches();
+    }
+
+    private int compareValues(Object a, Object b) {
+        if (a == null || b == null) {
+            throw new IllegalArgumentException("比较值不能为空");
+        }
+        if (isTemporal(a) || isTemporal(b)) {
+            return PmDateTimeUtils.parseDateTime(a).compareTo(PmDateTimeUtils.parseDateTime(b));
+        }
+        return compareNumbers(a, b);
     }
 
     private int compareNumbers(Object a, Object b) {

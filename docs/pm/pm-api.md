@@ -1,7 +1,7 @@
 # PM 模块接口文档
 
-> 版本：1.5
-> 更新日期：2026-10-21
+> 版本：1.6
+> 更新日期：2026-10-22
 > 适用范围：hfwas-devops 项目管理（PM）REST API
 
 ### 变更记录
@@ -11,6 +11,7 @@
 | 1.3 | 2026-08-28 | 初版 |
 | 1.4 | 2026-10-18 | P0 隔离：全部按 id/projectId 入口校验项目归属；update 禁止改 project_id；board 前置校验；补 403/404 示例与 Postman |
 | 1.5 | 2026-10-21 | 新增单字段 PATCH、批量更新、批量流转、活动分页、批量动作配置、类型模板；类型列表补 builtIn/description/templateCode/workItemCount/fieldCount；补 21033–21039 错误码 |
+| 1.6 | 2026-10-22 | QuerySpec 新增 `NOT_LIKE`（文本不包含）；补事项 `endTime`/`version` 字段与 NOT_LIKE 正常/失败示例 |
 
 ---
 
@@ -320,7 +321,15 @@ Base path: `/pm/work-items`
 | operator | string | 见下方运算符 |
 | value | any | 条件值 |
 
-**支持运算符：** `EQ` `NE` `GT` `GTE` `LT` `LTE` `LIKE` `IN` `NOT_IN` `BETWEEN` `IS_NULL` `IS_NOT_NULL`
+**支持运算符：** `EQ` `NE` `GT` `GTE` `LT` `LTE` `LIKE` `NOT_LIKE` `IN` `NOT_IN` `BETWEEN` `IS_NULL` `IS_NOT_NULL`
+
+`NOT_LIKE` 用于文本“不包含”，系统字段与自定义文本字段均支持；自定义字段仍受字段类型限制（数值/日期支持比较与区间）。
+
+NOT_LIKE 正常响应与普通分页一致（`data` 为 `IPage<PmWorkItem>`）。失败响应示例（跨租户/无权访问）：
+
+```json
+{ "code": 20002, "msg": "项目不存在或无权访问", "data": null, "requestId": "a1b2c3d4" }
+```
 
 **响应 data：** `IPage<PmWorkItem>`
 
@@ -341,6 +350,8 @@ Base path: `/pm/work-items`
 | reporterId | string | 报告人 ID |
 | parentId | string | 父事项 ID |
 | moduleId | string | 功能模块 ID（可选） |
+| endTime | string | 截止时间（UTC naive，`end_time`） |
+| version | string（序列化） | 乐观锁版本号；后端 Long 统一序列化为字符串，批量请求 `versions` 值为数字 |
 | customFields | object | 自定义字段 JSON |
 | createTime | string | 创建时间 |
 | updateTime | string | 更新时间 |
