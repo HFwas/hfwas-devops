@@ -1,7 +1,7 @@
 {
   "meta": {
     "name": "pm-module-prototype",
-    "version": "1.11",
+    "version": "1.13",
     "date": "2026-10-22",
     "viewport": {
       "width": 1440,
@@ -71,7 +71,22 @@
       "视图与搜索",
       "批量操作",
       "成员与权限"
-    ]
+    ],
+    "globalHeader": {
+      "position": "full-width",
+      "items": [
+        "productSwitcher",
+        "productName",
+        "breadcrumbs",
+        "globalSearch",
+        "help",
+        "notifications",
+        "avatar"
+      ],
+      "productSwitcher": "brand + dropdown (8 products, PM active)",
+      "breadcrumbOmitsProduct": "项目管理",
+      "sidebar": "menu only (no project switcher)"
+    }
   },
   "pages": [
     {

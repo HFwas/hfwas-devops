@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PM 模块总原型 · v1.11</title>
+<title>PM 模块总原型 · v1.13</title>
 <style>
 :root{
   --background:oklch(1 0 0);--foreground:oklch(.141 .005 285.823);
@@ -53,10 +53,10 @@ button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;background:none;border:0;padding:0}
 a{color:inherit;text-decoration:none}
 svg{display:block;flex:none;width:14px;height:14px}
-.app{display:flex;min-height:100vh}
+.app{display:flex;flex-direction:column;height:100vh}
+.app-body{display:flex;flex:1;min-height:0}
 /* ---------- shell ---------- */
 .sidebar{width:256px;flex:0 0 256px;background:var(--sidebar);border-right:1px solid var(--sidebar-border);padding:12px 10px;display:flex;flex-direction:column;gap:4px;overflow:auto}
-.brand{display:flex;align-items:center;gap:9px;padding:6px 8px 10px}
 .brand-mark{width:26px;height:26px;border-radius:7px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-weight:700;font-size:12px}
 .brand-name{font-weight:600;font-size:13px}.brand-sub{font-size:11px;color:var(--muted-foreground)}
 .switcher{display:flex;align-items:center;gap:8px;width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--card);text-align:left}
@@ -82,8 +82,21 @@ svg{display:block;flex:none;width:14px;height:14px}
 .sidebar-foot{margin-top:auto;border-top:1px solid var(--sidebar-border);padding-top:8px}
 .side-user{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:calc(var(--radius) - 2px)}
 .side-user:hover{background:var(--sidebar-accent)}
-.main{flex:1;min-width:0;display:flex;flex-direction:column}
-.topbar{height:56px;flex:0 0 56px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px;background:var(--background)}
+.main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:auto}
+.topbar{position:relative;height:56px;flex:0 0 56px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 16px 0 12px;background:var(--background)}
+.topbar-brand{display:flex;align-items:center;gap:8px;flex:0 0 auto;padding:0 4px}
+.product-switch{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:calc(var(--radius) - 2px);text-align:left}
+.product-switch:hover{background:var(--accent)}
+.product-switch .caret{color:var(--muted-foreground);width:14px;height:14px}
+.product-name{font-size:13px;font-weight:600;color:var(--foreground);white-space:nowrap}
+.product-menu{position:absolute;top:48px;left:12px;z-index:120;width:264px;padding:6px;background:var(--popover);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 14px 36px oklch(0 0 0 / .18)}
+.product-menu .pm-label{font-size:10.5px;color:var(--muted-foreground);padding:4px 8px}
+.product-menu button{display:flex;align-items:center;gap:9px;width:100%;padding:7px 8px;border-radius:calc(var(--radius) - 2px);text-align:left}
+.product-menu button:hover{background:var(--accent)}
+.product-menu button .pname{font-size:12.5px;font-weight:600}
+.product-menu button .pdesc{font-size:10.5px;color:var(--muted-foreground)}
+.product-menu button .check{margin-left:auto;color:var(--primary)}
+.topbar-divider{width:1px;height:22px;background:var(--border);flex:none}
 .crumbs{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted-foreground);min-width:0;white-space:nowrap;overflow:hidden}
 .crumbs b{color:var(--foreground);font-weight:600}.crumbs .sep{color:var(--border)}
 .topbar-spacer{flex:1}
@@ -589,7 +602,7 @@ body:not(.capture) .edit-bar{margin-right:244px}
 <div id="app"></div>
 <div id="overlayRoot"></div>
 <div id="toast"></div>
-<div class="proto-badge">PM 模块总原型 v1.11 · 非生产环境</div>
+<div class="proto-badge">PM 模块总原型 v1.13 · 非生产环境</div>
 <script>
 /* ================= 数据 ================= */
 const TYPES=[
@@ -1206,8 +1219,7 @@ function sidebar(params){
   const onViews=path==='#/settings/views';
   const onActions=path==='#/settings/bulk-actions';
   const typeItem=t=>'<a class="nav-item nav-type '+(onWorkbench&&type===t.code?'active':'')+'" href="#/workbench?'+withParam(params,{type:t.code,state:null,overlay:null,sel:null,page:1})+'">'+icon(t.icon)+'<span>'+t.name+'</span>'+(t.custom?'<span class="src">自定义</span>':'')+'<span class="count">'+t.count+'</span></a>';
-  return '<aside class="sidebar"><div class="brand"><span class="brand-mark">H</span><div><div class="brand-name">HFWAS DevOps</div><div class="brand-sub">项目管理</div></div></div>'+
-    '<button class="switcher"><span class="switcher-avatar">云</span><span class="switcher-text"><div class="switcher-title">云原生交付平台</div><div class="switcher-sub">项目 · DEVOPS</div></span>'+icon('chevronDown')+'</button>'+
+  return '<aside class="sidebar">'+
     '<div class="nav-group">'+
       '<a class="nav-item '+(onOverview?'active':'')+'" href="#/overview">'+icon('workflow')+'<span>原型总览</span></a>'+
       '<div class="nav-label">工作项类型 · 项目启用 7</div>'+
@@ -1231,13 +1243,30 @@ function sidebar(params){
       '<div class="side-user">'+avatar('陈思远',1,'av-md')+'<div><div style="font-size:12px;font-weight:600">陈思远</div><div style="font-size:10.5px;color:var(--muted-foreground)">项目管理员</div></div></div>'+
     '</div></aside>';
 }
+const PRODUCTS=[
+  {code:'pm',name:'项目管理',desc:'项目、工作项与迭代协同',on:true},
+  {code:'pipeline',name:'流水线',desc:'持续集成与持续交付'},
+  {code:'container',name:'容器管理',desc:'多集群 Kubernetes 统一管理'},
+  {code:'api-test',name:'接口测试',desc:'API 定义、调试与集合管理'},
+  {code:'file-parser',name:'文件解析',desc:'上传并解析文档、PDF、图片'},
+  {code:'docgen',name:'文档生成',desc:'生成 Word / Excel / PPT / PDF'},
+  {code:'image',name:'图片处理',desc:'预览、转换格式与元数据'},
+  {code:'artifact',name:'制品仓库',desc:'镜像与二进制制品托管'}
+];
+function productMenu(params){
+  if(params.get('pmenu')!=='1')return '';
+  return '<div class="product-menu" data-stop="1"><div class="pm-label">切换产品</div>'+PRODUCTS.map(p=>'<button data-action="choose-product" data-code="'+p.code+'"><span>'+icon(p.on?'checkCircle':'list')+'</span><span><div class="pname">'+p.name+'</div><div class="pdesc">'+p.desc+'</div></span>'+(p.on?'<span class="check">'+icon('check')+'</span>':'')+'</button>').join('')+'</div>';
+}
 function topbar(crumbs){
-  return '<header class="topbar"><div class="crumbs">'+crumbs.map((c,i)=>i===crumbs.length-1?'<b>'+c+'</b>':'<span>'+c+'</span><span class="sep">/</span>').join('')+'</div>'+
+  const product=crumbs[0]||'项目管理';
+  const rest=crumbs.slice(1);
+  return '<header class="topbar"><div class="topbar-brand"><button class="product-switch" data-action="toggle-product-menu" aria-label="切换产品"><span class="brand-mark">H</span><div><div class="brand-name">HFWAS DevOps</div><div class="brand-sub">产品选择</div></div>'+icon('chevronDown','caret')+'</button></div>'+
+    '<span class="topbar-divider"></span><span class="product-name">'+product+'</span><span class="topbar-divider"></span><div class="crumbs">'+rest.map((c,i)=>i===rest.length-1?'<b>'+c+'</b>':'<span>'+c+'</span><span class="sep">/</span>').join('')+'</div>'+
     '<div class="topbar-spacer"></div><div class="global-search">'+icon('search')+'<span>搜索项目、事项、成员</span><span class="kbd">⌘K</span></div>'+
     '<button class="icon-btn" aria-label="帮助">'+icon('help')+'</button><button class="icon-btn" aria-label="通知">'+icon('bell')+'<span class="dot"></span></button>'+
-    '<button class="icon-btn" style="width:28px;height:28px">'+avatar('陈思远',1,'av-md')+'</button></header>';
+    '<button class="icon-btn" style="width:28px;height:28px">'+avatar('陈思远',1,'av-md')+'</button>'+productMenu(currentParams())+'</header>';
 }
-function shell(content,crumbs){return '<div class="app">'+sidebar(currentParams())+'<div class="main">'+topbar(crumbs)+content+'</div></div>';}
+function shell(content,crumbs){return '<div class="app">'+topbar(crumbs)+'<div class="app-body">'+sidebar(currentParams())+'<div class="main">'+content+'</div></div></div>';}
 
 /* ================= 总览 ================= */
 function renderOverview(){
@@ -1251,7 +1280,7 @@ function renderOverview(){
   const lane=(label,sub,nodes)=>'<div class="ov-lane"><div class="ov-lane-label"><b>'+label+'</b>'+sub+'</div>'+nodes+'</div>';
   const content='<div class="content"><div class="ov-board">'+
     '<div class="ov-head"><div><h1 class="ov-title">项目管理原型总览</h1><div class="ov-sub">PM 模块唯一原型入口：项目类型、配置驱动的列表与搜索、批量编辑、导入导出与治理配置都在这里收敛。功能目录只引用，不复制页面。</div></div>'+
-    '<div class="ov-meta"><span class="ov-pill">原型 <b>v1.11</b></span><span class="ov-pill"><b>6</b> 个页面</span><span class="ov-pill"><b>13</b> 个弹层/抽屉</span><span class="ov-pill">A2 · 1440×900</span></div></div>'+
+    '<div class="ov-meta"><span class="ov-pill">原型 <b>v1.13</b></span><span class="ov-pill"><b>6</b> 个页面</span><span class="ov-pill"><b>13</b> 个弹层/抽屉</span><span class="ov-pill">A2 · 1440×900</span></div></div>'+
     '<div class="ov-stages">'+stage('01','项目与类型','项目启用类型、左侧导航与数量')+stage('02','视图与详情','全字段内联更新、操作记录分页、Markdown 详情')+stage('03','批量处理','批量编辑、导入、导出、删除')+stage('04','治理与扩展','权限、上限、确认与审计')+'</div>'+
     '<div class="ov-grid"><section class="ov-panel"><h2>核心流程<span class="hint">点击节点进入页面</span></h2><div class="ov-lanes">'+
       lane('项目与类型','列表 → 详情 → 类型',ovNode('P01','工作项列表','#/workbench','左侧类型导航','#/workbench')+arrow+ovNode('P06','事项详情','#/workbench?detail=1','字段编辑 / 评论','#/workbench?detail=1')+arrow+ovNode('P02','类型筛选','#/workbench?type=bug','缺陷 / 任务 / 自定义','#/workbench?type=bug')+arrow+ovNode('P03','事项类型','事项类型原型','项目启用方案','../../../superpowers/features/20261019-pm-work-item-types/prototype/index.html'))+
@@ -1928,7 +1957,7 @@ function renderProtoNav(){
     ['详情','#/workbench?detail=1'],['详情·编辑','#/workbench?detail=1&edit=1'],['状态直改','#/workbench?detail=1&inline=status'],['优先级直改','#/workbench?detail=1&inline=priority'],['截止时间直改','#/workbench?detail=1&inline=end_time'],['类型直改','#/workbench?detail=1&inline=type'],['关注者','#/workbench?detail=1&inline=watchers'],['标题直改','#/workbench?detail=1&inline=title'],['描述编辑','#/workbench?detail=1&descEdit=1'],['操作记录·更新','#/workbench?detail=1&dtab=activity&recent=status'],['操作记录·第2页','#/workbench?detail=1&dtab=activity&actPage=2'],['详情·校验','#/workbench?detail=1&edit=1&invalid=1'],['详情·评论','#/workbench?detail=1&dtab=comments'],['详情·只读','#/workbench?detail=1&dstate=permission'],['状态流转','#/workbench?detail=1&overlay=transition'],['放弃修改','#/workbench?detail=1&edit=1&overlay=discard'],['删除事项','#/workbench?detail=1&overlay=delete&enabledActions=delete'],['视图设置','#/settings/views'],['批量配置','#/settings/bulk-actions'],['动作编辑','#/settings/bulk-actions?overlay=action-edit&code=bulk-edit'],['暗色','#/workbench?theme=dark']
   ];
   const cur=location.hash;
-  document.body.insertAdjacentHTML('beforeend','<div class="proto-nav"><header>原型导航<span class="tag">v1.11</span></header><div class="body">'+items.map(([label,href])=>'<a href="'+href+'" class="'+(cur===href?'on':'')+'">'+label+'</a>').join('')+'</div></div>');
+  document.body.insertAdjacentHTML('beforeend','<div class="proto-nav"><header>原型导航<span class="tag">v1.13</span></header><div class="body">'+items.map(([label,href])=>'<a href="'+href+'" class="'+(cur===href?'on':'')+'">'+label+'</a>').join('')+'</div></div>');
 }
 
 /* ================= 事件 ================= */
@@ -2026,6 +2055,13 @@ document.addEventListener('click',(e)=>{
     case 'open-bulk-delete':go({overlay:'delete'});break;
     case 'close-overlay':go({overlay:null});break;
     case 'close-detail':closeDetail();break;
+    case 'toggle-product-menu':go({pmenu:currentParams().get('pmenu')==='1'?null:'1'});break;
+    case 'choose-product':{
+      const code=el.dataset.code;
+      go({pmenu:null});
+      toast(code==='pm'?'当前已在项目管理':'原型只覆盖项目管理；其他产品的菜单将在实现中接入');
+      break;
+    }
     case 'clear-search':go({q:null,page:1});break;
     case 'clear-filters':go({f:null,fpreset:null,preset:null,filterInvalid:null,c_status:null,c_priority:null,c_risk:null,overlay:null,page:1});break;
     case 'remove-filter':{
