@@ -89,10 +89,6 @@ describe('resolveBreadcrumbs', () => {
       { label: '项目管理', to: '/pm/projects' },
       { label: '事项' },
     ])
-    expect(resolveBreadcrumbs('/pm/projects/12/items/task/99')).toEqual([
-      { label: '项目管理', to: '/pm/projects' },
-      { label: '事项详情' },
-    ])
     expect(resolveBreadcrumbs('/pipeline/pipelines/new')).toEqual([
       { label: '流水线', to: '/pipeline/pipelines' },
       { label: '新建流水线' },

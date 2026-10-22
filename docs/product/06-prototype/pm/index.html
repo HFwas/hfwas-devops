@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PM 模块总原型 · v1.10</title>
+<title>PM 模块总原型 · v1.11</title>
 <style>
 :root{
   --background:oklch(1 0 0);--foreground:oklch(.141 .005 285.823);
@@ -269,6 +269,14 @@ tbody tr:hover .row-actions{opacity:1}
 
 /* ---------- detail page ---------- */
 .detail-page{display:flex;flex-direction:column;gap:12px;min-height:0}
+.detail-backdrop{position:fixed;inset:0;background:oklch(0 0 0 / .42);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+.detail-modal{width:min(1280px,94vw);height:min(860px,88vh);display:flex;flex-direction:column;background:var(--background);border:1px solid var(--border);border-radius:10px;box-shadow:0 24px 64px oklch(0 0 0 / .28);overflow:hidden}
+.detail-modal-bar{display:flex;align-items:center;gap:8px;flex:none;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--card);font-size:11.5px;color:var(--muted-foreground)}
+.detail-modal-bar .key{font-family:var(--font-mono);font-size:10.5px;color:var(--foreground)}
+.detail-modal-bar .sp{flex:1}
+.detail-modal-bar .close-x{margin-left:2px}
+.detail-modal-body{flex:1;min-height:0;overflow:auto;padding:16px 18px 0}
+.detail-modal-body .detail-page{padding-bottom:16px}
 .detail-top{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted-foreground);flex-wrap:wrap}
 .detail-top .key{font-family:var(--font-mono);font-size:10.5px}
 .detail-head{display:flex;align-items:flex-start;gap:12px}
@@ -581,7 +589,7 @@ body:not(.capture) .edit-bar{margin-right:244px}
 <div id="app"></div>
 <div id="overlayRoot"></div>
 <div id="toast"></div>
-<div class="proto-badge">PM 模块总原型 v1.10 · 非生产环境</div>
+<div class="proto-badge">PM 模块总原型 v1.11 · 非生产环境</div>
 <script>
 /* ================= 数据 ================= */
 const TYPES=[
@@ -743,8 +751,7 @@ const DETAIL_TRANSITIONS={
 };
 let commentSeq=0;
 function detailItem(params){
-  const parts=currentPath().split('/');
-  const id=parseInt(parts[2]||'1',10);
+  const id=parseInt(params.get('detail')||'0',10);
   return ITEMS.find(i=>i.id===id)||null;
 }
 function detailValues(params,item){
@@ -867,6 +874,7 @@ function riskPill(r){const cls=r==='高'?'risk-high':r==='中'?'risk-mid':'risk-
 function currentPath(){const h=location.hash||'#/overview';const q=h.indexOf('?');return q>=0?h.slice(0,q):h;}
 function currentParams(){const p=new URLSearchParams(location.search);const h=location.hash||'';const q=h.indexOf('?');if(q>=0)new URLSearchParams(h.slice(q+1)).forEach((v,k)=>p.set(k,v));return p;}
 function go(updates,path){const p=currentParams();Object.entries(updates).forEach(([k,v])=>{if(v===null||v===undefined||v==='')p.delete(k);else p.set(k,v);});const qs=p.toString();location.hash=(path||currentPath())+(qs?'?'+qs:'');}
+function closeDetail(){go({detail:null,edit:null,invalid:null,dtab:null,dstate:null,inline:null,descEdit:null,recent:null,actPage:null,actSize:null,overlay:null});}
 function withParam(params,updates){const p=new URLSearchParams(params.toString());Object.entries(updates).forEach(([k,v])=>{if(v===null||v===undefined||v==='')p.delete(k);else p.set(k,v);});return p.toString();}
 function captureMode(){return currentParams().get('capture')==='1';}
 let focusAfterRender=false,toastTimer=null;
@@ -1194,7 +1202,7 @@ function sidebar(params){
   const path=currentPath();
   const type=params.get('type')||'all';
   const onOverview=path==='#/overview';
-  const onWorkbench=path==='#/workbench'||path.indexOf('#/items/')===0;
+  const onWorkbench=path==='#/workbench';
   const onViews=path==='#/settings/views';
   const onActions=path==='#/settings/bulk-actions';
   const typeItem=t=>'<a class="nav-item nav-type '+(onWorkbench&&type===t.code?'active':'')+'" href="#/workbench?'+withParam(params,{type:t.code,state:null,overlay:null,sel:null,page:1})+'">'+icon(t.icon)+'<span>'+t.name+'</span>'+(t.custom?'<span class="src">自定义</span>':'')+'<span class="count">'+t.count+'</span></a>';
@@ -1243,19 +1251,19 @@ function renderOverview(){
   const lane=(label,sub,nodes)=>'<div class="ov-lane"><div class="ov-lane-label"><b>'+label+'</b>'+sub+'</div>'+nodes+'</div>';
   const content='<div class="content"><div class="ov-board">'+
     '<div class="ov-head"><div><h1 class="ov-title">项目管理原型总览</h1><div class="ov-sub">PM 模块唯一原型入口：项目类型、配置驱动的列表与搜索、批量编辑、导入导出与治理配置都在这里收敛。功能目录只引用，不复制页面。</div></div>'+
-    '<div class="ov-meta"><span class="ov-pill">原型 <b>v1.10</b></span><span class="ov-pill"><b>7</b> 个页面</span><span class="ov-pill"><b>12</b> 个弹层/抽屉</span><span class="ov-pill">A2 · 1440×900</span></div></div>'+
+    '<div class="ov-meta"><span class="ov-pill">原型 <b>v1.11</b></span><span class="ov-pill"><b>6</b> 个页面</span><span class="ov-pill"><b>13</b> 个弹层/抽屉</span><span class="ov-pill">A2 · 1440×900</span></div></div>'+
     '<div class="ov-stages">'+stage('01','项目与类型','项目启用类型、左侧导航与数量')+stage('02','视图与详情','全字段内联更新、操作记录分页、Markdown 详情')+stage('03','批量处理','批量编辑、导入、导出、删除')+stage('04','治理与扩展','权限、上限、确认与审计')+'</div>'+
     '<div class="ov-grid"><section class="ov-panel"><h2>核心流程<span class="hint">点击节点进入页面</span></h2><div class="ov-lanes">'+
-      lane('项目与类型','列表 → 详情 → 类型',ovNode('P01','工作项列表','#/workbench','左侧类型导航','#/workbench')+arrow+ovNode('P06','事项详情','#/items/1','字段编辑 / 评论','#/items/1')+arrow+ovNode('P02','类型筛选','#/workbench?type=bug','缺陷 / 任务 / 自定义','#/workbench?type=bug')+arrow+ovNode('P03','事项类型','事项类型原型','项目启用方案','../../../superpowers/features/20261019-pm-work-item-types/prototype/index.html'))+
+      lane('项目与类型','列表 → 详情 → 类型',ovNode('P01','工作项列表','#/workbench','左侧类型导航','#/workbench')+arrow+ovNode('P06','事项详情','#/workbench?detail=1','字段编辑 / 评论','#/workbench?detail=1')+arrow+ovNode('P02','类型筛选','#/workbench?type=bug','缺陷 / 任务 / 自定义','#/workbench?type=bug')+arrow+ovNode('P03','事项类型','事项类型原型','项目启用方案','../../../superpowers/features/20261019-pm-work-item-types/prototype/index.html'))+
       lane('视图与搜索','列 → 搜索 → 保存',ovNode('O01','视图配置','#/workbench?overlay=view-config','显示列 / 搜索字段 / 筛选','#/workbench?overlay=view-config')+arrow+ovNode('O05','保存视图','#/workbench?overlay=save-view','共享或个人','#/workbench?overlay=save-view')+arrow+ovNode('P04','视图与搜索','#/settings/views','视图清单与默认','#/settings/views'))+
       lane('批量处理','选中 → 配置 → 执行',ovNode('O02','批量编辑','#/workbench?state=selected&overlay=bulk-edit','字段白名单与预览','#/workbench?state=selected&overlay=bulk-edit')+arrow+ovNode('O03','导入事项','#/workbench?overlay=import','上传 / 映射 / 校验','#/workbench?overlay=import')+arrow+ovNode('O04','导出事项','#/workbench?overlay=export','范围与字段集','#/workbench?overlay=export'))+
       lane('治理','动作 → 权限 → 审计',ovNode('P05','批量操作配置','#/settings/bulk-actions','启停 / 角色 / 上限','#/settings/bulk-actions')+arrow+ovNode('O06','动作编辑','#/settings/bulk-actions?overlay=action-edit&code=bulk-edit','字段与确认','#/settings/bulk-actions?overlay=action-edit&code=bulk-edit'))+
-      lane('详情与协作','查看 → 编辑 → 流转',ovNode('P06','事项详情','#/items/1','标题 / 描述 / 属性','#/items/1')+arrow+ovNode('O10','状态流转','#/items/1?overlay=transition','工作流校验','#/items/1?overlay=transition')+arrow+ovNode('O11','放弃修改','#/items/1?edit=1&overlay=discard','未保存确认','#/items/1?edit=1&overlay=discard'))+
+      lane('详情与协作','查看 → 编辑 → 流转',ovNode('P06','事项详情','#/workbench?detail=1','标题 / 描述 / 属性','#/workbench?detail=1')+arrow+ovNode('O10','状态流转','#/workbench?detail=1&overlay=transition','工作流校验','#/workbench?detail=1&overlay=transition')+arrow+ovNode('O11','放弃修改','#/workbench?detail=1&edit=1&overlay=discard','未保存确认','#/workbench?detail=1&edit=1&overlay=discard'))+
     '</div></section>'+
-    '<aside class="ov-side"><section class="ov-panel"><h2>覆盖情况</h2>'+stat('模块页面','7 / 7',100,'green')+stat('交互弹层','12 / 12',100,'green')+stat('设计待建','4 项',55,'amber')+'<div class="ov-note">待建：看板列映射、迭代燃尽、工时、自动化规则。已有工作台与事项类型两个专题原型，可从原型资产进入。</div></section>'+
+    '<aside class="ov-side"><section class="ov-panel"><h2>覆盖情况</h2>'+stat('模块页面','6 / 6',100,'green')+stat('交互弹层','13 / 13',100,'green')+stat('设计待建','4 项',55,'amber')+'<div class="ov-note">待建：看板列映射、迭代燃尽、工时、自动化规则。已有工作台与事项类型两个专题原型，可从原型资产进入。</div></section>'+
     '<section class="ov-panel"><h2>原型资产</h2><div class="ov-assets">'+asset('模块原型规格','prototype-spec.json')+asset('模块说明与画板','README.md')+asset('工作台改版原型','../../../superpowers/features/20261019-pm-workbench-redesign/prototype/index.html')+asset('事项类型原型','../../../superpowers/features/20261019-pm-work-item-types/prototype/index.html')+asset('列表配置与批量设计','../../../superpowers/features/20261019-pm-list-config-bulk/design.md')+asset('PM 设计文档','../../../pm/pm-design.md')+asset('PM 接口文档','../../../pm/pm-api.md')+'</div></section></aside></div>'+
-    '<div class="ov-lists"><section class="ov-panel"><h2>页面<span class="hint">7 个</span></h2><div class="ov-chips">'+chip('P00','原型总览','#/overview')+chip('P01','工作项列表','#/workbench')+chip('P02','类型筛选','#/workbench?type=bug')+chip('P03','事项类型','../../../superpowers/features/20261019-pm-work-item-types/prototype/index.html')+chip('P04','视图与搜索','#/settings/views')+chip('P05','批量操作配置','#/settings/bulk-actions')+chip('P06','事项详情','#/items/1')+'</div></section>'+
-    '<section class="ov-panel"><h2>弹层 / 抽屉<span class="hint">12 个</span></h2><div class="ov-chips">'+chip('O01','视图配置','#/workbench?overlay=view-config')+chip('O02','批量编辑','#/workbench?state=selected&overlay=bulk-edit')+chip('O03','导入','#/workbench?overlay=import&step=upload')+chip('O04','导出','#/workbench?overlay=export')+chip('O05','保存视图','#/workbench?overlay=save-view')+chip('O06','动作编辑','#/settings/bulk-actions?overlay=action-edit&code=bulk-edit')+chip('O07','筛选','#/workbench?overlay=filter')+chip('O08','删除','#/workbench?state=selected&overlay=delete&enabledActions=delete')+chip('O09','事项预览','#/workbench?overlay=preview&id=1')+chip('O10','状态流转','#/items/1?overlay=transition')+chip('O11','放弃修改','#/items/1?edit=1&overlay=discard')+chip('O12','删除事项','#/items/1?overlay=delete&enabledActions=delete')+'</div></section>'+
+    '<div class="ov-lists"><section class="ov-panel"><h2>页面<span class="hint">6 个</span></h2><div class="ov-chips">'+chip('P00','原型总览','#/overview')+chip('P01','工作项列表','#/workbench')+chip('P02','类型筛选','#/workbench?type=bug')+chip('P03','事项类型','../../../superpowers/features/20261019-pm-work-item-types/prototype/index.html')+chip('P04','视图与搜索','#/settings/views')+chip('P05','批量操作配置','#/settings/bulk-actions')+'</div></section>'+
+    '<section class="ov-panel"><h2>弹层 / 抽屉<span class="hint">13 个</span></h2><div class="ov-chips">'+chip('P06','事项详情弹窗','#/workbench?detail=1')+''+chip('O01','视图配置','#/workbench?overlay=view-config')+chip('O02','批量编辑','#/workbench?state=selected&overlay=bulk-edit')+chip('O03','导入','#/workbench?overlay=import&step=upload')+chip('O04','导出','#/workbench?overlay=export')+chip('O05','保存视图','#/workbench?overlay=save-view')+chip('O06','动作编辑','#/settings/bulk-actions?overlay=action-edit&code=bulk-edit')+chip('O07','筛选','#/workbench?overlay=filter')+chip('O08','删除','#/workbench?state=selected&overlay=delete&enabledActions=delete')+chip('O09','事项预览','#/workbench?overlay=preview&id=1')+chip('O10','状态流转','#/workbench?detail=1&overlay=transition')+chip('O11','放弃修改','#/workbench?detail=1&edit=1&overlay=discard')+chip('O12','删除事项','#/workbench?detail=1&overlay=delete&enabledActions=delete')+'</div></section>'+
     '<section class="ov-panel"><h2>设计已定 · 原型待建<span class="hint">4 项</span></h2><div class="ov-chips">'+chip('X01','看板列映射','../../../pm/pm-evolution-roadmap.md','todo')+chip('X02','迭代燃尽','../../../pm/pm-evolution-roadmap.md','todo')+chip('X03','工时与容量','../../../pm/pm-evolution-roadmap.md','todo')+chip('X04','自动化规则','../../../pm/pm-evolution-roadmap.md','todo')+'</div></section></div>'+
   '</div></div>';
   return shell(content,['项目管理','原型总览']);
@@ -1318,10 +1326,10 @@ function headRow(params,cols,permission){
     cols.map(k=>{const f=F[k];const hit=specs.find(s=>s.split(':')[0]===k);const on=!!hit;const dir=hit?hit.split(':')[1]:'';return '<th style="width:'+f.width+'" class="'+(f.sort?'sortable':'')+'" '+(f.sort?'data-action="sort" data-field="'+k+'"':'')+'><span class="th-inner">'+f.name+(f.sort?'<span class="sort-ic '+(on?'on':'')+'">'+(on?(dir==='ASC'?icon('up'):icon('down')):icon('sort'))+'</span>':'')+'</span></th>';}).join('')+
     '<th style="width:44px"></th></tr></thead>';
 }
-function cell(item,k){
+function cell(item,k,params){
   if(k==='itemKey')return '<td><span class="cell-key">'+item.key+'</span></td>';
   if(k==='type')return '<td><span class="type-cell">'+typeIcon(item.type)+TYPE_META[item.type].label+'</span></td>';
-  if(k==='title')return '<td><a class="title-link" href="#/items/'+item.id+'">'+esc(item.title)+'</a></td>';
+  if(k==='title')return '<td><a class="title-link" href="#/workbench?'+withParam(params||new URLSearchParams(),{detail:item.id})+'">'+esc(item.title)+'</a></td>';
   if(k==='status')return '<td>'+statusPill(item.status)+'</td>';
   if(k==='priority')return '<td>'+priorityPill(item.priority)+'</td>';
   if(k==='assignee')return '<td><div class="assignee">'+avatar(item.assignee,item.av)+'<span class="name">'+item.assignee+'</span></div></td>';
@@ -1335,7 +1343,7 @@ function cell(item,k){
 function rowHtml(item,params,cols,permission){
   const sel=selectionIds(params).includes(String(item.id));
   return '<tr class="'+(sel?'selected':'')+'"><td>'+(permission?'':'<input class="check" type="checkbox" data-action="select-row" data-id="'+item.id+'" '+(sel?'checked':'')+' aria-label="选择 '+item.key+'">')+'</td>'+
-    cols.map(k=>cell(item,k)).join('')+
+    cols.map(k=>cell(item,k,params)).join('')+
     '<td><div class="row-actions"><a class="icon-btn" href="#/workbench?'+withParam(params,{overlay:'preview',id:item.id})+'" aria-label="预览">'+icon('eye')+'</a>'+((permission||!actionEnabled(params,'delete'))?'':'<button class="icon-btn" data-action="delete-one" data-id="'+item.id+'" aria-label="删除">'+icon('trash')+'</button>')+'</div></td></tr>';
 }
 function statePanel(kind,params,permission,colCount){
@@ -1560,14 +1568,13 @@ function detailDescription(v,edit,permission,descTab,descEdit){
 }
 function detailPage(params){
   const item=detailItem(params);
-  const crumbs404=['项目管理','云原生交付平台','工作项'];
-  if(!item)return shell('<div class="content"><div class="detail-empty"><div class="state-icon">'+icon('alert')+'</div><h3 class="state-title">事项不存在或无权访问</h3><p class="state-desc">该事项可能已被删除，或不在当前项目与租户范围内。</p><div class="state-actions"><a class="btn btn-primary" href="#/workbench">返回工作项列表</a></div></div></div>',crumbs404);
+  if(!item)return '<div class="detail-page"><div class="detail-empty"><div class="state-icon">'+icon('alert')+'</div><h3 class="state-title">事项不存在或无权访问</h3><p class="state-desc">该事项可能已被删除，或不在当前项目与租户范围内。</p><div class="state-actions"><button class="btn btn-primary" data-action="close-detail">返回工作项列表</button></div></div></div>';
   const v=detailValues(params,item);
-  const state=params.get('state')||'';
+  const state=params.get('dstate')||'';
   const permission=state==='permission';
   const edit=!permission&&params.get('edit')==='1';
   const invalid=edit&&params.get('invalid')==='1';
-  const tab=edit?'detail':(params.get('tab')||'detail');
+  const tab=edit?'detail':(params.get('dtab')||'detail');
   const descEdit=!permission&&!edit&&params.get('descEdit')==='1';
   const comments=detailComments(item);
   let activity=detailActivity(item);
@@ -1577,12 +1584,11 @@ function detailPage(params){
   const actPages=Math.max(1,Math.ceil(orderedActivity.length/actSize));
   const actPage=Math.min(Math.max(1,parseInt(params.get('actPage')||'1',10)),actPages);
   const pageActivity=orderedActivity.slice((actPage-1)*actSize,actPage*actSize);
-  const crumbs=['项目管理','云原生交付平台','工作项',item.key];
   if(state==='loading'){
-    return shell('<div class="content"><div class="detail-skeleton"><span class="sk" style="width:40%;height:24px"></span><span class="sk" style="width:70%"></span><div class="detail-grid"><div class="detail-card"><div class="detail-card-body"><span class="sk" style="width:100%;height:120px"></span></div></div><div class="detail-card"><div class="detail-card-body"><span class="sk" style="width:100%;height:220px"></span></div></div></div></div></div>',crumbs);
+    return '<div class="detail-page"><div class="detail-skeleton"><span class="sk" style="width:40%;height:24px"></span><span class="sk" style="width:70%"></span><div class="detail-grid"><div class="detail-card"><div class="detail-card-body"><span class="sk" style="width:100%;height:120px"></span></div></div><div class="detail-card"><div class="detail-card-body"><span class="sk" style="width:100%;height:220px"></span></div></div></div></div></div>';
   }
   if(state==='error'){
-    return shell('<div class="content"><div class="detail-empty"><div class="state-icon" style="color:var(--destructive);background:var(--st-blocked-bg)">'+icon('alert')+'</div><h3 class="state-title">事项加载失败</h3><p class="state-desc">服务返回 HTTP 500。事项数据没有丢失，请稍后重试；若持续失败，请联系项目管理员并提供请求编号 req_a91f2c。</p><div class="state-actions"><button class="btn btn-primary" data-action="retry-detail">'+icon('refresh')+'重试</button><a class="btn btn-outline" href="#/workbench">返回工作项</a></div></div></div>',crumbs);
+    return '<div class="detail-page"><div class="detail-empty"><div class="state-icon" style="color:var(--destructive);background:var(--st-blocked-bg)">'+icon('alert')+'</div><h3 class="state-title">事项加载失败</h3><p class="state-desc">服务返回 HTTP 500。事项数据没有丢失，请稍后重试；若持续失败，请联系项目管理员并提供请求编号 req_a91f2c。</p><div class="state-actions"><button class="btn btn-primary" data-action="retry-detail">'+icon('refresh')+'重试</button><button class="btn btn-outline" data-action="close-detail">返回工作项</button></div></div></div>';
   }
   const allowedStatuses=[v.s].concat(DETAIL_TRANSITIONS[v.s]||[]);
   const statusOptions=Object.entries(STATUS).filter(([k])=>allowedStatuses.includes(k)).map(([k,d])=>'<option value="'+k+'" '+(k===v.s?'selected':'')+'>'+d.label+'</option>').join('');
@@ -1621,11 +1627,11 @@ function detailPage(params){
     '<div class="prop-section">环境</div>'+
     detailPropRow('环境','environment',esc(v.env),'<input id="dEnv" class="input prop-input" value="'+esc(v.env)+'">',edit,permission,pop('environment'));
   const activityHtml=pageActivity.map(a=>'<div class="tl-item"><span class="tl-dot '+(a.tone||'')+'"></span><div class="tl-body"><b>'+esc(a.who)+'</b> '+esc(a.what)+'</div><span class="tl-time">'+esc(a.time)+'</span></div>').join('');
-  const activityPager='<div class="activity-pager"><div class="pg-left"><span>共 '+activity.length+' 条 · 最新在前</span><span>每页</span><select data-action="act-size"><option '+(actSize===5?'selected':'')+'>5</option><option '+(actSize===10?'selected':'')+'>10</option><option '+(actSize===20?'selected':'')+'>20</option></select><span>条</span></div><div class="pg-right"><button class="pg-btn" data-action="act-page" data-value="'+(actPage-1)+'" '+(actPage<=1?'disabled':'')+'>'+icon('chevronLeft')+'</button>'+pagerItems(actPage,actPages).map(v=>v==='gap'?'<span class="pg-ellipsis">…</span>':'<a class="pg-btn '+(v===actPage?'on':'')+'" href="#/items/'+item.id+'?'+withParam(params,{tab:'activity',actPage:v})+'">'+v+'</a>').join('')+'<button class="pg-btn" data-action="act-page" data-value="'+(actPage+1)+'" '+(actPage>=actPages?'disabled':'')+'>'+icon('chevronRight')+'</button><span class="pg-jump">第 <b style="color:var(--foreground)">'+actPage+'</b> / '+actPages+' 页</span></div></div>';
+  const activityPager='<div class="activity-pager"><div class="pg-left"><span>共 '+activity.length+' 条 · 最新在前</span><span>每页</span><select data-action="act-size"><option '+(actSize===5?'selected':'')+'>5</option><option '+(actSize===10?'selected':'')+'>10</option><option '+(actSize===20?'selected':'')+'>20</option></select><span>条</span></div><div class="pg-right"><button class="pg-btn" data-action="act-page" data-value="'+(actPage-1)+'" '+(actPage<=1?'disabled':'')+'>'+icon('chevronLeft')+'</button>'+pagerItems(actPage,actPages).map(v=>v==='gap'?'<span class="pg-ellipsis">…</span>':'<a class="pg-btn '+(v===actPage?'on':'')+'" href="#/workbench?'+withParam(params,{detail:item.id,dtab:'activity',actPage:v})+'">'+v+'</a>').join('')+'<button class="pg-btn" data-action="act-page" data-value="'+(actPage+1)+'" '+(actPage>=actPages?'disabled':'')+'>'+icon('chevronRight')+'</button><span class="pg-jump">第 <b style="color:var(--foreground)">'+actPage+'</b> / '+actPages+' 页</span></div></div>';
   const commentsHtml=comments.map(c=>'<div class="comment">'+avatar(c.author,c.av)+'<div class="comment-body"><div class="comment-head"><b>'+esc(c.author)+'</b><span>'+esc(c.time)+'</span></div><div class="comment-text md">'+renderMarkdown(c.text)+'</div></div></div>').join('');
   const tabBar=edit
     ? '<div class="detail-tabs top"><span class="detail-tab on">详情</span><span class="detail-edit-note">编辑中 · 保存后可查看操作记录与评论</span></div>'
-    : '<div class="detail-tabs top"><a class="detail-tab '+(tab==='detail'?'on':'')+'" href="#/items/'+item.id+'?'+withParam(params,{tab:'detail'})+'">详情</a><a class="detail-tab '+(tab==='activity'?'on':'')+'" href="#/items/'+item.id+'?'+withParam(params,{tab:'activity',actPage:1})+'">操作记录<span class="cnt">'+activity.length+'</span></a><a class="detail-tab '+(tab==='comments'?'on':'')+'" href="#/items/'+item.id+'?'+withParam(params,{tab:'comments'})+'">评论<span class="cnt">'+comments.length+'</span></a></div>';
+    : '<div class="detail-tabs top"><a class="detail-tab '+(tab==='detail'?'on':'')+'" href="#/workbench?'+withParam(params,{detail:item.id,dtab:'detail'})+'">详情</a><a class="detail-tab '+(tab==='activity'?'on':'')+'" href="#/workbench?'+withParam(params,{detail:item.id,dtab:'activity',actPage:1})+'">操作记录<span class="cnt">'+activity.length+'</span></a><a class="detail-tab '+(tab==='comments'?'on':'')+'" href="#/workbench?'+withParam(params,{detail:item.id,dtab:'comments'})+'">评论<span class="cnt">'+comments.length+'</span></a></div>';
   const composer=permission?'':'<div class="composer"><textarea id="commentInput" placeholder="写下评论，支持 Markdown 语法"></textarea><div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" data-action="submit-comment">'+icon('checkCircle')+'发表评论</button></div></div>';
   let mainContent='';
   if(tab==='activity')mainContent='<div class="detail-card"><div class="detail-card-head">操作记录<span class="right">共 '+activity.length+' 条 · 最新在前</span></div><div class="detail-card-body">'+activityHtml+activityPager+'</div></div>';
@@ -1634,7 +1640,7 @@ function detailPage(params){
   const errorBox=invalid?'<div class="error-box">'+icon('alert')+'<span>有 2 个字段需要修正：标题不能为空，故事点必须大于 0。</span></div>':'';
   const readonly=permission?'<div class="readonly-banner">'+icon('lock')+'<span>你当前是只读成员，可以查看事项与评论，但不能编辑字段、流转状态或发表评论。</span></div>':'';
   const editBar=edit?'<div class="edit-bar"><span class="msg">未保存的更改 · <b>标题、描述与字段</b></span><div class="spacer" style="flex:1"></div><button class="btn btn-outline" data-action="cancel-edit">取消</button><button class="btn btn-primary" data-action="save-detail">'+icon('checkCircle')+'保存修改</button></div>':'';
-  return shell('<div class="content"><div class="detail-page"><div class="detail-top"><button class="btn btn-ghost btn-sm" data-action="back-detail">'+icon('chevronLeft')+'返回工作项</button><span class="key">'+item.key+'</span><span class="dot-sep" style="width:3px;height:3px;border-radius:99px;background:var(--muted-foreground)"></span><span class="type-cell">'+typeIcon(v.s?'':item.type,18)+TYPE_META[item.type].label+'</span><button class="btn btn-ghost btn-sm" data-action="copy-detail-link">'+icon('copy')+'复制链接</button></div>'+
+  return '<div class="detail-page">'+
     readonly+
     '<div class="detail-head">'+titleHtml+
       '<div class="detail-actions">'+(edit||permission?'':'<button class="btn btn-outline" data-action="open-transition">'+icon('workflow')+'状态流转</button><button class="btn btn-primary" data-action="enter-edit" data-focus="title">'+icon('pencil')+'完整编辑</button>')+(edit||permission?'':'<button class="icon-btn" data-action="delete-detail" aria-label="删除事项">'+icon('trash')+'</button>')+'</div></div>'+
@@ -1645,7 +1651,26 @@ function detailPage(params){
       mainContent+
     '</div><aside class="detail-side"><div class="detail-card"><div class="detail-card-head">属性<span class="right">'+(edit?'编辑中':(permission?'只读':'点击字段直接更新'))+'</span></div><div class="detail-card-body"><div class="prop-list">'+readProps+'</div></div></div>'+
       '<div class="detail-card"><div class="detail-card-head">人员与时间</div><div class="detail-card-body"><div class="people-row">'+avatar('林小满',2)+'创建人 <b>林小满</b></div><div class="people-row">创建时间 <b>10-12 11:26</b></div><div class="people-row">更新时间 <b>今天 10:24</b></div><div class="people-row">关联迭代 <b>'+esc(v.it)+'</b></div></div></div>'+
-    '</aside></div>'+editBar+'</div></div>',crumbs);
+    '</aside></div>'+editBar+'</div>';
+}
+
+/* ---------- 详情弹窗外壳 ---------- */
+function detailModal(params){
+  if(!params.get('detail'))return '';
+  const item=detailItem(params);
+  const permission=params.get('dstate')==='permission';
+  const type=item?TYPE_META[item.type]:null;
+  return '<div class="detail-backdrop" data-action="close-detail">'+
+    '<div class="detail-modal" data-stop="1" role="dialog" aria-modal="true" aria-label="事项详情">'+
+      '<div class="detail-modal-bar">'+icon('book')+'<span class="key">'+(item?esc(item.key):'未找到事项')+'</span>'+
+        (type?'<span style="width:3px;height:3px;border-radius:99px;background:var(--muted-foreground);opacity:.5"></span><span class="type-cell">'+typeIcon(item.type,16)+type.label+'</span>':'')+
+        (permission?'<span class="role-chip">只读</span>':'')+
+        '<span class="sp"></span>'+
+        (item?'<button class="btn btn-ghost btn-sm" data-action="copy-detail-link">'+icon('copy')+'复制链接</button>':'')+
+        '<button class="close-x" data-action="close-detail" aria-label="关闭详情">'+icon('x')+'</button>'+
+      '</div>'+
+      '<div class="detail-modal-body">'+detailPage(params)+'</div>'+
+    '</div></div>';
 }
 
 /* ================= 弹层 ================= */
@@ -1658,8 +1683,8 @@ function blockedActionOverlay(){
 function overlayHtml(){
   const params=currentParams(),overlay=params.get('overlay');
   if(!overlay)return '';
-  if(currentPath().indexOf('#/items/')===0&&!detailItem(params))return '';
-  if(params.get('state')==='permission'&&['view-config','save-view','bulk-edit','transition','import','delete','action-edit'].includes(overlay))return readOnlyOverlay();
+  if(params.get('detail')&&!detailItem(params))return '';
+  if((params.get('detail')?params.get('dstate')==='permission':params.get('state')==='permission')&&['view-config','save-view','bulk-edit','transition','import','delete','action-edit'].includes(overlay))return readOnlyOverlay();
   const gate={delete:'delete','bulk-edit':'bulk-edit',transition:'transition',import:'import'};
   if(gate[overlay]&&!actionOn(params,gate[overlay]))return blockedActionOverlay();
   if(overlay==='view-config')return viewConfigDrawer(params);
@@ -1669,7 +1694,7 @@ function overlayHtml(){
   if(overlay==='filter')return filterDialog(params);
   if(overlay==='transition')return transitionDialog(params);
   if(overlay==='discard')return discardDialog(params);
-  if(overlay==='delete'&&currentPath().indexOf('#/items/')===0)return detailDeleteDialog(params);
+  if(overlay==='delete'&&params.get('detail'))return detailDeleteDialog(params);
   if(overlay==='delete')return deleteDialog(params);
   if(overlay==='save-view')return saveViewDialog(params);
   if(overlay==='preview')return previewDrawer(params);
@@ -1855,7 +1880,7 @@ function previewDrawer(params){
   if(!item)return '<div class="backdrop right" data-action="close-overlay"><aside class="drawer" data-stop="1" role="dialog" aria-label="工作项预览"><div class="drawer-head"><span>工作项预览</span><button class="close-x" data-action="close-overlay">'+icon('x')+'</button></div><div class="drawer-body"><div class="detail-empty"><div class="state-icon">'+icon('alert')+'</div><h3 class="state-title">事项不存在或无权访问</h3><p class="state-desc">该事项可能已被删除，或不在当前项目与租户范围内。</p></div></div><div class="drawer-foot"><button class="btn btn-outline" data-action="close-overlay">关闭</button></div></aside></div>';
   return '<div class="backdrop right" data-action="close-overlay"><aside class="drawer" data-stop="1" role="dialog" aria-label="工作项预览"><div class="drawer-head"><span class="cell-key">'+item.key+'</span><span class="type-cell">'+typeIcon(item.type)+TYPE_META[item.type].label+'</span><button class="close-x" data-action="close-overlay">'+icon('x')+'</button></div><div class="drawer-body"><h2 style="font-size:17px;font-weight:650;line-height:1.35;margin:2px 0 12px">'+esc(item.title)+'</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'+statusPill(item.status)+priorityPill(item.priority)+riskPill(item.risk)+'<span class="date">更新于 '+item.updated+'</span></div>'+
     '<div style="border-top:1px solid var(--border);margin-top:14px;padding-top:12px"><div class="kv"><span class="k">负责人</span><span class="v"><span class="assignee">'+avatar(item.assignee,item.av)+'<span>'+item.assignee+'</span></span></span></div><div class="kv"><span class="k">所属迭代</span><span class="v">'+item.iteration+'</span></div><div class="kv"><span class="k">截止时间</span><span class="v">'+item.end_time+'</span></div><div class="kv"><span class="k">故事点</span><span class="v">'+item.sp+'</span></div><div class="kv"><span class="k">风险等级</span><span class="v">'+item.risk+'</span></div></div>'+
-    '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px"><div class="field-label">描述</div><div class="md" style="font-size:12.5px;line-height:1.7;color:var(--muted-foreground)">'+renderMarkdown(item.desc)+'</div></div></div><div class="drawer-foot"><a class="btn btn-primary" style="flex:1" href="#/items/'+item.id+'">打开完整详情</a><button class="btn btn-outline" data-action="close-overlay">关闭</button></div></aside></div>';
+    '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px"><div class="field-label">描述</div><div class="md" style="font-size:12.5px;line-height:1.7;color:var(--muted-foreground)">'+renderMarkdown(item.desc)+'</div></div></div><div class="drawer-foot"><a class="btn btn-primary" style="flex:1" href="#/workbench?'+withParam(params,{overlay:null,id:null,detail:item.id})+'">打开完整详情</a><button class="btn btn-outline" data-action="close-overlay">关闭</button></div></aside></div>';
 }
 function actionEditDialog(params){
   const code=params.get('code')||'bulk-edit';
@@ -1879,13 +1904,15 @@ function render(){
   document.body.classList.toggle('capture',captureMode());
   const path=currentPath();
   let html;
-  if(path.indexOf('#/items/')===0)html=detailPage(params);
-  else if(path==='#/workbench')html=shell(workbench(params),['项目管理','云原生交付平台','工作项']);
+  if(path==='#/workbench'){
+    const di=detailItem(params);
+    html=shell(workbench(params),di?['项目管理','云原生交付平台','工作项',di.key]:['项目管理','云原生交付平台','工作项']);
+  }
   else if(path==='#/settings/views')html=shell(settingsViews(params),['项目管理','云原生交付平台','设置','视图与搜索']);
   else if(path==='#/settings/bulk-actions')html=shell(settingsActions(params),['项目管理','云原生交付平台','设置','批量操作']);
   else html=renderOverview();
   document.getElementById('app').innerHTML=html;
-  document.getElementById('overlayRoot').innerHTML=overlayHtml();
+  document.getElementById('overlayRoot').innerHTML=(path==='#/workbench'?detailModal(params):'')+overlayHtml();
   renderProtoNav();
   if(focusAfterRender){const i=document.getElementById('itemSearch');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}focusAfterRender=false;}
 }
@@ -1898,10 +1925,10 @@ function renderProtoNav(){
     ['导入·上传','#/workbench?overlay=import&step=upload'],['导入·映射','#/workbench?overlay=import&step=mapping'],['导入·校验','#/workbench?overlay=import&step=result'],
     ['导出','#/workbench?overlay=export'],['筛选·高级','#/workbench?overlay=filter'],['筛选·错误','#/workbench?overlay=filter&preset=incomplete&filterInvalid=1'],['已应用筛选','#/workbench?fpreset=advanced'],['删除','#/workbench?state=selected&overlay=delete&enabledActions=delete'],
     ['空态','#/workbench?state=empty'],['加载','#/workbench?state=loading'],['失败','#/workbench?state=error'],['无权限','#/workbench?state=permission'],['大数据','#/workbench?state=dense'],['长文本','#/workbench?state=long'],
-    ['详情','#/items/1'],['详情·编辑','#/items/1?edit=1'],['状态直改','#/items/1?inline=status'],['优先级直改','#/items/1?inline=priority'],['截止时间直改','#/items/1?inline=end_time'],['类型直改','#/items/1?inline=type'],['关注者','#/items/1?inline=watchers'],['标题直改','#/items/1?inline=title'],['描述编辑','#/items/1?descEdit=1'],['操作记录·更新','#/items/1?tab=activity&recent=status'],['操作记录·第2页','#/items/1?tab=activity&actPage=2'],['详情·校验','#/items/1?edit=1&invalid=1'],['详情·评论','#/items/1?tab=comments'],['详情·只读','#/items/1?state=permission'],['状态流转','#/items/1?overlay=transition'],['放弃修改','#/items/1?edit=1&overlay=discard'],['删除事项','#/items/1?overlay=delete&enabledActions=delete'],['视图设置','#/settings/views'],['批量配置','#/settings/bulk-actions'],['动作编辑','#/settings/bulk-actions?overlay=action-edit&code=bulk-edit'],['暗色','#/workbench?theme=dark']
+    ['详情','#/workbench?detail=1'],['详情·编辑','#/workbench?detail=1&edit=1'],['状态直改','#/workbench?detail=1&inline=status'],['优先级直改','#/workbench?detail=1&inline=priority'],['截止时间直改','#/workbench?detail=1&inline=end_time'],['类型直改','#/workbench?detail=1&inline=type'],['关注者','#/workbench?detail=1&inline=watchers'],['标题直改','#/workbench?detail=1&inline=title'],['描述编辑','#/workbench?detail=1&descEdit=1'],['操作记录·更新','#/workbench?detail=1&dtab=activity&recent=status'],['操作记录·第2页','#/workbench?detail=1&dtab=activity&actPage=2'],['详情·校验','#/workbench?detail=1&edit=1&invalid=1'],['详情·评论','#/workbench?detail=1&dtab=comments'],['详情·只读','#/workbench?detail=1&dstate=permission'],['状态流转','#/workbench?detail=1&overlay=transition'],['放弃修改','#/workbench?detail=1&edit=1&overlay=discard'],['删除事项','#/workbench?detail=1&overlay=delete&enabledActions=delete'],['视图设置','#/settings/views'],['批量配置','#/settings/bulk-actions'],['动作编辑','#/settings/bulk-actions?overlay=action-edit&code=bulk-edit'],['暗色','#/workbench?theme=dark']
   ];
   const cur=location.hash;
-  document.body.insertAdjacentHTML('beforeend','<div class="proto-nav"><header>原型导航<span class="tag">v1.10</span></header><div class="body">'+items.map(([label,href])=>'<a href="'+href+'" class="'+(cur===href?'on':'')+'">'+label+'</a>').join('')+'</div></div>');
+  document.body.insertAdjacentHTML('beforeend','<div class="proto-nav"><header>原型导航<span class="tag">v1.11</span></header><div class="body">'+items.map(([label,href])=>'<a href="'+href+'" class="'+(cur===href?'on':'')+'">'+label+'</a>').join('')+'</div></div>');
 }
 
 /* ================= 事件 ================= */
@@ -1985,6 +2012,7 @@ document.addEventListener('click',(e)=>{
   const el=e.target.closest('[data-action]');const action=el?el.dataset.action:null;
   if(!action){if(currentParams().get('inline')){go({inline:null});}return;}
   if(action==='close-overlay'&&el.classList.contains('backdrop')&&e.target.closest('[data-stop]'))return;
+  if(action==='close-detail'&&el.classList.contains('detail-backdrop')&&e.target.closest('[data-stop]'))return;
   if(['select-row','select-all','toggle-col','toggle-search','toggle-filter','toggle-export-field','bulk-field','action-role','action-field'].includes(action))return;
   e.preventDefault();e.stopPropagation();
   switch(action){
@@ -1997,6 +2025,7 @@ document.addEventListener('click',(e)=>{
     case 'open-import':go({overlay:'import',step:'upload'});break;
     case 'open-bulk-delete':go({overlay:'delete'});break;
     case 'close-overlay':go({overlay:null});break;
+    case 'close-detail':closeDetail();break;
     case 'clear-search':go({q:null,page:1});break;
     case 'clear-filters':go({f:null,fpreset:null,preset:null,filterInvalid:null,c_status:null,c_priority:null,c_risk:null,overlay:null,page:1});break;
     case 'remove-filter':{
@@ -2193,16 +2222,13 @@ document.addEventListener('click',(e)=>{
       break;
     }
     case 'back-detail':
-      if(currentParams().get('edit')==='1'){go({overlay:'discard',back:'1'});}
-      else location.hash='#/workbench';
+      if(currentParams().get('edit')==='1'){go({overlay:'discard'});}
+      else closeDetail();
       break;
     case 'enter-edit':go({edit:'1',invalid:null,focus:el.dataset.focus||null});break;
     case 'cancel-edit':go({overlay:'discard'});break;
-    case 'continue-edit':go({overlay:null,back:null});break;
-    case 'confirm-discard':
-      if(currentParams().get('back')==='1'){location.hash='#/workbench';}
-      else{go({edit:null,invalid:null,overlay:null,back:null});}
-      break;
+    case 'continue-edit':go({overlay:null});break;
+    case 'confirm-discard':go({edit:null,invalid:null,overlay:null});break;
     case 'save-detail':{
       const qp=currentParams();
       const n=(document.getElementById('dTitle')?.value||'').trim();
@@ -2250,7 +2276,7 @@ document.addEventListener('click',(e)=>{
       if(next.watch!==old.watch)changes.push('将关注者更新为「'+next.watch+'」');
       if(next.env!==old.env)changes.push('将环境从「'+old.env+'」改为「'+next.env+'」');
       changes.forEach(c=>logActivity(item,c));
-      go(Object.assign({edit:null,invalid:null,back:null},next));
+      go(Object.assign({edit:null,invalid:null},next));
       toast(changes.length?'事项已保存，'+changes.length+' 项变更已写入操作记录':'没有可保存的修改');
       break;
     }
@@ -2280,8 +2306,8 @@ document.addEventListener('click',(e)=>{
     }
     case 'copy-detail-link':toast('事项链接已复制');break;
     case 'delete-detail':go({overlay:'delete'});break;
-    case 'confirm-delete-detail':location.hash='#/workbench';toast('事项已删除');break;
-    case 'retry-detail':go({state:null});toast('正在重新加载…');break;
+    case 'confirm-delete-detail':closeDetail();toast('事项已删除');break;
+    case 'retry-detail':go({dstate:null});toast('正在重新加载…');break;
     case 'apply-filter':{
       const model=currentFilterModel(currentParams());
       if(hasIncomplete(model)){go({filterInvalid:'1'});break;}

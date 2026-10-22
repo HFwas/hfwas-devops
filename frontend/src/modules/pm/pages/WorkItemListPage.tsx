@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDownUp, Columns3, Filter, Plus, Trash2 } from 'lucide-react'
-import { useLocation, useParams } from 'react-router'
+import { useLocation, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { BulkActionBar } from '@/components/console/BulkActionBar'
 import { FilterBar } from '@/components/console/FilterBar'
@@ -16,12 +16,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { pmBatchActionConfigApi, pmFieldApi, pmModuleApi, pmProjectApi, pmProjectIssueTypeApi, pmStatusApi, pmViewApi, pmWorkItemApi } from '@/modules/pm/api'
-import { ALL_ITEMS_CODE } from '@/modules/pm/nav'
+import { ALL_ITEMS_CODE, projectItemsPath } from '@/modules/pm/nav'
 import { BulkDeleteDialog } from '@/modules/pm/components/BulkDeleteDialog'
 import { BulkEditDialog } from '@/modules/pm/components/BulkEditDialog'
 import { FilterBuilder } from '@/modules/pm/components/FilterBuilder'
 import { TransitionDialog } from '@/modules/pm/components/TransitionDialog'
 import { ViewConfigDrawer } from '@/modules/pm/components/ViewConfigDrawer'
+import { WorkItemDetailDialog, type WorkItemDetailTab } from '@/modules/pm/components/WorkItemDetailDialog'
 import { WorkItemViewTabs } from '@/modules/pm/components/WorkItemViewTabs'
 import { usePmListUrlState } from '@/modules/pm/hooks/usePmListUrlState'
 import type {
@@ -74,7 +75,26 @@ export function WorkItemListPage() {
   const queryClient = useQueryClient()
   const currentUser = useAuthStore((state) => state.user)
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const viewParam = useMemo(() => new URLSearchParams(location.search).get('view') || 'dev', [location.search])
+  const detailId = searchParams.get('detail')
+  const detailTab: WorkItemDetailTab = searchParams.get('dtab') === 'comments'
+    ? 'comments'
+    : searchParams.get('dtab') === 'activity'
+      ? 'activity'
+      : 'detail'
+  const closeDetail = useCallback(() => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('detail')
+    next.delete('dtab')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+  const changeDetailTab = useCallback((tab: WorkItemDetailTab) => {
+    const next = new URLSearchParams(searchParams)
+    if (tab === 'detail') next.delete('dtab')
+    else next.set('dtab', tab)
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
   const [createOpen, setCreateOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<PmWorkItem | null>(null)
   const [previewConfig, setPreviewConfig] = useState<import('@/modules/pm/types').PmViewConfig | null>(null)
@@ -441,6 +461,12 @@ export function WorkItemListPage() {
 
   const cellContext: CellContext = {
     projectId,
+    detailHref: (row) => {
+      const next = new URLSearchParams(searchParams)
+      next.delete('dtab')
+      next.set('detail', asId(row.id))
+      return `${projectItemsPath(projectId, typeParam)}?${next.toString()}`
+    },
     types: enabledTypes,
     statusByType,
     usersById,
@@ -614,6 +640,19 @@ export function WorkItemListPage() {
           />
         ) : null}
       </ListPageShell>
+
+      {!forbidden && detailId ? (
+        <WorkItemDetailDialog
+          key={detailId}
+          projectId={projectId}
+          typeCode={typeParam}
+          itemId={detailId}
+          tab={detailTab}
+          open
+          onOpenChange={(open) => { if (!open) closeDetail() }}
+          onTabChange={changeDetailTab}
+        />
+      ) : null}
 
       {!forbidden ? (
         <BulkActionBar

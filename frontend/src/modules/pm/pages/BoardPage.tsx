@@ -94,7 +94,7 @@ function BoardCard({
 }) {
   return (
     <Link
-      to={`/pm/projects/${projectId}/items/${typeCode}/${asId(item.id)}`}
+      to={`/pm/projects/${projectId}/items/${typeCode}?detail=${asId(item.id)}`}
       className="block rounded-md border bg-card p-3 hover:bg-muted/50"
     >
       <div className="font-mono text-xs text-muted-foreground">{item.itemKey || '—'}</div>

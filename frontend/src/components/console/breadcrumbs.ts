@@ -48,11 +48,10 @@ export function resolveBreadcrumbs(pathname: string): PathCrumb[] {
       { label: '工作流' },
     ]
   }
-  if (pathname.startsWith('/pm/projects/') && pathname.includes('/items/')) {
-    const detail = pathname.split('/').filter(Boolean).length >= 6
+  if (/^\/pm\/projects\/[^/]+\/items\/[^/]+$/.test(pathname)) {
     return [
       { label: '项目管理', to: '/pm/projects' },
-      { label: detail ? '事项详情' : '事项' },
+      { label: '事项' },
     ]
   }
   if (/^\/pipeline\/credentials\/[^/]+/.test(pathname)) {

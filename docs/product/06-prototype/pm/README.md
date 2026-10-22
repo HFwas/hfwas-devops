@@ -1,8 +1,8 @@
 # PM 模块总原型
 
 > 日期：2026-10-22
-> 版本：v1.13
-> 状态：**已冻结**（v1.10 于 2026-10-22 用户确认，视觉基线 v1.10；v1.9 原冻结提交 `6741712`）
+> 版本：v1.16
+> 状态：**已冻结**（v1.11，2026-10-22 用户确认后进入实现；v1.10 为上一基线）
 > 功能设计：[20261019-pm-list-config-bulk/design.md](../../../superpowers/features/20261019-pm-list-config-bulk/design.md)
 > 原型规格：[prototype-spec.md](./prototype-spec.md)
 
@@ -25,6 +25,8 @@
 | v1.12 | 2026-10-21 | 用户确认冻结：v1.11（视觉基线 v1.9）冻结于提交 6741712；作为 PM 改造阶段 1 及后续页面的唯一验收基线 |
 | v1.13 | 2026-10-22 | 布局修订 v1.10：删除页头行；导入/导出/新建移到视图页签行右侧；移除「+ 添加筛选」条件行，筛选只保留工具栏入口；重出 02–27、49、50、52 号画板 |
 | v1.14 | 2026-10-22 | 用户确认冻结 v1.10 作为新视觉基线；三角色评审待实施阶段补签 |
+| v1.15 | 2026-10-22 | 事项详情由独立页面改为居中大弹窗：`#/workbench?detail=<id>`，移除 `/items/:itemId` 路由；详情状态参数改 `dstate`、页签改 `dtab`；重出 01、28–48、51、53、54 号画板 |
+| v1.16 | 2026-10-22 | 用户确认 v1.11 进入实现并冻结为当前视觉基线 |
 
 ---
 
@@ -44,7 +46,7 @@ docs/product/06-prototype/pm/index.html
 |------|------|
 | PM 模块总览（默认） | `#/overview` |
 | 项目工作项列表 | `#/workbench` |
-| 事项详情 | `#/items/1` |
+| 事项详情弹窗（叠加在列表上） | `#/workbench?detail=1` |
 | 类型筛选 | `#/workbench?type=requirement|task|bug|iteration|test_case|story|tech_debt` |
 | 视图与搜索设置 | `#/settings/views` |
 | 批量操作配置 | `#/settings/bulk-actions` |
@@ -70,7 +72,10 @@ docs/product/06-prototype/pm/index.html
 | `ef` | 导出字段 key，逗号分隔 |
 | `state` | `empty` / `loading` / `error` / `permission` / `dense` / `long` / `selected` |
 | `overlay` | `view-config` / `bulk-edit` / `import` / `export` / `filter` / `delete` / `save-view` / `preview` / `action-edit` / `transition` / `discard` |
-| `tab` | 视图配置：`columns` / `search` / `filter`；详情：`detail` / `activity` / `comments` |
+| `tab` | 视图配置：`columns` / `search` / `filter` |
+| `detail` | 事项 id（打开详情弹窗） |
+| `dstate` | 详情弹窗状态：`loading` / `error` / `permission` |
+| `dtab` | 详情弹窗页签：`detail` / `activity` / `comments` |
 | `step` | `upload` / `mapping` / `result` |
 | `field` | 批量编辑当前字段 key |
 | `id` | 快速预览事项 id |
@@ -128,32 +133,32 @@ docs/product/06-prototype/pm/index.html
 | 25 | `shots/25-workbench-dark.png` | `?capture=1#/workbench?theme=dark` |
 | 26 | `shots/26-overlay-filter-invalid.png` | `?capture=1#/workbench?overlay=filter&preset=incomplete&filterInvalid=1` |
 | 27 | `shots/27-workbench-filtered.png` | `?capture=1#/workbench?fpreset=advanced` |
-| 28 | `shots/28-detail-default.png` | `?capture=1#/items/1` |
-| 29 | `shots/29-detail-edit.png` | `?capture=1#/items/1?edit=1` |
-| 30 | `shots/30-detail-invalid.png` | `?capture=1#/items/1?edit=1&invalid=1` |
-| 31 | `shots/31-detail-permission.png` | `?capture=1#/items/1?state=permission` |
-| 32 | `shots/32-detail-comments.png` | `?capture=1#/items/1?tab=comments` |
-| 33 | `shots/33-overlay-transition.png` | `?capture=1#/items/1?overlay=transition` |
-| 34 | `shots/34-overlay-discard.png` | `?capture=1#/items/1?edit=1&overlay=discard` |
-| 35 | `shots/35-detail-loading.png` | `?capture=1#/items/1?state=loading` |
-| 36 | `shots/36-detail-error.png` | `?capture=1#/items/1?state=error` |
-| 37 | `shots/37-detail-dark.png` | `?capture=1#/items/1?theme=dark` |
-| 38 | `shots/38-detail-markdown-preview.png` | `?capture=1#/items/1?edit=1&descTab=preview` |
-| 39 | `shots/39-detail-activity.png` | `?capture=1#/items/1?tab=activity` |
-| 40 | `shots/40-inline-status.png` | `?capture=1#/items/1?inline=status` |
-| 41 | `shots/41-inline-priority.png` | `?capture=1#/items/1?inline=priority` |
-| 42 | `shots/42-inline-date.png` | `?capture=1#/items/1?inline=end_time` |
-| 43 | `shots/43-inline-type.png` | `?capture=1#/items/1?inline=type` |
-| 44 | `shots/44-inline-watchers.png` | `?capture=1#/items/1?inline=watchers` |
-| 45 | `shots/45-inline-title.png` | `?capture=1#/items/1?inline=title` |
-| 46 | `shots/46-description-edit.png` | `?capture=1#/items/1?descEdit=1` |
-| 47 | `shots/47-activity-updated.png` | `?capture=1#/items/1?tab=activity&recent=status` |
-| 48 | `shots/48-activity-page2.png` | `?capture=1#/items/1?tab=activity&actPage=2` |
+| 28 | `shots/28-detail-default.png` | `?capture=1#/workbench?detail=1` |
+| 29 | `shots/29-detail-edit.png` | `?capture=1#/workbench?detail=1&edit=1` |
+| 30 | `shots/30-detail-invalid.png` | `?capture=1#/workbench?detail=1&edit=1&invalid=1` |
+| 31 | `shots/31-detail-permission.png` | `?capture=1#/workbench?detail=1&dstate=permission` |
+| 32 | `shots/32-detail-comments.png` | `?capture=1#/workbench?detail=1&dtab=comments` |
+| 33 | `shots/33-overlay-transition.png` | `?capture=1#/workbench?detail=1&overlay=transition` |
+| 34 | `shots/34-overlay-discard.png` | `?capture=1#/workbench?detail=1&edit=1&overlay=discard` |
+| 35 | `shots/35-detail-loading.png` | `?capture=1#/workbench?detail=1&dstate=loading` |
+| 36 | `shots/36-detail-error.png` | `?capture=1#/workbench?detail=1&dstate=error` |
+| 37 | `shots/37-detail-dark.png` | `?capture=1#/workbench?detail=1&theme=dark` |
+| 38 | `shots/38-detail-markdown-preview.png` | `?capture=1#/workbench?detail=1&edit=1&descTab=preview` |
+| 39 | `shots/39-detail-activity.png` | `?capture=1#/workbench?detail=1&dtab=activity` |
+| 40 | `shots/40-inline-status.png` | `?capture=1#/workbench?detail=1&inline=status` |
+| 41 | `shots/41-inline-priority.png` | `?capture=1#/workbench?detail=1&inline=priority` |
+| 42 | `shots/42-inline-date.png` | `?capture=1#/workbench?detail=1&inline=end_time` |
+| 43 | `shots/43-inline-type.png` | `?capture=1#/workbench?detail=1&inline=type` |
+| 44 | `shots/44-inline-watchers.png` | `?capture=1#/workbench?detail=1&inline=watchers` |
+| 45 | `shots/45-inline-title.png` | `?capture=1#/workbench?detail=1&inline=title` |
+| 46 | `shots/46-description-edit.png` | `?capture=1#/workbench?detail=1&descEdit=1` |
+| 47 | `shots/47-activity-updated.png` | `?capture=1#/workbench?detail=1&dtab=activity&recent=status` |
+| 48 | `shots/48-activity-page2.png` | `?capture=1#/workbench?detail=1&dtab=activity&actPage=2` |
 | 49 | `shots/49-overlay-save-view.png` | `?capture=1#/workbench?overlay=save-view` |
 | 50 | `shots/50-overlay-preview.png` | `?capture=1#/workbench?overlay=preview&id=2` |
-| 51 | `shots/51-detail-delete.png` | `?capture=1#/items/1?overlay=delete&enabledActions=delete` |
+| 51 | `shots/51-detail-delete.png` | `?capture=1#/workbench?detail=1&overlay=delete&enabledActions=delete` |
 | 52 | `shots/52-workbench-1280.png` | `?capture=1#/workbench`（1280×800 @2x） |
-| 53 | `shots/53-detail-1280.png` | `?capture=1#/items/1`（1280×800 @2x） |
+| 53 | `shots/53-detail-1280.png` | `?capture=1#/workbench?detail=1`（1280×800 @2x） |
 | 54 | `shots/54-overview-1280.png` | `?capture=1#/overview`（1280×800 @2x） |
 
 ### 4.1 重新截图
@@ -180,6 +185,7 @@ BASE="file://$PWD/index.html"
 - 快速筛选：我的工作项、本周到期、阻塞风险、未分配；
 - 行选择、全选当前页、底部批量栏；翻页、切类型、切视图会清空选择；
 - 分页每页 10/20/50/100（默认 10），页码、跳页与每页条数写入 URL；视图页签行、工具栏与分页使用同一总数；
+- 事项详情以弹窗叠加在列表上，关闭后列表的视图/搜索/筛选/分页状态保持不变；
 - Shift+点击表头追加多列排序；
 - 批量编辑字段切换、清空值、影响预览、校验失败；
 - 导入三段式：上传 → 字段映射 → 校验与执行；
@@ -223,6 +229,7 @@ BASE="file://$PWD/index.html"
 | 1.9 | 2026-10-21 | 产品 / 前端 / 测试（独立评审 agent 代行） | **有条件通过** | 待用户确认提交号 | 需先关闭 4 项 P1：显示列上移/下移无处理器（AC-03）、筛选面板越出筛选字段配置（AC-05）、批量配置仅启停可设置（AC-10）、批量编辑空值假成功；其余 P2 见 contract §9 |
 | 1.9 | 2026-10-21 | 产品 / 前端 / 测试（独立复评 agent 代行） | **通过，可冻结** | 6741712 | 4 项 P1 全部关闭；列排序、筛选白名单、批量编辑空值校验/清空、批量配置保存复验通过；52 个 URL×视口回归 0 JS 错误、0 横向滚动。遗留 P2：`actionConfig` 仅随当前 URL 保留，「返回工作项」或侧栏入口会丢失，建议实现阶段补会话变量或参数透传。 |
 | 1.10 | 2026-10-22 | 用户（布局评审） | **已冻结** | 本分支本次提交 | 删除页头；导入/导出/新建移至视图页签行；移除「+ 添加筛选」条件行，筛选只保留工具栏入口；独立 agent 两轮校验通过（见 changes.md §6.5/§6.6） |
+| 1.11 | 2026-10-22 | 用户（详情形态） | **已冻结** | 本分支本次提交 | 事项详情改为居中大弹窗，URL 收敛到列表 `detail` 参数并移除 `/items` 路由；React 实现已对齐，差异见 `20261022-pm-detail-modal/changes.md` 偏差 23–28 |
 
 ## 8. 维护规则
 

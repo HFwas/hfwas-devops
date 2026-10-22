@@ -1,7 +1,7 @@
 # PM 模块总原型规格（人读版）
 
 > 日期：2026-10-22
-> 版本：v1.10
+> 版本：v1.11
 > 机器可读版本：[prototype-spec.json](./prototype-spec.json)
 > 功能设计：[20261019-pm-list-config-bulk/design.md](../../../superpowers/features/20261019-pm-list-config-bulk/design.md)
 > 关联原型：[工作台改版](../../../superpowers/features/20261019-pm-workbench-redesign/prototype/index.html)、[事项类型](../../../superpowers/features/20261019-pm-work-item-types/prototype/index.html)
@@ -21,6 +21,7 @@
 | v1.8 | 2026-10-20 | 评审修复：分页 10/20/50/100 默认 10 并自洽；截止时间 key 改 `end_time`；导出范围与字段可交互；只读态封堵写操作；评论/预览接入 Markdown；批量动作遵守启停；统一总数与列宽；多列排序 |
 | v1.9 | 2026-10-20 | 复评修复：导出字段勾选、画板 42 `end_time`、页大小文案、AC-29 字段名；删除动作启用态与直链拦截；保存配置/视图、跳页校验、预览 404 |
 | v1.10 | 2026-10-22 | 布局评审：删除页头（类型标题 + 平台/视图/总数/更新时间）；导入/导出/新建下移到视图页签行右侧；移除「+ 添加筛选」条件行，筛选入口只保留工具栏「筛选」，已应用条件仅在存在时展示 |
+| v1.11 | 2026-10-22 | 事项详情由独立页面改为居中大弹窗：URL 收敛为 `#/workbench?detail=<id>`，移除 `/items/:itemId` 路由；详情状态改用 `dstate`、页签改用 `dtab`；页面数 6、弹层 13 |
 
 ---
 
@@ -45,7 +46,7 @@
 | P03 | 事项类型管理 | `/pm/projects/:projectId/settings/types` | 外部原型 |
 | P04 | 视图与搜索设置 | `/pm/projects/:projectId/settings/views` | default |
 | P05 | 批量操作配置 | `/pm/projects/:projectId/settings/bulk-actions` | default |
-| P06 | 事项详情 | `/pm/projects/:projectId/items/:typeCode/:itemId` | default / edit / invalid / permission / activity / comments / inline / loading / error |
+| P06 | 事项详情弹窗（叠加在工作项列表上） | `#/workbench?detail=:itemId` | default / edit / invalid / permission / activity / comments / inline / loading / error |
 
 ### 2.1 工作台信息层级
 
@@ -121,9 +122,11 @@
    └─ 负责人 是 林小满
 ```
 
-## 4.2 事项详情
+## 4.2 事项详情弹窗
 
 - 双栏：左侧为当前页签内容，右侧为常驻高频属性。
+- 呈现为居中大弹窗：宽 `min(1280px, 94vw)`、高 `min(860px, 88vh)`，顶部条固定事项编号/类型/复制链接/关闭，内容区独立滚动，列表作为背景保留。
+- 打开方式：列表标题、快速预览「打开完整详情」、深链 `#/workbench?detail=<id>`；关闭只移除 `detail` 等详情参数，列表的视图/搜索/筛选/分页状态不丢。
 - 页签固定在标题下方、内容区上方：详情 / 操作记录 / 评论；默认详情。
 - 阅读态点击标题、描述或属性行进入编辑态；顶部「编辑」进入完整编辑态。
 - 标题必填；描述支持 Markdown；属性含状态、优先级、负责人、截止时间、迭代、故事点、风险、标签。
@@ -169,7 +172,10 @@
 | `ef` | 字段 key 列表 | 导出字段集 |
 | `state` | `empty` / `loading` / `error` / `permission` / `dense` / `long` / `selected` | 页面状态 |
 | `overlay` | `view-config` / `bulk-edit` / `import` / `export` / `filter` / `delete` / `save-view` / `preview` / `action-edit` / `transition` / `discard` | 弹层 |
-| `tab` | 视图配置：`columns` / `search` / `filter`；详情：`detail` / `activity` / `comments` | 页签 |
+| `detail` | 事项 id | 打开事项详情弹窗 |
+| `dstate` | `loading` / `error` / `permission` | 详情弹窗自身状态（不影响背后的列表） |
+| `tab` | `columns` / `search` / `filter` | 视图配置页签 |
+| `dtab` | `detail` / `activity` / `comments` | 详情弹窗页签 |
 | `step` | `upload` / `mapping` / `result` | 导入步骤 |
 | `field` | 字段 key | 批量编辑当前字段 |
 | `id` | 事项 id | 快速预览目标 |
@@ -224,28 +230,28 @@
 | 筛选构建器 | `#/workbench?overlay=filter` |
 | 筛选缺值 | `#/workbench?overlay=filter&preset=incomplete&filterInvalid=1` |
 | 已应用高级筛选 | `#/workbench?fpreset=advanced` |
-| 事项详情 | `#/items/1` |
-| 详情编辑 | `#/items/1?edit=1` |
-| 状态内联更新 | `#/items/1?inline=status` |
-| 优先级内联更新 | `#/items/1?inline=priority` |
-| 截止时间内联更新 | `#/items/1?inline=end_time` |
-| 类型内联更新 | `#/items/1?inline=type` |
-| 关注者内联更新 | `#/items/1?inline=watchers` |
-| 标题内联更新 | `#/items/1?inline=title` |
-| 描述单字段编辑 | `#/items/1?descEdit=1` |
-| 操作记录已更新 | `#/items/1?tab=activity&recent=status` |
-| 操作记录第 2 页 | `#/items/1?tab=activity&actPage=2` |
-| 操作记录 | `#/items/1?tab=activity` |
-| 评论 | `#/items/1?tab=comments` |
-| 详情 Markdown 预览 | `#/items/1?edit=1&descTab=preview` |
-| 详情校验失败 | `#/items/1?edit=1&invalid=1` |
-| 详情只读 | `#/items/1?state=permission` |
-| 只读 + 编辑 URL | `#/items/1?state=permission&edit=1`（强制只读） |
-| 状态流转 | `#/items/1?overlay=transition` |
-| 放弃修改 | `#/items/1?edit=1&overlay=discard` |
-| 删除事项 | `#/items/1?overlay=delete&enabledActions=delete` |
-| 删除动作已关闭 | `#/items/1?overlay=delete`（显示动作关闭提示） |
-| 事项不存在 | `#/items/999` |
+| 事项详情弹窗 | `#/workbench?detail=1` |
+| 详情编辑 | `#/workbench?detail=1&edit=1` |
+| 状态内联更新 | `#/workbench?detail=1&inline=status` |
+| 优先级内联更新 | `#/workbench?detail=1&inline=priority` |
+| 截止时间内联更新 | `#/workbench?detail=1&inline=end_time` |
+| 类型内联更新 | `#/workbench?detail=1&inline=type` |
+| 关注者内联更新 | `#/workbench?detail=1&inline=watchers` |
+| 标题内联更新 | `#/workbench?detail=1&inline=title` |
+| 描述单字段编辑 | `#/workbench?detail=1&descEdit=1` |
+| 操作记录已更新 | `#/workbench?detail=1&dtab=activity&recent=status` |
+| 操作记录第 2 页 | `#/workbench?detail=1&dtab=activity&actPage=2` |
+| 操作记录 | `#/workbench?detail=1&dtab=activity` |
+| 评论 | `#/workbench?detail=1&dtab=comments` |
+| 详情 Markdown 预览 | `#/workbench?detail=1&edit=1&descTab=preview` |
+| 详情校验失败 | `#/workbench?detail=1&edit=1&invalid=1` |
+| 详情只读 | `#/workbench?detail=1&dstate=permission` |
+| 只读 + 编辑 URL | `#/workbench?detail=1&dstate=permission&edit=1`（强制只读） |
+| 状态流转 | `#/workbench?detail=1&overlay=transition` |
+| 放弃修改 | `#/workbench?detail=1&edit=1&overlay=discard` |
+| 删除事项 | `#/workbench?detail=1&overlay=delete&enabledActions=delete` |
+| 删除动作已关闭 | `#/workbench?detail=1&overlay=delete`（显示动作关闭提示） |
+| 事项不存在 | `#/workbench?detail=999` |
 
 ## 8. 组件映射
 
@@ -266,7 +272,7 @@
 | `BatchActionSettingsTable` | `modules/pm/components/BatchActionSettingsTable` | 动作配置 |
 | `ActionEditDialog` | `modules/pm/components/ActionEditDialog` | 角色/上限/确认/字段 |
 | `useListUrlState` | `modules/pm/utils/useListUrlState` | URL 状态同步 |
-| `DetailPageShell` | `modules/pm/components/DetailPageShell` | 详情双栏骨架 |
+| `DetailPageShell` | `modules/pm/components/DetailPageShell` | 详情弹窗内容：双栏骨架 |
 | `InlinePropertyEditor` | `modules/pm/components/InlinePropertyEditor` | 字段内联编辑 |
 | `ActivityTimeline` | `modules/pm/components/ActivityTimeline` | 活动记录 |
 | `CommentThread` | `modules/pm/components/CommentThread` | 评论列表与输入 |

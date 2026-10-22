@@ -12,8 +12,6 @@ import type {
 } from '@/modules/pm/types'
 import { typeLabel } from '@/modules/pm/types'
 import { formatDate, formatDateTime } from '@/modules/pm/utils/format'
-import { asId } from '@/modules/pm/utils/id'
-import { ALL_ITEMS_CODE } from '@/modules/pm/nav'
 
 export type PmColumnKind = 'pseudo' | 'system' | 'custom'
 
@@ -139,6 +137,8 @@ export function defaultColumnKeys() {
 
 export interface CellContext {
   projectId: string
+  /** 列表内打开详情弹窗的链接（保留当前列表参数）。 */
+  detailHref: (item: PmWorkItem) => string
   types: PmWorkItemType[]
   statusByType: Map<string, Map<string, StatusDefinition>>
   usersById: Map<string, UserProfile>
@@ -183,12 +183,11 @@ export function renderPmCell(item: PmWorkItem, column: PmColumnMeta, ctx: CellCo
     case 'itemKey':
       return <span className="font-mono text-xs">{item.itemKey || '—'}</span>
     case 'title': {
-      const typeCode = item.typeCode || ALL_ITEMS_CODE
       return (
         <Link
           className="block max-w-[28rem] truncate font-medium text-primary hover:underline"
           title={item.title}
-          to={`/pm/projects/${ctx.projectId}/items/${typeCode}/${asId(item.id)}`}
+          to={ctx.detailHref(item)}
         >
           {item.title || '—'}
         </Link>

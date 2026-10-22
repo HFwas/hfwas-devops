@@ -22,7 +22,7 @@ vi.mock('@/modules/pm/api', () => ({
   pmProjectApi: { getById: vi.fn() },
   pmProjectIssueTypeApi: { list: vi.fn() },
   pmFieldApi: { list: vi.fn(), catalog: vi.fn(), resolveOptions: vi.fn() },
-  pmStatusApi: { options: vi.fn() },
+  pmStatusApi: { options: vi.fn(), allowed: vi.fn() },
   pmViewApi: { list: vi.fn(), save: vi.fn() },
   pmBatchActionConfigApi: { list: vi.fn(), save: vi.fn() },
   pmModuleApi: { flat: vi.fn() },
@@ -30,6 +30,11 @@ vi.mock('@/modules/pm/api', () => ({
     page: vi.fn(),
     save: vi.fn(),
     delete: vi.fn(),
+    getById: vi.fn(),
+    transition: vi.fn(),
+    listComments: vi.fn(),
+    saveComment: vi.fn(),
+    listActivities: vi.fn(),
     batchUpdate: vi.fn(),
     batchTransition: vi.fn(),
   },
@@ -138,6 +143,12 @@ function setupDefaults() {
   ] as never)
   vi.mocked(pmFieldApi.list).mockResolvedValue([])
   vi.mocked(pmFieldApi.catalog).mockResolvedValue([])
+  vi.mocked(pmWorkItemApi.getById).mockResolvedValue(item as never)
+  vi.mocked(pmWorkItemApi.listComments).mockResolvedValue([])
+  vi.mocked(pmWorkItemApi.listActivities).mockResolvedValue([])
+  vi.mocked(pmWorkItemApi.saveComment).mockResolvedValue(1)
+  vi.mocked(pmWorkItemApi.transition).mockResolvedValue(undefined)
+  vi.mocked(pmStatusApi.allowed).mockResolvedValue({ transitions: [] } as never)
   vi.mocked(pmStatusApi.options).mockResolvedValue([
     { statusCode: 'open', statusName: '待处理' },
     { statusCode: 'done', statusName: '已完成' },
@@ -192,6 +203,59 @@ describe('WorkItemListPage', () => {
     expect(view.container.textContent).toContain('共 1 条')
     const spec = vi.mocked(pmWorkItemApi.page).mock.calls[0][0]
     expect(spec.typeCode).toBe('task')
+  })
+
+  it('opensDetailInDialogAndClosesBackToList', async () => {
+    const view = mountPage('/pm/projects/10/items/task?detail=9&page=1')
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(document.querySelector('[data-slot="dialog-content"]')?.textContent).toContain('登录页超时'))
+    const dialog = document.querySelector('[data-slot="dialog-content"]') as HTMLElement
+    expect(vi.mocked(pmWorkItemApi.getById)).toHaveBeenCalledWith('9')
+
+    const commentTab = Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === '评论')
+    click(commentTab)
+    await waitFor(() => {
+      const search = view.container.querySelector('[data-testid="location"]')?.textContent ?? ''
+      expect(search).toContain('dtab=comments')
+      expect(search).toContain('page=1')
+    })
+
+    act(() => {
+      const closeButton = Array.from(document.querySelectorAll('[data-slot="dialog-content"] button'))
+        .find((button) => button.textContent?.trim() === '关闭')
+      ;(closeButton as HTMLElement | undefined)?.click()
+    })
+    await waitFor(() => {
+      const search = view.container.querySelector('[data-testid="location"]')?.textContent ?? ''
+      expect(search).not.toContain('detail=9')
+      expect(search).not.toContain('dtab=')
+      expect(search).toContain('page=1')
+    })
+  })
+
+  it('keepsDetailWhenListWrites', async () => {
+    const view = mountPage('/pm/projects/10/items/task?detail=9&page=5')
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(document.querySelector('[data-slot="dialog-content"]')?.textContent).toContain('登录页超时'))
+    await waitFor(() => {
+      const search = view.container.querySelector('[data-testid="location"]')?.textContent ?? ''
+      expect(search).toContain('detail=9')
+      expect(search).not.toContain('page=5')
+    })
+    expect(document.querySelector('[data-slot="dialog-content"]')).not.toBeNull()
+  })
+
+  it('titleLinksToDetailParam', async () => {
+    const view = mountPage('/pm/projects/10/items/task?page=1')
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(view.container.textContent).toContain('登录页超时'))
+    const link = view.container.querySelector('a[href*="detail="]')
+    expect(link?.getAttribute('href')).toContain('/pm/projects/10/items/task?')
+    expect(link?.getAttribute('href')).toContain('detail=9')
+    expect(link?.getAttribute('href')).toContain('page=1')
   })
 
   it('keepsCreateInTabRowAndDropsInlineFilterAdd', async () => {

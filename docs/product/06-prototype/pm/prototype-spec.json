@@ -1,7 +1,7 @@
 {
   "meta": {
     "name": "pm-module-prototype",
-    "version": "1.10",
+    "version": "1.11",
     "date": "2026-10-22",
     "viewport": {
       "width": 1440,
@@ -139,9 +139,9 @@
     },
     {
       "id": "P06",
-      "name": "事项详情",
-      "route": "/pm/projects/:projectId/items/:typeCode/:itemId",
-      "hash": "#/items/1",
+      "name": "事项详情弹窗",
+      "route": "/pm/projects/:projectId/items/:typeCode?detail=:itemId",
+      "hash": "#/workbench?detail=1",
       "states": [
         "default",
         "activity",
@@ -152,7 +152,8 @@
         "loading",
         "error",
         "inline"
-      ]
+      ],
+      "overlay": true
     }
   ],
   "overlays": [
@@ -250,7 +251,7 @@
       "id": "O10",
       "name": "状态流转",
       "trigger": "P06.状态流转",
-      "hash": "#/items/1?overlay=transition",
+      "hash": "#/workbench?detail=1&overlay=transition",
       "states": [
         "default"
       ]
@@ -259,7 +260,7 @@
       "id": "O11",
       "name": "放弃修改",
       "trigger": "P06.返回/取消",
-      "hash": "#/items/1?edit=1&overlay=discard",
+      "hash": "#/workbench?detail=1&edit=1&overlay=discard",
       "states": [
         "default"
       ]
@@ -268,7 +269,7 @@
       "id": "O12",
       "name": "删除事项",
       "trigger": "P06.删除",
-      "hash": "#/items/1?overlay=delete&enabledActions=delete",
+      "hash": "#/workbench?detail=1&overlay=delete&enabledActions=delete",
       "states": [
         "default"
       ]

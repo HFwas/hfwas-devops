@@ -36,9 +36,15 @@ export function usePmListUrlState(input: {
 
   const commit = useCallback(
     (next: PmListUrlState) => {
-      setSearchParams(serializePmListUrl(next, { fallbackConfig }), { replace: true })
+      const params = serializePmListUrl(next, { fallbackConfig })
+      // 详情弹窗参数不在列表状态模型里：列表侧任何写入都不能静默关闭详情。
+      for (const key of ['detail', 'dtab'] as const) {
+        const value = searchParams.get(key)
+        if (value) params.set(key, value)
+      }
+      setSearchParams(params, { replace: true })
     },
-    [fallbackConfig, setSearchParams],
+    [fallbackConfig, setSearchParams, searchParams],
   )
 
   const patch = useCallback(

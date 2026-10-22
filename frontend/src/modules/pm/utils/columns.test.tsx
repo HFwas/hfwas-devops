@@ -34,6 +34,7 @@ const status: StatusDefinition = {
 const user = { id: '2', username: 'zhangsan', displayName: '张三', role: 'user' } as UserProfile
 const ctx = {
   projectId: '10',
+  detailHref: (row: PmWorkItem) => `/pm/projects/10/items/bug?detail=${row.id}`,
   types: [{ code: 'bug', name: '缺陷' }],
   statusByType: new Map([['bug', new Map([['open', status]])]]),
   usersById: new Map([['2', user]]),
@@ -71,7 +72,7 @@ describe('column catalog', () => {
 
   it('linksWithItemType', () => {
     const html = render('title')
-    expect(html).toContain('/pm/projects/10/items/bug/9')
+    expect(html).toContain('/pm/projects/10/items/bug?detail=9')
     expect(html).toContain('登录页白屏')
   })
 })
