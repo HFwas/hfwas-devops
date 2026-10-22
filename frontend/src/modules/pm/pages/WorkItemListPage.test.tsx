@@ -194,6 +194,19 @@ describe('WorkItemListPage', () => {
     expect(spec.typeCode).toBe('task')
   })
 
+  it('keepsCreateInTabRowAndDropsInlineFilterAdd', async () => {
+    const view = mountPage('/pm/projects/10/items/task')
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(view.container.textContent).toContain('登录页超时'))
+    const tabRow = view.container.querySelector('[data-slot="list-page-tab-row"]')
+    expect(tabRow?.textContent).toContain('新建')
+    expect(buttonByText(view.container, '添加筛选')).toBeUndefined()
+    expect(view.container.textContent).not.toContain('更新于')
+    expect(view.container.textContent).not.toContain('云原生交付平台')
+    expect(view.container.querySelector('h1')?.className).toContain('sr-only')
+  })
+
   it('allItemsOmitsTypeCode', async () => {
     const view = mountPage('/pm/projects/10/items/all')
     root = view.root
@@ -235,6 +248,10 @@ describe('WorkItemListPage', () => {
     click(buttonByText(document.body, '应用筛选'))
     await waitFor(() => expect(view.container.querySelector('[data-testid="location"]')?.textContent).not.toContain('overlay=filter'))
     await waitFor(() => expect(view.container.textContent).toContain('筛后 1 条'))
+    const filterBar = view.container.querySelector('[data-slot="filter-bar"]')
+    expect(filterBar?.textContent).toContain('状态')
+    expect(filterBar?.textContent).toContain('清空全部')
+    expect(buttonByText(view.container, '添加筛选')).toBeUndefined()
     await waitFor(() => {
       const matched = vi.mocked(pmWorkItemApi.page).mock.calls.some(([spec]) =>
         JSON.stringify(spec).includes('"operator":"IN"') && JSON.stringify(spec).includes('"field":"status"'))

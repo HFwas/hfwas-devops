@@ -1,7 +1,7 @@
 # PM 模块总原型规格（人读版）
 
-> 日期：2026-10-20
-> 版本：v1.9
+> 日期：2026-10-22
+> 版本：v1.10
 > 机器可读版本：[prototype-spec.json](./prototype-spec.json)
 > 功能设计：[20261019-pm-list-config-bulk/design.md](../../../superpowers/features/20261019-pm-list-config-bulk/design.md)
 > 关联原型：[工作台改版](../../../superpowers/features/20261019-pm-workbench-redesign/prototype/index.html)、[事项类型](../../../superpowers/features/20261019-pm-work-item-types/prototype/index.html)
@@ -20,6 +20,7 @@
 | v1.7 | 2026-10-20 | 操作记录分页展示，默认最新在前，支持每页 5/10/20 条与页码切换 |
 | v1.8 | 2026-10-20 | 评审修复：分页 10/20/50/100 默认 10 并自洽；截止时间 key 改 `end_time`；导出范围与字段可交互；只读态封堵写操作；评论/预览接入 Markdown；批量动作遵守启停；统一总数与列宽；多列排序 |
 | v1.9 | 2026-10-20 | 复评修复：导出字段勾选、画板 42 `end_time`、页大小文案、AC-29 字段名；删除动作启用态与直链拦截；保存配置/视图、跳页校验、预览 404 |
+| v1.10 | 2026-10-22 | 布局评审：删除页头（类型标题 + 平台/视图/总数/更新时间）；导入/导出/新建下移到视图页签行右侧；移除「+ 添加筛选」条件行，筛选入口只保留工具栏「筛选」，已应用条件仅在存在时展示 |
 
 ---
 
@@ -50,10 +51,9 @@
 
 ```text
 左侧：项目切换 / 原型总览 / 工作项类型（全部 + 7 个启用类型 + 数量）/ 协作 / 配置
-页头：当前类型 / 项目 / 视图名 / 总数 / 更新时间       [导入] [导出] [新建]
-视图页签：研发待办 | 我的事项 | 本周到期 | 阻塞风险 | + 保存视图
+视图页签行：研发待办 | 我的事项 | 本周到期 | 阻塞风险 | + 保存视图     [导入] [导出] [新建]
 工具栏：搜索（N 个字段）| 筛选 | 显示 | 排序 | 密度            共 N 条
-条件行：条件 chip / 添加筛选 / 清空
+条件行：仅在已应用筛选时出现（条件 chip / 清空 / 筛后 N 条）
 批量栏：已选 N 项 | 批量编辑 | 状态流转 | 导出 | 删除 | 取消
 表格：选择 / 配置列（默认 8 列）/ 操作
 分页：总数 / 每页 10（可切换 20/50/100）/ 页码 / 跳页
@@ -80,8 +80,8 @@
 |----|------|------|------|
 | O01 | 视图配置 | 工具栏「显示」/ 搜索范围 chip | columns / search / filter |
 | O02 | 批量编辑 | 批量栏「批量编辑」「状态流转」 | default / invalid |
-| O03 | 导入事项 | 页头「导入」 | upload / mapping / result |
-| O04 | 导出事项 | 页头「导出」/ 批量栏「导出」 | query / selected / all |
+| O03 | 导入事项 | 视图页签行「导入」 | upload / mapping / result |
+| O04 | 导出事项 | 视图页签行「导出」/ 批量栏「导出」 | query / selected / all |
 | O05 | 保存视图 | 视图页签「保存视图」 | default |
 | O06 | 批量动作编辑 | P05「配置」 | default |
 | O07 | 筛选构建器 | 工具栏「筛选」 | default / invalid |
@@ -252,7 +252,7 @@
 | 组件 | 位置 | 说明 |
 |------|------|------|
 | `ProjectTypeNav` | `modules/pm/components/ProjectTypeNav` | 项目启用类型与数量 |
-| `ListPageShell` | `components/console/ListPageShell` | 页头、视图、工具栏、内容、分页 |
+| `ListPageShell` | `components/console/ListPageShell` | 视图页签行（含 `rowActions`）、工具栏、条件行、内容、分页 |
 | `DataTable` | 扩展既有组件 | 动态列、选择、排序、密度 |
 | `Pagination` | 扩展既有组件 | 总数、每页、跳页 |
 | `SearchInput` | `components/console/SearchInput` | 防抖与搜索范围 |

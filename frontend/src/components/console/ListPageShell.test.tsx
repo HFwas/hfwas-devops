@@ -70,4 +70,39 @@ describe('ListPageShell', () => {
     expect(view.container.textContent).toContain('内容')
     unmount(view)
   })
+
+  it('putsRowActionsInTabRowAndHidesHeader', () => {
+    const view = mount(
+      <ListPageShell
+        title="工作项"
+        showHeader={false}
+        tabs={<span>研发待办</span>}
+        rowActions={<button type="button">新建</button>}
+      >
+        <p>内容</p>
+      </ListPageShell>,
+    )
+    const tabRow = view.container.querySelector('[data-slot="list-page-tab-row"]')
+    expect(tabRow?.textContent).toContain('新建')
+    expect(tabRow?.textContent).toContain('研发待办')
+    const heading = view.container.querySelector('h1')
+    expect(heading?.className).toContain('sr-only')
+    expect(heading?.textContent).toBe('工作项')
+    unmount(view)
+  })
+
+  it('fallsBackToActionsWhenHeaderHidden', () => {
+    const view = mount(
+      <ListPageShell
+        title="工作项"
+        showHeader={false}
+        actions={<button type="button">导出</button>}
+      >
+        <p>内容</p>
+      </ListPageShell>,
+    )
+    const tabRow = view.container.querySelector('[data-slot="list-page-tab-row"]')
+    expect(tabRow?.textContent).toContain('导出')
+    unmount(view)
+  })
 })

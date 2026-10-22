@@ -11,11 +11,13 @@ export interface ActiveFilter {
 
 /**
  * 已应用筛选条件条：每个条件一个 chip，可单条移除或全部重置。
+ * `showLabel=false` 用于「只展示已生效条件」的紧凑场景。
  */
 export function FilterBar({
   activeFilters = [],
   onReset,
   resetLabel = '清除全部',
+  showLabel = true,
   extra,
   children,
   className,
@@ -23,6 +25,7 @@ export function FilterBar({
   activeFilters?: ActiveFilter[]
   onReset?: () => void
   resetLabel?: string
+  showLabel?: boolean
   extra?: ReactNode
   children?: ReactNode
   className?: string
@@ -34,9 +37,9 @@ export function FilterBar({
       className={cn('flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm', className)}
     >
       {children}
-      <span className="text-muted-foreground">筛选</span>
+      {showLabel ? <span className="text-muted-foreground">筛选</span> : null}
       {activeFilters.length === 0 ? (
-        <span className="text-muted-foreground">未设置条件</span>
+        showLabel ? <span className="text-muted-foreground">未设置条件</span> : null
       ) : (
         activeFilters.map((filter) => (
           <span

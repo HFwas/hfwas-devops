@@ -37,7 +37,6 @@ import type {
 import { PRIORITY_OPTIONS, typeLabel } from '@/modules/pm/types'
 import { buildColumnCatalog, renderPmCell, type CellContext } from '@/modules/pm/utils/columns'
 import { cropFilterTree, emptyFilterTree, filterTreeToChips } from '@/modules/pm/utils/filterTree'
-import { formatDateTime } from '@/modules/pm/utils/format'
 import { asId } from '@/modules/pm/utils/id'
 import { effectiveConfig, pruneSelection } from '@/modules/pm/utils/listUrlState'
 import { buildQuerySpec, estimateCountSpec } from '@/modules/pm/utils/querySpec'
@@ -270,9 +269,6 @@ export function WorkItemListPage() {
     () => rows.filter((row) => state.selectedIds.includes(asId(row.id))),
     [rows, state.selectedIds],
   )
-  const latestUpdate = rows.reduce<string | undefined>((latest, row) =>
-    row.updateTime && (!latest || row.updateTime > latest) ? row.updateTime : latest, undefined)
-
   const forbidden = isApiError(itemsQuery.error) && FORBIDDEN_CODES.has(itemsQuery.error.code)
   const metaError = typesQuery.isError ? (typesQuery.error as Error).message || '事项类型加载失败' : undefined
 
@@ -508,12 +504,7 @@ export function WorkItemListPage() {
     <>
       <ListPageShell
         title={typeCode ? typeLabel(typeCode, enabledTypes) : '工作项'}
-        description={[
-          projectQuery.data?.name,
-          activeSavedView?.name ?? activeBuiltIn?.label,
-          `共 ${total} 条`,
-          latestUpdate ? `更新于 ${formatDateTime(latestUpdate)}` : '',
-        ].filter(Boolean).join(' · ')}
+        showHeader={false}
         tabs={!forbidden ? (
           <WorkItemViewTabs
             activeView={activeView}
@@ -522,8 +513,12 @@ export function WorkItemListPage() {
             onSelect={(view) => url.switchView(view)}
           />
         ) : undefined}
-        actions={forbidden ? undefined : (
-          <Button type="button" onClick={() => { setCreateType(typeCode ?? enabledTypes[0]?.code ?? 'task'); setCreateOpen(true) }}>
+        rowActions={forbidden ? undefined : (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => { setCreateType(typeCode ?? enabledTypes[0]?.code ?? 'task'); setCreateOpen(true) }}
+          >
             <Plus />
             新建
           </Button>
@@ -566,18 +561,14 @@ export function WorkItemListPage() {
             <span className="ml-auto text-sm text-muted-foreground">共 {total} 条</span>
           </div>
         )}
-        filters={forbidden ? undefined : (
+        filters={forbidden || chips.length === 0 ? undefined : (
           <FilterBar
             activeFilters={chips.map((chip) => ({ key: chip.key, label: chip.label, onRemove: () => removeChip(chip.key) }))}
             onReset={() => url.patch({ filterTree: emptyFilterTree(), page: 1, selectedIds: [] })}
-            extra={(
-              <div className="flex items-center gap-2">
-                {chips.length ? <span className="text-xs text-muted-foreground">筛后 {total} 条</span> : null}
-                <Button type="button" size="sm" variant="outline" onClick={() => url.setOverlay('filter')}>
-                  <Plus className="size-3.5" />添加筛选
-                </Button>
-              </div>
-            )}
+            resetLabel="清空全部"
+            showLabel={false}
+            className="rounded-none border-0 bg-transparent px-0 py-0"
+            extra={<span className="text-xs text-muted-foreground">筛后 {total} 条</span>}
           />
         )}
         loading={itemsQuery.isPending && !metaError}

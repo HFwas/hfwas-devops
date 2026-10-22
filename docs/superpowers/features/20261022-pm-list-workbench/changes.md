@@ -1,8 +1,8 @@
 # PM 列表工作台代码变更
 
 > 日期：2026-10-22
-> 版本：v0.4
-> 状态：已交付（独立校验通过）
+> 版本：v0.5
+> 状态：已交付（v1.10 已冻结，布局修订复验通过）
 > 关联：[design.md](./design.md)、[test-cases.md](./test-cases.md)
 
 ### 变更记录
@@ -13,6 +13,7 @@
 | v0.2 | 2026-10-22 | 回填实际改动、偏差与真实验证结果 |
 | v0.3 | 2026-10-22 | 第 2 次校验修复：恢复默认预览回写、补字段元数据/恢复默认用例；补文档轮次与计数 |
 | v0.4 | 2026-10-22 | 第 3 次校验通过；预览排序驱动查询；统一文档措辞与计数 |
+| v0.5 | 2026-10-22 | 布局修订：删除页头、主操作移到视图页签行、筛选入口收敛；补原型 v1.10 映射与前端验证 |
 
 ---
 
@@ -168,3 +169,76 @@
 结论：**通过**。B1 专项复核确认恢复默认不再回写；后端 57、server 34（5 skipped）、前端 327、`tsc` 与构建全部通过；TC-01–TC-46 引用与断言核对通过；文档版本与轮次记录补齐。
 
 剩余非阻断项：MV-01~05 与真实截图未执行（无登录环境）；快捷筛选「阻塞风险」与内置视图语义后续可统一；关闭抽屉未保存预览直接丢弃（有意行为）。
+
+## 6. 布局修订（2026-10-22，原型 v1.10）
+
+### 6.1 变更文件
+
+| 文件 | 动作 | 对应设计 | 说明 |
+|---|---|---|---|
+| `frontend/src/components/console/ListPageShell.tsx` | 修改 | §10.1/§10.2 | 新增 `showHeader`、`rowActions`；页签与主操作同一行（`data-slot=list-page-tab-row`），隐藏页头时渲染 `sr-only` 标题 |
+| `frontend/src/modules/pm/components/WorkItemViewTabs.tsx` | 修改 | §10.2 | 去掉自身 `border-b`，由页签行统一提供分隔线 |
+| `frontend/src/components/console/FilterBar.tsx` | 修改 | §10.3 | 新增 `showLabel`；空条件且隐藏标签时不渲染占位文案 |
+| `frontend/src/modules/pm/pages/WorkItemListPage.tsx` | 修改 | §10 | `showHeader=false`、`rowActions=新建`、移除描述与 `latestUpdate`；条件行仅在 `chips.length > 0` 时渲染，去掉「+ 添加筛选」与「清除全部」 |
+| `frontend/src/modules/pm/pages/WorkItemListPage.test.tsx` | 修改 | TC-47/48 | 新增 `keepsCreateInTabRowAndDropsInlineFilterAdd` |
+| `frontend/src/components/console/ListPageShell.test.tsx` | 修改 | TC-47/48 | 新增 `putsRowActionsInTabRowAndHidesHeader` |
+| `frontend/src/components/console/FilterBar.test.tsx` | 修改 | TC-49 | 新增 `rendersBareChipsWithoutLabel` |
+| `docs/product/06-prototype/pm/index.html` | 修改 | §10 | 原型 v1.10：删除 `page-head`、`.views-row` + `.views-actions`、条件行仅在存在条件时输出 |
+| `docs/product/06-prototype/pm/{prototype-spec.md,prototype-spec.json,README.md,prototype-contract.md}` | 修改 | — | 版本、变更记录、信息层级与必须一致项同步 |
+| `docs/product/06-prototype/pm/shots/{02..27,49,50,52}-*.png` | 重出 | — | 1440×900 @2x（52 号 1280×800 @2x） |
+
+### 6.2 原型 → 实现映射（新增部分）
+
+| 原型元素 | 实现 |
+|---|---|
+| 视图页签行右侧 [导入] [导出] [新建] | `ListPageShell.rowActions`：本轮仅「新建」；导入/导出见 §3 偏差 9 |
+| 页签行整体分隔线 | `[data-slot=list-page-tab-row]` 的 `border-b` |
+| 页头删除 | `ListPageShell showHeader={false}` → `h1.sr-only` |
+| 工具栏「筛选」唯一入口 | 现有按钮保持不变 |
+| 条件行（仅有条件时） | `FilterBar`，`showLabel={false}`、`resetLabel="清空全部"`、无边框样式 |
+
+### 6.3 偏差
+
+| # | 偏差 | 原因 |
+|---|------|------|
+| 19 | 实现侧页签行只有「新建」，没有「导入 / 导出」 | 导入/导出属后续阶段（§3 偏差 9），本次只调整位置，不新增功能 |
+| 20 | 条件行保留「清空全部」与「筛后 N 条」 | 与原型一致：无筛选时整行不渲染，有筛选时可一键清空并看到筛后条数 |
+| 21 | 隐藏页头后仍保留 `sr-only h1` | 无障碍与页面标题识别，视觉上不可见，符合「移除这一行」 |
+| 22 | 原型页签行按钮 28px，实现用 `size="sm"`（32px） | 与 34px 页签同排时避免行高被撑到 40px；4px 差异属允许差异项（`spacing` 内） |
+
+### 6.4 验证结果
+
+| 检查 | 命令 | 结果 |
+|---|---|---|
+| 前端测试（受影响） | `npx vitest run src/components/console/ListPageShell.test.tsx src/components/console/FilterBar.test.tsx src/modules/pm/pages/WorkItemListPage.test.tsx` | 通过：3 files / 19 tests |
+| 前端全量测试 | `npm test` | 通过：80 files，330 passed / 1 skipped |
+| 前端类型检查 | `npx tsc --noEmit` | 通过 |
+| 前端构建 | `npm run build` | 通过（既有 chunk 体积警告） |
+| 原型视觉 | 本地 HTTP + headless Chrome，1440×900@2x 与 1280×800@2x | 默认、筛选、只读、暗色、1280 均无空条件行，页签行右侧操作对齐；52 号画板连拍存在左侧栏底部渲染时机抖动（3 次中 2 次哈希一致），仓库文件为内容完整变体 |
+
+### 6.5 第 1 次独立校验后的修复（2026-10-22）
+
+| # | 校验问题 | 处理 |
+|---|---|---|
+| 1 | P1：条件行丢了「清空全部」，与设计/契约/原型冲突 | `WorkItemListPage` 去掉 `showReset={false}`，传 `resetLabel="清空全部"`；`FilterBar` 移除未使用的 `showReset` |
+| 2 | P2：design 变更记录写 AC-14/AC-15 | 改为 AC-16/AC-17，AC-17 补「清空全部」 |
+| 3 | P2：契约写 README v1.12 | 改为 v1.13，并注明导入/导出在实现侧属后续阶段 |
+| 4 | P2：changes/design 状态与 progress 不一致 | changes 改为「v0.5 布局修订待复验」 |
+| 5 | P2：偏差 20 措辞矛盾 | 改为「条件行保留清空全部与筛后 N 条，无筛选时整行不渲染」 |
+| 6 | P2：TC-47/49 断言不足 | `keepsCreateInTabRowAndDropsInlineFilterAdd` 补「项目名不出现」；`appliesFilter` 补 filter-bar 存在、chip、清空全部、无「添加筛选」 |
+| 7 | P3：新建按钮尺寸与设计不符 | 改为 `size="sm"`，偏差 22 登记 4px 差异 |
+| 8 | P3：`showHeader=false` 时 `actions` 被静默丢弃 | `actions` 在隐藏页头时并入页签行，注释同步 |
+| 9 | P3：原型遗留注释「页头总数」 | 改为「工具栏总数」 |
+| 10 | P3：52 号画板重拍不一致 | 用统一命令重拍，取左侧栏内容完整的变体；连拍仍有渲染时机抖动，已如实记录 |
+
+修复后复跑：受影响 19 tests 通过；全量 330 passed / 1 skipped；`tsc --noEmit` 通过。
+
+### 6.6 第 2 次独立校验（2026-10-22）
+
+结论：**通过**。P1 已关闭，3 项 P2 文档项已修正，测试与类型检查通过。
+
+复验后补充处理：
+- TC-49 自动化引用改为 `FilterBar.test.tsx::rendersBareChipsWithoutLabel`，预期补「清空全部」（test-cases v0.5）。
+- `changes.md` 与 `design.md` 中残留的 `showReset` 描述已删除。
+- 新增 `ListPageShell.test.tsx::fallsBackToActionsWhenHeaderHidden`，覆盖 `showHeader=false` 且只传 `actions` 的兜底分支。
+- 复跑：受影响 3 files / 20 tests 通过；全量 80 files / 331 passed / 1 skipped；`npx tsc --noEmit` 通过。

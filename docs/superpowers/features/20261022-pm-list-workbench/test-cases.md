@@ -1,7 +1,7 @@
 # PM 列表工作台测试用例
 
 > 日期：2026-10-22
-> 版本：v0.3
+> 版本：v0.5
 > 状态：已执行（本地通过；无真实登录环境手工用例待补）
 > 关联：[design.md](./design.md)
 
@@ -12,6 +12,8 @@
 | v0.1 | 2026-10-22 | 初版：URL/视图/筛选/查询/列/页面/批量/后端 NOT_LIKE 用例 |
 | v0.2 | 2026-10-22 | 回填执行结果：后端 54、前端 319 通过；页面与纯函数用例已自动化 |
 | v0.3 | 2026-10-22 | 修正测试引用；新增日期为空、字符串版本、恢复默认、元数据未就绪用例；计数更新为后端 57 / 前端 327 |
+| v0.4 | 2026-10-22 | 新增布局用例 TC-47/48/49 与手工项 MV-06，覆盖删除页头、主操作在页签行、筛选入口唯一 |
+| v0.5 | 2026-10-22 | TC-49 更正自动化引用为 `rendersBareChipsWithoutLabel`，预期补「清空全部」 |
 
 ---
 
@@ -80,6 +82,9 @@
 | TC-44 | 字符串版本号 | 后端 Long 序列化为字符串 | 批量请求 versions 仍带 `{id:number}` | `WorkItemListPage.test.tsx::selectionShowsBulkBarAndBulkEdit` |
 | TC-45 | 恢复默认 | 改列后点恢复默认 | 表格列回到默认且不被即时预览写回 | `WorkItemListPage.test.tsx::restoreViewConfigResetsWithoutPreviewEcho` |
 | TC-46 | 元数据未就绪 | URL 含自定义 `f`/`sort` | 字段元数据到达前保留，不丢配置 | `listUrlState.test.ts::preservesCustomFilterBeforeMetadata` |
+| TC-47 | 列表页不渲染页头 | 进入 `/items/task` | 无项目 / 视图名 / 更新时间描述行；标题只存在 `sr-only` 的 `h1` | `WorkItemListPage.test.tsx::keepsCreateInTabRowAndDropsInlineFilterAdd` |
+| TC-48 | 主操作在页签行 | 进入列表页 | 「新建」位于 `[data-slot=list-page-tab-row]` 内右侧；只读态不渲染 | `WorkItemListPage.test.tsx::keepsCreateInTabRowAndDropsInlineFilterAdd`、`::forbiddenState` |
+| TC-49 | 筛选入口唯一 | 无筛选 / 有筛选 | 无筛选时不渲染条件行且无「添加筛选」按钮；有筛选时条件行显示 chip、清空全部与筛后条数，不显示添加按钮 | `FilterBar.test.tsx::rendersBareChipsWithoutLabel`、`WorkItemListPage.test.tsx::appliesFilter` |
 
 ## 5. 手工验证
 
@@ -90,3 +95,4 @@
 | MV-03 | 空/加载/失败/403 | 头部保留，状态文案完整 |
 | MV-04 | 批量编辑 dry-run 后取消 | 无数据变化、无活动写入 |
 | MV-05 | 视图配置保存后刷新 | 配置从保存视图恢复，脏点消失 |
+| MV-06 | 1440×900 / 1280×800 对比冻结原型 v1.10 | 页签行右侧「导入 / 导出 / 新建」与页签同底边；工具栏「筛选」为唯一筛选入口；未筛选时无空条件行 |

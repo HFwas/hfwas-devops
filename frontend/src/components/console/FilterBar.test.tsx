@@ -49,4 +49,22 @@ describe('FilterBar', () => {
     expect(view.container.textContent).toContain('未设置条件')
     unmount(view)
   })
+
+  it('rendersBareChipsWithoutLabel', () => {
+    const onReset = vi.fn()
+    const view = mount(
+      <FilterBar
+        activeFilters={[{ key: 'status', label: '状态 是 进行中', onRemove: vi.fn() }]}
+        onReset={onReset}
+        resetLabel="清空全部"
+        showLabel={false}
+        extra={<span>筛后 1 条</span>}
+      />,
+    )
+    expect(view.container.textContent).toContain('状态 是 进行中')
+    expect(view.container.textContent).toContain('筛后 1 条')
+    expect(view.container.textContent).not.toContain('筛选')
+    expect(view.container.textContent).toContain('清空全部')
+    unmount(view)
+  })
 })

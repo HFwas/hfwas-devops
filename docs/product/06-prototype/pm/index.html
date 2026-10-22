@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PM 模块总原型 · v1.9</title>
+<title>PM 模块总原型 · v1.10</title>
 <style>
 :root{
   --background:oklch(1 0 0);--foreground:oklch(.141 .005 285.823);
@@ -120,7 +120,9 @@ svg{display:block;flex:none;width:14px;height:14px}
 .seg button:last-child{border-right:0}
 .seg button.on{background:var(--accent);color:var(--foreground);font-weight:600}
 /* ---------- views/toolbar ---------- */
-.views{display:flex;align-items:center;gap:2px;border-bottom:1px solid var(--border);margin:0 -2px}
+.views-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin:0 -2px}
+.views{display:flex;align-items:center;gap:2px;min-width:0}
+.views-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto;padding-bottom:2px}
 .view-tab{display:flex;align-items:center;gap:6px;height:34px;padding:0 11px;font-size:12.5px;color:var(--muted-foreground);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .view-tab:hover{color:var(--foreground)}
 .view-tab.active{color:var(--foreground);border-bottom-color:var(--primary);font-weight:600}
@@ -149,8 +151,6 @@ svg{display:block;flex:none;width:14px;height:14px}
 .chip b{color:var(--foreground);font-weight:600}
 .chip button{width:18px;height:18px;border-radius:4px;display:grid;place-items:center;color:var(--muted-foreground)}
 .chip button:hover{background:var(--accent);color:var(--foreground)}
-.chip-add{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 8px;font-size:11.5px;color:var(--muted-foreground);border-radius:calc(var(--radius) - 2px)}
-.chip-add:hover{background:var(--accent);color:var(--foreground)}
 .filter-clear{font-size:11.5px;color:var(--muted-foreground);text-decoration:underline;text-underline-offset:2px}
 .filter-clear:hover{color:var(--foreground)}
 /* ---------- bulk bar ---------- */
@@ -581,7 +581,7 @@ body:not(.capture) .edit-bar{margin-right:244px}
 <div id="app"></div>
 <div id="overlayRoot"></div>
 <div id="toast"></div>
-<div class="proto-badge">PM 模块总原型 v1.9 · 非生产环境</div>
+<div class="proto-badge">PM 模块总原型 v1.10 · 非生产环境</div>
 <script>
 /* ================= 数据 ================= */
 const TYPES=[
@@ -663,7 +663,7 @@ const ITEMS=[
   {id:23,key:'DEVOPS-2395',type:'tech_debt',title:'为容器模块补充 NodePort 冲突排查说明',status:'done',priority:'low',assignee:'周贺',av:3,end_time:'10-12',iteration:'2026-09 迭代',sp:1,risk:'低',updated:'10-12 17:05',desc:'补充常见端口冲突与排查命令。'},
   {id:24,key:'DEVOPS-2394',type:'story',title:'作为测试负责人，我希望批量导出选中事项用于离线评审',status:'blocked',priority:'high',assignee:'林小满',av:2,end_time:'今天',endTimeTone:'today',iteration:'2026-10 迭代',sp:5,risk:'高',updated:'10-12 11:26',desc:'导出字段需要可配置并支持选中范围。'}
 ];
-/* 将样例数据补齐到各类型目标数量，保证左侧计数、页头总数与分页一致 */
+/* 将样例数据补齐到各类型目标数量，保证左侧计数、工具栏总数与分页一致 */
 (function fillFixtures(){
   const titles={
     requirement:['需求澄清：权限模型与项目角色边界','需求：支持按项目配置工作流模板','需求：列表视图支持共享给项目成员'],
@@ -1243,7 +1243,7 @@ function renderOverview(){
   const lane=(label,sub,nodes)=>'<div class="ov-lane"><div class="ov-lane-label"><b>'+label+'</b>'+sub+'</div>'+nodes+'</div>';
   const content='<div class="content"><div class="ov-board">'+
     '<div class="ov-head"><div><h1 class="ov-title">项目管理原型总览</h1><div class="ov-sub">PM 模块唯一原型入口：项目类型、配置驱动的列表与搜索、批量编辑、导入导出与治理配置都在这里收敛。功能目录只引用，不复制页面。</div></div>'+
-    '<div class="ov-meta"><span class="ov-pill">原型 <b>v1.9</b></span><span class="ov-pill"><b>7</b> 个页面</span><span class="ov-pill"><b>12</b> 个弹层/抽屉</span><span class="ov-pill">A2 · 1440×900</span></div></div>'+
+    '<div class="ov-meta"><span class="ov-pill">原型 <b>v1.10</b></span><span class="ov-pill"><b>7</b> 个页面</span><span class="ov-pill"><b>12</b> 个弹层/抽屉</span><span class="ov-pill">A2 · 1440×900</span></div></div>'+
     '<div class="ov-stages">'+stage('01','项目与类型','项目启用类型、左侧导航与数量')+stage('02','视图与详情','全字段内联更新、操作记录分页、Markdown 详情')+stage('03','批量处理','批量编辑、导入、导出、删除')+stage('04','治理与扩展','权限、上限、确认与审计')+'</div>'+
     '<div class="ov-grid"><section class="ov-panel"><h2>核心流程<span class="hint">点击节点进入页面</span></h2><div class="ov-lanes">'+
       lane('项目与类型','列表 → 详情 → 类型',ovNode('P01','工作项列表','#/workbench','左侧类型导航','#/workbench')+arrow+ovNode('P06','事项详情','#/items/1','字段编辑 / 评论','#/items/1')+arrow+ovNode('P02','类型筛选','#/workbench?type=bug','缺陷 / 任务 / 自定义','#/workbench?type=bug')+arrow+ovNode('P03','事项类型','事项类型原型','项目启用方案','../../../superpowers/features/20261019-pm-work-item-types/prototype/index.html'))+
@@ -1265,8 +1265,12 @@ function renderOverview(){
 function viewsBar(params,permission){
   const active=params.get('view')||'dev';
   const dirty=isDirty(params);
-  return '<div class="views">'+VIEWS.map(v=>'<a class="view-tab '+(v.id===active?'active':'')+'" href="#/workbench?'+withParam(params,{view:v.id,overlay:null,state:null,sel:null,page:1})+'">'+v.name+(v.id===active&&dirty?'<span class="dirty" title="视图已修改"></span>':'')+'</a>').join('')+
-  (permission?'':'<a class="view-add" href="#/workbench?'+withParam(params,{overlay:'save-view'})+'">'+icon('plus')+'保存视图</a>')+'</div>';
+  const actions=permission
+    ?'<button class="btn btn-outline btn-sm" data-action="open-export-query">'+icon('download')+'导出</button>'
+    :'<button class="btn btn-outline btn-sm" data-action="open-import">'+icon('upload')+'导入</button><button class="btn btn-outline btn-sm" data-action="open-export-query">'+icon('download')+'导出</button><button class="btn btn-primary btn-sm" data-action="toast" data-msg="新建工作项（原型演示）">'+icon('plus')+'新建</button>';
+  return '<div class="views-row"><div class="views">'+VIEWS.map(v=>'<a class="view-tab '+(v.id===active?'active':'')+'" href="#/workbench?'+withParam(params,{view:v.id,overlay:null,state:null,sel:null,page:1})+'">'+v.name+(v.id===active&&dirty?'<span class="dirty" title="视图已修改"></span>':'')+'</a>').join('')+
+  (permission?'':'<a class="view-add" href="#/workbench?'+withParam(params,{overlay:'save-view'})+'">'+icon('plus')+'保存视图</a>')+'</div>'+
+  '<div class="views-actions">'+actions+'</div></div>';
 }
 function toolbar(params,permission,total){
   const q=params.get('q')||'';
@@ -1288,9 +1292,9 @@ function toolbar(params,permission,total){
 }
 function filterRow(params,permission){
   const filters=filterChips(params);
-  if(!filters.length)return '<div class="filter-row"><button class="chip-add" data-action="open-filter" '+(permission?'disabled':'')+'>'+icon('plus')+'添加筛选</button></div>';
+  if(!filters.length)return '';
   return '<div class="filter-row">'+filters.map(f=>'<span class="chip"><span class="chip-text"><b>'+esc(f.label)+'</b> '+esc(f.text)+'</span><button data-action="remove-filter" data-kind="'+f.kind+'" data-id="'+esc(f.id||'')+'" data-key="'+esc(f.key||'')+'" data-value="'+esc(f.value||'')+'">'+icon('x')+'</button></span>').join('')+
-    '<button class="chip-add" data-action="open-filter" '+(permission?'disabled':'')+'>'+icon('plus')+'添加筛选</button><button class="filter-clear" data-action="clear-filters">清空全部</button><span class="filter-result">筛后 '+filteredItems(params).length+' 条</span></div>';
+    '<button class="filter-clear" data-action="clear-filters">清空全部</button><span class="filter-result">筛后 '+filteredItems(params).length+' 条</span></div>';
 }
 function bulkBar(params){
   const sel=selectionIds(params);
@@ -1373,9 +1377,7 @@ function workbench(params){
   else if(state==='permission')body='<table>'+headRow(params,cols,permission)+'<tbody>'+statePanel('permission',params,permission,colCount)+'</tbody></table>';
   else if(state==='empty'||!visible.length)body='<table>'+headRow(params,cols,permission)+'<tbody><tr><td colspan="'+colCount+'">'+statePanel('empty',params,permission,colCount)+'</td></tr></tbody></table>';
   else body='<table>'+headRow(params,cols,permission)+'<tbody>'+visible.map(i=>rowHtml(i,params,cols,permission)).join('')+'</tbody></table>';
-  const title=typeMeta.code==='all'?'工作项':typeMeta.name;
-  return '<div class="content"><div class="page-head"><div><h1 class="page-title">'+icon(typeMeta.icon)+title+'</h1><div class="page-desc"><span>云原生交付平台</span><span class="dot-sep"></span><span>视图：'+activeView(params).name+'</span><span class="dot-sep"></span><span>共 '+total+' 条</span><span class="dot-sep"></span><span>更新于今天 10:24</span></div></div>'+
-    (permission?'<div class="page-actions"><button class="btn btn-outline" data-action="open-export-query">'+icon('download')+'导出</button></div>':'<div class="page-actions"><button class="btn btn-outline" data-action="open-import">'+icon('upload')+'导入</button><button class="btn btn-outline" data-action="open-export-query">'+icon('download')+'导出</button><button class="btn btn-primary" data-action="toast" data-msg="新建工作项（原型演示）">'+icon('plus')+'新建</button></div>')+'</div>'+
+  return '<div class="content">'+
     viewsBar(params,permission)+toolbar(params,permission,total)+filterRow(params,permission)+(permission?'':bulkBar(params))+
     '<div class="table-card '+(density==='compact'?'compact':'')+(state==='dense'?' dense':'')+'"><div class="table-scroll">'+body+'</div></div>'+
     (permission||total===0||state==='error'||state==='loading'?'':pagination(params,total))+
@@ -1899,7 +1901,7 @@ function renderProtoNav(){
     ['详情','#/items/1'],['详情·编辑','#/items/1?edit=1'],['状态直改','#/items/1?inline=status'],['优先级直改','#/items/1?inline=priority'],['截止时间直改','#/items/1?inline=end_time'],['类型直改','#/items/1?inline=type'],['关注者','#/items/1?inline=watchers'],['标题直改','#/items/1?inline=title'],['描述编辑','#/items/1?descEdit=1'],['操作记录·更新','#/items/1?tab=activity&recent=status'],['操作记录·第2页','#/items/1?tab=activity&actPage=2'],['详情·校验','#/items/1?edit=1&invalid=1'],['详情·评论','#/items/1?tab=comments'],['详情·只读','#/items/1?state=permission'],['状态流转','#/items/1?overlay=transition'],['放弃修改','#/items/1?edit=1&overlay=discard'],['删除事项','#/items/1?overlay=delete&enabledActions=delete'],['视图设置','#/settings/views'],['批量配置','#/settings/bulk-actions'],['动作编辑','#/settings/bulk-actions?overlay=action-edit&code=bulk-edit'],['暗色','#/workbench?theme=dark']
   ];
   const cur=location.hash;
-  document.body.insertAdjacentHTML('beforeend','<div class="proto-nav"><header>原型导航<span class="tag">v1.9</span></header><div class="body">'+items.map(([label,href])=>'<a href="'+href+'" class="'+(cur===href?'on':'')+'">'+label+'</a>').join('')+'</div></div>');
+  document.body.insertAdjacentHTML('beforeend','<div class="proto-nav"><header>原型导航<span class="tag">v1.10</span></header><div class="body">'+items.map(([label,href])=>'<a href="'+href+'" class="'+(cur===href?'on':'')+'">'+label+'</a>').join('')+'</div></div>');
 }
 
 /* ================= 事件 ================= */

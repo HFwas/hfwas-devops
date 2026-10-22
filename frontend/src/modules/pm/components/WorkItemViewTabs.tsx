@@ -29,7 +29,7 @@ export function WorkItemViewTabs({
       data-slot="work-item-view-tabs"
       role="tablist"
       aria-label="工作项视图"
-      className={cn('flex flex-wrap items-center gap-1 border-b', className)}
+      className={cn('flex flex-wrap items-center gap-1', className)}
     >
       {views.map((view) => {
         const active = activeView === view.id

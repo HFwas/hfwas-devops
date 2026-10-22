@@ -9,11 +9,15 @@ import { cn } from '@/lib/utils'
 /**
  * 列表页外壳：统一页头、工具栏、筛选条、内容与状态区。
  * 状态优先级：无权限 > 失败 > 加载 > 空态 > 内容。
+ * `showHeader=false` 时页头让位给视图页签行：标题只保留为无障碍标题，
+ * 主操作通过 `rowActions` 落到页签行右侧；此时未单独给 `rowActions` 的 `actions` 也并入该行，避免按钮丢失。
  */
 export function ListPageShell({
   title,
   description,
   actions,
+  rowActions,
+  showHeader = true,
   tabs,
   toolbar,
   filters,
@@ -33,6 +37,8 @@ export function ListPageShell({
   title: ReactNode
   description?: ReactNode
   actions?: ReactNode
+  rowActions?: ReactNode
+  showHeader?: boolean
   tabs?: ReactNode
   toolbar?: ReactNode
   filters?: ReactNode
@@ -70,8 +76,19 @@ export function ListPageShell({
 
   return (
     <div data-slot="list-page-shell" className={cn('flex w-full flex-col gap-4 md:gap-6', className)}>
-      <PageHeader title={title} description={description} actions={actions} />
-      {tabs}
+      {showHeader ? (
+        <PageHeader title={title} description={description} actions={actions} />
+      ) : (
+        <h1 className="sr-only">{title}</h1>
+      )}
+      {tabs || rowActions || (!showHeader && actions) ? (
+        <div data-slot="list-page-tab-row" className="flex items-end justify-between gap-3 border-b">
+          <div className="min-w-0 flex-1">{tabs}</div>
+          {rowActions || (!showHeader && actions) ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2 pb-1.5">{rowActions ?? actions}</div>
+          ) : null}
+        </div>
+      ) : null}
       {toolbar ? <div className="flex flex-wrap items-center gap-2">{toolbar}</div> : null}
       {filters}
       {summary ? <div className="flex items-center justify-between text-sm text-muted-foreground">{summary}</div> : null}
