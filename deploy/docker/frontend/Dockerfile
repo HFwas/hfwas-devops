@@ -25,7 +25,7 @@ CMD ["sh", "-c", "rm -rf /host/assets /host/index.html; cp -a /dist/. /host/"]
 # =============================================================================
 # Stage 3: Nginx runtime
 # =============================================================================
-FROM nginx:1.29-alpine
+FROM nginx:1.31-alpine
 
 # Copy built assets
 COPY --from=builder /build/dist /usr/share/nginx/html
