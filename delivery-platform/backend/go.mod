@@ -3,7 +3,7 @@ module github.com/hfwas/delivery-platform
 go 1.26.0
 
 require (
-	github.com/go-chi/chi/v5 v5.4.0
+	github.com/go-chi/chi/v5 v5.5.0
 	github.com/go-chi/cors v1.2.2
 	github.com/mattn/go-sqlite3 v1.14.52
 	k8s.io/api v0.37.1
