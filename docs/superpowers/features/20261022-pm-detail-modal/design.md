@@ -3,7 +3,7 @@
 > 日期：2026-10-24
 > 版本：v0.4
 > 状态：已实现（原型 v1.13 + React 实现，布局/编辑/内联对齐，校验修复完成）
-> 关联：[PM 模块总原型](../../../product/06-prototype/pm/README.md) v1.16、[原型规格](../../../product/06-prototype/pm/prototype-spec.md) v1.11、[原型契约](../../../product/06-prototype/pm/prototype-contract.md) v0.17
+> 关联：[PM 模块总原型](../../../product/06-prototype/pm/README.md) v1.19、[原型规格](../../../product/06-prototype/pm/prototype-spec.md) v1.13、[原型契约](../../../product/06-prototype/pm/prototype-contract.md) v0.21
 
 ### 变更记录
 
@@ -92,5 +92,5 @@
 | AC-04 | 详情页签、编辑、校验、内联、操作记录分页、评论行为与改版前一致 |
 | AC-05 | 加载、失败、不存在状态在弹窗内呈现；只读态通过 `readOnly` 生效；独立 404 分支未实现（偏差 27） |
 | AC-06 | 1440×900 与 1280×800 下弹窗不溢出，内容区独立滚动 |
-| AC-08 | 双栏布局、属性分组、页签顺序与原型一致；完整编辑与内联编辑可保存 |
 | AC-07 | 详情页签写入 `dtab`，不影响列表 `tab`（视图配置页签） |
+| AC-08 | 双栏布局、属性分组、页签顺序与原型一致；完整编辑与内联编辑可保存 |

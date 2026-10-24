@@ -47,4 +47,6 @@
 | TC-20 | 完整编辑 | 点「完整编辑」改标题后保存 | 调用 `updateField`，字段 title、值为新标题 | `WorkItemDetailDialog.test.tsx::savesFullEditFields` |
 | TC-21 | 内联编辑 | 点「编辑优先级」选低并保存 | 调用 `updateField`，字段 priority、值 low | `WorkItemDetailDialog.test.tsx::updatesPriorityInline` |
 | TC-22 | 只读 | `readOnly` | 无完整编辑/编辑描述/删除；显示只读；任意属性行无「保存/取消」按钮 | `WorkItemDetailDialog.test.tsx::hidesWriteActionsInReadOnly` |
-| TC-23 | Markdown | 含标题/列表/代码/链接/脚本/斜体边界/mailto | 正确渲染；脚本被转义，javascript: 链接被拦截，代码内不解析加粗，`2 * 3 * 4` 不误判斜体 | `markdown.test.ts`（4 条） |
+| TC-23 | Markdown | 含标题/列表/代码/链接/脚本/斜体边界/mailto | 正确渲染；脚本被转义，javascript: 链接被拦截，代码内不解析加粗，`2 * 3 * 4` 不误判斜体 | `markdown.test.ts`（6 条） |
+| TC-24 | 清空字段 | 内联负责人选「未分配」保存 | `updateField` 字段 assignee_id、值为 null | `WorkItemDetailDialog.test.tsx::clearsAssigneeInline` |
+| TC-25 | 状态流转 | 完整编辑选择目标状态并保存 | `updateField` 字段 status、带 transitionId | `WorkItemDetailDialog.test.tsx::sendsStatusWithTransitionId` |

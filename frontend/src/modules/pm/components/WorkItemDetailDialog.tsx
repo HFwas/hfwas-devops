@@ -191,7 +191,8 @@ export function WorkItemDetailDialog({
   }
   const patchMutation = useMutation({
     mutationFn: (pairs: Array<[string, unknown]>) => patchFields(pairs),
-    onSuccess: async () => {
+    onSuccess: async (_result, pairs) => {
+      if (pairs.some(([field]) => field === 'status')) toast.success('状态已更新')
       await invalidate()
       await queryClient.invalidateQueries({ queryKey: ['pm-allowed-transitions'] })
     },

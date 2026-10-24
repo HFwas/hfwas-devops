@@ -31,7 +31,7 @@
 
 | 文件 | 动作 | 对应设计 | 说明 |
 |---|---|---|---|
-| `frontend/src/modules/pm/components/WorkItemDetailDialog.tsx` | 新增 | §3/§6.1 | 居中大弹窗：顶部条（编号/类型/状态/删除）、页签概览/评论/活动、独立滚动内容；数据与流转/评论/删除 mutation 从原详情页迁移 |
+| `frontend/src/modules/pm/components/WorkItemDetailDialog.tsx` | 新增 | §3/§6.1 | 居中大弹窗（v0.2 初版；v0.3 已重做为双栏+详情/操作记录/评论）；数据与流转/评论/删除从原详情页迁移 |
 | `frontend/src/modules/pm/pages/WorkItemDetailPage.tsx` | 删除 | §6.2 | 不再有独立详情页 |
 | `frontend/src/router.tsx` | 修改 | §6.2 | 移除 `pm/projects/:projectId/items/:typeCode/:itemId` 路由与导入 |
 | `frontend/src/modules/pm/pages/WorkItemListPage.tsx` | 修改 | §6.1 | 读取 `detail`/`dtab`；挂载 `WorkItemDetailDialog`；关闭只移除详情参数；`CellContext` 注入 `detailHref` |
@@ -62,6 +62,9 @@
 | 27 | 独立 404 态仍未实现（404 显示「事项加载失败」）；只读态已由 `readOnly` 支持 | 404 文案后续补 |
 | 28 | 旧详情路由命中 `*` → `RouteScreen` 占位 | 路由兜底即此行为 |
 | 29 | Markdown 为极简渲染器（标题/列表/引用/代码/加粗/斜体/链接，支持 http(s) 与 mailto），不支持表格、图片 | 不引入第三方依赖 |
+| 30 | 元信息行与人员卡以「类型 / 所属模块」替代原型的「所属迭代」，未显示关联迭代 | 无迭代查询接口 |
+| 31 | 描述工具栏插入固定追加到末尾 | 未接入选区插入，属交互细节 |
+| 32 | 完整编辑多字段逐条 PATCH，非原子；后续字段失败时前面的字段已落库 | 单字段接口无批量写；错误会提示，需重新编辑 |
 
 ## 4. 验证结果
 
@@ -71,10 +74,10 @@
 | 原型渲染 | 本地 HTTP + Chrome，1440×900 与 1280×800 | 默认/编辑/校验/只读/页签/内联/弹层/404/加载/失败 均正常 |
 | URL 冒烟 | Playwright 逐条加载 16 个详情/列表 URL | 详情 URL 均出现弹窗，列表与总览无弹窗；0 个页面异常 |
 | 前端类型检查 | `npx tsc --noEmit` | 通过 |
-| 前端测试 | `npm test` | 通过：80 files / 333 passed / 1 skipped |
+| 前端测试 | `npm test` | 通过：82 files / 346 passed / 1 skipped |
 | 前端构建 | `npm run build` | 通过（既有 chunk 体积警告） |
 | 详情参数保持 | `usePmListUrlState` + 列表用例 | 分页夹取等列表写入后 `detail` 仍在；切页签/关闭后 `page` 等参数保留（`WorkItemListPage.test.tsx::keepsDetailWhenListWrites`） |
-| 前端测试（弹窗） | `npx vitest run src/modules/pm/components/WorkItemDetailDialog.test.tsx src/modules/pm/utils/markdown.test.ts` | 通过：8 tests |
+| 前端测试（弹窗） | `npx vitest run src/modules/pm/components/WorkItemDetailDialog.test.tsx src/modules/pm/utils/markdown.test.ts` | 通过：12 tests（弹窗 6 + Markdown 6） |
 | 真实应用截图 | — | 未执行：本机后端 8080 未启动 |
 | 关闭行为 | 点击顶部 × | URL 仅移除详情参数，列表 10 行仍在 |
 | 画板重出 | README §4.1 命令 | 01、28–48、51、53、54 已更新 |

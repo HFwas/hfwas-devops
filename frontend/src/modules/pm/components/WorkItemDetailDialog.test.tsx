@@ -207,6 +207,49 @@ describe('WorkItemDetailDialog', () => {
     expect(payload.value).toBe('low')
   })
 
+  it('clearsAssigneeInline', async () => {
+    const view = mountDialog()
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(document.body.textContent).toContain('登录页超时'))
+
+    const dialog = document.querySelector('[data-slot="dialog-content"]') as HTMLElement
+    click(dialog.querySelector('button[aria-label="编辑负责人"]'))
+    const select = dialog.querySelector('select[aria-label="负责人"]') as HTMLSelectElement
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set
+      setter?.call(select, '')
+      select.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    click(Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === '保存'))
+    await waitFor(() => expect(vi.mocked(pmWorkItemApi.updateField)).toHaveBeenCalled())
+    const payload = vi.mocked(pmWorkItemApi.updateField).mock.calls[0][1]
+    expect(payload.field).toBe('assignee_id')
+    expect(payload.value).toBeNull()
+  })
+
+  it('sendsStatusWithTransitionId', async () => {
+    const view = mountDialog()
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(document.body.textContent).toContain('登录页超时'))
+
+    const dialog = document.querySelector('[data-slot="dialog-content"]') as HTMLElement
+    click(Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === '完整编辑'))
+    const statusSelect = dialog.querySelector('select[aria-label="状态"]') as HTMLSelectElement
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set
+      setter?.call(statusSelect, 'done')
+      statusSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    click(Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === '保存修改'))
+    await waitFor(() => expect(vi.mocked(pmWorkItemApi.updateField)).toHaveBeenCalled())
+    const payload = vi.mocked(vi.mocked(pmWorkItemApi.updateField).mock.calls.at(-1)![1])
+    expect(payload.field).toBe('status')
+    expect(payload.value).toBe('done')
+    expect(payload.transitionId).toBe('t1')
+  })
+
   it('hidesWriteActionsInReadOnly', async () => {
     const view = mountDialog({ readOnly: true })
     root = view.root
