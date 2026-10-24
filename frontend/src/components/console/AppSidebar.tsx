@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, FolderKanban, Loader2, SquareKanban, Workflow } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
-import { ProductSwitcher } from '@/components/console/ProductSwitcher'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Sidebar,
@@ -9,7 +8,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -43,11 +41,12 @@ export function AppSidebar({ isAdmin }: { isAdmin: boolean }) {
   const project = scope === 'pm' ? projectContextFromPath(pathname) : null
 
   return (
-    <Sidebar variant="inset" collapsible="icon">
-      <SidebarHeader>
-        <ProductSwitcher isAdmin={isAdmin} />
-      </SidebarHeader>
-      <SidebarContent>
+    <Sidebar
+      variant="inset"
+      collapsible="icon"
+      className="top-(--header-height) h-[calc(100svh-var(--header-height))]!"
+    >
+      <SidebarContent className="pt-2">
         {scope === 'container' ? (
           <ContainerMenu pathname={pathname} />
         ) : project ? (

@@ -1,9 +1,9 @@
 # PM 全局布局：全屏 header + 产品菜单 + 内容区
 
-> 日期：2026-10-22
-> 版本：v0.2
-> 状态：原型已完成（v1.13），实现未开始
-> 关联：[PM 模块总原型](../../../product/06-prototype/pm/README.md) v1.18、[原型规格](../../../product/06-prototype/pm/prototype-spec.md) v1.13、[原型契约](../../../product/06-prototype/pm/prototype-contract.md) v0.19
+> 日期：2026-10-24
+> 版本：v0.4
+> 状态：原型 + 实现完成
+> 关联：[PM 模块总原型](../../../product/06-prototype/pm/README.md) v1.19、[原型规格](../../../product/06-prototype/pm/prototype-spec.md) v1.13、[原型契约](../../../product/06-prototype/pm/prototype-contract.md) v0.20
 
 ### 变更记录
 
@@ -11,6 +11,8 @@
 |------|------|----------|
 | v0.1 | 2026-10-22 | 初版：header 全局化、左侧产品菜单、右侧内容 |
 | v0.2 | 2026-10-22 | 评审修订：顶部左侧改为产品选择下拉并展示产品名称；侧栏只保留菜单，移除项目切换块 |
+| v0.3 | 2026-10-24 | 实现落地：AppShell header 提到 SidebarProvider 顶层并跨全屏；产品切换器移入 header；侧栏只保留菜单并在 header 下方；内容区独立滚动 |
+| v0.4 | 2026-10-24 | 校验修复：header 补帮助/通知；侧栏高度强制覆盖；编辑器高度修正；偏差 4–6 |
 
 ---
 
@@ -37,11 +39,21 @@
 - 主体：`flex: 1; min-height: 0`，横向排列侧栏（256px，内部滚动）与内容区（独立滚动）；侧栏只放菜单，不放项目切换。
 - 页面滚动收敛到内容区，header 与侧栏固定。
 
+## 2.1 实现映射
+
+| 原型 | 实现 |
+|---|---|
+| 全局 header | `AppShell` 内 `<SidebarProvider class="h-svh flex-col">` 的第一行 header，跨全屏 |
+| 产品选择（品牌 + 下拉） | `ProductSwitcher variant="header"`：H 标记 + HFWAS DevOps / 产品选择 + 下拉 |
+| 产品名称 | header 中单独展示当前产品名；面包屑首项若与产品同名则上提，不再重复 |
+| 侧栏只放菜单 | `AppSidebar` 移除 `SidebarHeader`/产品切换器；`Sidebar` 固定容器改为 `top-(--header-height)`，高度用 `h-[calc(100svh-var(--header-height))]!` 覆盖基础 `h-svh` |
+| 内容区独立滚动 | `SidebarInset` 加 `min-h-0 overflow-auto`；`DetailShell` sticky 偏移改为 `top-0` |
+
 ## 3. 范围
 
 本轮（原型）：`docs/product/06-prototype/pm/index.html` 的 shell 结构与 CSS、全部画板、规格文档。
 
-非目标：React `AppShell` / shadcn Sidebar 改造；本轮不动 `frontend/`。
+非目标：面包屑中的项目名做成项目下拉（未实现，切项目仍走 `/pm/projects`）。
 
 ## 4. 验收标准
 
@@ -51,4 +63,5 @@
 | AC-02 | 侧栏从 header 下方开始且只展示菜单，无品牌块与项目切换块 |
 | AC-03 | 内容区独立滚动，1440×900 与 1280×800 下 header 不换行、不溢出 |
 | AC-04 | 全部页面（总览、列表、设置、详情弹窗）共用同一 header |
-| AC-05 | 产品下拉可打开，列出 8 个产品并标记当前项；选择非当前产品给出「原型只覆盖项目管理」提示 |
+| AC-05 | 产品下拉可打开，列出产品并标记当前项；选择后跳转到对应产品首页 |
+| AC-06 | 内容区独立滚动，`DetailShell` 的 sticky 头部贴内容区顶部 |

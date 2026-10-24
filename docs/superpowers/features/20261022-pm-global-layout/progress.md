@@ -77,3 +77,90 @@
 ### 下一步
 
 - **唯一动作**：用户评审 v1.13，确认后安排 React 实现。
+
+---
+
+## 第 3 轮 · 2026-10-24 · React 实现
+
+- **状态**：已实现，待独立校验
+- **触发**：用户确认开始实施
+
+### 做了什么
+
+1. `AppShell`：`SidebarProvider` 改为纵向占满视口，header 提到第一行跨全屏；产品切换器、产品名称、面包屑、搜索与账号都在 header。
+2. `ProductSwitcher` 增加 header 变体；`AppSidebar` 移除产品切换器，侧栏固定容器下移到 header 下方。
+3. 内容区 `SidebarInset` 独立滚动；`DetailShell` sticky 偏移改 `top-0`。
+4. 更新 `AppShell.test.tsx` 断言：产品名在 header、侧栏只断言菜单、面包屑只保留产品内路径。
+
+### 验证
+
+| 检查 | 结果 |
+|---|---|
+| `npx tsc --noEmit` | 通过 |
+| `npm test` | 80 files / 334 passed / 1 skipped |
+| `npm run build` | 通过（既有 chunk 体积警告） |
+
+### 偏差与假设
+
+- 面包屑项目名未做成项目下拉，切项目走「全部项目」。
+- 未做真实应用截图对比（后端未启动）。
+
+### 下一步
+
+- **唯一动作**：独立 agent 校验实现与原型 v1.13 的一致性。
+
+---
+
+## 第 4 轮 · 2026-10-24 · 独立校验问题修复
+
+- **状态**：已修复，复跑通过
+- **触发**：独立校验结论「不通过」：P0 两项、P1 一项、文档若干
+
+### 做了什么
+
+1. header 补「帮助」「通知」按钮（通知带未读点，点击给出提示），对齐原型与契约 A2。
+2. 侧栏高度改用 `h-[calc(100svh-var(--header-height))]!` 覆盖基础 `h-svh`；无头浏览器实测 1440×720 下 top=56、height=664、bottom=720，不再溢出。
+3. 流水线编辑器高度改为 `calc(100svh - header - 3rem)`，补上 SidebarInset 的 margin。
+4. 文档：补偏差 4–6（主题/租户保留、侧栏底部未复刻、inset 视觉差异），TC-08 补帮助/通知，契约 §9 冻结记录改为 v1.13 / 2026-10-24，各文档文首日期改为 2026-10-24。
+5. 测试补断言：header 不在 inset 内、header 在侧栏/内容之前、帮助/通知存在、侧栏无 `data-sidebar="header"`。
+
+### 验证
+
+| 检查 | 结果 |
+|---|---|
+| `npx tsc --noEmit` | 通过 |
+| `npx vitest run src/components/console/AppShell.test.tsx` | 4 tests 通过 |
+| 布局探针（dist CSS） | 侧栏高度 664 = viewport 720 − header 56 |
+| `npm run build` | 通过 |
+
+---
+
+## 第 5 轮 · 2026-10-24 · 复验与收尾
+
+- **状态**：已交付
+- **触发**：独立校验第 2 次复核结论「通过」，剩 1 条可访问性与文档记录建议
+
+### 做了什么
+
+1. 通知按钮改为 `aria-label="通知（有未读）"`，补未读语义。
+2. `AppShell.test.tsx` 增加侧栏容器定位类断言（`top-(--header-height)`、`h-[...]!`）。
+3. changes 新增 §5 校验结果（两轮结论与处理）；design/changes/test-cases/契约追加版本行。
+
+### 验证
+
+| 检查 | 结果 |
+|---|---|
+| `npx tsc --noEmit` | 通过 |
+| `npx vitest run src/components/console/AppShell.test.tsx` | 4 tests 通过 |
+| `npm test` | 80 files / 334 passed / 1 skipped |
+| `npm run build` | 通过 |
+| 布局探针 | 1440×900 / 1440×720 侧栏 bottom 与视口一致 |
+
+### 未完成 / 风险
+
+- 真实应用截图未执行（后端未启动）；AC-03 的 1280 实测仍缺证据。
+- `ProductSwitcher` 的 sidebar 变体无调用方，待后续清理。
+
+### 下一步
+
+- **唯一动作**：用户确认后可提交；后续补项目下拉与真实截图。

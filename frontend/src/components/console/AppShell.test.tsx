@@ -111,13 +111,31 @@ describe('AppShell', () => {
     expect(container.querySelector('[aria-label="搜索项目"]')).toBeTruthy()
     expect(container.querySelector('[aria-label="用户菜单"]')).toBeTruthy()
     expect(container.querySelector('[aria-label="切换产品"]')).toBeTruthy()
+    expect(container.querySelector('[aria-label="帮助"]')).toBeTruthy()
+    expect(container.querySelector('[aria-label="通知（有未读）"]')).toBeTruthy()
+    const sidebarContainer = container.querySelector('[data-slot="sidebar-container"]')
+    expect(sidebarContainer?.className).toContain('top-(--header-height)')
+    expect(sidebarContainer?.className).toContain('h-[calc(100svh-var(--header-height))]!')
+    // header 必须在 SidebarInset 之外，且位于侧栏之前（全局 header）。
+    expect(container.querySelector('header')?.closest('[data-slot="sidebar-inset"]')).toBeNull()
+    const inset = container.querySelector('[data-slot="sidebar-inset"]')
+    const sidebarEl = container.querySelector('[data-sidebar="sidebar"]')
+    expect(
+      header && sidebarEl && inset &&
+      (header.compareDocumentPosition(sidebarEl) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 &&
+      (header.compareDocumentPosition(inset) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    ).toBe(true)
+    expect(container.querySelector('[data-sidebar="header"]')).toBeNull()
 
     const shell = container.querySelector('[data-slot="sidebar-inset"]')?.parentElement
     expect(shell?.innerHTML).toContain('px-4')
     expect(shell?.innerHTML).toContain('lg:px-6')
 
     const sidebar = () => container?.querySelector('[data-sidebar="sidebar"]')?.textContent ?? ''
-    expect(sidebar()).toContain('项目管理')
+    // header 全局化：产品名在 header，侧栏只放菜单。
+    expect(header?.textContent).toContain('项目管理')
+    expect(header?.textContent).toContain('产品选择')
+    expect(sidebar()).not.toContain('产品选择')
     expect(sidebar()).toContain('项目')
     expect(sidebar()).not.toContain('项目监控')
     expect(sidebar()).not.toContain('流水线')
@@ -168,7 +186,8 @@ describe('AppShell', () => {
     await act(async () => {
       await mounted.router.navigate('/container/clusters')
     })
-    expect(sidebar()).toContain('容器管理')
+    expect(header?.textContent).toContain('容器管理')
+    expect(sidebar()).not.toContain('容器管理')
     expect(sidebar()).toContain('集群')
     expect(sidebar()).toContain('工作负载')
     expect(sidebar()).toContain('Helm Release')
@@ -186,15 +205,17 @@ describe('AppShell', () => {
     expect(container.textContent).toContain('集群内容')
     const podSearch = container.querySelector('[aria-label="搜索 Pod"]')
     expect(podSearch?.getAttribute('placeholder')).toBe('搜索 Pod 名称')
+    // 产品名已上提到 header，面包屑只保留产品内路径（/container/clusters → 集群）。
     const crumbs = [...(container.querySelectorAll('[data-slot="breadcrumb-item"]') ?? [])]
-    expect(crumbs[0]?.className).toContain('shrink-0')
-    expect(crumbs.at(-1)?.className).toContain('shrink')
-    expect(crumbs.at(-1)?.className).not.toContain('shrink-0')
+    expect(crumbs).toHaveLength(1)
+    expect(crumbs[0]?.textContent).toContain('集群')
+    expect(crumbs[0]?.className).not.toContain('shrink-0')
 
     await act(async () => {
       await mounted.router.navigate('/api-test')
     })
-    expect(sidebar()).toContain('接口测试')
+    expect(header?.textContent).toContain('接口测试')
+    expect(sidebar()).not.toContain('接口测试')
     expect(sidebar()).toContain('集合')
     expect(sidebar()).toContain('环境')
     expect(sidebar()).not.toContain('Pod')

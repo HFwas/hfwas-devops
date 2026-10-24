@@ -312,7 +312,7 @@ export function PipelineEditorPage() {
   if (pipelineId && !ready) return <p className="text-sm text-muted-foreground">加载中…</p>
 
   return (
-    <div className="flex h-[calc(100svh-var(--header-height)-2rem)] min-h-[640px] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
+    <div className="flex h-[calc(100svh-var(--header-height)-3rem)] min-h-[640px] flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="shrink-0 text-sm font-medium">{pipelineId ? '编辑流水线' : '新建流水线'}</div>

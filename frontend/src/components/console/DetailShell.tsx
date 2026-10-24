@@ -42,7 +42,7 @@ export function DetailShell({
 }) {
   return (
     <div data-slot="detail-shell" className={cn('flex flex-col gap-4', className)}>
-      <div className="sticky top-(--header-height) z-30 -mx-4 border-b bg-background/95 px-4 backdrop-blur lg:-mx-6 lg:px-6">
+      <div className="sticky top-0 z-30 -mx-4 border-b bg-background/95 px-4 backdrop-blur lg:-mx-6 lg:px-6">
         <div className="flex flex-wrap items-start justify-between gap-3 py-3">
           <div className="flex min-w-0 items-start gap-2">
             {leading}
