@@ -46,6 +46,10 @@ const SYSTEM_COLUMNS: PmColumnMeta[] = [
   { key: 'priority', label: '优先级', kind: 'system', fieldType: 'PRIORITY', queryField: 'priority', sortable: true, searchable: true, filterable: true, batchEditable: true, filterType: 'enum', widthClass: 'w-20' },
   { key: 'assignee_id', label: '负责人', kind: 'system', fieldType: 'USER', queryField: 'assignee_id', sortable: true, searchable: true, filterable: true, batchEditable: true, filterType: 'user', widthClass: 'w-28' },
   { key: 'end_time', label: '截止时间', kind: 'system', fieldType: 'DATETIME', queryField: 'end_time', sortable: true, searchable: false, filterable: true, batchEditable: true, filterType: 'date', widthClass: 'w-24' },
+  // 故事点/风险是原型约定的扩展字段，当前项目没有对应字段定义；先保证显示与文案正确，
+  // 待后端补齐字段定义后再开启排序与筛选，避免查询走到 custom.* 时报未知字段。
+  { key: 'storyPoints', label: '故事点', kind: 'pseudo', fieldType: 'NUMBER', queryField: 'custom.storyPoints', sortable: false, searchable: false, filterable: false, batchEditable: true, filterType: 'number', widthClass: 'w-20', align: 'right' },
+  { key: 'risk', label: '风险等级', kind: 'pseudo', fieldType: 'SELECT', queryField: 'custom.risk', sortable: false, searchable: false, filterable: false, batchEditable: true, filterType: 'enum', widthClass: 'w-24' },
   { key: 'update_time', label: '更新时间', kind: 'system', fieldType: 'DATETIME', queryField: 'update_time', sortable: true, searchable: false, filterable: false, batchEditable: false, filterType: 'date', widthClass: 'w-28' },
   { key: 'description', label: '描述', kind: 'system', fieldType: 'MARKDOWN', queryField: 'description', sortable: false, searchable: true, filterable: false, batchEditable: false, filterType: 'text', widthClass: 'min-w-48' },
   { key: 'module_id', label: '功能模块', kind: 'system', fieldType: 'MODULE', queryField: 'module_id', sortable: false, searchable: false, filterable: true, batchEditable: true, filterType: 'enum', widthClass: 'w-28' },
@@ -114,10 +118,22 @@ function missingMeta(key: string): PmColumnMeta {
  */
 export function buildColumnCatalog(fields: FieldDefinition[] = []): ColumnCatalog {
   const system = SYSTEM_COLUMNS.map((column) => ({ ...column }))
-  const custom = fields
+  const customMetas = fields
     .filter((def) => def.fieldKey && (def.systemFlag == null || def.systemFlag === 0))
-    .filter((def) => !system.some((column) => column.key === def.fieldKey))
     .map(customMeta)
+  // 与内置/伪列同名的自定义字段：把可筛选、可排序等能力合并到内置元数据上，
+  // 避免伪字段（如 storyPoints/risk）永远不可查询，也避免重复列。
+  for (const meta of customMetas) {
+    const base = system.find((column) => column.key === meta.key)
+    if (!base) continue
+    base.filterable = meta.filterable
+    base.sortable = meta.sortable
+    base.searchable = meta.searchable
+    base.queryField = meta.queryField
+    base.fieldId = meta.fieldId
+    base.batchEditable = meta.batchEditable
+  }
+  const custom = customMetas.filter((meta) => !system.some((column) => column.key === meta.key))
   const candidates = [...system, ...custom]
   const byKey = new Map(candidates.map((column) => [column.key, column]))
   return {
@@ -213,6 +229,14 @@ export function renderPmCell(item: PmWorkItem, column: PmColumnMeta, ctx: CellCo
       return formatDate(item.endTime)
     case 'update_time':
       return formatDateTime(item.updateTime)
+    case 'storyPoints': {
+      const value = item.customFields?.storyPoints ?? item.customFields?.story_points
+      return value == null || value === '' ? '—' : <span className="tabular-nums">{String(value)}</span>
+    }
+    case 'risk': {
+      const value = item.customFields?.risk
+      return value == null || value === '' ? '—' : optionText(column, value, ctx)
+    }
     default:
       return renderCustom(item, column, ctx)
   }

@@ -45,6 +45,18 @@ describe('BulkActionBar', () => {
     unmount(second)
   })
 
+  it('inline 形态不固定定位', () => {
+    const view = mount(
+      <BulkActionBar inline countPrefix="已选当前页" selectedCount={3} actions={[]} onClear={() => {}} />,
+    )
+    const bar = view.container.querySelector('[data-slot="bulk-action-bar"]') as HTMLElement
+    expect(bar.getAttribute('data-variant')).toBe('inline')
+    expect(bar.className).not.toContain('fixed')
+    expect(bar.className).toContain('w-full')
+    expect(view.container.textContent).toContain('已选当前页')
+    unmount(view)
+  })
+
   it('disablesActionsWhileBusy', () => {
     const view = mount(
       <BulkActionBar

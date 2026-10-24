@@ -2,6 +2,7 @@ export interface BaseResult<T> {
   code: number
   msg: string | null
   data: T
+  requestId?: string
 }
 
 export interface PageResult<T> {

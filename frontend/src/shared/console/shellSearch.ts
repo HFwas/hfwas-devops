@@ -12,5 +12,8 @@ export function shellSearchCopy(pathname: string): ShellSearchCopy {
   if (pathname === '/pipeline' || pathname.startsWith('/pipeline/')) {
     return { placeholder: '搜索流水线名称', label: '搜索流水线', kind: 'pipeline' }
   }
+  if (pathname === '/pm' || pathname.startsWith('/pm/')) {
+    return { placeholder: '搜索项目、事项、成员', label: '搜索', kind: 'project' }
+  }
   return { placeholder: '搜索项目名称或编码', label: '搜索项目', kind: 'project' }
 }

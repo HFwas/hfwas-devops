@@ -247,7 +247,9 @@ export function FilterBuilder({
   }, [open, tree])
 
   const metas = useMemo(
-    () => filterFields.map((key) => catalog.missing(key)).filter((meta) => !meta.missing),
+    () => filterFields
+      .map((key) => catalog.missing(key))
+      .filter((meta) => !meta.missing && meta.filterable),
     [catalog, filterFields],
   )
   const fieldTypes = useMemo(
@@ -325,8 +327,9 @@ export function FilterBuilder({
       setShowErrors(true)
       return
     }
+    // 只提交一次：调用方在 onApply 里同时写条件与清 overlay。
+    // 这里再调 onOpenChange 会拿旧 URL 状态再写一次，把刚应用的条件覆盖掉。
     onApply(draft)
-    onOpenChange(false)
   }
 
   const chips = filterTreeToChips(draft, { fieldLabels, fieldTypes, optionLabels })

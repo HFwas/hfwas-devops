@@ -20,6 +20,7 @@ import { ALL_ITEMS_CODE, projectItemsPath } from '@/modules/pm/nav'
 import { BulkDeleteDialog } from '@/modules/pm/components/BulkDeleteDialog'
 import { BulkEditDialog } from '@/modules/pm/components/BulkEditDialog'
 import { FilterBuilder } from '@/modules/pm/components/FilterBuilder'
+import { SaveViewDialog } from '@/modules/pm/components/SaveViewDialog'
 import { TransitionDialog } from '@/modules/pm/components/TransitionDialog'
 import { ViewConfigDrawer } from '@/modules/pm/components/ViewConfigDrawer'
 import { WorkItemDetailDialog, type WorkItemDetailTab } from '@/modules/pm/components/WorkItemDetailDialog'
@@ -373,6 +374,32 @@ export function WorkItemListPage() {
     onError: (error: Error) => toast.error(error.message || '保存视图失败'),
   })
 
+  const saveNewView = useMutation({
+    mutationFn: async (name: string) => pmViewApi.save({
+      projectId: projectId!,
+      name,
+      typeCode,
+      querySpec: spec,
+      columns: configToSavedColumns(activeConfig, state.filterTree),
+    }),
+    onSuccess: async (id) => {
+      await queryClient.invalidateQueries({ queryKey: ['pm-saved-views', projectId] })
+      url.patch({
+        view: String(id),
+        cols: undefined,
+        search: undefined,
+        ff: undefined,
+        density: undefined,
+        sort: undefined,
+        page: 1,
+        selectedIds: [],
+        overlay: undefined,
+      })
+      toast.success('视图已保存')
+    },
+    onError: (error: Error) => toast.error(error.message || '保存视图失败'),
+  })
+
   const createItem = useMutation({
     mutationFn: () => pmWorkItemApi.save({
       projectId: projectId!,
@@ -537,6 +564,7 @@ export function WorkItemListPage() {
             savedViews={savedViews}
             dirty={dirty}
             onSelect={(view) => url.switchView(view)}
+            onSaveView={() => url.setOverlay('save-view')}
           />
         ) : undefined}
         rowActions={forbidden ? undefined : (
@@ -597,11 +625,21 @@ export function WorkItemListPage() {
             extra={<span className="text-xs text-muted-foreground">筛后 {total} 条</span>}
           />
         )}
+        batchBar={!forbidden ? (
+          <BulkActionBar
+            inline
+            countPrefix="已选当前页"
+            selectedCount={selectedItems.length}
+            actions={bulkActions}
+            onClear={() => url.patch({ selectedIds: [] })}
+          />
+        ) : undefined}
         loading={itemsQuery.isPending && !metaError}
         error={!forbidden ? metaError ?? (itemsQuery.isError ? (itemsQuery.error as Error).message || '工作项加载失败' : undefined) : undefined}
+        errorRequestId={isApiError(itemsQuery.error) ? itemsQuery.error.requestId : undefined}
         onRetry={() => { void typesQuery.refetch(); void itemsQuery.refetch() }}
         forbidden={forbidden ? '当前账号没有该项目的访问权限。' : undefined}
-        empty={!forbidden && !itemsQuery.isPending && !itemsQuery.isError && rows.length === 0}
+        empty={false}
         emptyTitle="没有匹配的工作项"
         footer={!forbidden ? (
           <Pagination
@@ -613,17 +651,8 @@ export function WorkItemListPage() {
             onPageSizeChange={(size) => url.patch({ size, page: 1, selectedIds: [] })}
           />
         ) : undefined}
-        emptyContent={(
-          <div className="flex flex-col items-center gap-2">
-            <span>当前类型与筛选条件下没有结果，可以清空搜索或筛选后重试。</span>
-            <div className="flex gap-2">
-              <Button type="button" size="sm" variant="outline" onClick={() => url.patch({ q: '', page: 1 })}>清空搜索</Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => url.patch({ filterTree: emptyFilterTree(), page: 1 })}>清空筛选</Button>
-            </div>
-          </div>
-        )}
       >
-        {!itemsQuery.isPending && !forbidden ? (
+        {!forbidden ? (
           <DataTable<PmWorkItem>
             columns={tableColumns}
             data={rows}
@@ -637,6 +666,36 @@ export function WorkItemListPage() {
             density={displayConfig.density === 'compact' ? 'compact' : 'standard'}
             stickyHeader
             fixed
+            skeletonRows={8}
+            empty={(
+              <div className="flex flex-col items-center gap-2 py-10">
+                <p className="text-base font-medium text-foreground">没有匹配的工作项</p>
+                <p className="text-sm text-muted-foreground">
+                  当前类型与筛选条件下没有结果。可以清空搜索或筛选后重试，左侧类型导航仍在。
+                </p>
+                <div className="mt-2 flex flex-wrap justify-center gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => url.patch({ q: '', page: 1 })}>
+                    清空搜索
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => url.patch({ filterTree: emptyFilterTree(), page: 1 })}
+                  >
+                    清空筛选
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => { setCreateType(typeCode ?? enabledTypes[0]?.code ?? 'task'); setCreateOpen(true) }}
+                  >
+                    <Plus />
+                    新建工作项
+                  </Button>
+                </div>
+              </div>
+            )}
           />
         ) : null}
       </ListPageShell>
@@ -655,13 +714,14 @@ export function WorkItemListPage() {
         />
       ) : null}
 
-      {!forbidden ? (
-        <BulkActionBar
-          selectedCount={selectedItems.length}
-          actions={bulkActions}
-          onClear={() => url.patch({ selectedIds: [] })}
-        />
-      ) : null}
+      <SaveViewDialog
+        open={state.overlay === 'save-view'}
+        onOpenChange={(open) => url.setOverlay(open ? 'save-view' : undefined)}
+        defaultName={`${activeSavedView?.name ?? activeBuiltIn?.label ?? '工作项'} · 我的配置`}
+        config={activeConfig}
+        saving={saveNewView.isPending}
+        onSave={(name) => saveNewView.mutate(name)}
+      />
 
       <ViewConfigDrawer
         open={state.overlay === 'view-config'}

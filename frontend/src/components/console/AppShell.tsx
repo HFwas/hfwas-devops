@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Bell, CircleHelp, Moon, Search, Settings, Sun } from 'lucide-react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -27,6 +28,8 @@ import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { clusterIdFromPath } from '@/modules/container/nav'
+import { pmProjectApi, pmWorkItemApi } from '@/modules/pm/api'
+import { projectContextFromPath } from '@/modules/pm/nav'
 import { resolveActiveProduct } from '@/shared/console/products'
 import { shellSearchCopy } from '@/shared/console/shellSearch'
 import { getConsoleTheme, subscribeConsoleTheme, toggleConsoleTheme } from '@/shared/console/useConsoleTheme'
@@ -48,7 +51,25 @@ export function AppShell() {
   const [keyword, setKeyword] = useState('')
   const [dark, setDark] = useState(getConsoleTheme)
   const [actions, setActions] = useState<ReactNode>(null)
-  const crumbs = resolveBreadcrumbs(location.pathname)
+  const pmContext = projectContextFromPath(location.pathname)
+  const pmProjectId = pmContext?.projectId
+  const pmDetailId = new URLSearchParams(location.search).get('detail')
+  const projectNameQuery = useQuery({
+    queryKey: ['pm-project', pmProjectId],
+    queryFn: () => pmProjectApi.getById(pmProjectId!),
+    enabled: Boolean(pmProjectId),
+    staleTime: 60_000,
+  })
+  const detailItemQuery = useQuery({
+    queryKey: ['pm-work-item', pmDetailId],
+    queryFn: () => pmWorkItemApi.getById(pmDetailId!),
+    enabled: Boolean(pmDetailId) && Boolean(pmProjectId),
+    staleTime: 30_000,
+  })
+  const crumbs = resolveBreadcrumbs(location.pathname, {
+    projectName: projectNameQuery.data?.name,
+    itemKey: detailItemQuery.data?.itemKey,
+  })
   const product = resolveActiveProduct(location.pathname)
   // 面包屑首项若是当前产品名，则上提到 header 单独展示，避免重复。
   const productName = product && crumbs[0]?.label === product.name ? crumbs[0].label : null

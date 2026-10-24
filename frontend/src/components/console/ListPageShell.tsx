@@ -20,6 +20,7 @@ export function ListPageShell({
   showHeader = true,
   tabs,
   toolbar,
+  batchBar,
   filters,
   summary,
   footer,
@@ -41,6 +42,8 @@ export function ListPageShell({
   showHeader?: boolean
   tabs?: ReactNode
   toolbar?: ReactNode
+  /** 内联批量操作条：位于工具栏之下、筛选条之上。 */
+  batchBar?: ReactNode
   filters?: ReactNode
   summary?: ReactNode
   footer?: ReactNode
@@ -90,6 +93,7 @@ export function ListPageShell({
         </div>
       ) : null}
       {toolbar ? <div className="flex flex-wrap items-center gap-2">{toolbar}</div> : null}
+      {batchBar}
       {filters}
       {summary ? <div className="flex items-center justify-between text-sm text-muted-foreground">{summary}</div> : null}
       {body}

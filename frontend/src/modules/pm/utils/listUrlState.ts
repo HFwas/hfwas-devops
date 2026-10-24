@@ -3,7 +3,7 @@ import type { ColumnCatalog } from '@/modules/pm/utils/columns'
 import { DEFAULT_COLUMNS, normalizeColumnKeys, sameSort, sameStringArray } from '@/modules/pm/utils/viewConfig'
 import { emptyFilterTree, isEmptyFilterTree, sanitizeFilterTree } from '@/modules/pm/utils/filterTree'
 
-export type PmListOverlay = 'view-config' | 'filter' | 'bulk-edit' | 'transition' | 'delete'
+export type PmListOverlay = 'view-config' | 'filter' | 'save-view' | 'bulk-edit' | 'transition' | 'delete'
 export type PmConfigTab = 'columns' | 'search' | 'filter'
 
 export interface PmListUrlState {
@@ -93,7 +93,7 @@ export function parsePmListUrl(params: URLSearchParams, ctx: ListUrlContext): Pm
     ctx.catalog.byKey.get(key)?.filterable || (ctx.catalog.candidates.length <= 10 && validKey(key)))
   const density = params.get('density')
   const overlay = params.get('overlay')
-  const allowedOverlays: PmListOverlay[] = ['view-config', 'filter', 'bulk-edit', 'transition', 'delete']
+  const allowedOverlays: PmListOverlay[] = ['view-config', 'filter', 'save-view', 'bulk-edit', 'transition', 'delete']
   const tab = params.get('tab')
   let filterTree = emptyFilterTree()
   const rawFilter = params.get('f')

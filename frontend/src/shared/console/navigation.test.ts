@@ -87,7 +87,21 @@ describe('resolveBreadcrumbs', () => {
     ])
     expect(resolveBreadcrumbs('/pm/projects/12/items/task')).toEqual([
       { label: '项目管理', to: '/pm/projects' },
-      { label: '事项' },
+      { label: '工作项' },
+    ])
+    expect(resolveBreadcrumbs('/pm/projects/12/items/task', { projectName: '云原生交付平台' })).toEqual([
+      { label: '项目管理', to: '/pm/projects' },
+      { label: '云原生交付平台' },
+      { label: '工作项' },
+    ])
+    expect(resolveBreadcrumbs('/pm/projects/12/items/task', {
+      projectName: '云原生交付平台',
+      itemKey: 'DEVOPS-1',
+    })).toEqual([
+      { label: '项目管理', to: '/pm/projects' },
+      { label: '云原生交付平台' },
+      { label: '工作项' },
+      { label: 'DEVOPS-1' },
     ])
     expect(resolveBreadcrumbs('/pipeline/pipelines/new')).toEqual([
       { label: '流水线', to: '/pipeline/pipelines' },

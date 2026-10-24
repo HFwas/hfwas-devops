@@ -100,7 +100,8 @@ function ProjectMenu({ projectId, pathname }: { projectId: string; pathname: str
   })
 
   const types = (typesQuery.data ?? []).filter((type) => type.enabled !== 0)
-  const allItemsCount = types.reduce((sum, type) => sum + (type.workItemCount ?? 0), 0)
+  // 接口可能把计数序列化为字符串，先数值化再求和，避免 "0" + "1" 拼接成 010000。
+  const allItemsCount = types.reduce((sum, type) => sum + Number(type.workItemCount ?? 0), 0)
   const routeType = projectContextFromPath(pathname)?.typeCode
   const typeCode = routeType && routeType !== ALL_ITEMS_CODE ? routeType : types[0]?.code ?? 'task'
   const projectName = projectQuery.data?.name?.trim() || '工作项'

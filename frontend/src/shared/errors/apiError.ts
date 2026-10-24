@@ -2,15 +2,18 @@ import { resolveErrorMessage, isUnauthorizedCode } from '@/shared/errors/resultC
 
 export class ApiError extends Error {
   readonly code: number
+  /** 服务端返回的请求编号，便于失败态展示与日志关联。 */
+  readonly requestId?: string
 
-  constructor(code: number, message: string) {
+  constructor(code: number, message: string, requestId?: string) {
     super(message)
     this.name = 'ApiError'
     this.code = code
+    this.requestId = requestId
   }
 
-  static fromPayload(code: number, serverMsg?: string | null): ApiError {
-    return new ApiError(code, resolveErrorMessage(code, serverMsg))
+  static fromPayload(code: number, serverMsg?: string | null, requestId?: string): ApiError {
+    return new ApiError(code, resolveErrorMessage(code, serverMsg), requestId)
   }
 
   get isUnauthorized(): boolean {
@@ -18,8 +21,8 @@ export class ApiError extends Error {
   }
 }
 
-export function toApiError(code: number, serverMsg?: string | null): ApiError {
-  return ApiError.fromPayload(code, serverMsg)
+export function toApiError(code: number, serverMsg?: string | null, requestId?: string): ApiError {
+  return ApiError.fromPayload(code, serverMsg, requestId)
 }
 
 export function isApiError(error: unknown): error is ApiError {

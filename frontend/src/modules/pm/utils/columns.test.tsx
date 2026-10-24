@@ -55,9 +55,21 @@ describe('column catalog', () => {
   })
 
   it('rendersMissingFieldDash', () => {
+    expect(render('unknownField')).toBe('—')
+    expect(catalog.missing('unknownField').missing).toBe(true)
+    expect(resolveColumnMetas(['title', 'unknownField'], catalog)[1].missing).toBe(true)
+  })
+
+  it('provides story points and risk metadata', () => {
+    expect(catalog.byKey.get('storyPoints')?.label).toBe('故事点')
+    expect(catalog.byKey.get('storyPoints')?.queryField).toBe('custom.storyPoints')
+    expect(catalog.byKey.get('risk')?.label).toBe('风险等级')
+    expect(catalog.byKey.get('storyPoints')?.missing).toBeUndefined()
+    // 有字段定义时合并查询能力；没有定义的故事点保持不可筛选。
+    expect(catalog.byKey.get('risk')?.queryField).toBe('custom.risk')
+    expect(catalog.byKey.get('risk')?.filterable).toBe(true)
+    expect(catalog.byKey.get('storyPoints')?.filterable).toBe(false)
     expect(render('storyPoints')).toBe('—')
-    expect(catalog.missing('storyPoints').missing).toBe(true)
-    expect(resolveColumnMetas(['title', 'storyPoints'], catalog)[1].missing).toBe(true)
   })
 
   it('rendersCells', () => {

@@ -19,7 +19,14 @@ const SECTION_LABELS: Record<string, string> = {
   accounts: '用户管理',
 }
 
-export function resolveBreadcrumbs(pathname: string): PathCrumb[] {
+export interface BreadcrumbContext {
+  /** PM 项目名：进入项目后补在「项目管理」之后。 */
+  projectName?: string
+  /** 详情弹窗中的事项编号：追加为最后一级。 */
+  itemKey?: string
+}
+
+export function resolveBreadcrumbs(pathname: string, context: BreadcrumbContext = {}): PathCrumb[] {
   if (pathname === '/' || pathname === '/workbench') return [{ label: '工作台' }]
 
   if (pathname === '/user/settings' || pathname.startsWith('/user/settings/')) {
@@ -49,10 +56,11 @@ export function resolveBreadcrumbs(pathname: string): PathCrumb[] {
     ]
   }
   if (/^\/pm\/projects\/[^/]+\/items\/[^/]+$/.test(pathname)) {
-    return [
-      { label: '项目管理', to: '/pm/projects' },
-      { label: '事项' },
-    ]
+    const crumbs: PathCrumb[] = [{ label: '项目管理', to: '/pm/projects' }]
+    if (context.projectName) crumbs.push({ label: context.projectName })
+    crumbs.push({ label: '工作项' })
+    if (context.itemKey) crumbs.push({ label: context.itemKey })
+    return crumbs
   }
   if (/^\/pipeline\/credentials\/[^/]+/.test(pathname)) {
     return [

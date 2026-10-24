@@ -19,12 +19,20 @@ describe('shellSearchCopy', () => {
     })
   })
 
-  it('其它作用域保持项目搜索', () => {
+  it('PM 作用域使用项目、事项、成员搜索文案', () => {
     expect(shellSearchCopy('/pm/projects')).toEqual({
+      placeholder: '搜索项目、事项、成员',
+      label: '搜索',
+      kind: 'project',
+    })
+    expect(shellSearchCopy('/pm/projects/1/items/all').placeholder).toBe('搜索项目、事项、成员')
+  })
+
+  it('其它作用域保持项目搜索', () => {
+    expect(shellSearchCopy('/workbench')).toEqual({
       placeholder: '搜索项目名称或编码',
       label: '搜索项目',
       kind: 'project',
     })
-    expect(shellSearchCopy('/workbench').kind).toBe('project')
   })
 })

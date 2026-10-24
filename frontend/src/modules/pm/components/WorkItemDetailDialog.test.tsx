@@ -10,6 +10,8 @@ import {
 } from '@/modules/pm/api'
 import { userAuthApi } from '@/modules/user/api'
 import type { PmWorkItem } from '@/modules/pm/types'
+import { ApiError } from '@/shared/errors/apiError'
+import { ResultCode } from '@/shared/errors/resultCode'
 
 vi.mock('@/modules/pm/api', () => ({
   pmWorkItemApi: {
@@ -200,7 +202,7 @@ describe('WorkItemDetailDialog', () => {
       setter?.call(select, 'low')
       select.dispatchEvent(new Event('change', { bubbles: true }))
     })
-    click(Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === '保存'))
+    // 选项选中即保存，不再出现「保存」按钮。
     await waitFor(() => expect(vi.mocked(pmWorkItemApi.updateField)).toHaveBeenCalled())
     const payload = vi.mocked(pmWorkItemApi.updateField).mock.calls[0][1]
     expect(payload.field).toBe('priority')
@@ -263,5 +265,98 @@ describe('WorkItemDetailDialog', () => {
     expect(dialog.textContent).toContain('只读')
     // 只读态不应残留任何行内「保存 / 取消」按钮。
     expect(Array.from(dialog.querySelectorAll('button')).some((button) => ['保存', '取消'].includes(button.textContent?.trim() ?? ''))).toBe(false)
+  })
+
+  it('切换操作记录/评论页签时保留标题与右栏', async () => {
+    const view = mountDialog({ tab: 'activity' })
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(document.body.textContent).toContain('登录页超时'))
+
+    const dialog = document.querySelector('[data-slot="dialog-content"]') as HTMLElement
+    expect(dialog.querySelector('h1')?.textContent).toBe('登录页超时')
+    expect(dialog.querySelectorAll('[role="tab"]').length).toBe(3)
+    expect(dialog.querySelector('h1')?.className).toContain('text-3xl')
+    expect(dialog.textContent).toContain('操作记录')
+    expect(dialog.textContent).toContain('属性')
+    expect(dialog.textContent).toContain('基本信息')
+    expect(dialog.textContent).toContain('所属模块')
+  })
+
+  it('评论页签保留标题与右栏', async () => {
+    const view = mountDialog({ tab: 'comments' })
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(document.body.textContent).toContain('登录页超时'))
+
+    const dialog = document.querySelector('[data-slot="dialog-content"]') as HTMLElement
+    expect(dialog.querySelector('h1')?.textContent).toBe('登录页超时')
+    expect(dialog.querySelector('textarea[aria-label="评论内容"]')).not.toBeNull()
+    expect(dialog.textContent).toContain('属性')
+    expect(dialog.textContent).toContain('故事点')
+  })
+
+  it('右栏渲染完整属性且空值显示未设置', async () => {
+    const view = mountDialog({ tab: 'detail', readOnly: true })
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(document.body.textContent).toContain('登录页超时'))
+
+    const dialog = document.querySelector('[data-slot="dialog-content"]') as HTMLElement
+    for (const label of ['所属迭代', '故事点', '风险等级', '修复版本', '父事项', '标签', '关注者', '环境']) {
+      expect(dialog.textContent).toContain(label)
+    }
+    expect(dialog.textContent).toContain('5')
+    expect(dialog.textContent).toContain('高')
+    expect(dialog.textContent).toContain('未设置')
+    // 「所属模块」只出现一次（属性行），不再有重复的人员与时间卡片。
+    expect((dialog.textContent?.match(/所属模块/g) ?? []).length).toBe(1)
+  })
+
+  it('标题为空时显示顶部汇总', async () => {
+    const view = mountDialog()
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(document.body.textContent).toContain('登录页超时'))
+
+    const dialog = document.querySelector('[data-slot="dialog-content"]') as HTMLElement
+    click(Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === '完整编辑'))
+    const titleInput = dialog.querySelector('input[aria-label="标题"]') as HTMLInputElement
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+      setter?.call(titleInput, '')
+      titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    click(Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === '保存修改'))
+    await waitFor(() => expect(dialog.textContent).toContain('有 1 个字段需要修正'))
+  })
+
+  it('取消编辑需二次确认', async () => {
+    const view = mountDialog()
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(document.body.textContent).toContain('登录页超时'))
+
+    const dialog = document.querySelector('[data-slot="dialog-content"]') as HTMLElement
+    click(Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === '完整编辑'))
+    const titleInput = dialog.querySelector('input[aria-label="标题"]') as HTMLInputElement
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+      setter?.call(titleInput, '改过的标题')
+      titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    click(Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === '取消'))
+    await waitFor(() => expect(document.body.textContent).toContain('放弃未保存的修改？'))
+    // 仍在编辑态，草稿未被丢弃。
+    expect(dialog.querySelector('input[aria-label="标题"]')).not.toBeNull()
+  })
+
+  it('403 时显示不存在或无权访问', async () => {
+    vi.mocked(pmWorkItemApi.getById).mockRejectedValue(new ApiError(ResultCode.FORBIDDEN, '无权访问') as never)
+    const view = mountDialog()
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(document.body.textContent).toContain('事项不存在或无权访问'))
+    expect(document.body.textContent).not.toContain('事项加载失败')
   })
 })

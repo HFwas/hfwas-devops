@@ -22,12 +22,17 @@ export function BulkActionBar({
   actions,
   onClear,
   busy = false,
+  inline = false,
+  countPrefix = '已选',
   className,
 }: {
   selectedCount: number
   actions: BulkAction[]
   onClear: () => void
   busy?: boolean
+  /** 内联形态：随文档流出现（工具栏下方整宽条），不使用底部悬浮定位。 */
+  inline?: boolean
+  countPrefix?: string
   className?: string
 }) {
   if (selectedCount <= 0) return null
@@ -36,13 +41,17 @@ export function BulkActionBar({
       role="toolbar"
       aria-label="批量操作"
       data-slot="bulk-action-bar"
+      data-variant={inline ? 'inline' : 'floating'}
       className={cn(
-        'fixed inset-x-0 bottom-4 z-40 mx-auto flex w-fit max-w-[calc(100vw-2rem)] flex-wrap items-center gap-2 rounded-lg border bg-background px-4 py-2 shadow-lg',
+        'flex flex-wrap items-center gap-2',
+        inline
+          ? 'w-full rounded-lg border border-primary/20 bg-primary/5 px-4 py-2'
+          : 'fixed inset-x-0 bottom-4 z-40 mx-auto w-fit max-w-[calc(100vw-2rem)] rounded-lg border bg-background px-4 py-2 shadow-lg',
         className,
       )}
     >
       <span className="text-sm tabular-nums">
-        已选 <span className="font-medium text-foreground">{selectedCount}</span> 项
+        {countPrefix} <span className="font-medium text-foreground">{selectedCount}</span> 项
       </span>
       <div className="flex flex-wrap items-center gap-2">
         {actions.map((action) => (

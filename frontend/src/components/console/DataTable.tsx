@@ -49,6 +49,7 @@ export function DataTable<T>({
   density = 'compact',
   stickyHeader = false,
   maxHeight,
+  skeletonRows = 4,
 }: {
   columns: DataTableColumn<T>[]
   data: T[]
@@ -70,6 +71,8 @@ export function DataTable<T>({
   density?: DataTableDensity
   stickyHeader?: boolean
   maxHeight?: number | string
+  /** 首屏骨架行数，默认 4；工作台按原型要求传 8。 */
+  skeletonRows?: number
 }) {
   const showSkeleton = loading && data.length === 0
   const showError = !showSkeleton && Boolean(error) && data.length === 0
@@ -196,7 +199,7 @@ export function DataTable<T>({
           </TableHeader>
           <TableBody>
             {showSkeleton &&
-              Array.from({ length: 4 }, (_, index) => (
+              Array.from({ length: skeletonRows }, (_, index) => (
                 <TableRow key={`loading-${index}`} className="hover:bg-transparent">
                   <TableCell colSpan={colSpan} className="p-2">
                     <div className="h-4 animate-pulse rounded bg-muted" />
@@ -225,7 +228,7 @@ export function DataTable<T>({
                   key={rowId}
                   aria-selected={selectable ? isSelected : undefined}
                   className={cn('hover:bg-muted/50', onRowClick && 'cursor-pointer',
-                    isSelected && 'bg-primary/5')}
+                    isSelected && 'bg-primary/10 hover:bg-primary/15')}
                   onClick={
                     onRowClick
                       ? (event) => {

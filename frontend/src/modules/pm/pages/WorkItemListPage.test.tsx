@@ -465,6 +465,91 @@ describe('WorkItemListPage', () => {
     await waitFor(() => expect(second.container.textContent).toContain('加载失败'))
   })
 
+  it('应用筛选后写入 URL 并重新查询', async () => {
+    const view = mountPage('/pm/projects/10/items/task')
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(view.container.textContent).toContain('登录页超时'))
+
+    click(buttonByText(document.body, '筛选'))
+    await waitFor(() => expect(document.body.textContent).toContain('筛选工作项'))
+    click(buttonByText(document.body, '我的工作项'))
+    click(buttonByText(document.body, '应用筛选'))
+
+    await waitFor(() => {
+      const search = decodeURIComponent(view.container.querySelector('[data-testid="location"]')?.textContent ?? '')
+      expect(search).toContain('f=')
+      expect(search).toContain('assignee_id')
+    })
+    await waitFor(() => {
+      const calls = vi.mocked(pmWorkItemApi.page).mock.calls
+      const last = calls.at(-1)?.[0]
+      expect(JSON.stringify(last)).toContain('assignee_id')
+    })
+    expect(document.body.textContent).not.toContain('筛选工作项')
+  })
+
+  it('空态显示新建按钮', async () => {
+    vi.mocked(pmWorkItemApi.page).mockResolvedValue({ records: [], total: 0, size: 10, current: 1, pages: 0 } as never)
+    const view = mountPage('/pm/projects/10/items/task')
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(view.container.textContent).toContain('没有匹配的工作项'))
+    expect(buttonByText(view.container, '新建工作项')).toBeTruthy()
+    expect(view.container.querySelector('thead')?.textContent).toContain('标题')
+  })
+
+  it('加载态保留表头与 8 行骨架', async () => {
+    vi.mocked(pmWorkItemApi.page).mockReturnValue(new Promise(() => {}) as never)
+    const view = mountPage('/pm/projects/10/items/task')
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(view.container.querySelectorAll('tbody tr').length).toBe(8))
+    expect(view.container.querySelector('thead')?.textContent).toContain('标题')
+  })
+
+  it('加载失败展示请求编号', async () => {
+    vi.mocked(pmWorkItemApi.page).mockRejectedValue(toApiError(500, '服务不可用', 'req_demo_1') as never)
+    const view = mountPage('/pm/projects/10/items/task')
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(view.container.textContent).toContain('req_demo_1'))
+  })
+
+  it('保存视图后切换到新视图', async () => {
+    vi.mocked(pmViewApi.list)
+      .mockResolvedValueOnce([] as never)
+      .mockResolvedValue([{ id: 77, projectId: 10, name: '研发待办 · 我的配置', typeCode: 'task', querySpec: {} }] as never)
+    const view = mountPage('/pm/projects/10/items/task')
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(view.container.textContent).toContain('登录页超时'))
+
+    click(buttonByText(view.container, '保存视图'))
+    await waitFor(() => expect(document.body.textContent).toContain('视图名称'))
+    const dialog = document.querySelector('[data-slot="dialog-content"]') as HTMLElement
+    click(buttonByText(dialog, '保存视图'))
+
+    await waitFor(() => expect(vi.mocked(pmViewApi.save)).toHaveBeenCalled())
+    await waitFor(() => {
+      const search = view.container.querySelector('[data-testid="location"]')?.textContent ?? ''
+      expect(search).toContain('view=77')
+    })
+  })
+
+  it('选中后内联批量栏', async () => {
+    const view = mountPage('/pm/projects/10/items/task')
+    root = view.root
+    container = view.container
+    await waitFor(() => expect(view.container.textContent).toContain('登录页超时'))
+
+    click(view.container.querySelector('[aria-label="选择第 1 行"]'))
+    await waitFor(() => expect(view.container.textContent).toContain('已选当前页'))
+    const bar = view.container.querySelector('[data-slot="bulk-action-bar"]') as HTMLElement
+    expect(bar.getAttribute('data-variant')).toBe('inline')
+    expect(bar.className).not.toContain('fixed')
+  })
+
   it('clampsPage', async () => {
     vi.mocked(pmWorkItemApi.page).mockResolvedValue({
       records: [item],

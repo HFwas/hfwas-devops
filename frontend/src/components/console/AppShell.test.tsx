@@ -4,11 +4,15 @@ import { createRoot, type Root } from 'react-dom/client'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppShell } from '@/components/console/AppShell'
+import { pmProjectIssueTypeApi } from '@/modules/pm/api'
 import { useAuthStore } from '@/stores/auth'
 
 vi.mock('@/modules/pm/api', () => ({
   pmProjectApi: {
     getById: vi.fn(async (id: string) => ({ id, code: 'DEVOPS', name: '云原生交付平台' })),
+  },
+  pmWorkItemApi: {
+    getById: vi.fn(async (id: string) => ({ id, itemKey: `DEVOPS-${id}`, projectId: '12', typeCode: 'task', title: '示例' })),
   },
   pmProjectIssueTypeApi: {
     list: vi.fn(async () => [
@@ -108,7 +112,7 @@ describe('AppShell', () => {
     expect(header?.className).toContain('backdrop-blur')
     expect(header?.className).toContain('border-b')
     expect(container.querySelector('[aria-label="切换主题"]')).toBeTruthy()
-    expect(container.querySelector('[aria-label="搜索项目"]')).toBeTruthy()
+    expect(container.querySelector('[aria-label="搜索"]')).toBeTruthy()
     expect(container.querySelector('[aria-label="用户菜单"]')).toBeTruthy()
     expect(container.querySelector('[aria-label="切换产品"]')).toBeTruthy()
     expect(container.querySelector('[aria-label="帮助"]')).toBeTruthy()
@@ -240,7 +244,7 @@ describe('AppShell', () => {
     root = mounted.root
     container = mounted.container
 
-    const search = container.querySelector('[aria-label="搜索项目"]') as HTMLInputElement
+    const search = container.querySelector('[aria-label="搜索"]') as HTMLInputElement
     await submitSearch(search, '项目')
 
     expect(mounted.router.state.location.pathname).toBe('/pm/projects')
@@ -258,7 +262,47 @@ describe('AppShell', () => {
     expect(mounted.router.state.location.pathname).toBe('/pipeline/pipelines')
     expect(mounted.router.state.location.search).toBe('')
   })
+
+  it('全部工作项数量按数值求和', async () => {
+    vi.mocked(pmProjectIssueTypeApi.list).mockResolvedValueOnce([
+      { code: 'requirement', name: '需求', enabled: 1, workItemCount: '1', builtIn: 1 },
+      { code: 'task', name: '任务', enabled: 1, workItemCount: '0', builtIn: 1 },
+      { code: 'bug', name: '缺陷', enabled: 1, workItemCount: '0', builtIn: 1 },
+    ] as never)
+    const mounted = mount('/pm/projects/12/items/all')
+    root = mounted.root
+    container = mounted.container
+    await flush()
+    await flush()
+    await waitForText(container, '全部工作项')
+    const allItems = Array.from(container.querySelectorAll('[data-sidebar="menu-button"]'))
+      .find((element) => element.textContent?.includes('全部工作项'))
+    expect(allItems?.textContent).toContain('1')
+    expect(allItems?.textContent).not.toContain('010000')
+  })
+
+  it('PM 工作项面包屑包含项目名与事项编号', async () => {
+    const mounted = mount('/pm/projects/12/items/task?detail=9')
+    root = mounted.root
+    container = mounted.container
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      if (container.querySelector('nav[aria-label="breadcrumb"]')?.textContent?.includes('DEVOPS-9')) break
+      await flush()
+    }
+    const breadcrumb = container.querySelector('nav[aria-label="breadcrumb"]')?.textContent ?? ''
+    expect(breadcrumb).toContain('云原生交付平台')
+    expect(breadcrumb).toContain('工作项')
+    expect(breadcrumb).toContain('DEVOPS-9')
+  })
 })
+
+async function waitForText(container: HTMLElement, text: string) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    if (container.textContent?.includes(text)) return
+    await flush()
+  }
+  throw new Error(`未找到文本: ${text}`)
+}
 
 function activeHref(container: HTMLElement) {
   return container

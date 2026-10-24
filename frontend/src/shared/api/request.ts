@@ -12,7 +12,7 @@ const request = axios.create({
 
 function rejectResult(result: BaseResult<unknown>): Promise<never> {
   const code = typeof result.code === 'number' ? result.code : ResultCode.BAD_REQUEST
-  return Promise.reject(toApiError(code, result.msg))
+  return Promise.reject(toApiError(code, result.msg, result.requestId))
 }
 
 function handleUnauthorized() {
@@ -66,7 +66,7 @@ request.interceptors.response.use(
     }
 
     if (code != null) {
-      return Promise.reject(toApiError(code, payload?.msg))
+      return Promise.reject(toApiError(code, payload?.msg, payload?.requestId))
     }
 
     if (status === 403) {

@@ -115,27 +115,37 @@ export function ViewConfigDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col overflow-y-auto p-0 sm:max-w-[540px]">
-        <SheetHeader className="border-b px-5 py-4">
+      <SheetContent className="flex w-full flex-col overflow-hidden p-0 sm:max-w-[540px]">
+        <SheetHeader className="shrink-0 border-b px-5 py-4">
           <SheetTitle>视图配置</SheetTitle>
           <SheetDescription>调整显示列、搜索范围与筛选字段，保存后应用到当前视图。</SheetDescription>
         </SheetHeader>
-        <Tabs value={tab} onValueChange={(value) => onTabChange(value as PmConfigTab)} className="flex-1 px-5 py-4">
-          <TabsList className="w-full">
+        <Tabs
+          value={tab}
+          onValueChange={(value) => onTabChange(value as PmConfigTab)}
+          className="flex min-h-0 flex-1 flex-col px-5 py-4"
+        >
+          <TabsList className="w-full shrink-0">
             <TabsTrigger value="columns">显示列</TabsTrigger>
             <TabsTrigger value="search">搜索字段</TabsTrigger>
             <TabsTrigger value="filter">筛选字段</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="columns" className="flex flex-col gap-4 pt-4">
+          <TabsContent value="columns" className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pt-4 pr-1">
             <div className="flex flex-col gap-2">
               <Label>已显示列（顺序即列顺序）</Label>
               {columns.map((column, index) => (
                 <div key={column.key} className="flex items-center gap-2 rounded-md border px-2 py-1.5">
                   <Checkbox checked disabled={column.key === 'title'} onCheckedChange={() => toggleList(column.key, false)} />
-                  <span className="flex-1 text-sm">{column.label}</span>
+                  <span className="text-sm">{column.label}</span>
+                  <span className="flex-1 font-mono text-xs text-muted-foreground">{column.key}</span>
                   {column.missing ? <span className="text-xs text-muted-foreground">字段缺失</span> : null}
-                  {column.key === 'title' ? <Lock className="size-3.5 text-muted-foreground" /> : null}
+                  {column.key === 'title' ? (
+                    <>
+                      <span className="rounded border px-1 text-[10px] text-muted-foreground">固定</span>
+                      <Lock className="size-3.5 text-muted-foreground" />
+                    </>
+                  ) : null}
                   <Button type="button" size="icon" variant="ghost" aria-label={`上移 ${column.label}`} disabled={index === 0} onClick={() => move(column.key, -1)}>
                     <ArrowUp className="size-4" />
                   </Button>
@@ -200,8 +210,10 @@ export function ViewConfigDrawer({
             </div>
           </TabsContent>
 
-          <TabsContent value="search" className="flex flex-col gap-2 pt-4">
-            <p className="text-sm text-muted-foreground">搜索框会在这 N 个字段中匹配，至少保留 1 个。</p>
+          <TabsContent value="search" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pt-4 pr-1">
+            <p className="text-sm text-muted-foreground">
+              搜索框会在这 {draft.searchFields.length} 个字段中匹配，至少保留 1 个。
+            </p>
             {searchCandidates.map((column) => (
               <label key={column.key} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
                 <Checkbox
@@ -216,7 +228,7 @@ export function ViewConfigDrawer({
             </p>
           </TabsContent>
 
-          <TabsContent value="filter" className="flex flex-col gap-2 pt-4">
+          <TabsContent value="filter" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pt-4 pr-1">
             <p className="text-sm text-muted-foreground">筛选构建器只会展示勾选的字段。</p>
             {filterCandidates.map((column) => (
               <label key={column.key} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
@@ -229,14 +241,16 @@ export function ViewConfigDrawer({
             ))}
           </TabsContent>
         </Tabs>
-        <SheetFooter className="border-t px-5 py-3">
-          <Button type="button" variant="outline" onClick={onReset}>
-            <RotateCcw />
-            恢复默认
-          </Button>
-          <Button type="button" disabled={saving} onClick={() => onSave(draft)}>
-            保存配置
-          </Button>
+        <SheetFooter className="shrink-0 border-t px-5 py-3">
+          <div className="flex w-full items-center justify-between gap-2">
+            <Button type="button" variant="outline" onClick={onReset}>
+              <RotateCcw />
+              恢复默认
+            </Button>
+            <Button type="button" disabled={saving} onClick={() => onSave(draft)}>
+              保存配置
+            </Button>
+          </div>
         </SheetFooter>
       </SheetContent>
     </Sheet>

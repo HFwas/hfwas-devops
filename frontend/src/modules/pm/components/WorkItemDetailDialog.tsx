@@ -20,6 +20,8 @@ import { formatDateTime } from '@/modules/pm/utils/format'
 import { asId } from '@/modules/pm/utils/id'
 import { renderMarkdown } from '@/modules/pm/utils/markdown'
 import { userAuthApi } from '@/modules/user/api'
+import { isApiError } from '@/shared/errors/apiError'
+import { ResultCode } from '@/shared/errors/resultCode'
 
 export type WorkItemDetailTab = 'detail' | 'comments' | 'activity'
 
@@ -224,6 +226,8 @@ export function WorkItemDetailDialog({
     setDraft(draftOf(item))
     setInvalid(false)
     setEditing(true)
+    // 编辑态只保留详情页签；若从操作记录/评论进入，先切回详情。
+    if (tab !== 'detail') onTabChange('detail')
   }
 
   const submitEdit = async () => {
@@ -295,15 +299,32 @@ export function WorkItemDetailDialog({
   const customFieldLabel = (key: string) => fields.find((field) => field.fieldKey === key)?.fieldName ?? key
 
   const customEntries = Object.entries(item?.customFields ?? {}).filter(([, value]) => value !== null && value !== undefined && value !== '')
-  const planKeys = /^(story_?points?|risk|fix_?version)$/i
-  const collabKeys = /^(labels?|watchers?)$/i
-  const envKeys = /^(env|environment)$/i
+  // 原型右栏固定展示的扩展字段，先按别名取第一个非空值。
+  const customValue = (...keys: string[]) => keys
+    .map((key) => item?.customFields?.[key])
+    .find((value) => value !== null && value !== undefined && value !== '')
+  const displayCustom = (value: unknown) => (value === null || value === undefined || value === '' ? '未设置' : renderValue(value))
+  const storyPoints = customValue('storyPoints', 'story_points')
+  const risk = customValue('risk')
+  const fixVersion = customValue('fixVersion', 'fix_version')
+  const labels = customValue('labels', 'label')
+  const watchers = customValue('watchers', 'watcher')
+  const environment = customValue('environment', 'env')
+  const knownCustomKeys = /^(story_?points?|risk|fix_?version|labels?|watchers?|env|environment)$/i
   const grouped = {
-    plan: customEntries.filter(([key]) => planKeys.test(key)),
-    collab: customEntries.filter(([key]) => collabKeys.test(key)),
-    env: customEntries.filter(([key]) => envKeys.test(key)),
-    other: customEntries.filter(([key]) => !planKeys.test(key) && !collabKeys.test(key) && !envKeys.test(key)),
+    other: customEntries.filter(([key]) => !knownCustomKeys.test(key)),
   }
+
+  const draftDirty = editing && item ? (
+    draft.title !== (item.title ?? '')
+    || (draft.description ?? '') !== (item.description ?? '')
+    || (draft.priority ?? null) !== (item.priority ?? null)
+    || (draft.assigneeId ?? null) !== (item.assigneeId ?? null)
+    || (draft.endTime ?? '') !== toDateInput(item.endTime)
+    || (draft.moduleId ?? null) !== (item.moduleId ?? null)
+    || (pendingStatus !== '' && pendingStatus !== (item.status ?? ''))
+  ) : false
+  const invalidMessages = invalid ? ['标题不能为空，且不超过 120 个字符'] : []
 
   const transitionMenu = (trigger: ReactNode) => (
     <DropdownMenu>
@@ -322,6 +343,41 @@ export function WorkItemDetailDialog({
     </DropdownMenu>
   )
 
+  // 内联状态：列出全部状态，非法目标置灰并标注原因（原型画板 40）。
+  const statusMenu = (trigger: ReactNode) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
+        {statusOptions.length === 0 ? (
+          <DropdownMenuItem disabled>暂无状态定义</DropdownMenuItem>
+        ) : (
+          statusOptions.map((entry) => {
+            const current = entry.statusCode === item?.status
+            const allowed = transitions.find((transition) => transition.toStatus === entry.statusCode)
+            return (
+              <DropdownMenuItem
+                key={entry.statusCode}
+                disabled={current || !allowed}
+                onSelect={() => {
+                  if (!allowed) return
+                  setInline(null)
+                  transition.mutate([['status', entry.statusCode]])
+                }}
+              >
+                <StatusIcon status={entry.statusCode} label={entry.statusName} tone={workflowStatusTone(entry)} />
+                <span className="flex-1 truncate">{entry.statusName}</span>
+                <span className="text-xs text-muted-foreground">
+                  {current ? '当前' : allowed ? '' : '工作流不允许'}
+                </span>
+              </DropdownMenuItem>
+            )
+          })
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
+
   const renderValue = (value: unknown) => {
     if (Array.isArray(value)) return value.join('、') || '—'
     if (typeof value === 'object' && value !== null) return JSON.stringify(value)
@@ -334,6 +390,8 @@ export function WorkItemDetailDialog({
     value: ReactNode,
     control?: ReactNode,
     editControl?: ReactNode,
+    /** 选中即保存的内联控件不显示「取消/保存」。 */
+    instant = false,
   ) => {
     const editingField = editing && !!editControl
     const mutable = !readOnly && !editing && !!field
@@ -354,7 +412,7 @@ export function WorkItemDetailDialog({
             <Pencil className="size-3.5" />
           </button>
         ) : null}
-        {active ? (
+        {active && !instant ? (
           <div className="flex shrink-0 items-center gap-1">
             <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setInline(null)}>
               取消
@@ -370,8 +428,17 @@ export function WorkItemDetailDialog({
 
   const inlineControl = (): React.ReactNode => {
     if (inline === 'priority') {
+      // 选中即保存，不再需要二次确认按钮。
       return (
-        <select aria-label="优先级" className={selectClass} value={inlineValue} onChange={(event) => setInlineValue(event.target.value)}>
+        <select
+          aria-label="优先级"
+          className={selectClass}
+          value={item?.priority ?? ''}
+          onChange={(event) => {
+            setInline(null)
+            transition.mutate([['priority', event.target.value || null]])
+          }}
+        >
           <option value="">未设置</option>
           {PRIORITY_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
@@ -486,21 +553,22 @@ export function WorkItemDetailDialog({
     </div>
   )
 
-  const detailPane = item ? (
+  // 用函数延迟到所有面板定义之后再求值：页签切换时仍保留标题/页签/右栏。
+  const renderDetailPane = () => (item ? (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start gap-3">
         {editing ? (
           <div className="min-w-0 flex-1">
             <input
               aria-label="标题"
-              className={`w-full rounded-md border bg-background px-2 py-1 text-2xl font-bold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring ${invalid ? 'border-destructive' : ''}`}
+              className={`w-full rounded-md border bg-background px-2 py-1 text-3xl font-bold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring ${invalid ? 'border-destructive' : ''}`}
               value={draft.title}
               onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))}
             />
             {invalid ? <p className="mt-1 text-xs text-destructive">标题不能为空，且不超过 120 个字符</p> : null}
           </div>
         ) : (
-          <h1 className="min-w-0 flex-1 text-2xl font-bold tracking-tight">{item.title}</h1>
+          <h1 className="min-w-0 flex-1 text-3xl font-bold leading-tight tracking-tight">{item.title}</h1>
         )}
         {readOnly ? <span className="rounded border px-2 py-0.5 text-xs text-muted-foreground">只读</span> : null}
         {!readOnly && !editing ? (
@@ -532,9 +600,15 @@ export function WorkItemDetailDialog({
           tone={workflowStatusTone(definition)}
         />
         <span>优先级 {priorityLabel(item.priority)}</span>
-        {item.customFields?.risk ? <span>风险 {String(item.customFields.risk)}</span> : null}
+        {risk != null ? <span>风险 {String(risk)}</span> : null}
         <span>·</span>
         <span>更新于 {formatDateTime(item.updateTime)}</span>
+        {item.sprintId != null ? (
+          <>
+            <span>·</span>
+            <span>迭代 #{item.sprintId}</span>
+          </>
+        ) : null}
         <span>·</span>
         <span>{typeLabel(item.typeCode)}</span>
       </div>
@@ -567,17 +641,33 @@ export function WorkItemDetailDialog({
         {editing ? <span className="self-center px-2 text-xs text-muted-foreground">编辑中 · 保存后可查看操作记录与评论</span> : null}
       </div>
 
+      {editing && invalid ? (
+        <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          有 {invalidMessages.length} 个字段需要修正
+          <ul className="mt-1 list-inside list-disc text-xs">
+            {invalidMessages.map((message) => <li key={message}>{message}</li>)}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="rounded-lg border">
+        <section className="self-start rounded-lg border">
           <header className="flex items-center justify-between border-b px-3 py-2 text-xs text-muted-foreground">
-            <span className="uppercase tracking-wide">描述</span>
-            {!readOnly && !editing && !descEditing ? (
+            <span className="uppercase tracking-wide">
+              {tab === 'detail' ? '描述' : tab === 'activity' ? '操作记录' : '评论'}
+            </span>
+            {tab === 'detail' && !readOnly && !editing && !descEditing ? (
               <Button size="sm" variant="ghost" className="h-7" onClick={() => { setDraft(draftOf(item)); setDescEditing(true); setDescTab('write') }}>
                 编辑描述
               </Button>
             ) : null}
+            {tab === 'activity' && (activitiesQuery.data?.length ?? 0) > 0 ? (
+              <span>共 {activitiesQuery.data?.length} 条 · 最新在前</span>
+            ) : null}
           </header>
-          <div className="p-3">{descriptionBody}</div>
+          <div className="p-3">
+            {tab === 'detail' ? descriptionBody : tab === 'activity' ? activityPane : commentsPane}
+          </div>
         </section>
 
         <aside className="flex flex-col gap-3">
@@ -590,8 +680,12 @@ export function WorkItemDetailDialog({
               <div className="pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">基本信息</div>
               {propRow(
                 '状态', null,
-                transitionMenu(
-                  <button type="button" className="flex items-center gap-1" disabled={readOnly || !transitions.length}>
+                readOnly || editing ? (
+                  <span className="flex items-center gap-1">
+                    <StatusIcon status={item.status} label={definition?.statusName || item.status || '未设置'} tone={workflowStatusTone(definition)} />
+                  </span>
+                ) : statusMenu(
+                  <button type="button" aria-label="状态" className="flex items-center gap-1 hover:text-foreground">
                     <StatusIcon status={item.status} label={definition?.statusName || item.status || '未设置'} tone={workflowStatusTone(definition)} />
                   </button>,
                 ),
@@ -621,6 +715,7 @@ export function WorkItemDetailDialog({
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>,
+                true,
               )}
               {propRow('类型', null, typeLabel(item.typeCode))}
               {propRow(
@@ -650,7 +745,10 @@ export function WorkItemDetailDialog({
                   onChange={(event) => setDraft((prev) => ({ ...prev, endTime: event.target.value }))}
                 />,
               )}
-              {grouped.plan.map(([key, value]) => propRow(customFieldLabel(key), null, renderValue(value)))}
+              {propRow('所属迭代', null, item.sprintId != null ? `#${item.sprintId}` : '未设置')}
+              {propRow('故事点', null, displayCustom(storyPoints))}
+              {propRow('风险等级', null, displayCustom(risk))}
+              {propRow('修复版本', null, displayCustom(fixVersion))}
 
               <div className="pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">归属与协作</div>
               {propRow(
@@ -667,14 +765,12 @@ export function WorkItemDetailDialog({
                   ))}
                 </select>,
               )}
-              {grouped.collab.map(([key, value]) => propRow(customFieldLabel(key), null, renderValue(value)))}
+              {propRow('父事项', null, item.parentId != null ? `#${item.parentId}` : '无父事项')}
+              {propRow('标签', null, displayCustom(labels))}
+              {propRow('关注者', null, displayCustom(watchers))}
 
-              {grouped.env.length ? (
-                <>
-                  <div className="pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">环境</div>
-                  {grouped.env.map(([key, value]) => propRow(customFieldLabel(key), null, renderValue(value)))}
-                </>
-              ) : null}
+              <div className="pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">环境</div>
+              {propRow('环境', null, displayCustom(environment))}
 
               {grouped.other.length ? (
                 <>
@@ -682,16 +778,11 @@ export function WorkItemDetailDialog({
                   {grouped.other.map(([key, value]) => propRow(customFieldLabel(key), null, renderValue(value)))}
                 </>
               ) : null}
-            </div>
-          </section>
 
-          <section className="rounded-lg border">
-            <header className="border-b px-3 py-2 text-xs uppercase tracking-wide text-muted-foreground">人员与时间</header>
-            <div className="flex flex-col gap-1 px-3 py-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">创建人</span><span>{item.createBy != null ? userLabel(item.createBy) : '—'}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">创建时间</span><span>{formatDateTime(item.createTime)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">更新时间</span><span>{formatDateTime(item.updateTime)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">所属模块</span><span>{moduleLabel(item.moduleId)}</span></div>
+              <div className="pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">人员与时间</div>
+              {propRow('创建人', null, item.createBy != null ? userLabel(item.createBy) : '—')}
+              {propRow('创建时间', null, formatDateTime(item.createTime))}
+              {propRow('更新时间', null, formatDateTime(item.updateTime))}
             </div>
           </section>
         </aside>
@@ -701,12 +792,27 @@ export function WorkItemDetailDialog({
         <div className="sticky bottom-0 flex items-center gap-3 rounded-lg border bg-card px-3 py-2 shadow-lg">
           <span className="text-xs text-muted-foreground">未保存的更改 · <b className="text-foreground">标题、描述与字段</b></span>
           <span className="flex-1" />
-          <Button variant="outline" size="sm" onClick={() => { setEditing(false); setInvalid(false); setPendingStatus('') }}>取消</Button>
+          {draftDirty ? (
+            <ConfirmDialog
+              title="放弃未保存的修改？"
+              description="关闭后本次对标题、描述与字段的修改不会保存。"
+              confirmText="放弃修改"
+              cancelText="继续编辑"
+              destructive
+              onConfirm={() => { setEditing(false); setInvalid(false); setPendingStatus('') }}
+            >
+              <Button variant="outline" size="sm">取消</Button>
+            </ConfirmDialog>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => { setEditing(false); setInvalid(false); setPendingStatus('') }}>
+              取消
+            </Button>
+          )}
           <Button size="sm" onClick={() => void submitEdit()} disabled={patchMutation.isPending}>保存修改</Button>
         </div>
       ) : null}
     </div>
-  ) : null
+  ) : null)
 
   const activityPane = (
     <div className="flex flex-col gap-2">
@@ -735,6 +841,14 @@ export function WorkItemDetailDialog({
       </ul>
     </div>
   )
+
+  const inaccessible = isApiError(itemQuery.error) && [
+    ResultCode.NOT_FOUND,
+    ResultCode.FORBIDDEN,
+    ResultCode.WORK_ITEM_NOT_FOUND,
+    403,
+    404,
+  ].includes(itemQuery.error.code)
 
   const commentsPane = (
     <div className="flex flex-col gap-4">
@@ -812,11 +926,13 @@ export function WorkItemDetailDialog({
         <div className="flex-1 overflow-y-auto p-4">
           {!itemId ? null
             : itemQuery.isPending ? <p className="text-sm text-muted-foreground">加载中…</p>
-            : itemQuery.isError ? <p className="text-sm text-destructive">事项加载失败</p>
+            : itemQuery.isError ? (
+              <p className="text-sm text-muted-foreground">
+                {inaccessible ? '事项不存在或无权访问' : '事项加载失败'}
+              </p>
+            )
             : !item ? <p className="text-sm text-muted-foreground">事项不存在或无权访问</p>
-            : tab === 'detail' ? detailPane
-            : tab === 'activity' ? activityPane
-            : commentsPane}
+            : renderDetailPane()}
         </div>
       </DialogContent>
     </Dialog>
