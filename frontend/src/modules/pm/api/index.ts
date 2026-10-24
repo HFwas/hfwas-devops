@@ -1,4 +1,4 @@
-import { get, post, postBlob, postFormData } from '@/shared/api/request'
+import { get, patch, post, postBlob, postFormData } from '@/shared/api/request'
 import type { PageResult } from '@/shared/types/common'
 import type { EntityId } from '@/modules/pm/utils/id'
 import type { AllowedTransitions, BatchActionConfig, BatchOperationResult, DetailTabDefinition, FeatureDefinition, FieldDefinition, FieldOption, FieldRemoteOptionsConfig, IssueTypeSchemeExport, IssueTypeSchemeImportPreview, IssueTypeSchemeImportResult, PmProject, PmProjectModule, PmSavedView, PmWorkItem, PmWorkItemActivity, PmWorkItemComment, PmWorkItemType, ProjectAccessContext, ProjectFieldSchemeExport, ProjectIssueTypeSchemeExport, QuerySpec, RemoteOptionFetchResult, ResolvedFieldOption, SchemeImportMode, StatusDefinition, StatusWorkflow, TransitionMeta, TransitionPostFunctionMeta, TypeFieldLayoutConfig, TypeFieldSchemeExport, WorkItemImportMode, WorkItemImportPreview, WorkItemImportResult, WorkItemIoColumn } from '@/modules/pm/types'
@@ -24,6 +24,11 @@ export const pmWorkItemApi = {
   page: (spec: QuerySpec) => post<PageResult<PmWorkItem>>('/pm/work-items/page', spec),
   save: (data: PmWorkItem) => post<number>('/pm/work-items/save', data),
   getById: (id: EntityId) => get<PmWorkItem>(`/pm/work-items/${asId(id)}`),
+  updateField: (id: EntityId, payload: { field: string; value: unknown; version: number; transitionId?: string }) =>
+    patch<{ item?: PmWorkItem; fieldKey: string; oldValue?: unknown; newValue?: unknown }>(
+      `/pm/work-items/${asId(id)}/fields`,
+      payload,
+    ),
   delete: (id: EntityId) => post<void>(`/pm/work-items/delete?id=${asId(id)}`, {}),
   transition: (id: EntityId, payload: { transitionId: string; fields?: Record<string, unknown> }) =>
     post<void>(`/pm/work-items/${asId(id)}/transition`, payload),

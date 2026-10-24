@@ -33,6 +33,7 @@ vi.mock('@/modules/pm/api', () => ({
     getById: vi.fn(),
     transition: vi.fn(),
     listComments: vi.fn(),
+    countComments: vi.fn(),
     saveComment: vi.fn(),
     listActivities: vi.fn(),
     batchUpdate: vi.fn(),
@@ -145,6 +146,7 @@ function setupDefaults() {
   vi.mocked(pmFieldApi.catalog).mockResolvedValue([])
   vi.mocked(pmWorkItemApi.getById).mockResolvedValue(item as never)
   vi.mocked(pmWorkItemApi.listComments).mockResolvedValue([])
+  vi.mocked(pmWorkItemApi.countComments).mockResolvedValue(0)
   vi.mocked(pmWorkItemApi.listActivities).mockResolvedValue([])
   vi.mocked(pmWorkItemApi.saveComment).mockResolvedValue(1)
   vi.mocked(pmWorkItemApi.transition).mockResolvedValue(undefined)
@@ -213,7 +215,7 @@ describe('WorkItemListPage', () => {
     const dialog = document.querySelector('[data-slot="dialog-content"]') as HTMLElement
     expect(vi.mocked(pmWorkItemApi.getById)).toHaveBeenCalledWith('9')
 
-    const commentTab = Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === '评论')
+    const commentTab = Array.from(dialog.querySelectorAll('[role="tab"]')).find((button) => button.textContent?.startsWith('评论'))
     click(commentTab)
     await waitFor(() => {
       const search = view.container.querySelector('[data-testid="location"]')?.textContent ?? ''

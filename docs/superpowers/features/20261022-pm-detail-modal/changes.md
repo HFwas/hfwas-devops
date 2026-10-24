@@ -1,7 +1,7 @@
 # PM 事项详情弹窗代码变更（原型阶段）
 
-> 日期：2026-10-22
-> 版本：v0.2
+> 日期：2026-10-24
+> 版本：v0.4
 > 状态：原型 + 实现完成
 > 关联：[design.md](./design.md)、[test-cases.md](./test-cases.md)
 
@@ -11,6 +11,8 @@
 |------|------|----------|
 | v0.1 | 2026-10-22 | 记录原型阶段改动文件与验证结果 |
 | v0.2 | 2026-10-22 | 回填实现改动：新增详情弹窗组件、移除详情路由、标题/看板入口迁移，补测试与验证 |
+| v0.3 | 2026-10-24 | 对齐原型布局：双栏 + 属性分组 + 页签改名 + 复制链接 + 完整编辑 + 内联编辑 + Markdown 渲染 |
+| v0.4 | 2026-10-24 | 校验修复：单字段更新接口、行内按钮误显、取消编辑重置、描述工具栏、编辑态锁页签、评论 Markdown、Markdown 斜体/代码/mailto |
 
 ---
 
@@ -38,16 +40,28 @@
 | `frontend/src/modules/pm/pages/WorkItemListPage.test.tsx` | 修改 | TC-14~17 | 新增打开/切页签/关闭/标题链接用例，补详情 API mock |
 | `frontend/src/modules/pm/utils/columns.test.tsx` | 修改 | TC-17 | 断言详情参数链接 |
 
-## 3. 与原型 v1.11 的差异
+## 2.1 对齐原型的改动（2026-10-24）
+
+| 文件 | 动作 | 说明 |
+|---|---|---|
+| `frontend/src/modules/pm/components/WorkItemDetailDialog.tsx` | 重写 | 双栏布局、属性分组、页签详情/操作记录/评论（评论计数）、复制链接、完整编辑（标题/描述/优先级/负责人/截止时间/模块，状态走流转）、内联编辑（优先级/负责人/截止时间/模块、状态流转菜单）、只读模式 |
+| `frontend/src/modules/pm/utils/markdown.ts` | 新增 | 极简安全 Markdown 渲染：标题/列表/引用/代码块/行内代码/加粗/斜体/http(s) 链接 |
+| `frontend/src/modules/pm/utils/markdown.test.ts` | 新增 | 渲染与 XSS 转义用例 |
+| `frontend/src/modules/pm/components/WorkItemDetailDialog.test.tsx` | 新增 | 布局、完整编辑、内联优先级、只读用例 |
+| `frontend/src/modules/pm/pages/WorkItemListPage.tsx` | 修改 | 传 `readOnly={forbidden}` |
+| `frontend/src/modules/pm/pages/WorkItemListPage.test.tsx` | 修改 | 补 countComments mock、页签按 role=tab 选择 |
+
+## 3. 与原型 v1.13 的差异
 
 | # | 差异 | 原因 |
 |---|---|---|
-| 23 | 实现使用 Radix Dialog 的默认关闭按钮，未额外做「复制链接」 | 当前无复制工具函数；后续补 |
-| 24 | 详情页签为「概览 / 评论 / 活动」（顺序与文案均不同），原型为「详情 / 操作记录 / 评论」 | 沿用实现既有能力与文案，避免与后端 activity/comment 语义混淆；URL 值已是 `detail/comments/activity` |
-| 25 | 未实现原型的双栏主体、右栏属性、编辑条、完整字段编辑、内联更新与 Markdown 描述编辑器 | 现有后端能力只有状态流转、评论、删除；实现为单栏概览 |
-| 26 | 未做遮罩点击关闭与 ESC 之外的焦点陷阱细节 | Radix Dialog 自带 ESC 与焦点管理；点击遮罩关闭由 `onOpenChange` 覆盖 |
-| 27 | 只读态与独立 404 态未呈现：`getById` 404 会显示「事项加载失败」，`dstate` 参数未在 React 侧消费 | 本轮未接项目角色接口，也无 404 专用文案；后续补 |
-| 28 | 旧详情路由命中 `*` → `RouteScreen` 占位，不是 404 文案 | 路由兜底即此行为，未额外加 404 页 |
+| 23 | ~~未提供复制链接~~ | 已补齐 |
+| 24 | ~~页签文案/顺序不同~~ | 已改为详情 / 操作记录 / 评论 |
+| 25 | 内联编辑覆盖优先级、负责人、截止时间、所属模块与状态流转；报告人、类型、迭代、父事项、标签、关注者、自定义字段仍只读 | 类型与迭代等控件待补；已通过单字段更新接口支持清空 |
+| 26 | 遮罩点击关闭与焦点陷阱沿用 Radix 默认 | 可接受 |
+| 27 | 独立 404 态仍未实现（404 显示「事项加载失败」）；只读态已由 `readOnly` 支持 | 404 文案后续补 |
+| 28 | 旧详情路由命中 `*` → `RouteScreen` 占位 | 路由兜底即此行为 |
+| 29 | Markdown 为极简渲染器（标题/列表/引用/代码/加粗/斜体/链接，支持 http(s) 与 mailto），不支持表格、图片 | 不引入第三方依赖 |
 
 ## 4. 验证结果
 
@@ -60,6 +74,7 @@
 | 前端测试 | `npm test` | 通过：80 files / 333 passed / 1 skipped |
 | 前端构建 | `npm run build` | 通过（既有 chunk 体积警告） |
 | 详情参数保持 | `usePmListUrlState` + 列表用例 | 分页夹取等列表写入后 `detail` 仍在；切页签/关闭后 `page` 等参数保留（`WorkItemListPage.test.tsx::keepsDetailWhenListWrites`） |
+| 前端测试（弹窗） | `npx vitest run src/modules/pm/components/WorkItemDetailDialog.test.tsx src/modules/pm/utils/markdown.test.ts` | 通过：8 tests |
 | 真实应用截图 | — | 未执行：本机后端 8080 未启动 |
 | 关闭行为 | 点击顶部 × | URL 仅移除详情参数，列表 10 行仍在 |
 | 画板重出 | README §4.1 命令 | 01、28–48、51、53、54 已更新 |

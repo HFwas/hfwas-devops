@@ -641,7 +641,7 @@ export function WorkItemListPage() {
         ) : null}
       </ListPageShell>
 
-      {!forbidden && detailId ? (
+      {detailId ? (
         <WorkItemDetailDialog
           key={detailId}
           projectId={projectId}
@@ -651,6 +651,7 @@ export function WorkItemListPage() {
           open
           onOpenChange={(open) => { if (!open) closeDetail() }}
           onTabChange={changeDetailTab}
+          readOnly={forbidden}
         />
       ) : null}
 

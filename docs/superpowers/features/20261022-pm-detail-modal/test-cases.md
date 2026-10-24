@@ -1,7 +1,7 @@
 # PM 事项详情弹窗测试用例
 
-> 日期：2026-10-22
-> 版本：v0.2
+> 日期：2026-10-24
+> 版本：v0.4
 > 状态：原型与实现用例均已执行
 > 关联：[design.md](./design.md)
 
@@ -11,6 +11,8 @@
 |------|------|----------|
 | v0.1 | 2026-10-22 | 初版：原型 URL、状态、关闭与回归用例 |
 | v0.2 | 2026-10-22 | 补实现用例 TC-14~17 与自动化位置；原型用例仍保留 |
+| v0.3 | 2026-10-24 | 新增布局/完整编辑/内联编辑/只读用例 TC-19~22 与 Markdown 用例 |
+| v0.4 | 2026-10-24 | 写操作改为单字段更新接口；补只读无残留按钮、Markdown 斜体/代码/mailto 用例 |
 
 ---
 
@@ -41,3 +43,8 @@
 | TC-16 | 关闭详情 | 点弹窗关闭 | URL 移除 `detail`/`dtab`，列表保持 | 同上 |
 | TC-17 | 标题链接 | 列表标题单元格 | href 为 `/pm/projects/10/items/task?detail=9`（保留列表参数） | `WorkItemListPage.test.tsx::titleLinksToDetailParam`、`columns.test.tsx::linksWithItemType` |
 | TC-18 | 旧路由 | 访问 `/pm/projects/10/items/task/9` | 不再匹配详情路由，落到 `RouteScreen` 占位 | 手工（路由已移除） |
+| TC-19 | 双栏详情 | 打开弹窗 | 页签为详情/操作记录/评论；右侧属性分「基本信息/计划/归属与协作」；人员与时间卡存在；描述按 Markdown 渲染 | `WorkItemDetailDialog.test.tsx::rendersTwoColumnPrototypeLayout` |
+| TC-20 | 完整编辑 | 点「完整编辑」改标题后保存 | 调用 `updateField`，字段 title、值为新标题 | `WorkItemDetailDialog.test.tsx::savesFullEditFields` |
+| TC-21 | 内联编辑 | 点「编辑优先级」选低并保存 | 调用 `updateField`，字段 priority、值 low | `WorkItemDetailDialog.test.tsx::updatesPriorityInline` |
+| TC-22 | 只读 | `readOnly` | 无完整编辑/编辑描述/删除；显示只读；任意属性行无「保存/取消」按钮 | `WorkItemDetailDialog.test.tsx::hidesWriteActionsInReadOnly` |
+| TC-23 | Markdown | 含标题/列表/代码/链接/脚本/斜体边界/mailto | 正确渲染；脚本被转义，javascript: 链接被拦截，代码内不解析加粗，`2 * 3 * 4` 不误判斜体 | `markdown.test.ts`（4 条） |

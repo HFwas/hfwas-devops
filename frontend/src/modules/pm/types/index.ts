@@ -399,6 +399,8 @@ export interface PmWorkItem {
   sprintId?: number | null
   endTime?: string
   version?: number | string
+  createBy?: number
+  updateBy?: number
   createTime?: string
   customFields?: Record<string, unknown>
   updateTime?: string
