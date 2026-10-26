@@ -17,9 +17,9 @@
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <tika.version>4.0.0</tika.version>
+        <tika.version>4.1.0</tika.version>
         <twelvemonkeys.version>3.15.3</twelvemonkeys.version>
-        <metadata-extractor.version>2.21.0</metadata-extractor.version>
+        <metadata-extractor.version>2.22.0</metadata-extractor.version>
     </properties>
 
     <dependencies>
