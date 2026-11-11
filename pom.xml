@@ -61,7 +61,7 @@
         <poi-ooxml.version>5.5.1</poi-ooxml.version>
         <aspectjrt.version>1.9.25.1</aspectjrt.version>
         <spring-context.version>6.1.19</spring-context.version>
-        <jasypt.version>3.0.5</jasypt.version>
+        <jasypt.version>4.0.4</jasypt.version>
         <hutool.version>5.8.48</hutool.version>
         <fabric8.version>7.9.0</fabric8.version>
     </properties>
